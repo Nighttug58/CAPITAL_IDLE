@@ -51,6 +51,14 @@ function selectCategory(value: CollectionCategoryId) {
   notice.value = ''
   closeDetails()
 }
+function moveCategory(direction: -1 | 1) {
+  const current = COLLECTION_CATEGORIES.findIndex((entry) => entry.id === category.value)
+  const next = COLLECTION_CATEGORIES[(current + direction + COLLECTION_CATEGORIES.length) % COLLECTION_CATEGORIES.length]!
+  selectCategory(next.id)
+  void nextTick(() => document.querySelector<HTMLButtonElement>(
+    '.collection-tab[aria-selected="true"]',
+  )?.focus())
+}
 function openDetails(id: string) {
   selectedId.value = id
   confirming.value = false
@@ -129,7 +137,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       <button v-for="entry in COLLECTION_CATEGORIES" :key="entry.id" type="button"
         class="collection-tab" role="tab" :class="{ 'is-selected': category === entry.id }"
         :aria-selected="category === entry.id" :aria-controls="'collection-items-' + entry.id"
-        :tabindex="category === entry.id ? 0 : -1" @click="selectCategory(entry.id)">
+        :tabindex="category === entry.id ? 0 : -1"
+        @click="selectCategory(entry.id)"
+        @keydown.left.prevent="moveCategory(-1)"
+        @keydown.right.prevent="moveCategory(1)">
         <span class="collection-tab-symbol" aria-hidden="true">{{ iconByCategory[entry.id] }}</span>
         <span>{{ entry.label }}</span>
       </button>
