@@ -30,6 +30,18 @@ La progression contient **50 niveaux et 49 améliorations payantes**. Chaque ach
 
 **Migration des sauvegardes :** la v3 conserve les anciennes parties v1 et v2, y compris le solde, le total gagné et la puissance par clic. Les anciens bonus de +2 sont convertis en deux étapes de +1 déjà achetées. Les anciennes sauvegardes restent intactes sur l'appareil.
 
+## Interface premium mobile
+
+- Écran d'accueil en mode **une seule vue**, ajusté à la hauteur visible du téléphone, sans défilement horizontal ou vertical.
+- Solde, total gagné, niveau et coût de la prochaine amélioration uniquement.
+- Barre de progression par **niveau courant** : cadre doré, remplissage vertical or clair → or foncé. Le compteur repart à 0 % au niveau suivant et atteint 100 % au niveau maximum.
+- Grande zone centrale tactile **entièrement cliquable** avec un billet 💵. À chaque clic, le gain réel apparaît au point touché, monte et disparaît en fondu (maximum 12 animations simultanées).
+- Barre de navigation fixe en bas avec un seul onglet **Accueil**.
+- Bouton plein écran conservé, touches de clavier accessibles et animation réduite pour les appareils demandant moins de mouvement.
+- Style adaptatif testé sur plusieurs dimensions d'écrans mobiles, notamment 412 × 892 et 320 × 568 pixels.
+
+La logique de progression (50 niveaux, +1 $ par clic après chaque amélioration) et les sauvegardes existantes restent inchangées.
+
 ## Développement
 
 Prérequis : Node.js 22+ et npm.
