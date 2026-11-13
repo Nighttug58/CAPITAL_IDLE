@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 3/8 passes livrées**  
+**Statut : en cours — 4/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -140,12 +140,16 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Affichage :** la page Entreprises et Stats présentent le revenu brut augmenté et utilisent le compteur XP indépendant pour débloquer les entreprises ; le code ancien reste inchangé pour les comptes sans boosts.
 - **Validation effective :** GitHub Actions [run 43527336314](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43527336314) **success** pour `npm test` (**178 tests métier + 26 tests UI**) et `npm run build:root` (TypeScript/Vite). Première erreur de typage TS2322 dans le catalogue détectée via les logs, corrigée avec les unions littérales `as const`, puis nouveau workflow validé. Publication des assets `main / (root)` demandée avec succès.
 
-### [ ] Passe 4 — Achat et progression du Fame Shop
+### [x] Passe 4 — Achat et progression du Fame Shop
 
 - Actions métier pures : `buyFameUpgrade(type)`, validations fonds, limites de niveau, coûts, débit atomique et conservation des fractions.
 - 20 paliers par type, **+5 % par palier**, tarifs figés et plus chers pour Notoriété.
 - Tests : achat 1→20, 20→refus, insuffisance, refus cash négatif sans incidence, impossibilité d'acheter deux fois un même palier, coût total 24 650.
 - Livrable : boutique fonctionnelle au niveau domaine, sans UI définitive.
+- **Livraison du 14/11/2026 :** `src/prestige/shop.ts` fournit `buyFameUpgrade(state, id, expectedCurrentLevel)`, `getFameShopOffer(s)` et `hasValidFameShopLedger`. L'achat est une transition pure et atomique : un seul palier, coût exact en Fame (micro-unités), +500 points de base (+5 %), aucune mutation du cash, des taxes, de l'XP, des revenus passés ni de la Fame totale gagnée. Le palier attendu **obligatoire** rejette une seconde action d'UI devenue périmée (`stale-level`) plutôt que d'acheter accidentellement le niveau suivant ; refus des IDs inconnus, fonds insuffisants, états invalides et niveaux 20/20.
+- **Anti-doublon sauvegarde :** `getPurchasedFameBoostCost` dans `src/prestige/catalog.ts` dérive les sommes des paliers détenus ; `restorePrestigeState` vérifie exactement `FameGagnéeTotale − FameDisponible = PrixDesPaliersAcquis` avant d'accepter un snapshot v6. Aucun second compteur de dépenses ne risque de diverger ; les fractions de Fame ne sont jamais arrondies lors de l'achat.
+- **Tests :** `src/prestige/shop.test.ts` couvre les six offres et prix, achat simple, achat répété au même palier, fonds insuffisants, état invalide, cash négatif (indépendant de la Fame), fractions avec Notoriété, persistance localStorage/export/import JSON, restauration anti-triche et **120 achats après niveau 100 + 50 collections pour 24 650 Fame, laissant 600 Fame**. Cette passe ne crée ni nouvel écran ni bouton d'achat (UI prévue passe 6).
+- **CI validée :** workflow GitHub Actions [run 43528260071](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43528260071) **success** avec **186 tests métier + 26 tests UI (212 au total)**, `vue-tsc --noEmit`, `vite build`, synchronisation du site `main/(root)` et demande de publication Pages réussies.
 
 ### [ ] Passe 5 — Collections : 50 objets et transactions Gold → Fame
 
