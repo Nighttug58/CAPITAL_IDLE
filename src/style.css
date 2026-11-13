@@ -144,9 +144,6 @@ button:disabled { cursor: not-allowed; }
   pointer-events: none;
 }
 .tap-zone:active { background: radial-gradient(ellipse 65% 51% at 50% 43%, rgba(190, 135, 54, .29), transparent 82%), #182023; }
-.tap-corner { position: absolute; width: 33px; height: 33px; opacity: .64; pointer-events: none; }
-.tap-corner-top { top: 18px; left: 18px; border-top: 1px solid #e7ba6c; border-left: 1px solid #e7ba6c; }
-.tap-corner-bottom { bottom: 18px; right: 18px; border-right: 1px solid #e7ba6c; border-bottom: 1px solid #e7ba6c; }
 .tap-content { display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: clamp(7px, 1.5dvh, 15px); }
 .banknotes { font-size: clamp(82px, 14dvh, 116px); line-height: 1.22; filter: drop-shadow(0 9px 18px #0008) drop-shadow(0 0 25px #e5b46127); transform: translateZ(0); }
 .tap-action { font-size: 10px; font-weight: 780; letter-spacing: .24em; color: #b3a88e; }
