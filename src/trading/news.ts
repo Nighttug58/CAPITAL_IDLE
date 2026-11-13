@@ -1,5 +1,14 @@
 import { ASSETS, getAsset } from './catalog.ts'
 import type { AssetDefinition, AssetKind, MarketNews } from './types.ts'
+import { INNOVATION_STORIES } from './news-library/innovation.ts'
+import { FINANCE_STORIES } from './news-library/finance.ts'
+import { SCANDAL_STORIES } from './news-library/scandal.ts'
+import { MACRO_STORIES } from './news-library/macro.ts'
+import { CRYPTO_STORIES } from './news-library/crypto.ts'
+import { HACK_STORIES } from './news-library/hacks.ts'
+import { SOCIAL_STORIES } from './news-library/social.ts'
+import { RUMOR_STORIES } from './news-library/rumors.ts'
+
 
 const TICK_MS = 5_000
 export const MIN_NEWS_INTERVAL_MS = 120_000
@@ -52,6 +61,14 @@ export const NEWS_TEMPLATES: readonly NewsTemplate[] = Object.freeze([
   { id: 'rumor-acquisition', headline: 'Rumeur de rachat concernant {asset}', description: 'Des discussions non confirmées évoquent une offre industrielle inattendue.', scenario: 'Le mouvement pourrait changer de sens après confirmation ou démenti.', category: 'rumor', kind: 'stock', target: 'single', direction: 1, priceWeight: 1, dividendWeight: 0.2, rumored: true },
   { id: 'rumor-crypto-ban', headline: 'Une interdiction de cryptos serait à l’étude', description: 'Un document anonyme évoque un durcissement majeur, sans communication officielle.', scenario: 'Un démenti pourrait modifier la pression sur les prix.', category: 'rumor', kind: 'crypto', target: 'kind', direction: -1, priceWeight: 0.85, dividendWeight: 0, rumored: true },
   { id: 'rumor-meme-listing', headline: '{asset} serait bientôt coté sur une grande plateforme', description: 'Des captures d’écran invérifiables alimentent les spéculations sur une cotation imminente.', scenario: 'L’issue de la rumeur peut provoquer un retournement.', category: 'rumor', kind: 'memecoin', target: 'single', direction: 1, priceWeight: 1, dividendWeight: 0, rumored: true },
+  ...INNOVATION_STORIES,
+  ...FINANCE_STORIES,
+  ...SCANDAL_STORIES,
+  ...MACRO_STORIES,
+  ...CRYPTO_STORIES,
+  ...HACK_STORIES,
+  ...SOCIAL_STORIES,
+  ...RUMOR_STORIES,
 ])
 
 const templateIndex = new Map(NEWS_TEMPLATES.map((entry) => [entry.id, entry]))

@@ -24,9 +24,9 @@ function event(overrides: Partial<MarketNews> = {}): MarketNews {
   }
 }
 
-test('26 fiches originales, identifiants uniques, descriptions et catégories cohérentes', () => {
-  assert.equal(NEWS_TEMPLATES.length, 26)
-  assert.equal(new Set(NEWS_TEMPLATES.map((story) => story.id)).size, 26)
+test('300 fiches originales, identifiants uniques, descriptions et catégories cohérentes', () => {
+  assert.equal(NEWS_TEMPLATES.length, 300)
+  assert.equal(new Set(NEWS_TEMPLATES.map((story) => story.id)).size, 300)
   for (const story of NEWS_TEMPLATES) {
     assert.ok(story.headline.length > 20, story.id)
     assert.ok(story.description.length > 65, story.id)
@@ -39,6 +39,25 @@ test('26 fiches originales, identifiants uniques, descriptions et catégories co
   assert.ok(NEWS_TEMPLATES.some((story) => story.target === 'sector'))
   assert.ok(NEWS_TEMPLATES.some((story) => story.target === 'global'))
   assert.ok(NEWS_TEMPLATES.some((story) => story.rumored))
+})
+
+test('les 274 nouvelles fiches sont distinctes et classées par thème', () => {
+  const categories: Record<string, number> = {
+    innovation: 47, finance: 33, scandal: 37, macro: 37,
+    crypto: 38, hack: 29, social: 36, rumors: 17,
+  }
+  for (const [category, count] of Object.entries(categories)) {
+    const rows = NEWS_TEMPLATES.filter(item => item.id.startsWith('lib-' + category + '-'))
+    assert.equal(rows.length, count, category)
+    assert.equal(new Set(rows.map(item => item.headline)).size, count, category + ' titles')
+    assert.equal(new Set(rows.map(item => item.description)).size, count, category + ' descriptions')
+    assert.equal(new Set(rows.map(item => item.scenario)).size, count, category + ' scenarios')
+  }
+  const added = NEWS_TEMPLATES.filter(item => item.id.startsWith('lib-'))
+  assert.equal(added.length, 274)
+  assert.equal(new Set(added.map(item => item.headline)).size, added.length)
+  assert.equal(new Set(added.map(item => item.description)).size, added.length)
+  assert.equal(new Set(added.map(item => item.scenario)).size, added.length)
 })
 
 test('première News : attente de 2–8 minutes sans génération instantanée', () => {
@@ -139,7 +158,9 @@ test('chevauchement, annulation partielle et saturation des effets globaux', () 
 })
 
 test('rumeur : démenti choisi une seule fois et conservé par les sauvegardes', () => {
-  const picks = [0.94, 0.5, 0.9, 0.6, 0.4, 0.4]
+  const index = NEWS_TEMPLATES.findIndex(story => story.id === 'rumor-crypto-ban')
+  assert.ok(index >= 0)
+  const picks = [(index + 0.5) / NEWS_TEMPLATES.length, 0.5, 0.9, 0.6, 0.4, 0.4]
   let i = 0
   const initial = advanceNewsTick([], START + TICK, START, START + TICK, () => picks[i++] ?? 0.4)
   assert.equal(initial.news.length, 1)
