@@ -79,17 +79,17 @@ test('Dividendes : seules les sommes effectivement créditées sont suivies', ()
 })
 
 test('Entreprises : la valeur comptable est conservée, mais aucune revente possible', () => {
-  const purchase = buyEnterprise(founded(), 'kiosque', AT)
+  const purchase = buyEnterprise(founded(100_000), 'kiosque', AT)
   assert.ok(purchase.ok)
   const next = advanceEnterpriseIncome(purchase.state, AT + 24 * 3_600_000)
   const view = getCapitalStatsOverview(next)
   assert.equal(view.enterpriseCount, 1)
   assert.equal(view.enterpriseLevels, 1)
-  assert.equal(view.enterpriseBookValue, 150)
+  assert.equal(view.enterpriseBookValue, 75_000)
   assert.equal(view.enterpriseIncomePerSecond, 5_208 / 1_000_000)
   assert.ok(view.sources.find(s => s.id === 'enterprises')!.gains > 0)
   assert.equal(view.assetMarketValue, 0)
-  assert.equal(view.netWorth, next.game.balance + 150 - next.fiscal.taxesDueCents / 100)
+  assert.equal(view.netWorth, next.game.balance + 75_000 - next.fiscal.taxesDueCents / 100)
 })
 
 test('Fortune nette : découvert, titres, entreprises, dette fiscale sans double prélèvement', () => {
@@ -99,22 +99,22 @@ test('Fortune nette : découvert, titres, entreprises, dette fiscale sans double
   state.trading.quotes.nvideo = {
     price: 120, momentum: 0, dividendYield: getAsset('nvideo')!.initialDividendYield, updatedAt: AT,
   }
-  state.enterprises.owned.kiosque = { level: 1, investedCents: 15_000 }
+  state.enterprises.owned.kiosque = { level: 1, investedCents: 7_500_000 }
   const withTax = accrueProfitTax(state, 'stocks', 10_000)
   assert.ok(withTax)
   const view = getCapitalStatsOverview(withTax)
   assert.equal(view.cash, -25)
   assert.equal(view.assetMarketValue, 240)
-  assert.equal(view.enterpriseBookValue, 150)
+  assert.equal(view.enterpriseBookValue, 75_000)
   assert.equal(view.taxesDue, 15)
-  assert.equal(view.netWorth, 350)
+  assert.equal(view.netWorth, 75_200)
   const paid = payFiscalBalanceNow(withTax, AT + 1000)
   assert.ok(paid.ok)
   const after = getCapitalStatsOverview(paid.state)
   assert.equal(after.cash, -40)
   assert.equal(after.taxesDue, 0)
   assert.equal(after.taxesPaid, 15)
-  assert.equal(after.netWorth, 350)
+  assert.equal(after.netWorth, 75_200)
   assert.equal(after.lifetimeEarned, 1000)
 })
 
