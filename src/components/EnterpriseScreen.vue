@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { getLevel } from '../game.ts'
+import { getBonusMultiplier } from '../prestige/bonuses.ts'
 import {
   ENTERPRISES, ENTERPRISE_CATEGORIES, ENTERPRISE_MILESTONES,
   getEnterpriseIncomeMicrosPerSecond, getEnterpriseMilestone,
@@ -26,9 +27,9 @@ const money = (dollars: number) => moneyFormatter.format(dollars) + ' $'
 const rate = (microdollars: number) => incomeFormatter.format(microdollars / 1_000_000) + ' $/s'
 
 const notice = ref<{ id: string; message: string; error: boolean } | null>(null)
-const playerLevel = computed(() => getLevel(props.state.game.lifetimeEarned))
+const playerLevel = computed(() => getLevel(props.state.prestige.experienceCents / 100))
 const acquiredCount = computed(() => Object.keys(props.state.enterprises.owned).length)
-const incomePerSecond = computed(() => getTotalEnterpriseIncomeMicrosPerSecond(props.state))
+const incomePerSecond = computed(() => getTotalEnterpriseIncomeMicrosPerSecond(props.state) * getBonusMultiplier(props.state, 'enterprise'))
 
 const rows = computed(() => ENTERPRISES.map((enterprise) => {
   const holding = props.state.enterprises.owned[enterprise.id]
@@ -38,9 +39,10 @@ const rows = computed(() => ENTERPRISES.map((enterprise) => {
   const nextPriceCents = owned
     ? getEnterpriseUpgradeCostCents(enterprise.id, level)
     : enterprise.purchaseCostCents
-  const incomeMicros = getEnterpriseIncomeMicrosPerSecond(enterprise.id, level || 1) ?? 0
+  const multiplier = getBonusMultiplier(props.state, 'enterprise')
+  const incomeMicros = (getEnterpriseIncomeMicrosPerSecond(enterprise.id, level || 1) ?? 0) * multiplier
   const nextIncomeMicros = owned && level < MAX_ENTERPRISE_LEVEL
-    ? getEnterpriseIncomeMicrosPerSecond(enterprise.id, level + 1)
+    ? (getEnterpriseIncomeMicrosPerSecond(enterprise.id, level + 1) ?? 0) * multiplier
     : null
   const nextMilestone = ENTERPRISE_MILESTONES.find((milestone) => milestone.level > level) ?? null
   return {
