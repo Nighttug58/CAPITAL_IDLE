@@ -53,7 +53,7 @@ export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOvervi
   const levelStart = getLevelStartThreshold(level)
   const nextLevelAt = getNextLevelThreshold(experience)
   const progress = nextLevelAt === null ? 100 :
-    Math.min(100, Math.max(0, (state.game.lifetimeEarned - levelStart) /
+    Math.min(100, Math.max(0, (experience - levelStart) /
       Math.max(1, nextLevelAt - levelStart) * 100))
 
   const portfolio = getPortfolio(state)
