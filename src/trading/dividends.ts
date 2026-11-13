@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { creditExperience } from '../prestige/state.ts'
+import { getBonusMultiplier } from '../prestige/bonuses.ts'
 import { advanceFiscalEconomy } from '../economy/clock.ts'
 import { recordDividendCredit } from '../economy/stats-ledger.ts'
 import { ASSETS } from './catalog.ts'
@@ -39,7 +40,7 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
     trading = advanceMarketTick(trading, recordHistory)
   }
 
-  const accruedCents = dividendCentsForSecond(trading)
+  const accruedCents = dividendCentsForSecond(trading) * getBonusMultiplier(capital, 'dividend')
   const totalCents = trading.dividendCarry + trading.dividendPendingCents + accruedCents
   if (!Number.isFinite(totalCents) || totalCents < 0 || totalCents > MAX_CENTS) {
     // Ne pas avancer l'horloge plutôt que perdre un versement non représentable.
