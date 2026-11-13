@@ -8,7 +8,7 @@ import { earnCapitalClick, recordActivePlay } from './stats-ledger.ts'
 import { getCapitalStatsOverview } from './stats-overview.ts'
 import { buyEnterprise, advanceEnterpriseIncome } from './enterprises.ts'
 import { accrueProfitTax } from './fiscal.ts'
-import { payFiscalBalanceNow } from './clock.ts'
+import { advanceFiscalEconomy, payFiscalBalanceNow } from './clock.ts'
 import type { CapitalState } from '../capital.ts'
 
 const AT = 1_800_000_000_000
@@ -108,14 +108,17 @@ test('Fortune nette : découvert, titres, entreprises, dette fiscale sans double
   assert.equal(view.enterpriseBookValue, 75_000)
   assert.equal(view.taxesDue, 15)
   assert.equal(view.netWorth, 75_200)
+  // Le paiement anticipé rattrape d'abord la seconde de revenu passif :
+  // ne pas confondre le nouveau cash avec l'ancien - 15 $ de taxes.
+  const accrued = advanceFiscalEconomy(withTax, AT + 1000)
   const paid = payFiscalBalanceNow(withTax, AT + 1000)
   assert.ok(paid.ok)
   const after = getCapitalStatsOverview(paid.state)
-  assert.equal(after.cash, -40)
+  assert.equal(after.cash, Math.round((accrued.game.balance - accrued.fiscal.taxesDueCents / 100) * 100) / 100)
   assert.equal(after.taxesDue, 0)
-  assert.equal(after.taxesPaid, 15)
-  assert.equal(after.netWorth, 75_200)
-  assert.equal(after.lifetimeEarned, 1000)
+  assert.equal(after.taxesPaid, accrued.fiscal.taxesDueCents / 100)
+  assert.equal(after.netWorth, getCapitalStatsOverview(accrued).netWorth)
+  assert.equal(after.lifetimeEarned, accrued.game.lifetimeEarned)
 })
 
 test('Migration ancien v5 : attribution inconnue sans inventer des clics ou dividendes', () => {
