@@ -106,7 +106,10 @@ function executeTrade(side: TradeSide, assetId: string, quantity: number): Trade
     ? buyAsset(capital.value, assetId, quantity)
     : sellAsset(capital.value, assetId, quantity)
   if (result.ok) {
-    capital.value = result.state
+    // Comme pour les entreprises, ne pas sauvegarder deux fois le même
+    // mouvement de caisse via le watcher du clicker.
+    applyingMarket = true
+    try { capital.value = result.state } finally { applyingMarket = false }
     persist()
   }
   return result
