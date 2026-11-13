@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 1/8 passes livrées**  
+**Statut : en cours — 2/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -111,12 +111,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 2 — Catalogue et équilibrage des 20 entreprises
 
-- [ ] Définir exactement 20 entreprises avec identifiants stables et niveau joueur requis.
-- [ ] Fixer **prix initial**, revenu/s au niveau 1, **19 coûts d'amélioration**, courbe de revenu et **bonus explicites aux niveaux 5, 10, 15, 20**.
-- [ ] Comparer les délais de retour sur investissement et la progression globale au clicker, aux dividendes et au trading ; corriger les courbes déséquilibrées.
-- [ ] Fonctions pures de consultation (`unlock`, `price`, `incomeAtLevel`), contrôles d'unicité et niveau 1–20.
-- [ ] Tests catalogue, bonus de palier, monotonie des coûts/revenus, conditions de déblocage, plafonds.
+- [x] Définir exactement 20 entreprises avec identifiants stables et niveau joueur requis.
+- [x] Fixer **prix initial**, revenu/s au niveau 1, **19 coûts d'amélioration**, courbe de revenu et **bonus explicites aux niveaux 5, 10, 15, 20**.
+- [x] Comparer les délais de retour sur investissement et la progression globale au clicker, aux dividendes et au trading ; corriger les courbes déséquilibrées.
+- [x] Fonctions pures de consultation (`unlock`, `price`, `incomeAtLevel`), contrôles d'unicité et niveau 1–20.
+- [x] Tests catalogue, bonus de palier, monotonie des coûts/revenus, conditions de déblocage, plafonds.
 - **Livrable :** catalogue déterministe exploitable par le jeu, chiffres documentés.
+
+**Validée le 13/11/2026** — [implémentation f667a44](https://github.com/Nighttug58/CAPITAL_IDLE/commit/f667a446b4b93943b4755783dd6b5adaea94ab13), [PR #2](https://github.com/Nighttug58/CAPITAL_IDLE/pull/2) ; [CI #43494996488](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43494996488) : **tests, compilation et publication du build réussis**. `src/economy/catalog.ts` : 20 entreprises immuables, déblocage niv. 3–50, 19 coûts d'amélioration, revenus fixes précis au microdollar et bonus 5/10/15/20. `src/economy/catalog.test.ts` ajouté à `npm test` : unicité, 20 niveaux, paliers, sûreté des entiers, rentabilité et invariants. [Équilibrage documenté](ENTREPRISES_ECONOMIE.md) : achats de 150 $ à 300 M$, retour initial brut d'environ 8 à 64 h ; **ni achats ni versements activés avant la passe 3**. Aucun changement du moteur Trading.
 
 ### Passe 3 — Achat, amélioration, revenus et page Entreprises
 
