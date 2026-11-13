@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
@@ -58,11 +59,7 @@ export function feeRate(kind: AssetKind): number {
   return kind === 'stock' ? 0.005 : kind === 'crypto' ? 0.01 : 0.015
 }
 
-function asCents(value: number): number | null {
-  if (!Number.isFinite(value) || Math.abs(value) > MAX_CENTS / CENTS) return null
-  const cents = Math.round(value * CENTS)
-  return Number.isSafeInteger(cents) && Math.abs(value * CENTS - cents) < 0.0001 ? cents : null
-}
+function asCents(value: number): number | null { return exactMoneyCents(value) }
 
 function toMoney(cents: number): number {
   return cents / CENTS
