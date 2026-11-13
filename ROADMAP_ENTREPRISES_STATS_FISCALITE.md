@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 6/8 passes livrées**  
+**Statut : en cours — 7/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -166,12 +166,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 7 — Export JSON, import confirmé, réinitialisation confirmée
 
-- [ ] **Tout en bas de Stats** : Exporter, Importer et Réinitialiser la sauvegarde.
-- [ ] Export JSON complet, versionné, stable, téléchargeable ; ne pas interrompre la partie.
-- [ ] Import avec validation forte et migration supportée, aperçu/résumé du fichier, confirmation **avant remplacement**, transaction atomique et relance propre des runtimes.
-- [ ] Réinitialisation avec saisie `RESET`, confirmation, suppression des clés obsolètes empêchant une migration fantôme et nouveau cycle fiscal.
-- [ ] Tests export→import (toutes les données et horloges préservées), corruption, mauvaise version, annulation, reset, absence de résurrection v4.
+- [x] **Tout en bas de Stats** : Exporter, Importer et Réinitialiser la sauvegarde.
+- [x] Export JSON complet, versionné, stable, téléchargeable ; ne pas interrompre la partie.
+- [x] Import avec validation forte et migration supportée, aperçu/résumé du fichier, confirmation **avant remplacement**, transaction atomique et relance propre des runtimes.
+- [x] Réinitialisation avec saisie `RESET`, confirmation, suppression des clés obsolètes empêchant une migration fantôme et nouveau cycle fiscal.
+- [x] Tests export→import (toutes les données et horloges préservées), corruption, mauvaise version, annulation, reset, absence de résurrection v4.
 - **Livrable :** outils de sauvegarde manuelle fiables sans compromettre l'autosauvegarde.
+
+**Validée le 13/11/2026** — [PR #7](https://github.com/Nighttug58/CAPITAL_IDLE/pull/7), [commit de développement 32c88e2](https://github.com/Nighttug58/CAPITAL_IDLE/commit/32c88e2517b250e56366f9af4ba0de13903f9a45). [CI #43511841930](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43511841930) : **`npm test` avec tests métier et Vue, compilation TypeScript/Vite, mise à jour du site `main/root` et demande de build GitHub Pages réussis**. `src/save-transfer.ts` : export JSON complet versionné, horodatage, nom `CAPITAL_IDLE_save_YYYY-MM-DD.json`, fichier maximal 16 Mo, import de fichiers bruts v4/v5 et conteneurs v5, **vérification stricte** des sections, montants, horodatages, positions, fiscalité et statistiques ; rejet intégral avant confirmation si corrompu, sans remise à zéro silencieuse. `src/persistence.ts` : écriture v5 contrôlée **avant** purge des clés v1–v4, priorité v5 même si corrompue pour éviter toute résurrection. `src/App.vue` : arrêt de l'ancien runtime, remplacement synchronisé et relance sur les horloges importées, rattrapage normal des gains d'entreprises et échéances fiscales (pas de remise à zéro du timer sur import), retour à la partie précédente si écriture impossible. `src/components/StatsScreen.vue` : **tout en bas** Exporter, Importer (aperçu + confirmation), Reset irréversible **avec saisie exacte RESET** ; styles mobiles et messages d'erreur. `src/save-transfer.test.ts` : **11 tests** export/import complet, v4/v5, migration d'anciennes données, 90 jours hors ligne, rejet de corruption/taille/version/date, reset sans résurrection et échec de stockage ; `src/components/stats-ui.test.ts` : **4 tests UI** supplémentaires, import/annulation/reset et petits écrans. L'autosauvegarde existante reste active.
 
 ### Passe 8 — Audit final, régressions et livraison
 
