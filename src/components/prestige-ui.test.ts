@@ -111,7 +111,7 @@ describe('Fame Shop & Collection — responsive UI', () => {
     expect(dialog.exists()).toBe(true)
     expect(dialog.attributes('aria-modal')).toBe('true')
     expect(dialog.text()).toContain('Les Fleurs du Matin')
-    expect(dialog.text()).toContain('1 500')
+    expect(dialog.text()).toContain(new Intl.NumberFormat('fr-CH').format(1500))
     expect(dialog.text()).toContain('10')
     expect(dialog.text()).toContain('Expérience')
     expect(dialog.find('button.collection-buy-button').attributes('disabled')).toBeUndefined()
@@ -131,7 +131,7 @@ describe('Fame Shop & Collection — responsive UI', () => {
     expect(wrapper.find('.collection-card[data-item-id="paintings-01"]').classes()).toContain('is-owned')
     await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
     expect(wrapper.find('.stats-assets').text()).toContain('Collections')
-    expect(wrapper.find('.stats-assets').text()).toContain('1 500')
+    expect(wrapper.find('.stats-assets').text()).toContain(new Intl.NumberFormat('fr-CH').format(1500))
   })
 
   it('Collection : sous-solde et confirmation explicite pour un achat prestigieux', async () => {
@@ -139,7 +139,7 @@ describe('Fame Shop & Collection — responsive UI', () => {
     await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
     await wrapper.find('.collection-card[data-item-id="watches-06"]').trigger('click')
     const dialog = wrapper.find('.collection-detail-dialog')
-    expect(dialog.find('.collection-detail-data').text()).toContain('4 000 000')
+    expect(dialog.find('.collection-detail-data').text()).toContain(new Intl.NumberFormat('fr-CH').format(4_000_000))
     await dialog.find('button.collection-buy-button').trigger('click')
     expect(dialog.find('.collection-confirm').exists()).toBe(true)
     expect(current().prestige.ownedCollectionIds).toHaveLength(0)
