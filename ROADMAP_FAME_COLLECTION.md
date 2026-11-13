@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 2/8 passes livrées**  
+**Statut : en cours — 3/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -128,13 +128,17 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Sauvegarde :** priorité `localStorage` v6, migration **v1–v5** sans répétition, import JSON brut v4/v5/v6 validé avant remplacement, export complet v6 et reset conservés. Les tests historiques v5 ont été adaptés et `src/prestige/state.test.ts` couvre niveau 1, 50/51, 99/100, 100/101, sauts, restauration v5 et données Fame corrompues.
 - **Validation CI confirmée :** GitHub Actions `Build main/root site` a réussi `npm test` (incluant les tests UI Vue et les tests Fame) et `npm run build:root`, puis généré/commité les artefacts de production dans [`0390c371`](https://github.com/Nighttug58/CAPITAL_IDLE/commit/0390c3715a47df04f6d7aa169197b4eefd8bf7af). Les changements de gameplay visuel Fame/Collection restent réservés aux passes 4–7.
 
-### [ ] Passe 3 — Moteur partagé de bonus, intégration aux six sources
+### [x] Passe 3 — Moteur partagé de bonus, intégration aux six sources
 
 - Exposer une **unique fonction de calcul** par type de boost combinant shop, collections et futur Prestige ; valeurs en points de base, calculs sûrs.
 - Brancher le boost clic à la récompense, entreprises au rattrapage agrégé et à la taxation, dividendes à leur versement, trading aux seuls profits positifs nets, XP à la nouvelle autorité, Fame à l'attribution level-up/achat de collection.
 - Préserver les règles actuelles pour les comptes sans boost, les arrondis, le stockage, les transactions, l'XP et la fiscalité.
 - Tests d'intégration : +0 %, +5 %, +100 % ; cumul +0,1 % collection ; taxes sur revenus augmentés ; pas de double revenu, ni bonus sur pertes/capital ; offline.
 - Livrable : moteur appliqué à toutes les sources, sans régression économique.
+- **Livraison validée (14/11/2026) :** moteur unique `src/prestige/bonuses.ts` avec `getBonusBreakdown`, `getTotalBonusBps`, `getBonusMultiplier` et mise à l'échelle précise des récompenses. `src/prestige/catalog.ts` associe chaque emplacement de collection à une seule des six statistiques, sans bonus supplémentaire. Shop (+5 %/palier) et Collection (+0,1 % à +5 %) s'additionnent sans composition ; Prestige absolu reste réservé à la passe 7.
+- **Intégrations :** clic (récompense et texte flottant existant), entreprises (brut, rattrapage hors ligne, dette fiscale et XP), dividendes (avant reliquat sous-centime), trading (uniquement bénéfice net réalisé positif ; supplément réellement crédité, imposé et comptabilisé, jamais capital restitué ni perte), XP (compteur distinct) et Fame (nouvelles récompenses de niveau uniquement, sans recalcul historique). Reliquats `clickCarryBps`, `tradingCarryBps`, `experienceCarryBps` persistés en v6, et migration compatible avec les premières sauvegardes v6 sans ces champs.
+- **Affichage :** la page Entreprises et Stats présentent le revenu brut augmenté et utilisent le compteur XP indépendant pour débloquer les entreprises ; le code ancien reste inchangé pour les comptes sans boosts.
+- **Validation effective :** GitHub Actions [run 43527336314](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43527336314) **success** pour `npm test` (**178 tests métier + 26 tests UI**) et `npm run build:root` (TypeScript/Vite). Première erreur de typage TS2322 dans le catalogue détectée via les logs, corrigée avec les unions littérales `as const`, puis nouveau workflow validé. Publication des assets `main / (root)` demandée avec succès.
 
 ### [ ] Passe 4 — Achat et progression du Fame Shop
 
