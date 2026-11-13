@@ -70,7 +70,7 @@ describe('Trading interface mobile',()=>{
     await nextTick()
     expect(getState().trading.positions.nvideo).toBeUndefined()
     expect(getState().game.lifetimeEarned).toBe(1000)
-    expect(wrapper.find('.order-success').text()).toContain('Vente confirmé')
+    expect(wrapper.find('.order-success').text()).toContain('Vente confirmée')
   })
   it('gère les fractions BTC et les erreurs de solde',async()=>{
     const {wrapper,getState}=setup()
@@ -105,6 +105,10 @@ describe('Trading interface mobile',()=>{
   it('Escape et popstate ferment les fenêtres',async()=>{
     const {wrapper}=setup()
     await openNvideo(wrapper)
+    const dialog=wrapper.find('.trading-asset-modal')
+    ;(dialog.element as HTMLElement).focus()
+    window.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}))
+    expect((document.activeElement as HTMLElement).getAttribute('aria-label')).toBe('Fermer le détail')
     window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))
     await nextTick()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
