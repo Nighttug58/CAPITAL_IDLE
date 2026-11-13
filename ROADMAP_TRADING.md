@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 6 terminées**  
+Statut : **en développement — passes 1 à 7 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -143,11 +143,16 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 7 — Dividendes indépendants, dynamiques et hors ligne
 
-- [ ] Implémenter une courbe de rendement distincte par action, bornée à **1–30 % annuels**, douce par tick, influencée progressivement par des News sélectionnées.
-- [ ] Paiement chaque seconde depuis la quantité × prix de référence × taux courant / 86 400, précision des centimes et poussières fractionnaires.
-- [ ] Intégrer revenus actifs et hors ligne au solde et au cumul gagné ; restituer correctement les changements d'événements sur longue absence, sans double paiement.
-- [ ] Tests sur limites 1/30 %, gradualité, évolution après expiration, 24 h, cumul avec achats/ventes et reload.
+- [x] Implémenter une courbe de rendement distincte par action, bornée à **1–30 % annuels**, douce par tick, influencée progressivement par des News sélectionnées.
+- [x] Paiement chaque seconde depuis la quantité × prix de référence × taux courant / 86 400, précision des centimes et poussières fractionnaires.
+- [x] Intégrer revenus actifs et hors ligne au solde et au cumul gagné ; restituer correctement les changements d'événements sur longue absence, sans double paiement.
+- [x] Tests sur limites 1/30 %, gradualité, évolution après expiration, 24 h, cumul avec achats/ventes et reload.
 - **Livrable :** revenus passifs variables et fiables.
+
+**Validée le 13/11/2026** — moteur de rendement et paiement seconde par seconde [99b40a4](https://github.com/Nighttug58/CAPITAL_IDLE/commit/99b40a4ff7f2605cbaa2e2e1073130bfc51bd85a), tests [15b41d7](https://github.com/Nighttug58/CAPITAL_IDLE/commit/15b41d70f9a0adf28155c531c391f389be0009a9), durée du test corrigée [005ed8a](https://github.com/Nighttug58/CAPITAL_IDLE/commit/005ed8a2e8e72a9b70d9f662726ce7775ba46625) et assertion adaptée [71157dd](https://github.com/Nighttug58/CAPITAL_IDLE/commit/71157dded1b3998668f0445aecb533f2e617d5bd). **75 tests réussis**, **npm run build** et **déploiement GitHub Pages réussis** dans [GitHub Actions #43454011500](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43454011500).
+
+Rendement de chaque entreprise borné à 1–30 % et évoluant doucement toutes les 5 s, avec pression des News sur la pente et inertie après expiration ; aucune variation de dividendes pour les cryptos. Le montant par seconde est calculé sur **quantité × prix de référence × taux actuel / 86 400**, indépendamment du cours. Paiement au centime, reste fractionnaire sauvegardé, crédit au **solde** et **cumul gagné**, horloge de versement distincte de l'horloge des cours afin d'éviter toute double rémunération. Rattrapage hors ligne par tranches de **256 secondes**, respectant les News et l'historique d'une heure ; anciennes parties v4 migrées sans perte ni rétroactivité avant la mise à niveau. Le runtime conserve un seul timer et regroupe les sauvegardes. Règles détaillées dans **TRADING_DIVIDENDS.md**. **Interface encore inchangée** : affichage des rendements au sein de Trading lors des passes 8–9.
+
 
 ### Passe 8 — UI Trading, listes et Portfolio
 
