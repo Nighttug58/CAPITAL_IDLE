@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 7 terminées**  
+Statut : **en développement — passes 1 à 8 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -156,11 +156,16 @@ Rendement de chaque entreprise borné à 1–30 % et évoluant doucement toutes 
 
 ### Passe 8 — UI Trading, listes et Portfolio
 
-- [ ] Navigation Accueil/Trading sans casser l'écran du clicker ; quatre sous-onglets et scroll interne mobile.
-- [ ] Listes Actions et Crypto (cryptos + memecoins), état de marché, mini-graphes 1 h, prix et variation.
-- [ ] Portfolio avec positions, coût moyen, valorisation, P&L et dividendes par seconde.
-- [ ] Composants Vue dédiés ; rendu réactif sans recalcul lourd, accessibilité et adaptation petites hauteurs d'écran.
+- [x] Navigation Accueil/Trading sans casser l'écran du clicker ; quatre sous-onglets et scroll interne mobile.
+- [x] Listes Actions et Crypto (cryptos + memecoins), état de marché, mini-graphes 1 h, prix et variation.
+- [x] Portfolio avec positions, coût moyen, valorisation, P&L et dividendes par seconde.
+- [x] Composants Vue dédiés ; rendu réactif sans recalcul lourd, accessibilité et adaptation petites hauteurs d'écran.
 - **Livrable :** navigation et consultation complètes.
+
+**Validée le 13/11/2026** — composants Vue et préparation des cours [ba4d632](https://github.com/Nighttug58/CAPITAL_IDLE/commit/ba4d632a458971f9d47f4024c97ab193289990d7), navigation + styles [da7b218](https://github.com/Nighttug58/CAPITAL_IDLE/commit/da7b218ed804979e12d5025cebdf529bd1e7fe7c), tests de présentation [09b84b9](https://github.com/Nighttug58/CAPITAL_IDLE/commit/09b84b9889cce637926da65ca66114531bfcd992) et correction d'affichage zéro [70135bc](https://github.com/Nighttug58/CAPITAL_IDLE/commit/70135bc4e60b4fb826577beab6ce7c2d928299a8). **83 tests réussis, npm run build et déploiement GitHub Pages réussis**, via [GitHub Actions #43457370358](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43457370358).
+
+Nouvelle navigation Accueil/Trading, quatre rubriques, listes internes scrollables en 100dvh, 45 instruments affichés avec variations et sparklines 1 h préservant les extrêmes, Portfolio (coût moyen, patrimoine, P&L, revenus par seconde), prévisualisations News avec durée restante et contexte. Composants distincts dans `src/components/`, formatage des petits cours et tests purs dans `src/trading/presentation.ts`. L'ancien écran du clicker reste disponible. **Les modales d'actif, l'achat/vente par l'UI, les liens depuis News et l'objectif de 300 fiches restent pour la passe 9.** Voir `TRADING_INTERFACE.md`.
+
 
 ### Passe 9 — Modales Trading et News, catalogue rédactionnel complet
 
