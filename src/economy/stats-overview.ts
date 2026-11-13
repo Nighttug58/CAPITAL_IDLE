@@ -66,7 +66,7 @@ export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOvervi
     const gains = state.stats.earnedBySource[id]
     const losses = id === 'stocks' || id === 'crypto' || id === 'memecoins'
       ? state.stats.realizedLossesBySource[id] : 0
-    return { id, label, gains, losses, net: gains - losses, fraction: 0 }
+    return { id, label, gains, losses, net: Math.round((gains - losses) * 100) / 100, fraction: 0 }
   })
   const totalPositiveSources = sources.reduce((sum, source) => sum + source.gains, 0)
   const proportional = sources.map((source) => ({
