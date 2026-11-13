@@ -95,7 +95,7 @@ test('vente partielle à coût moyen : profits par vente indépendants des perte
 })
 
 test('stocks, cryptos et memecoins : seules les ventes bénéficiaires créent une dette', () => {
-  for (const [id, quantity] of [['nvideo', 1], ['bitcoin', 0.01], ['dogecoin', 1000]] as const) {
+  for (const [id, quantity] of [['nvideo', 1], ['bitcoin', 0.01], ['shiba-inu', 1_000_000]] as const) {
     const original = funded(100_000)
     const price = getAsset(id)!.referencePrice
     const bought = buyAsset(quoted(original, id, price), id, quantity)
