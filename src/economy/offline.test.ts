@@ -79,6 +79,12 @@ test('4 ans, 1000 ans : aucune boucle par seconde ou par période (temps borné)
     assert.ok(next.game.balance > state.game.balance)
     assert.ok(next.fiscal.taxesPaidCents > 0)
     assert.ok(next.fiscal.taxesDueCents >= 0)
+    // Les nouveaux montants doivent survivre à une restauration JSON.
+    const restored = restoreCapitalState(JSON.parse(JSON.stringify(next)), now)
+    assert.deepEqual(restored.game, next.game)
+    assert.deepEqual(restored.stats, next.stats)
+    assert.deepEqual(restored.fiscal, next.fiscal)
+    assert.deepEqual(restored.enterprises, next.enterprises)
   }
 })
 
