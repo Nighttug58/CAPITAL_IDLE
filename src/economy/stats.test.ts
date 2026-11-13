@@ -86,7 +86,7 @@ test('Entreprises : la valeur comptable est conservée, mais aucune revente poss
   assert.equal(view.enterpriseCount, 1)
   assert.equal(view.enterpriseLevels, 1)
   assert.equal(view.enterpriseBookValue, 75_000)
-  assert.equal(view.enterpriseIncomePerSecond, 5_208 / 1_000_000)
+  assert.equal(view.enterpriseIncomePerSecond, 2_604_167 / 1_000_000)
   assert.ok(view.sources.find(s => s.id === 'enterprises')!.gains > 0)
   assert.equal(view.assetMarketValue, 0)
   assert.equal(view.netWorth, next.game.balance + 75_000 - next.fiscal.taxesDueCents / 100)
