@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0e10" />
+    <meta name="description" content="CAPITAL_IDLE — clicker et simulateur Trading fictif." />
+    <title>CAPITAL_IDLE</title>
+    <style>
+      /* Visible uniquement si le montage Vue echoue. */
+      .boot-error { visibility: hidden; animation: reveal-boot-error 0s 2s forwards;
+        max-width: 440px; margin: 18vh auto 0; padding: 24px;
+        color: #f1f1f2; background: #15171a; border: 1px solid #34363b;
+        font: 15px/1.6 system-ui, sans-serif; }
+      .boot-error h1 { margin: 0 0 18px; font-size: 18px; }
+      .boot-error a { color: #c9d9ff; }
+      @keyframes reveal-boot-error { to { visibility: visible; } }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="boot-error" role="alert">
+        <h1>CAPITAL_IDLE</h1>
+        <p>Le jeu n'a pas pu démarrer. Actualisez la page ; si le problème persiste, vérifiez les erreurs JavaScript et la connexion au site.</p>
+      </div>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

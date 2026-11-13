@@ -88,8 +88,18 @@ Voir également [la roadmap Trading](ROADMAP_TRADING.md), [les règles du moteur
 
 ## Déploiement GitHub Pages
 
-La configuration Vite utilise `base: '/CAPITAL_IDLE/'`. Le workflow `.github/workflows/pages.yml` installe les dépendances, exécute les tests, construit les fichiers et publie `dist/` sur GitHub Pages.
+La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.
 
-Dans **Settings → Pages**, la source doit être **GitHub Actions** et non une publication directe de la branche `main` : celle-ci contient le code source Vue/TypeScript non compilé.
+Le vrai HTML de développement est désormais dans **`src/index.html`**. La configuration Vite utilise `root: 'src'` et `base: '/CAPITAL_IDLE/'`. Les sources Vue et TypeScript restent dans `src/` et sont exclues de l'entrée statique publiée.
+
+Après chaque modification, le workflow **Build main/root site** :
+1. exécute les tests ;
+2. compile le jeu avec `npm run build:root` ;
+3. commit les fichiers statiques sur `main` ;
+4. demande explicitement à GitHub Pages de republier la branche (un commit de workflow avec `GITHUB_TOKEN` seul ne déclenche pas le build Pages).
+
+Le même résultat s'obtient localement avec `npm run build:root`, puis en commitant `index.html`, `assets/` et `.nojekyll`. Pour le développement, utiliser `npm run dev`.
+
+**Important :** ne pas remplacer l'`index.html` compilé à la racine par `src/index.html` (la version TypeScript ne peut pas fonctionner directement dans GitHub Pages).
 
 Les marchés, les News, les entreprises parodiques et leurs performances n'ont **aucune valeur de conseil financier**.
