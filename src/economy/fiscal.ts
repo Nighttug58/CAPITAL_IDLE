@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { exactMoneyCents } from '../money.ts'
 import {
   FISCAL_PERIOD_MS, FISCAL_TAX_RATE,
   type TaxBreakdown, type TaxSource,
@@ -11,11 +12,7 @@ const BPS = 10_000n
 export const FISCAL_TAX_BPS = Math.round(FISCAL_TAX_RATE * Number(BPS))
 const MAX_CENTS = BigInt(Number.MAX_SAFE_INTEGER)
 
-function toCents(value: number): number | null {
-  if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER / CENTS) return null
-  const cents = Math.round(value * CENTS)
-  return Number.isSafeInteger(cents) && Math.abs(value * CENTS - cents) < 0.0001 ? cents : null
-}
+function toCents(value: number): number | null { return exactMoneyCents(value) }
 function validTime(at: number): boolean {
   return Number.isSafeInteger(at) && at >= 0
 }
