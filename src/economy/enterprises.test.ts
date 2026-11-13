@@ -184,3 +184,18 @@ test('achats sans fonds : l état et les entreprises précédentes ne sont pas m
   assert.strictEqual(state.enterprises.owned.kiosque, originalHolding)
   assert.equal(depleted.game.balance, 0)
 })
+
+test('compatibilité v5 : aucune rétrofacturation des entreprises acquises aux anciens prix', () => {
+  const legacy = funded()
+  // Kiosque acquis avant rééquilibrage : 150 $ + 30 $ + 35,40 $.
+  legacy.enterprises.owned.kiosque = { level: 3, investedCents: 21_540 }
+  const restored = restoreCapitalState(JSON.parse(JSON.stringify(legacy)), START)
+  assert.deepEqual(restored.enterprises.owned.kiosque, { level: 3, investedCents: 21_540 })
+  const income = getTotalEnterpriseIncomeMicrosPerSecond(restored)
+  assert.equal(income, getEnterpriseIncomeMicrosPerSecond('kiosque', 3))
+  const next = upgradeEnterprise(restored, 'kiosque', START)
+  assert.ok(next.ok)
+  assert.equal(next.receipt.costCents, getEnterpriseUpgradeCostCents('kiosque', 3))
+  assert.equal(next.state.enterprises.owned.kiosque?.investedCents, 21_540 + next.receipt.costCents)
+  assert.equal(next.state.enterprises.owned.kiosque?.level, 4)
+})
