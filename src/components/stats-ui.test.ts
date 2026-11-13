@@ -81,8 +81,8 @@ describe('Stats / fiscalité', () => {
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     const nav = wrapper.findAll('.bottom-nav button')
-    expect(nav.map((button) => button.text())).toEqual(['Accueil', 'Trading', 'Entreprises', 'Stats'])
-    await nav[3]!.trigger('click')
+    expect(nav.map((button) => button.text())).toEqual(['Accueil', 'Trading', 'Entreprises', 'Collection', 'Stats'])
+    await nav[4]!.trigger('click')
     expect(wrapper.find('.stats-screen').isVisible()).toBe(true)
     expect(wrapper.find('.stats-tax-due').text()).toContain('15')
     await nav[0]!.trigger('click')
@@ -122,7 +122,7 @@ describe('Stats : progression et patrimoine complet', () => {
     expect(stored.stats.earnedBySource.clicks).toBe(1)
     expect(stored.stats.earnedBySource.unclassified).toBe(100)
     expect(stored.game.lifetimeEarned).toBe(101)
-    await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
+    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
     expect(wrapper.find('.stats-source[data-source="clicks"]').text()).toContain('1')
     expect(wrapper.find('.stats-progress').text()).toContain('101')
   })
@@ -159,7 +159,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     localStorage.setItem('capital-idle-save-v4', JSON.stringify({ version: 4, game: original.game, trading: original.trading }))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
-    await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
+    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
 
     await wrapper.find('.backup-reset').trigger('click')
     expect(wrapper.find('.backup-reset-confirm').exists()).toBe(true)
@@ -197,7 +197,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     localStorage.setItem('capital-idle-save-v6', JSON.stringify(original))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
-    await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
+    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
     const encoded = JSON.stringify({
       format: 'CAPITAL_IDLE_SAVE', formatVersion: 1, exportedAt: now - 30_000, state: loaded,
     })
