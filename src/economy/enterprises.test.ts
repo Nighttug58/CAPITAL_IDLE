@@ -14,10 +14,10 @@ import {
 } from './enterprises.ts'
 
 const START = 1_800_000_000_000
-function funded(amount = 100_000) {
+function funded(amount = 10_000_000) {
   return createCapitalState({ balance: amount, lifetimeEarned: amount, purchasedUpgrades: 0 }, START)
 }
-function purchased(id = 'kiosque', amount = 100_000) {
+function purchased(id = 'kiosque', amount = 10_000_000) {
   const result = buyEnterprise(funded(amount), id, START)
   assert.equal(result.ok, true)
   if (!result.ok) throw new Error(result.error)
@@ -36,9 +36,9 @@ test('achat : niveau et fonds vérifiés, achat unique, cash commun débité et 
   if (!receipt.ok) return
   assert.equal(receipt.receipt.level, 1)
   assert.equal(receipt.receipt.costCents, ENTERPRISES[0]!.purchaseCostCents)
-  assert.equal(receipt.state.game.balance, initial.game.balance - 150)
+  assert.equal(receipt.state.game.balance, initial.game.balance - 75_000)
   assert.equal(receipt.state.game.lifetimeEarned, initial.game.lifetimeEarned)
-  assert.deepEqual(receipt.state.enterprises.owned.kiosque, { level: 1, investedCents: 15_000 })
+  assert.deepEqual(receipt.state.enterprises.owned.kiosque, { level: 1, investedCents: 7_500_000 })
   assert.equal(Object.keys(receipt.state.enterprises.owned).length, 1)
   assert.deepEqual(buyEnterprise(receipt.state, 'kiosque', START), { ok: false, state: receipt.state, error: 'already-owned' })
   assert.deepEqual(buyEnterprise(initial, 'unknown-business', START), { ok: false, state: initial, error: 'unknown-enterprise' })
@@ -55,12 +55,12 @@ test('deux entreprises uniques : somme des taux, sans second portefeuille', () =
   assert.equal(getTotalEnterpriseIncomeMicrosPerSecond(second.state), combined)
   assert.equal('balance' in second.state.enterprises, false)
   assert.equal('cash' in second.state.enterprises, false)
-  assert.equal(second.state.game.balance, 100_000 - 150 - 350)
+  assert.equal(second.state.game.balance, 10_000_000 - 75_000 - 180_000)
   assert.equal(second.state.stats.earnedBySource.enterprises, 0)
 })
 
 test('améliorations : +1 niveau, 19 paiements, bonus 5/10/15/20 et interdiction niveau 21', () => {
-  let state = purchased('kiosque', 100_000)
+  let state = purchased('kiosque', 10_000_000)
   for (let current = 1; current < 20; current++) {
     const oldIncome = getTotalEnterpriseIncomeMicrosPerSecond(state)
     const oldCash = state.game.balance
@@ -72,7 +72,7 @@ test('améliorations : +1 niveau, 19 paiements, bonus 5/10/15/20 et interdiction
     state = result.state
     assert.equal(state.enterprises.owned.kiosque!.level, current + 1)
     assert.equal(Math.round((oldCash - state.game.balance) * 100), cost)
-    assert.equal(state.game.lifetimeEarned, 100_000)
+    assert.equal(state.game.lifetimeEarned, 10_000_000)
     assert.ok(getTotalEnterpriseIncomeMicrosPerSecond(state) > oldIncome)
     assert.equal(result.receipt.incomeMicrosPerSecond, getTotalEnterpriseIncomeMicrosPerSecond(state))
   }
@@ -81,22 +81,28 @@ test('améliorations : +1 niveau, 19 paiements, bonus 5/10/15/20 et interdiction
   assert.equal(getEnterpriseUpgradeCostCents('kiosque', 20), null)
 })
 
-test('revenus réguliers : fractions de centime conservées, encaissés dans cash/XP/stats', () => {
+test('revenus réguliers : les fractions de centime restent exactes malgré les nouveaux montants', () => {
   const original = purchased()
+  const micros = getEnterpriseIncomeMicrosPerSecond('kiosque', 1)!
+  // 1 µ$ par seconde = 1 nanodollar par milliseconde ; 1 centime = 10^7 nanodollars.
+  const expected = (seconds: number) => {
+    const nano = BigInt(micros) * BigInt(seconds * 1000)
+    return {
+      cents: Number(nano / 10_000_000n),
+      carry: Number(nano % 10_000_000n) / 10_000_000,
+    }
+  }
   const second = advanceEnterpriseIncome(original, START + 1000)
-  const kioskMicro = getEnterpriseIncomeMicrosPerSecond('kiosque', 1)!
-  assert.equal(second.game.balance, original.game.balance)
-  assert.equal(second.game.lifetimeEarned, original.game.lifetimeEarned)
-  assert.equal(second.enterprises.revenueCarryCents, kioskMicro / 10_000)
+  assert.equal(second.game.balance, original.game.balance + expected(1).cents / 100)
+  assert.equal(second.game.lifetimeEarned, original.game.lifetimeEarned + expected(1).cents / 100)
+  assert.equal(second.stats.earnedBySource.enterprises, expected(1).cents / 100)
+  assert.equal(second.enterprises.revenueCarryCents, expected(1).carry)
   const afterTwo = advanceEnterpriseIncome(second, START + 2000)
-  assert.equal(afterTwo.game.balance, original.game.balance + 0.01)
-  assert.equal(afterTwo.game.lifetimeEarned, original.game.lifetimeEarned + 0.01)
-  assert.equal(afterTwo.stats.earnedBySource.enterprises, 0.01)
-  assert.ok(afterTwo.enterprises.revenueCarryCents > 0)
-  const unchanged = advanceEnterpriseIncome(afterTwo, START + 2000)
-  assert.strictEqual(unchanged, afterTwo, 'same timestamp must not credit twice')
-  const earlier = advanceEnterpriseIncome(afterTwo, START + 1000)
-  assert.strictEqual(earlier, afterTwo, 'clock rollback must not credit twice')
+  assert.equal(afterTwo.game.balance, original.game.balance + expected(2).cents / 100)
+  assert.equal(afterTwo.stats.earnedBySource.enterprises, expected(2).cents / 100)
+  assert.equal(afterTwo.enterprises.revenueCarryCents, expected(2).carry)
+  assert.strictEqual(advanceEnterpriseIncome(afterTwo, START + 2000), afterTwo)
+  assert.strictEqual(advanceEnterpriseIncome(afterTwo, START + 1000), afterTwo)
 })
 
 test('une modification de niveau crédite l ancien rendement jusqu à la transaction', () => {
@@ -168,10 +174,10 @@ test('invalidités : horloges, soldes négatifs, max et dépassements refusés',
 })
 
 test('achats sans fonds : l état et les entreprises précédentes ne sont pas modifiés', () => {
-  const state = purchased('kiosque', 250)
+  const state = purchased('kiosque', 95_000)
   const originalHolding = state.enterprises.owned.kiosque
   const noMoney = upgradeEnterprise(state, 'kiosque', START)
-  assert.equal(noMoney.ok, true, 'first upgrade is 30 $ and available with balance 100 $')
+  assert.equal(noMoney.ok, true, 'first upgrade costs 15 000 $ and is affordable with a 20 000 $ balance')
   const depleted = { ...state, game: { ...state.game, balance: 0 } }
   const blocked = upgradeEnterprise(depleted, 'kiosque', START)
   assert.equal(blocked.ok, false)
