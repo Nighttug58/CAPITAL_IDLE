@@ -16,6 +16,9 @@ import { createMarketRuntime } from './trading/runtime.ts'
 import { buyAsset, sellAsset } from './trading/trades.ts'
 import type { TradeResult, TradeSide } from './trading/trades.ts'
 import TradingScreen from './components/TradingScreen.vue'
+import EnterpriseScreen from './components/EnterpriseScreen.vue'
+import { buyEnterprise, upgradeEnterprise } from './economy/enterprises.ts'
+import type { EnterpriseAction, EnterpriseResult } from './economy/enterprises.ts'
 
 interface FloatingGain {
   id: number
@@ -35,7 +38,7 @@ const nextLevel = computed(() => getNextLevelThreshold(game.value.lifetimeEarned
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
-const page = ref<'home' | 'trading'>('home')
+const page = ref<'home' | 'trading' | 'enterprises'>('home')
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
@@ -95,6 +98,20 @@ function executeTrade(side: TradeSide, assetId: string, quantity: number): Trade
   if (result.ok) {
     capital.value = result.state
     persist()
+  }
+  return result
+}
+
+function executeEnterprise(action: EnterpriseAction, id: string): EnterpriseResult {
+  const result = action === 'buy'
+    ? buyEnterprise(capital.value, id)
+    : upgradeEnterprise(capital.value, id)
+  if (result.ok) {
+    // Une seule écriture : ne pas déclencher en parallèle le watcher du clicker.
+    applyingMarket = true
+    try { capital.value = result.state } finally { applyingMarket = false }
+    persist()
+    marketRuntime?.wake()
   }
   return result
 }
@@ -256,6 +273,7 @@ onUnmounted(() => {
     </main>
 
     <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
+    <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' }"
@@ -272,6 +290,14 @@ onUnmounted(() => {
           <path d="M3 21h18" />
         </svg>
         <span>Trading</span>
+      </button>
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'enterprises' }"
+        :aria-current="page === 'enterprises' ? 'page' : undefined" @click="page = 'enterprises'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="10" width="18" height="11" rx="1" />
+          <path d="M3 10 6 4h12l3 6M9 21v-7h6v7M3 10h18" />
+        </svg>
+        <span>Entreprises</span>
       </button>
     </nav>
   </div>
