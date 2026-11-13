@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 2/8 passes livrées**  
+**Statut : en cours — 3/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -122,12 +122,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 3 — Achat, amélioration, revenus et page Entreprises
 
-- [ ] Actions métier `buyEnterprise` / `upgradeEnterprise` : une seule propriété par type, **non revendable**, niveau maximum 20, fonds et déblocage vérifiés côté moteur.
-- [ ] Crédit continu du **revenu fixe brut** dans le solde et dans la progression, avec reste de centime maîtrisé, une seule source de crédit.
-- [ ] Ajouter **Entreprises** à la barre de navigation et construire l'écran mobile : catalogue verrouillé/achetable/possédé, niveau, coût de la prochaine amélioration, rendement/s et paliers spéciaux (une amélioration à la fois).
-- [ ] Mettre à jour l'état et les sauvegardes lors des achats et améliorations sans créer de timer parallèle.
-- [ ] Tests métier et Vue : fonds insuffisants, double achat impossible, niveau 20, absence de bouton Revente, navigation et petites largeurs.
+- [x] Actions métier `buyEnterprise` / `upgradeEnterprise` : une seule propriété par type, **non revendable**, niveau maximum 20, fonds et déblocage vérifiés côté moteur.
+- [x] Crédit continu du **revenu fixe brut** dans le solde et dans la progression, avec reste de centime maîtrisé, une seule source de crédit.
+- [x] Ajouter **Entreprises** à la barre de navigation et construire l'écran mobile : catalogue verrouillé/achetable/possédé, niveau, coût de la prochaine amélioration, rendement/s et paliers spéciaux (une amélioration à la fois).
+- [x] Mettre à jour l'état et les sauvegardes lors des achats et améliorations sans créer de timer parallèle.
+- [x] Tests métier et Vue : fonds insuffisants, double achat impossible, niveau 20, absence de bouton Revente, navigation et petites largeurs.
 - **Livrable :** entreprises jouables en ligne, sans franchises, sans fiscalité encore activée.
+
+**Validée le 13/11/2026** — [développement eb7efd0](https://github.com/Nighttug58/CAPITAL_IDLE/commit/eb7efd06dc615a172bcca0046f62c494e2b1de36), [PR #3](https://github.com/Nighttug58/CAPITAL_IDLE/pull/3) ; [GitHub Actions #43496810153](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43496810153) : **`npm test` (métier + UI), `npm run build:root` et déclenchement de GitHub Pages réussis**. `src/economy/enterprises.ts` : fonctions d'achat/amélioration uniques sans revente, revenu en nano-unités temporelles et sous-centimes conservés, fonds et MAX validés. `src/components/EnterpriseScreen.vue` et `src/style.css` : nouvelle page **Entreprises** accessible via le 3e bouton, catalogue scrollable mobile, états verrouillé/disponible/possédé, niveaux et paliers 5/10/15/20. L'unique `MarketRuntime` applique le rattrapage de revenu d'entreprise en une opération à l'heure courante ; `lastAccruedAt` empêche tout double crédit lors du rejeu Trading. **Aucun prélèvement fiscal** à cette passe (`FISCAL_TAX_RATE = null`). Tests : erreurs d'achat, double acquisition, niveau 20, fonds négatifs, replay, une année de revenu, Vue mobile et navigation.
 
 ### Passe 4 — Taxes différées sur entreprises et ventes de titres
 
