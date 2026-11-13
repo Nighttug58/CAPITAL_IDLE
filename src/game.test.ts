@@ -6,6 +6,7 @@ import {
   earnClick,
   getClickValue,
   getLevel,
+  getLevelStartThreshold,
   getNextLevelThreshold,
   migrateLegacyGame,
   migrateV2Game,
@@ -31,7 +32,11 @@ test('le niveau dépend du total gagné, pas du solde', () => {
   assert.equal(getLevel(35), 2)
   assert.equal(getLevel(74), 3)
   assert.equal(getNextLevelThreshold(35), 74)
-  assert.equal(getNextLevelThreshold(37_002), null)
+  assert.equal(getLevel(37_002), 50)
+  assert.ok(getNextLevelThreshold(37_002)! > 37_002)
+  assert.equal(getLevel(getLevelStartThreshold(100)), 100)
+  assert.equal(getLevel(getLevelStartThreshold(101)), 101)
+  assert.ok(getNextLevelThreshold(getLevelStartThreshold(101))! > getLevelStartThreshold(101))
 })
 
 test('clic puis achat : niveau et total gagné sont préservés', () => {
