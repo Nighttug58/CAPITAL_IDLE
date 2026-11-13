@@ -6,6 +6,7 @@ import { buyEnterprise, advanceEnterpriseIncome } from '../economy/enterprises.t
 import { advanceCapitalSecond } from '../trading/dividends.ts'
 import { buyAsset, sellAsset } from '../trading/trades.ts'
 import { createSaveExport, prepareSaveImport } from '../save-transfer.ts'
+import { buyCollectionItem } from './collections.ts'
 import { getBonusBreakdown, getBonusMultiplier, getTotalBonusBps, scaleNewFameMicros, scaleRewardCents } from './bonuses.ts'
 import { creditExperience, FAME_MICROS } from './state.ts'
 import type { CapitalState } from '../capital.ts'
@@ -41,16 +42,20 @@ test('six shared bonuses: zero, +5%, +100%, and collection +0.1% add without com
 })
 
 test('scaling a small +0.1% click keeps fractional cents until paid, never mints cash on XP-only credit', () => {
-  const small = owned(fresh(), 'autos-01')
-  let state = small
+  const funded = createCapitalState({
+    balance: 15_000, lifetimeEarned: 15_000, purchasedUpgrades: 0,
+  }, NOW)
+  const purchase = buyCollectionItem(funded, 'autos-01')
+  assert.ok(purchase.ok)
+  let state = purchase.state
   for (let i = 0; i < 9; i++) state = earnCapitalClick(state)
   assert.equal(state.game.balance, 9)
   assert.equal(state.prestige.clickCarryBps, 9000)
   state = earnCapitalClick(state)
   assert.equal(state.game.balance, 10.01)
-  assert.equal(state.game.lifetimeEarned, 10.01)
+  assert.equal(state.game.lifetimeEarned, 15_010.01)
   assert.equal(state.prestige.clickCarryBps, 0)
-  assert.equal(state.prestige.experienceCents, 1001)
+  assert.equal(state.prestige.experienceCents, 1_501_001)
   assert.equal(state.stats.earnedBySource.clicks, 10.01)
   const reloaded = restoreCapitalState(state, NOW)
   assert.deepEqual(reloaded, state)
