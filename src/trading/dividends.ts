@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { advanceEnterpriseIncome } from '../economy/enterprises.ts'
 import { ASSETS } from './catalog.ts'
 import { MARKET_TICK_MS, advanceMarketTick } from './market.ts'
 import type { TradingState } from './types.ts'
@@ -54,7 +55,7 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
   const dividendPendingCents = due - paidCents
   if (!Number.isSafeInteger(dividendPendingCents)) return capital
 
-  return {
+  const credited: CapitalState = {
     ...capital,
     game: paidCents > 0
       ? {
@@ -70,4 +71,6 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
       dividendPendingCents,
     },
   }
+  // Même horloge que les dividendes et le marché, aucun timer supplémentaire.
+  return advanceEnterpriseIncome(credited, at)
 }
