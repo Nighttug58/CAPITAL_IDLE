@@ -1,19 +1,20 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 9 terminées**  
+Statut : **Trading V1 livrée — passes 1 à 10 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
 > **Mode d'exécution :** à chaque « next », réaliser la **première passe non cochée**, vérifier le résultat, puis commiter le code **et la mise à jour de cette roadmap** sur main. Une passe = un objectif livrable et vérifiable. Ne jamais cocher une passe sans exécution et validation effectives. Si une passe est trop volumineuse, la scinder en sous-passes documentées avant de continuer. Ne pas refactoriser le clicker sans nécessité démontrée.
 
-## 0. État actuel vérifié
+## 0. État vérifié après livraison
 
-- Application Vue 3 + TypeScript + Vite, déploiement statique GitHub Pages.
-- Clicker existant : 50 niveaux, 49 améliorations, solde commun, total gagné et sauvegarde localStorage v3.
-- Entrée UI dans **src/App.vue**, styles dans **src/style.css**, économie du clicker dans **src/game.ts**, persistance dans **src/persistence.ts**, tests dans **src/game.test.ts**.
-- La navigation comporte actuellement seulement « Accueil » ; le Trading n'existe pas encore.
-- Aucun **AGENTS.md** dans l'arborescence consultée.
-- Ne pas modifier les règles existantes des clics, améliorations, niveaux ni l'ergonomie mobile de l'accueil.
+- Application Vue 3 + TypeScript + Vite publiée sur [GitHub Pages](https://nighttug58.github.io/CAPITAL_IDLE/).
+- Clicker d'origine conservé : **50 niveaux, 49 améliorations, solde monétaire unique**.
+- Sauvegarde **localStorage v4**, migration v1/v2/v3, simulation propre à l'appareil et reprise hors ligne.
+- Navigation **Accueil / Trading**, onglets **Portfolio / Actions / Crypto / News**, fiches d'actifs, achats/ventes et 300 actualités fictives.
+- **45 actifs** : 20 actions fictives, 15 cryptos, 10 memecoins.
+- Un seul runtime marché/dividendes et des calculs métier purs ; UI Vue distincte du moteur.
+- Les anciennes règles des clics, améliorations et niveaux restent en place.
 
 ## 1. Spécification fonctionnelle figée
 
@@ -182,23 +183,31 @@ Nouvelle navigation Accueil/Trading, quatre rubriques, listes internes scrollabl
 
 ### Passe 10 — Stabilisation, équilibrage et livraison
 
-- [ ] Tester les 45 actifs sur longues simulations : pumps/crashes, taux 1–30 %, stock, rendements, absence de gain gratuit, bornes toujours respectées.
-- [ ] Tester localStorage migration v1/v2/v3, réouverture et longues absences, fluidité smartphone, performance et limite de stockage.
-- [ ] Vérifier responsabilités non dupliquées, absence de listeners/timers orphelins et qualité du code ; corriger défauts réellement constatés.
-- [ ] Mettre à jour README : règles Trading, limites marché local/offline, exécution tests et fonctionnement GitHub Pages.
-- [ ] Exécuter **npm test** et **npm run build** avec succès avant validation finale (ou documenter précisément tout blocage indépendant).
+- [x] Tester les 45 actifs sur longues simulations : pumps/crashes, taux 1–30 %, stock, rendements, absence de gain gratuit, bornes toujours respectées.
+- [x] Tester localStorage migration v1/v2/v3, réouverture et longues absences, fluidité smartphone, performance et limite de stockage.
+- [x] Vérifier responsabilités non dupliquées, absence de listeners/timers orphelins et qualité du code ; corriger défauts réellement constatés.
+- [x] Mettre à jour README : règles Trading, limites marché local/offline, exécution tests et fonctionnement GitHub Pages.
+- [x] Exécuter **npm test** et **npm run build** avec succès avant validation finale (ou documenter précisément tout blocage indépendant).
 - **Livrable :** version Trading V1 stable et documentée.
+
+**Validée le 13/11/2026** — test de longue durée sur les 45 actifs et 3 graines, trajectoires bornées, variations positives/négatives, rendements des actions à 1–30 %, 45 commandes MAX exécutables, interdiction des profits garantis par aller-retour immédiat, sauvegarde des 45 séries sous **4 Mio**, migrations et robustesse de restauration, rattrapage d'une absence de 30 jours **borné en temps de calcul par lot** (le rattrapage complet de 30 jours n'a pas été chronométré). Le fil News a été limité à **10 annonces visibles**, sans suppression des influences actives ([d167b4b](https://github.com/Nighttug58/CAPITAL_IDLE/commit/d167b4bb94f7972ade2d933b80855783c358108d)). Tests de stabilisation et de mémoire dans [d5bcf97](https://github.com/Nighttug58/CAPITAL_IDLE/commit/d5bcf9764bbc244e781983fb48baad7c20ceea4a). [README](README.md) actualisé ([4de56d2](https://github.com/Nighttug58/CAPITAL_IDLE/commit/4de56d299cc986fc9ed33e93c77d1736bb1cea33)). Test Vue de la limite de dix News ([8836bfd](https://github.com/Nighttug58/CAPITAL_IDLE/commit/8836bfd23be06d50457e3f594947da1db183abb4)).
+
+**Validation finale : 100 tests OK** (93 tests métier, 7 tests Vue) avec **npm test** et **npm run build** et **déploiement GitHub Pages réussis** : [GitHub Actions #43465899130](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43465899130).
+
+**Limites connues** : aucun test manuel sur téléphone physique ni benchmark de rattrapage intégral sur plusieurs mois ; les tests de composants utilisent jsdom. Les appareils dotés d'un stockage local faible ou effacé peuvent perdre leurs sauvegardes ; les absences très longues nécessitent plusieurs lots. Ce sont des limites de validation/plateforme documentées, et non des fonctionnalités supposées vérifiées sur matériel réel.
+
+
 
 ## 3. Critères de fin de roadmap
 
-- [ ] Les 45 actifs sont présents avec la bonne répartition.
-- [ ] Le marché est chaotique, individuel, borné, reproductible et persiste hors ligne.
-- [ ] On peut acheter/vendre des fractions, tout le stock disponible et utiliser les raccourcis 25/50/MAX correctement frais compris.
-- [ ] Les dividendes fluctuent doucement entre 1 et 30 %, sont influencés par les News et crédités précisément en ligne/hors ligne.
-- [ ] Une News apparaît toutes les 2–8 min, influe 2–30 min, affiche son compte à rebours, et le catalogue atteint 300 fiches distinctes.
-- [ ] Historique des cours ≤ 1 heure ; News expirées ≤ 10, sans perdre les News actives.
-- [ ] Les niveaux ne montent pas artificiellement à la revente de capital, les sauvegardes précédentes survivent.
-- [ ] Interface mobile Accueil/Trading avec graphiques, modales, Portfolio, News ; tests et build OK.
+- [x] Les 45 actifs sont présents avec la bonne répartition.
+- [x] Le marché est chaotique, individuel, borné, reproductible et persiste hors ligne.
+- [x] On peut acheter/vendre des fractions, tout le stock disponible et utiliser les raccourcis 25/50/MAX correctement frais compris.
+- [x] Les dividendes fluctuent doucement entre 1 et 30 %, sont influencés par les News et crédités précisément en ligne/hors ligne.
+- [x] Une News apparaît toutes les 2–8 min, influe 2–30 min, affiche son compte à rebours, et le catalogue atteint 300 fiches distinctes.
+- [x] Historique des cours ≤ 1 heure ; News expirées ≤ 10, sans perdre les News actives.
+- [x] Les niveaux ne montent pas artificiellement à la revente de capital, les sauvegardes précédentes survivent.
+- [x] Interface mobile Accueil/Trading avec graphiques, modales, Portfolio, News ; tests et build OK.
 
 ## 4. Consignes pour les prochains « next »
 
