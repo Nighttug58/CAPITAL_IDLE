@@ -168,7 +168,7 @@ function payTaxes(): EarlyTaxPaymentResult {
 /**
  * Le runtime est stoppé avant une importation ou un reset. Son éventuelle
  * dernière sauvegarde concerne encore l'ancienne partie ; l'écriture
- * atomique v5 est donc faite seulement APRÈS cet arrêt.
+ * atomique v6 est donc faite seulement APRÈS cet arrêt.
  */
 function startMarketRuntime() {
   marketRuntime = createMarketRuntime({
@@ -369,7 +369,7 @@ onUnmounted(() => {
       <section class="upgrade-card" aria-label="Amélioration du clic">
         <div class="upgrade-copy">
           <span class="eyebrow">PROCHAINE AMÉLIORATION</span>
-          <strong>{{ nextUpgrade ? '+1 $ / clic' : 'NIVEAU MAX' }}</strong>
+          <strong>{{ nextUpgrade ? '+1 $ / clic' : 'CLIC MAX' }}</strong>
           <span class="upgrade-price">{{ nextUpgrade ? `Coût · ${formatMoney(nextUpgrade.price)}` : 'Tout est débloqué' }}</span>
         </div>
         <button class="upgrade-button" type="button" :disabled="!upgradeAffordable" @click="buy">
