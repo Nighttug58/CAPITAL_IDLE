@@ -22,11 +22,18 @@ export interface AssetDefinition {
   readonly quantityDecimals: number
 }
 
+export type MarketRegime = 'steady' | 'bull' | 'bear' | 'frenzy'
+
 export interface MarketQuote {
   price: number
   momentum: number
   dividendYield: number | null
   updatedAt: number
+  // Facultatif pour restaurer les cotations v4 préexistantes (passe 1).
+  regime?: MarketRegime
+  regimeTicksLeft?: number
+  shockDrift?: number
+  shockTicksLeft?: number
 }
 
 export interface PriceSample {

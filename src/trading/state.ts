@@ -33,7 +33,11 @@ function isQuote(value: unknown): value is MarketQuote {
     (value.dividendYield === null || (
       typeof value.dividendYield === 'number' && Number.isFinite(value.dividendYield) &&
       value.dividendYield >= 0.01 && value.dividendYield <= 0.30
-    )) && isTimestamp(value.updatedAt)
+    )) && isTimestamp(value.updatedAt) &&
+    (value.regime === undefined || ['steady', 'bull', 'bear', 'frenzy'].includes(value.regime as string)) &&
+    (value.regimeTicksLeft === undefined || (Number.isSafeInteger(value.regimeTicksLeft) && (value.regimeTicksLeft as number) >= 0 && (value.regimeTicksLeft as number) <= 115)) &&
+    (value.shockDrift === undefined || (typeof value.shockDrift === 'number' && Number.isFinite(value.shockDrift) && Math.abs(value.shockDrift) <= 0.25)) &&
+    (value.shockTicksLeft === undefined || (Number.isSafeInteger(value.shockTicksLeft) && (value.shockTicksLeft as number) >= 0 && (value.shockTicksLeft as number) <= 40))
 }
 
 function isHistory(value: unknown): value is PriceSample[] {
