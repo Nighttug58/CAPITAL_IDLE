@@ -45,3 +45,15 @@ Le `base` Vite dans `vite.config.ts` est défini pour le sous-chemin `/CAPITAL_I
 ## Évolutions
 
 Le design volontairement brut (fond sombre, boutons rectangulaires) et l'équilibrage seront revus plus tard. Aucune mécanique future n'est présupposée.
+
+
+## Dépannage : écran vide sur GitHub Pages
+
+**Important :** une page indiquée « published » peut quand même être vide si Pages utilise la source **Deploy from a branch → main → /(root)** : l'entrée `index.html` référence alors du TypeScript/Vue non compilé. La racine du dépôt n'est pas le site statique final.
+
+- Ouvrir [Settings → Pages](https://github.com/Nighttug58/CAPITAL_IDLE/settings/pages).
+- Sous **Build and deployment → Source**, sélectionner **GitHub Actions** (ne pas publier `main` directement).
+- Dans [Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/workflows/pages.yml), ouvrir **Publish GitHub Pages**, puis **Run workflow** sur `main` si nécessaire.
+- Vérifier un statut **vert** pour les étapes d'installation, de test, de build et de déploiement. Puis recharger le site sans cache.
+
+Un avertissement de secours s'affiche dans la page HTML si l'application Vue ne démarre pas. Une application chargée correctement remplace automatiquement cet avertissement.
