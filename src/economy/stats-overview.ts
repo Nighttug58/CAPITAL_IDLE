@@ -2,6 +2,7 @@ import type { CapitalState } from '../capital.ts'
 import { getLevel, getNextLevelThreshold, getLevelStartThreshold } from '../game.ts'
 import { getPortfolio } from '../trading/trades.ts'
 import { getTotalEnterpriseIncomeMicrosPerSecond } from './enterprises.ts'
+import { getBonusMultiplier } from '../prestige/bonuses.ts'
 
 export interface SourceStats {
   readonly id: string
@@ -93,7 +94,7 @@ export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOvervi
     clickCount: state.stats.clickCount,
     enterpriseCount: holdings.length,
     enterpriseLevels: holdings.reduce((sum, holding) => sum + holding.level, 0),
-    enterpriseIncomePerSecond: getTotalEnterpriseIncomeMicrosPerSecond(state) / 1_000_000,
+    enterpriseIncomePerSecond: getTotalEnterpriseIncomeMicrosPerSecond(state) * getBonusMultiplier(state, 'enterprise') / 1_000_000,
     enterpriseBookValue,
     cash: state.game.balance,
     assetMarketValue: portfolio.marketValue,
