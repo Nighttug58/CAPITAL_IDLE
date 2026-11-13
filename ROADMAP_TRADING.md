@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 4 terminées**  
+Statut : **en développement — passes 1 à 5 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -120,11 +120,14 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 5 — Transactions et Portfolio : moteur financier pur
 
-- [ ] Implémenter l'achat/vente au dernier prix, les frais 0,5/1/1,5 %, les quantités fractionnaires, offre restante, 25/50/MAX et coût moyen.
-- [ ] Créditer le même solde que le clicker ; affecter le niveau aux seuls **profits nets réalisés positifs**, jamais au capital restitué ni à la valeur non vendue.
-- [ ] Calculer positions, valeur de marché, P&L latent/réalisé et résultats de vente négatifs ; interdire fonds/titres négatifs.
-- [ ] Tests sur cas fractionnaires, frais inclus dans MAX, vente à perte, aller-retour, vente partielle, vente de 100 % du stock.
+- [x] Implémenter l'achat/vente au dernier prix, les frais 0,5/1/1,5 %, les quantités fractionnaires, offre restante, 25/50/MAX et coût moyen.
+- [x] Créditer le même solde que le clicker ; affecter le niveau aux seuls **profits nets réalisés positifs**, jamais au capital restitué ni à la valeur non vendue.
+- [x] Calculer positions, valeur de marché, P&L latent/réalisé et résultats de vente négatifs ; interdire fonds/titres négatifs.
+- [x] Tests sur cas fractionnaires, frais inclus dans MAX, vente à perte, aller-retour, vente partielle, vente de 100 % du stock.
 - **Livrable :** Trading économique complet mais sans écran final.
+
+**Validée le 13/11/2026** — moteur financier [5b32e2d](https://github.com/Nighttug58/CAPITAL_IDLE/commit/5b32e2db741f65f75df2417c21ea542500d9fd6e), tests et documentation [b52ec71](https://github.com/Nighttug58/CAPITAL_IDLE/commit/b52ec716b18db86bf569592ca41b8a97132c0b6b), correction de précision [7583cd3](https://github.com/Nighttug58/CAPITAL_IDLE/commit/7583cd3d84576e93006998dcefb9e2822e590a1e) et test final [099f007](https://github.com/Nighttug58/CAPITAL_IDLE/commit/099f0078b7256e5a2db86a646357d9f4cbe337fc). **50 tests réussis** (dont 10 nouveaux) et **npm run build réussi** sur [GitHub Actions #43449139531](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43449139531) ; déploiement réussi. Calcul en centimes pour achats/ventes, frais des trois catégories, coût moyen incluant les frais, gestion du stock complet, raccourcis 25 %/50 %/MAX, reçus, portefeuille et profits réalisés cumulés. Les niveaux ne progressent que lorsque le bénéfice net réalisé cumulé dépasse son précédent record ; les pertes n'abaissent pas les niveaux. **Le clicker existant est inchangé**, les transactions sont disponibles en moteur pur ; l'interface Trading et les graphiques arrivent en passes 8–9. Règles détaillées dans `TRADING_ECONOMY.md`.
+
 
 ### Passe 6 — Moteur d'événements News
 
