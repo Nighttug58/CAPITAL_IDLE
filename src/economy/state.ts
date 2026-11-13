@@ -1,3 +1,5 @@
+import { exactMoneyCents } from '../money.ts'
+
 /**
  * Contrats persistants de l'économie (passe 1).
  * Tous les montants fiscaux sont stockés en centimes entiers.
@@ -58,8 +60,7 @@ function isTimestamp(value: unknown): value is number {
 function isNonnegativeMoney(value: unknown): value is number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > Number.MAX_SAFE_INTEGER) return false
   if (Number.isSafeInteger(value)) return true
-  const cents = value * 100
-  return Number.isSafeInteger(Math.round(cents)) && Math.abs(cents - Math.round(cents)) < 0.0001
+  return exactMoneyCents(value) !== null
 }
 const TAX_SOURCES: readonly TaxSource[] = ['enterprises', 'stocks', 'crypto', 'memecoins']
 const EARNINGS_SOURCES: readonly EarningsSource[] = [
