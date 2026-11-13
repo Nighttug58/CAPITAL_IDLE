@@ -2,12 +2,16 @@ import { getLevel } from '../game.ts'
 import { exactMoneyCents } from '../money.ts'
 import { COLLECTION_SLOTS, FAME_BOOST_IDS, MAX_FAME_BOOST_LEVEL, type FameBoostId } from './catalog.ts'
 import type { CapitalState } from '../capital.ts'
+import { getTotalBonusBps, scaleNewFameMicros, scaleRewardCents } from './bonuses.ts'
 
 // A million subunits per Fame preserve fractional rewards from later boosts.
 export const FAME_MICROS = 1_000_000
 export type FameBoostLevels = Record<FameBoostId, number>
 export interface PrestigeState {
   readonly experienceCents: number
+  readonly experienceCarryBps: number // sub-cent XP remainder
+  readonly clickCarryBps: number // sub-cent cash click remainder
+  readonly tradingCarryBps: number // sub-cent positive trading bonus remainder
   readonly lastAwardedLevel: number
   readonly fameMicros: number
   readonly lifetimeFameMicros: number
@@ -32,7 +36,7 @@ export function createInitialPrestigeState(lifetimeEarned: number): PrestigeStat
   const lastAwardedLevel = getLevel(experienceCents / 100)
   const levelFameMicros = levelsTotal(lastAwardedLevel) * FAME_MICROS
   return {
-    experienceCents, lastAwardedLevel,
+    experienceCents, experienceCarryBps: 0, clickCarryBps: 0, tradingCarryBps: 0, lastAwardedLevel,
     fameMicros: levelFameMicros,
     lifetimeFameMicros: levelFameMicros,
     levelFameMicros,
@@ -52,7 +56,16 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
   const fallback = createInitialPrestigeState(lifetimeEarned)
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback
   const saved = raw as Partial<PrestigeState>
+  // Fields introduced after early v6 saves are optional and default to zero.
+  const experienceCarryBps = saved.experienceCarryBps ?? 0
+  const clickCarryBps = saved.clickCarryBps ?? 0
+  const tradingCarryBps = saved.tradingCarryBps ?? 0
+  const validCarry = (value: unknown): value is number =>
+    nonNegativeSafe(value) && value < 10_000
   if (!nonNegativeSafe(saved.experienceCents) ||
+    !validCarry(experienceCarryBps) ||
+    !validCarry(clickCarryBps) ||
+    !validCarry(tradingCarryBps) ||
     !nonNegativeSafe(saved.lastAwardedLevel) ||
     !nonNegativeSafe(saved.fameMicros) ||
     !nonNegativeSafe(saved.lifetimeFameMicros) ||
@@ -78,6 +91,7 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
 
   return {
     experienceCents: saved.experienceCents,
+    experienceCarryBps, clickCarryBps, tradingCarryBps,
     lastAwardedLevel: saved.lastAwardedLevel,
     fameMicros: saved.fameMicros,
     lifetimeFameMicros: saved.lifetimeFameMicros,
@@ -94,17 +108,25 @@ export function creditExperience(state: CapitalState, earnedCents: number): Capi
   if (earnedCents === 0) return state
 
   const previous = state.prestige
-  const experienceCents = previous.experienceCents + earnedCents
+  const scaledXp = scaleRewardCents(earnedCents, getTotalBonusBps(state, 'xp'), previous.experienceCarryBps)
+  if (!scaledXp) return null
+  const experienceCents = previous.experienceCents + scaledXp.cents
   if (!Number.isSafeInteger(experienceCents)) return null
   const lastAwardedLevel = getLevel(experienceCents / 100)
   const baseFameMicros = (levelsTotal(lastAwardedLevel) - levelsTotal(previous.lastAwardedLevel)) * FAME_MICROS
-  const fameMicros = previous.fameMicros + baseFameMicros
-  const lifetimeFameMicros = previous.lifetimeFameMicros + baseFameMicros
-  const levelFameMicros = previous.levelFameMicros + baseFameMicros
-  if (![baseFameMicros, fameMicros, lifetimeFameMicros, levelFameMicros].every(Number.isSafeInteger)) return null
+  if (!Number.isSafeInteger(baseFameMicros)) return null
+  const awardedMicros = scaleNewFameMicros(state, baseFameMicros)
+  if (awardedMicros === null) return null
+  const fameMicros = previous.fameMicros + awardedMicros
+  const lifetimeFameMicros = previous.lifetimeFameMicros + awardedMicros
+  const levelFameMicros = previous.levelFameMicros + awardedMicros
+  if (![fameMicros, lifetimeFameMicros, levelFameMicros].every(Number.isSafeInteger)) return null
 
   return {
     ...state,
-    prestige: { ...previous, experienceCents, lastAwardedLevel, fameMicros, lifetimeFameMicros, levelFameMicros },
+    prestige: {
+      ...previous, experienceCents, experienceCarryBps: scaledXp.carryBps,
+      lastAwardedLevel, fameMicros, lifetimeFameMicros, levelFameMicros,
+    },
   }
 }
