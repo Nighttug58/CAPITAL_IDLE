@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 8 terminées**  
+Statut : **en développement — passes 1 à 9 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -169,11 +169,16 @@ Nouvelle navigation Accueil/Trading, quatre rubriques, listes internes scrollabl
 
 ### Passe 9 — Modales Trading et News, catalogue rédactionnel complet
 
-- [ ] Modale actif : grand graphique historique, bornes, quantités, rendement/tendance pour actions, événements liés, formulaire Acheter/Vendre + 25/50/MAX, confirmations/erreurs utiles.
-- [ ] Liste News scrollable, indication actif/expiré, compteur synchronisé et modale avec explication, scénario, fiabilité, lien actif.
-- [ ] Porter progressivement le catalogue à **300 fiches éditoriales distinctes** validées (possible en sous-passes si nécessaire), sans données de cours ou annonces réelles présentées comme actuelles.
-- [ ] Tests UI/interactions : transactions, fermeture modales, navigation, compteurs et retour du navigateur.
+- [x] Modale actif : grand graphique historique, bornes, quantités, rendement/tendance pour actions, événements liés, formulaire Acheter/Vendre + 25/50/MAX, confirmations/erreurs utiles.
+- [x] Liste News scrollable, indication actif/expiré, compteur synchronisé et modale avec explication, scénario, fiabilité, lien actif.
+- [x] Porter progressivement le catalogue à **300 fiches éditoriales distinctes** validées (possible en sous-passes si nécessaire), sans données de cours ou annonces réelles présentées comme actuelles.
+- [x] Tests UI/interactions : transactions, fermeture modales, navigation, compteurs et retour du navigateur.
 - **Livrable :** expérience Trading + News jouable de bout en bout.
+
+**Validée le 13/11/2026** — fiches et formulaires Trading [6bd3466](https://github.com/Nighttug58/CAPITAL_IDLE/commit/6bd3466ef5769e777e7391d8e362be5ad92f9b4d), intégration complète [058dfc8](https://github.com/Nighttug58/CAPITAL_IDLE/commit/058dfc88b58d942c7fd63d7eb4ed1a3fedcb25c3), bibliothèque des 300 News [7049e81](https://github.com/Nighttug58/CAPITAL_IDLE/commit/7049e8121525dd8b5cf0ecb1beb5435ff6f9a69b) et correctifs de test/focus [8d3190a](https://github.com/Nighttug58/CAPITAL_IDLE/commit/8d3190a54d7429e91d8eae437985d72a98327cb7).
+
+**92 tests réussis**, dont **86 tests métier** et **6 tests UI Vue** (transactions, MAX, erreurs, News, touches Échap/Tab, retour navigateur, clic), ainsi que **npm run build** et déploiement GitHub Pages réussis dans [GitHub Actions #43463498426](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43463498426). Les actions et cryptos ouvrent des fiches avec courbes, quantités, cours et rendements ; achats et ventes utilisent les frais et le solde unique ; les News présentent leurs scénarios et les actifs ciblés. **300 fiches éditoriales fictives distinctes**, validées sur les titres, descriptions et scénarios (26+274). Voir `TRADING_INTERFACE.md` et `TRADING_NEWS.md`. Restent pour la passe 10 : bilan ergonomie smartphone, simulations longues, persistance et audit final.
+
 
 ### Passe 10 — Stabilisation, équilibrage et livraison
 
