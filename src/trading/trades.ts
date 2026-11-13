@@ -284,7 +284,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
 export function getPortfolio(state: CapitalState): PortfolioOverview {
   const positions: PortfolioPosition[] = []
   let marketValue = 0
-  let unrealizedNetProfit = 0
+  let unrealizedNetProfitCents = 0
 
   for (const asset of ASSETS) {
     const position = state.trading.positions[asset.id]
@@ -292,7 +292,7 @@ export function getPortfolio(state: CapitalState): PortfolioOverview {
     const price = validQuote(asset, state) ?? asset.referencePrice
     const estimatedSale = sellMoney(asset, price, position.quantity)
     const currentValue = price * position.quantity
-    const pnl = (estimatedSale ? toMoney(estimatedSale.proceedsCents) : 0) - position.costBasis
+    const pnlCents = (estimatedSale?.proceedsCents ?? 0) - (asCents(position.costBasis) ?? 0)
     const dividendYield = state.trading.quotes[asset.id]?.dividendYield ?? asset.initialDividendYield
 
     positions.push({
@@ -303,19 +303,19 @@ export function getPortfolio(state: CapitalState): PortfolioOverview {
       currentPrice: price,
       marketValue: currentValue,
       estimatedSaleProceeds: estimatedSale ? toMoney(estimatedSale.proceedsCents) : 0,
-      unrealizedNetProfit: pnl,
+      unrealizedNetProfit: toMoney(pnlCents),
       annualDividendEstimate: asset.kind === 'stock' && dividendYield !== null
         ? position.quantity * asset.referencePrice * dividendYield
         : 0,
     })
     marketValue += currentValue
-    unrealizedNetProfit += pnl
+    unrealizedNetProfitCents += pnlCents
   }
   return {
     cash: state.game.balance,
     marketValue,
     netWorth: state.game.balance + marketValue,
-    unrealizedNetProfit,
+    unrealizedNetProfit: toMoney(unrealizedNetProfitCents),
     realizedNetProfit: state.trading.realizedNetProfit,
     positions,
   }

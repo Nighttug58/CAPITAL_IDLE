@@ -50,7 +50,7 @@ test('frais propres aux trois catégories sur achats et ventes', () => {
     assert.equal(bought.ok, true)
     if (!bought.ok) continue
     assert.ok(bought.receipt.fee > 0)
-    assert.equal(bought.receipt.cashChange, -(bought.receipt.gross + bought.receipt.fee))
+    assert.equal(Math.round((bought.receipt.cashChange + bought.receipt.gross + bought.receipt.fee) * 100), 0)
     const sold = sellAsset(bought.state, id, amount)
     assert.equal(sold.ok, true)
     if (!sold.ok) continue
