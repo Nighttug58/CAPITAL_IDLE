@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   LEVEL_THRESHOLDS,
-  earnClick,
   getClickValue,
   getLevel,
   getNextLevelThreshold,
@@ -20,6 +19,7 @@ import EnterpriseScreen from './components/EnterpriseScreen.vue'
 import StatsScreen from './components/StatsScreen.vue'
 import { advanceFiscalEconomy, payFiscalBalanceNow } from './economy/clock.ts'
 import type { EarlyTaxPaymentResult } from './economy/fiscal.ts'
+import { earnCapitalClick, recordActivePlay } from './economy/stats-ledger.ts'
 import { buyEnterprise, upgradeEnterprise } from './economy/enterprises.ts'
 import type { EnterpriseAction, EnterpriseResult } from './economy/enterprises.ts'
 
@@ -49,6 +49,7 @@ const tapAnimationId = ref(0)
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
 let applyingMarket = false
+let activeSince: number | null = null
 
 const progressStart = computed(() => LEVEL_THRESHOLDS[level.value - 1] ?? 0)
 const progressPercent = computed(() => {
@@ -61,9 +62,12 @@ const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 
 const formatMoney = (value: number) => `${numberFormatter.format(value)} $`
 
 function click(event: MouseEvent) {
-  const previousBalance = game.value.balance
-  game.value = earnClick(game.value)
-  const gained = game.value.balance - previousBalance
+  const updated = earnCapitalClick(capital.value)
+  if (updated === capital.value) return
+  const gained = updated.game.balance - capital.value.game.balance
+  applyingMarket = true
+  try { capital.value = updated } finally { applyingMarket = false }
+  persist()
   if (gained <= 0) return
 
   const target = event.currentTarget
@@ -122,6 +126,17 @@ function executeEnterprise(action: EnterpriseAction, id: string): EnterpriseResu
 }
 
 function persist() {
+  // Une seule horloge (celle du jeu) ; le temps masqué ne compte jamais dans
+  // le temps de jeu actif. Aucun setInterval additionnel pour la page Stats.
+  if (activeSince !== null) {
+    const now = Date.now()
+    const withSession = recordActivePlay(capital.value, Math.max(0, now - activeSince))
+    activeSince = now
+    if (withSession !== capital.value) {
+      applyingMarket = true
+      try { capital.value = withSession } finally { applyingMarket = false }
+    }
+  }
   saveCapitalState(capital.value)
 }
 
@@ -149,18 +164,22 @@ function syncMarketVisibility() {
   if (document.hidden) {
     marketRuntime?.pause()
     persist()
+    activeSince = null
   } else {
+    activeSince = Date.now()
     marketRuntime?.resume()
   }
 }
 
 function syncMarketPageShow() {
+  activeSince = document.hidden ? null : Date.now()
   marketRuntime?.resume()
 }
 
 function syncMarketPageHide() {
   marketRuntime?.pause()
   persist()
+  activeSince = null
 }
 
 function syncFullscreen() {
@@ -184,6 +203,7 @@ async function toggleFullscreen() {
 watch(game, () => { if (!applyingMarket) persist() }, { flush: 'sync' })
 
 onMounted(() => {
+  activeSince = document.hidden ? null : Date.now()
   marketRuntime = createMarketRuntime({
     getState: () => capital.value,
     setState: (updated) => {
@@ -210,6 +230,7 @@ onUnmounted(() => {
   marketRuntime?.stop()
   marketRuntime = null
   persist()
+  activeSince = null
 })
 </script>
 
