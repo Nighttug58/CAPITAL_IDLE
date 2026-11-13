@@ -1,6 +1,6 @@
 import { getLevel } from '../game.ts'
 import { exactMoneyCents } from '../money.ts'
-import { COLLECTION_SLOTS, FAME_BOOST_IDS, MAX_FAME_BOOST_LEVEL, type FameBoostId } from './catalog.ts'
+import { COLLECTION_SLOTS, FAME_BOOST_IDS, MAX_FAME_BOOST_LEVEL, getPurchasedFameBoostCost, type FameBoostId } from './catalog.ts'
 import type { CapitalState } from '../capital.ts'
 import { getTotalBonusBps, scaleNewFameMicros, scaleRewardCents } from './bonuses.ts'
 
@@ -84,6 +84,12 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
   const rawBoosts = saved.boosts as unknown as Record<string, unknown>
   if (Object.keys(rawBoosts).length !== FAME_BOOST_IDS.length ||
     !FAME_BOOST_IDS.every(key => nonNegativeSafe(rawBoosts[key]) && (rawBoosts[key] as number) <= MAX_FAME_BOOST_LEVEL)) return fallback
+  // The only Fame sink is the Shop. Its exact price is derivable from the
+  // six purchased levels: reject forged balances or free boost tiers on import.
+  const spentFame = getPurchasedFameBoostCost(saved.boosts)
+  if (spentFame === null ||
+    saved.lifetimeFameMicros - saved.fameMicros !== spentFame * FAME_MICROS) return fallback
+
   const owned = saved.ownedCollectionIds
   if (owned.length > knownCollectionIds.size ||
     !owned.every(value => typeof value === 'string' && knownCollectionIds.has(value)) ||
