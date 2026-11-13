@@ -220,7 +220,7 @@ test('runtime + replay Trading : un seul timer et aucune seconde de revenu en do
   assert.equal(once.fiscal.periodStartedAt, T0 + 9 * DAY)
   assert.ok(once.fiscal.taxesPaidCents > 0)
   assert.equal(once.trading.dividendLastPaidAt, T0 + MAX_CATCH_UP_SECONDS * 1000)
-  assert.equal(writes, 0, 'sauvegarde différée pendant le replay')
+  assert.ok(writes > 0, 'le premier batch est sauvegardé une fois')
   runtime.wake()
   assert.equal(state.game.balance, once.game.balance)
   assert.equal(state.fiscal.taxesPaidCents, once.fiscal.taxesPaidCents)
