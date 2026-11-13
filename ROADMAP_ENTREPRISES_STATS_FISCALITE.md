@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 5/8 passes livrées**  
+**Statut : en cours — 6/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -155,12 +155,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 6 — Page Stats et fiscalité visible
 
-- [ ] Ajouter **Stats** en **dernière position à droite** de la navigation principale sans supprimer les onglets Trading existants.
-- [ ] Vue d'ensemble patrimoine/progression ; gains et pertes ventilés selon leurs sources **sans double comptage** ; cartes entreprises.
-- [ ] Bloc fiscal clair avec dette, détail par origine, taxes totales payées, décompte avant échéance et **Payer maintenant**.
-- [ ] Valeur patrimoniale nette correcte : cash potentiellement négatif, actifs, valeur comptable des entreprises, moins dette fiscale encore due.
-- [ ] Compatibilité mobile, contrastes, formatage monétaire, confirmation éventuelle du paiement, tests de composants.
+- [x] Ajouter **Stats** en **dernière position à droite** de la navigation principale sans supprimer les onglets Trading existants.
+- [x] Vue d'ensemble patrimoine/progression ; gains et pertes ventilés selon leurs sources **sans double comptage** ; cartes entreprises.
+- [x] Bloc fiscal clair avec dette, détail par origine, taxes totales payées, décompte avant échéance et **Payer maintenant**.
+- [x] Valeur patrimoniale nette correcte : cash potentiellement négatif, actifs, valeur comptable des entreprises, moins dette fiscale encore due.
+- [x] Compatibilité mobile, contrastes, formatage monétaire, confirmation éventuelle du paiement, tests de composants.
 - **Livrable :** page Stats exploitable, fiscale et économique.
+
+**Validée le 13/11/2026** — [PR #6](https://github.com/Nighttug58/CAPITAL_IDLE/pull/6), [implémentation 6e5e5b5](https://github.com/Nighttug58/CAPITAL_IDLE/commit/6e5e5b58b0958a74c79270fc4c5fcbaf9b5a330d), correctif d'arrondi au centime [3ba3a7c](https://github.com/Nighttug58/CAPITAL_IDLE/commit/3ba3a7cbd984b395549f65c4196f83c236957692). [CI #43509305079](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43509305079) : **tous les tests métier et Vue, compilation TypeScript/Vite, mise à jour du build main/root et déclenchement GitHub Pages réussis**. `src/economy/stats-ledger.ts` : comptage effectif des clics, revenus de dividendes réellement payés, plus-values et pertes réalisées séparées par origine, temps actif uniquement au premier plan, sans second timer. `src/economy/stats-overview.ts` : bilan patrimoine = cash (négatif possible) + valeur de marché des titres + montant investi dans entreprises − impôts encore dus ; les taxes déjà payées sont dans le cash, sans double déduction. `src/components/StatsScreen.vue` : progression XP, niveau 50, gain total pour la progression, temps joué, clics, barres de répartition, gains/pertes actions/cryptos/memecoins, revenus et niveaux Entreprises, patrimoine ventilé et module fiscal existant avec confirmation. Les anciennes sauvegardes v5 sans suivi par source migrent une seule fois dans `unclassified` : aucune attribution historique fictive. Tests `src/economy/stats.test.ts` et `src/components/stats-ui.test.ts` enrichis. **Import/Export/Reset manuels réservés à la passe 7.**
 
 ### Passe 7 — Export JSON, import confirmé, réinitialisation confirmée
 
