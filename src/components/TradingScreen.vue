@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import type { CapitalState } from '../capital.ts'
+import type { MarketNews } from '../trading/types.ts'
 import { getAsset } from '../trading/catalog.ts'
 import type { TradeResult, TradeSide } from '../trading/trades.ts'
 import { formatCash } from '../trading/presentation.ts'
@@ -18,15 +19,23 @@ type Tab = 'portfolio' | 'stocks' | 'crypto' | 'news'
 const activeTab = ref<Tab>('portfolio')
 const selectedAssetId = ref<string | null>(null)
 const selectedNewsId = ref<string | null>(null)
+const selectedNewsSnapshot = ref<MarketNews | null>(null)
 const tabs: { key: Tab; label: string }[] = [
   { key: 'portfolio', label: 'Portfolio' },
   { key: 'stocks', label: 'Actions' },
   { key: 'crypto', label: 'Crypto' },
   { key: 'news', label: 'News' },
 ]
-const activeNews = computed(() => props.state.trading.news.find(e => e.id === selectedNewsId.value) ?? null)
+const activeNews = computed(() => props.state.trading.news.find(e => e.id === selectedNewsId.value) ?? selectedNewsSnapshot.value)
 const hasDialog = computed(() => selectedAssetId.value !== null || selectedNewsId.value !== null)
 let historyEntry = false
+let returnFocus: HTMLElement | null = null
+function captureFocus() {
+  if (!hasDialog.value && document.activeElement instanceof HTMLElement) returnFocus = document.activeElement
+}
+function restoreFocus() {
+  void nextTick(() => { if (returnFocus?.isConnected) returnFocus.focus() })
+}
 
 function ensureHistoryEntry() {
   if (historyEntry) return
@@ -36,19 +45,26 @@ function ensureHistoryEntry() {
 function openAsset(id: string) {
   const asset = getAsset(id)
   if (!asset) return
+  captureFocus()
   ensureHistoryEntry()
   selectedNewsId.value = null
+  selectedNewsSnapshot.value = null
   selectedAssetId.value = asset.id
 }
 function openNews(id: string) {
-  if (!props.state.trading.news.some(e => e.id === id)) return
+  const chosen = props.state.trading.news.find(e => e.id === id)
+  if (!chosen) return
+  captureFocus()
   ensureHistoryEntry()
   selectedAssetId.value = null
+  selectedNewsSnapshot.value = chosen
   selectedNewsId.value = id
 }
 function closeDialog() {
   selectedAssetId.value = null
   selectedNewsId.value = null
+  selectedNewsSnapshot.value = null
+  restoreFocus()
   if (historyEntry) {
     historyEntry = false
     window.history.back()
@@ -57,12 +73,29 @@ function closeDialog() {
 function onPopState() {
   selectedAssetId.value = null
   selectedNewsId.value = null
+  selectedNewsSnapshot.value = null
   historyEntry = false
+  restoreFocus()
 }
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && hasDialog.value) {
+  if (!hasDialog.value) return
+  if (event.key === 'Escape') {
     event.preventDefault()
     closeDialog()
+    return
+  }
+  if (event.key !== 'Tab') return
+  const root = document.querySelector<HTMLElement>('.trading-modal[role="dialog"]')
+  if (!root) return
+  const buttons = Array.from(root.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'))
+  if (!buttons.length) return
+  const first = buttons[0]!, last = buttons[buttons.length - 1]!
+  if (event.shiftKey && (document.activeElement === first || !root.contains(document.activeElement))) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && (document.activeElement === last || !root.contains(document.activeElement))) {
+    event.preventDefault()
+    first.focus()
   }
 }
 onMounted(() => {

@@ -27,10 +27,10 @@ const available = computed(() => getAvailableSupply(asset.value, owned.value))
 const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
-const historyPoints = computed(() => sparklinePoints(samples.value, 320, 126))
+const historyPoints = computed(() => sparklinePoints(samples.value, 320, 126, 160))
 const yieldSamples = computed<PriceSample[]>(() => samples.value
   .filter(s => s.dividendYield != null).map(s => ({ at: s.at, price: s.dividendYield! })))
-const yieldPoints = computed(() => sparklinePoints(yieldSamples.value, 320, 65))
+const yieldPoints = computed(() => sparklinePoints(yieldSamples.value, 320, 65, 120))
 const rate = computed(() => quote.value?.dividendYield ?? asset.value.initialDividendYield)
 const rateDirection = computed(() => Math.abs(quote.value?.dividendMomentum ?? 0) < 1e-9
   ? 'stable' : (quote.value!.dividendMomentum! > 0 ? 'hausse' : 'baisse'))
@@ -79,7 +79,7 @@ function submit() {
   }
   status.value = {
     success: true,
-    message: `${activeSide.value === 'buy' ? 'Achat' : 'Vente'} confirmé · ${formatQuantity(response.receipt.quantity)} ${asset.value.symbol} · frais ${formatCash(response.receipt.fee)}`,
+    message: `${activeSide.value === 'buy' ? 'Achat confirmé' : 'Vente confirmée'} · ${formatQuantity(response.receipt.quantity)} ${asset.value.symbol} · frais ${formatCash(response.receipt.fee)}`,
   }
   quantityText.value = ''
 }

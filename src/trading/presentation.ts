@@ -46,9 +46,9 @@ export function formatRemaining(endsAt: number, now: number): string {
   return secs === 0 ? 'Terminé' : Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0')
 }
 
-export function sparklinePoints(series: readonly PriceSample[], width = 112, height = 34): string {
+export function sparklinePoints(series: readonly PriceSample[], width = 112, height = 34, maxPoints = 40): string {
   if (series.length < 2) return ''
-  const samples = getSparklineSamples(series, 40)
+  const samples = getSparklineSamples(series, maxPoints)
   const values = samples.map((entry) => entry.price)
   const min = Math.min(...values), max = Math.max(...values)
   const w = Math.max(4, width) - 4, h = Math.max(4, height) - 4
