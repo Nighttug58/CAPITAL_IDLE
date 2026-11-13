@@ -74,7 +74,7 @@ export function saveCapitalState(state: CapitalState): void {
 /**
  * Remplacement explicite pour import/reset. Contrairement à l'autosauvegarde,
  * un échec de stockage ne peut PAS être silencieux : l'ancien état reste actif.
- * La clé v5 est écrite en premier. Les anciennes clés ne sont ensuite que des
+ * La clé v6 est écrite en premier. Les anciennes clés ne sont ensuite que des
  * reliquats ; leur suppression est best-effort et ne doit pas rendre l'opération
  * non atomique. Une v6 présente empêche toute migration fantôme v1-v4.
  */
@@ -88,7 +88,7 @@ export function replaceCapitalSave(state: CapitalState): boolean {
     return false
   }
   for (const old of [V5_STORAGE_KEY, V4_STORAGE_KEY, V3_STORAGE_KEY, V2_STORAGE_KEY, V1_STORAGE_KEY]) {
-    try { localStorage.removeItem(old) } catch { /* v5 prioritaire */ }
+    try { localStorage.removeItem(old) } catch { /* v6 prioritaire */ }
   }
   return true
 }
