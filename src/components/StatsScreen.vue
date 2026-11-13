@@ -62,7 +62,7 @@ const importing = ref(false)
 const importErrors: Record<'file-too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-save', string> = {
   'file-too-large': 'Fichier trop volumineux (16 Mo maximum).',
   'invalid-json': 'Ce fichier n’est pas un JSON valide.',
-  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 uniquement).',
+  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 / v6).',
   'invalid-save': 'Sauvegarde corrompue ou incohérente : aucune donnée n’a été remplacée.',
 }
 function openImportChooser() {
@@ -149,10 +149,10 @@ function pay() {
 
     <div class="stats-scroll">
       <section class="stats-overview" aria-label="Vue d’ensemble du joueur">
-        <div><span>NIVEAU</span><strong>{{ overview.level }} / 50</strong></div>
+        <div><span>NIVEAU</span><strong>{{ overview.level }}</strong></div>
         <div><span>FORTUNE NETTE</span><strong :class="{ 'tax-debt': overview.netWorth < 0 }">{{ cash(overview.netWorth) }}</strong></div>
         <div><span>SOLDE DISPONIBLE</span><strong :class="{ 'tax-debt': state.game.balance < 0 }">{{ cash(overview.cash) }}</strong></div>
-        <div><span>GAINS POUR LA PROGRESSION</span><strong>{{ cash(overview.lifetimeEarned) }}</strong></div>
+        <div><span>REVENUS CUMULÉS</span><strong>{{ cash(overview.lifetimeEarned) }}</strong></div>
       </section>
 
       <section class="stats-section stats-progress" aria-label="Progression">
@@ -162,7 +162,7 @@ function pay() {
           <div :style="{ width: overview.levelProgressPercent + '%' }"></div>
         </div>
         <div class="stats-progress-description">
-          <span>{{ cash(overview.lifetimeEarned) }} XP</span>
+          <span>{{ cash(overview.experience) }} XP</span>
           <span>{{ overview.nextLevelAt === null ? 'Palier final atteint' : cash(overview.nextLevelAt) + ' XP requis' }}</span>
         </div>
         <div class="stats-mini-grid">
