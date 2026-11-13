@@ -182,25 +182,34 @@ test('Notoriété : seuls les nouveaux achats sont multipliés, pas le bonus Fam
   assert.equal(click.state.prestige.fameMicros % FAME_MICROS, 770_000)
 })
 
-test('50 achats en cash : +20 200 Fame de base et patrimoine stable, sans événements économiques fictifs', () => {
+test('50 achats en cash : 20 200 Fame garanties, bonus Fame cumulés et patrimoine stable', () => {
   const initial = funded(5_000_000_000)
   const initialNetWorth = getCapitalStatsOverview(initial).netWorth
   const initialXP = initial.prestige.experienceCents
   const initialLevelFame = initial.prestige.levelFameMicros
   let totalCostCents = 0
+  let totalBaseFame = 0
+  let totalAwardedFameMicros = 0
   let state = initial
   for (const item of COLLECTION_ITEMS) {
+    // Collection items themselves may improve subsequent Fame rewards.
+    // The guaranteed baseline stays 20 200, but real rewards can exceed it.
+    const expectedAward = getCollectionOffer(state, item.id)?.awardedFameMicros
     const transaction = buyCollectionItem(state, item.id)
     assert.ok(transaction.ok, item.id)
-    assert.equal(transaction.receipt.awardedFameMicros, item.fame * FAME_MICROS)
+    assert.equal(transaction.receipt.awardedFameMicros, expectedAward)
     assert.equal(transaction.receipt.bonusBps, item.bonusBps)
     totalCostCents += item.priceCents
+    totalBaseFame += item.fame
+    totalAwardedFameMicros += transaction.receipt.awardedFameMicros
     state = transaction.state
   }
   assert.equal(state.prestige.ownedCollectionIds.length, 50)
   assert.equal(new Set(state.prestige.ownedCollectionIds).size, 50)
-  assert.equal(state.prestige.collectionFameMicros, COLLECTION_BASE_FAME * FAME_MICROS)
-  assert.equal(state.prestige.fameMicros, initial.prestige.fameMicros + COLLECTION_BASE_FAME * FAME_MICROS)
+  assert.equal(totalBaseFame, COLLECTION_BASE_FAME)
+  assert.ok(totalAwardedFameMicros >= COLLECTION_BASE_FAME * FAME_MICROS)
+  assert.equal(state.prestige.collectionFameMicros, totalAwardedFameMicros)
+  assert.equal(state.prestige.fameMicros, initial.prestige.fameMicros + totalAwardedFameMicros)
   assert.equal(state.prestige.levelFameMicros, initialLevelFame)
   assert.equal(state.prestige.experienceCents, initialXP)
   assert.equal(state.game.lifetimeEarned, initial.game.lifetimeEarned)
