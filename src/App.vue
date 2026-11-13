@@ -13,6 +13,7 @@ import {
 import { loadCapitalState, saveCapitalState } from './persistence.ts'
 import type { CapitalState } from './capital.ts'
 import { createMarketRuntime } from './trading/runtime.ts'
+import TradingScreen from './components/TradingScreen.vue'
 
 interface FloatingGain {
   id: number
@@ -32,6 +33,7 @@ const nextLevel = computed(() => getNextLevelThreshold(game.value.lifetimeEarned
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
+const page = ref<'home' | 'trading'>('home')
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
@@ -46,7 +48,7 @@ const progressPercent = computed(() => {
   return range > 0 ? Math.min(100, Math.max(0, ((game.value.lifetimeEarned - progressStart.value) / range) * 100)) : 0
 })
 
-const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 0 })
+const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const formatMoney = (value: number) => `${numberFormatter.format(value)} $`
 
 function click(event: MouseEvent) {
@@ -175,7 +177,7 @@ onUnmounted(() => {
       </button>
     </header>
 
-    <main id="accueil" class="home-screen">
+    <main v-show="page === 'home'" id="accueil" class="home-screen">
       <section class="wallet" aria-label="Votre argent">
         <div class="eyebrow wallet-label"><span class="gold-dot" aria-hidden="true"></span> SOLDE DISPONIBLE</div>
         <div class="balance-value">{{ numberFormatter.format(game.balance) }} <span>$</span></div>
@@ -235,13 +237,24 @@ onUnmounted(() => {
       </section>
     </main>
 
+    <TradingScreen v-show="page === 'trading'" :state="capital" />
+
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <a href="#accueil" class="nav-home" aria-current="page">
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' }"
+        :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
         </svg>
         <span>Accueil</span>
-      </a>
+      </button>
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'trading' }"
+        :aria-current="page === 'trading' ? 'page' : undefined" @click="page = 'trading'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 17l6-6 4 4 8-9M16 6h5v5" />
+          <path d="M3 21h18" />
+        </svg>
+        <span>Trading</span>
+      </button>
     </nav>
   </div>
 </template>
