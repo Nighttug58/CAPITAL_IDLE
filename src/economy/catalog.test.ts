@@ -39,7 +39,8 @@ test('déblocages : niveaux joueur croissants, de 3 à 50, sans dépasser le pla
     assert.equal(isEnterpriseUnlocked(e.id, e.requiredPlayerLevel - 1), false)
     assert.equal(isEnterpriseUnlocked(e.id, e.requiredPlayerLevel), true)
     assert.equal(isEnterpriseUnlocked(e.id, 50), true)
-    assert.equal(isEnterpriseUnlocked(e.id, 51), false)
+    assert.equal(isEnterpriseUnlocked(e.id, 51), true)
+    assert.equal(isEnterpriseUnlocked(e.id, 101), true)
     assert.equal(isEnterpriseUnlocked(e.id, Number.NaN), false)
     const xpAtUnlock = LEVEL_THRESHOLDS[e.requiredPlayerLevel - 1]!
     assert.equal(getLevel(xpAtUnlock), e.requiredPlayerLevel)
