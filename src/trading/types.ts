@@ -69,5 +69,8 @@ export interface TradingState {
   positions: Record<string, Position>
   news: MarketNews[]
   realizedNetProfit: number
+  // Plus haut cumul net atteint par les profits de ventes : protège les niveaux
+  // contre un cycle perte -> récupération du même profit.
+  creditedTradingProfit: number
   dividendCarry: number
 }

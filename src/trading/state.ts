@@ -77,6 +77,7 @@ export function createInitialTradingState(now = Date.now(), seed = Math.floor(Ma
     positions: {},
     news: [],
     realizedNetProfit: 0,
+    creditedTradingProfit: 0,
     dividendCarry: 0,
   }
 }
@@ -92,6 +93,9 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     !Array.isArray(raw.news) || raw.news.length > MAX_NEWS_IN_SAVE || !raw.news.every(isNews) ||
     typeof raw.realizedNetProfit !== 'number' || !Number.isFinite(raw.realizedNetProfit) ||
     Math.abs(raw.realizedNetProfit) > MAX_MONEY ||
+    // Les premières sauvegardes v4 n'avaient pas encore ce compteur.
+    !(raw.creditedTradingProfit === undefined ||
+      (isAmount(raw.creditedTradingProfit) && raw.creditedTradingProfit >= raw.realizedNetProfit)) ||
     !isAmount(raw.dividendCarry) || raw.dividendCarry >= 1
   ) return fallback()
 
@@ -105,6 +109,7 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     positions: raw.positions,
     news: raw.news,
     realizedNetProfit: raw.realizedNetProfit,
+    creditedTradingProfit: typeof raw.creditedTradingProfit === 'number' ? raw.creditedTradingProfit : 0,
     dividendCarry: raw.dividendCarry,
   } as TradingState
 }

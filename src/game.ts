@@ -44,6 +44,16 @@ export const INITIAL_GAME: Readonly<GameState> = {
 const isValidInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 
+// Les transactions apportent des centimes ; le clicker historique garde ses
+// montants entiers. Les anciens gros entiers restent valides après migration.
+const isValidMoney = (value: unknown): value is number => {
+  if (isValidInteger(value)) return true
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 ||
+      value > Number.MAX_SAFE_INTEGER / 100) return false
+  const cents = value * 100
+  return Number.isSafeInteger(Math.round(cents)) && Math.abs(cents - Math.round(cents)) < 0.0001
+}
+
 export function getLevel(lifetimeEarned: number): number {
   const earned = Number.isFinite(lifetimeEarned) ? Math.max(0, lifetimeEarned) : 0
   let level = 1
@@ -93,7 +103,7 @@ export function purchaseUpgrade(state: GameState): GameState {
 export function restoreGame(raw: unknown): GameState {
   if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
   const saved = raw as Partial<GameState>
-  if (!isValidInteger(saved.balance) || !isValidInteger(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
+  if (!isValidMoney(saved.balance) || !isValidMoney(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
     return { ...INITIAL_GAME }
   }
   if (saved.balance > saved.lifetimeEarned || saved.purchasedUpgrades > UPGRADES.length) {
