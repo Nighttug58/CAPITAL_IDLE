@@ -77,7 +77,7 @@ describe('Stats / fiscalité', () => {
     const taxed = accrueProfitTax(state, 'stocks', 10_000)
     expect(taxed).not.toBeNull()
     state = taxed!
-    localStorage.setItem('capital-idle-save-v5', JSON.stringify(state))
+    localStorage.setItem('capital-idle-save-v6', JSON.stringify(state))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     const nav = wrapper.findAll('.bottom-nav button')
@@ -112,12 +112,12 @@ describe('Stats : progression et patrimoine complet', () => {
   it('comptabilise un clic réel puis l affiche sur Stats sans changer le cumul historique', async () => {
     const now = Date.now()
     const state = createCapitalState({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 0 }, now)
-    localStorage.setItem('capital-idle-save-v5', JSON.stringify(state))
+    localStorage.setItem('capital-idle-save-v6', JSON.stringify(state))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.find('.tap-zone').trigger('click')
     await nextTick()
-    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
+    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
     expect(stored.stats.clickCount).toBe(1)
     expect(stored.stats.earnedBySource.clicks).toBe(1)
     expect(stored.stats.earnedBySource.unclassified).toBe(100)
@@ -155,7 +155,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     const original = createCapitalState({ balance: 567, lifetimeEarned: 567, purchasedUpgrades: 0 }, now)
     original.fiscal.taxesDueCents = 750
     original.fiscal.dueBySourceCents.stocks = 750
-    localStorage.setItem('capital-idle-save-v5', JSON.stringify(original))
+    localStorage.setItem('capital-idle-save-v6', JSON.stringify(original))
     localStorage.setItem('capital-idle-save-v4', JSON.stringify({ version: 4, game: original.game, trading: original.trading }))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
@@ -168,14 +168,14 @@ describe('Gestion des sauvegardes dans Stats', () => {
     expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeDefined()
     await wrapper.find('.backup-reset-confirm .backup-confirm-actions button').trigger('click')
     expect(wrapper.find('.backup-reset-confirm').exists()).toBe(false)
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(567)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v6')!).game.balance).toBe(567)
 
     await wrapper.find('.backup-reset').trigger('click')
     await wrapper.find('#reset-code').setValue('RESET')
     expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeUndefined()
     await wrapper.find('.backup-confirm-danger').trigger('click')
     await nextTick()
-    const fresh = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
+    const fresh = JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
     expect(fresh.game.balance).toBe(0)
     expect(fresh.game.lifetimeEarned).toBe(0)
     expect(fresh.fiscal.taxesDueCents).toBe(0)
@@ -194,7 +194,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     loaded.trading.quotes.nvideo = { price: 110, momentum: 0, dividendYield: 0.05, updatedAt: now - 30_000 }
     loaded.fiscal.taxesDueCents = 75
     loaded.fiscal.dueBySourceCents.stocks = 75
-    localStorage.setItem('capital-idle-save-v5', JSON.stringify(original))
+    localStorage.setItem('capital-idle-save-v6', JSON.stringify(original))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
@@ -215,19 +215,19 @@ describe('Gestion des sauvegardes dans Stats', () => {
     await choose(encoded)
     expect(wrapper.find('.backup-confirm').exists()).toBe(true)
     expect(wrapper.find('.backup-import-details').text()).toContain(new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 }).format(1250))
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v6')!).game.balance).toBe(250)
     await wrapper.find('.backup-confirm-actions button').trigger('click')
     expect(wrapper.find('.backup-confirm').exists()).toBe(false)
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v6')!).game.balance).toBe(250)
 
     await choose('{invalid')
     expect(wrapper.find('.backup-error').exists()).toBe(true)
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v6')!).game.balance).toBe(250)
 
     await choose(encoded)
     await wrapper.find('.backup-confirm-primary').trigger('click')
     await flushPromises()
-    const imported = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
+    const imported = JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
     expect(imported.game.balance).toBe(1250)
     expect(imported.trading.positions.nvideo.quantity).toBe(1)
     expect(imported.fiscal.taxesDueCents).toBe(75)
