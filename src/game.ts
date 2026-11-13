@@ -10,11 +10,11 @@ export interface Upgrade {
   readonly clickValue: number
 }
 
-// Progression douce : 30 niveaux, étapes qui grandissent de 21 % par niveau.
+// Progression régulière : 50 niveaux, chaque palier augmente de 10 %.
 // Le niveau dépend exclusivement des gains cumulés, jamais du solde.
-const LEVEL_COUNT = 30
+const LEVEL_COUNT = 50
 const FIRST_LEVEL_STEP = 35
-const STEP_GROWTH = 1.21
+const STEP_GROWTH = 1.10
 
 export const LEVEL_THRESHOLDS: readonly number[] = (() => {
   const thresholds = [0]
@@ -25,16 +25,13 @@ export const LEVEL_THRESHOLDS: readonly number[] = (() => {
   return thresholds
 })()
 
-const clickValueForLevel = (level: number): number =>
-  level <= 10 ? level : 10 + 2 * (level - 10)
-
 export const UPGRADES: readonly Upgrade[] = LEVEL_THRESHOLDS.slice(1).map((threshold, index) => {
   const level = index + 2
   const step = threshold - LEVEL_THRESHOLDS[index]!
   return {
     requiredLevel: level,
     price: Math.max(5, Math.round((step * 0.6) / 5) * 5),
-    clickValue: clickValueForLevel(level),
+    clickValue: level,
   }
 })
 
@@ -135,5 +132,39 @@ export function migrateLegacyGame(raw: unknown): GameState {
     balance: previous.balance,
     lifetimeEarned: previous.lifetimeEarned,
     purchasedUpgrades,
+  })
+}
+
+// Ancien équilibrage v2 : 30 niveaux, +1$/clic jusqu'au niveau 10, puis +2$/clic.
+// On conserve le revenu déjà acquis en le convertissant en achats successifs de +1$.
+const V2_THRESHOLDS: readonly number[] = (() => {
+  const thresholds = [0]
+  for (let level = 2; level <= 30; level++) {
+    const increment = Math.round(35 * 1.21 ** (level - 2))
+    thresholds.push(thresholds[thresholds.length - 1]! + increment)
+  }
+  return thresholds
+})()
+
+export function migrateV2Game(raw: unknown): GameState {
+  if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
+  const previous = raw as Partial<GameState>
+  if (!isValidInteger(previous.balance) || !isValidInteger(previous.lifetimeEarned) || !isValidInteger(previous.purchasedUpgrades)) {
+    return { ...INITIAL_GAME }
+  }
+  if (previous.balance > previous.lifetimeEarned || previous.purchasedUpgrades > 29) {
+    return { ...INITIAL_GAME }
+  }
+  if (previous.lifetimeEarned < V2_THRESHOLDS[previous.purchasedUpgrades]!) {
+    return { ...INITIAL_GAME }
+  }
+
+  const oldClickValue = previous.purchasedUpgrades <= 9
+    ? previous.purchasedUpgrades + 1
+    : 10 + 2 * (previous.purchasedUpgrades - 9)
+  return restoreGame({
+    balance: previous.balance,
+    lifetimeEarned: previous.lifetimeEarned,
+    purchasedUpgrades: oldClickValue - 1,
   })
 }
