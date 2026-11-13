@@ -10,7 +10,8 @@ import {
   purchaseUpgrade,
   type GameState,
 } from './game.ts'
-import { loadGame, saveGame } from './persistence.ts'
+import { loadCapitalState, saveCapitalState } from './persistence.ts'
+import type { CapitalState } from './capital.ts'
 
 interface FloatingGain {
   id: number
@@ -19,7 +20,11 @@ interface FloatingGain {
   y: number
 }
 
-const game = ref<GameState>(loadGame())
+const capital = ref<CapitalState>(loadCapitalState())
+const game = computed<GameState>({
+  get: () => capital.value.game,
+  set: (updated) => { capital.value = { ...capital.value, game: updated } },
+})
 const level = computed(() => getLevel(game.value.lifetimeEarned))
 const clickValue = computed(() => getClickValue(game.value.purchasedUpgrades))
 const nextLevel = computed(() => getNextLevelThreshold(game.value.lifetimeEarned))
@@ -72,7 +77,7 @@ function buy() {
 }
 
 function persist() {
-  saveGame(game.value)
+  saveCapitalState(capital.value)
 }
 
 function syncFullscreen() {
@@ -91,7 +96,7 @@ async function toggleFullscreen() {
   }
 }
 
-watch(game, persist, { flush: 'sync' })
+watch(capital, persist, { flush: 'sync' })
 
 onMounted(() => {
   document.addEventListener('fullscreenchange', syncFullscreen)

@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --experimental-strip-types --test src/game.test.ts"
+    "test": "node --experimental-strip-types --test src/game.test.ts src/capital.test.ts"
   },
   "dependencies": {
     "vue": "^3.5.23"
