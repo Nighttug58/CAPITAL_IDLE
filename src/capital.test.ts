@@ -44,7 +44,7 @@ test('une partie neuve possède un solde unique, trading vide et états économi
   assert.equal(state.fiscal.taxesDueCents, 0)
   assert.equal(state.fiscal.taxesPaidCents, 0)
   assert.equal(FISCAL_PERIOD_MS, 72 * 60 * 60 * 1000)
-  assert.equal(FISCAL_TAX_RATE, null) // Taux non validé, taxation encore inactive.
+  assert.equal(FISCAL_TAX_RATE, 0.15) // Taux de gameplay provisoire, centralisé en passe 4.
   assert.equal(state.stats.startedAt, NOW)
   assert.equal(state.stats.earnedBySource.unclassified, 0)
 })
