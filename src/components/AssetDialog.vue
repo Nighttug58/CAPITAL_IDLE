@@ -79,7 +79,7 @@ function submit() {
   }
   status.value = {
     success: true,
-    message: `${activeSide.value === 'buy' ? 'Achat confirmé' : 'Vente confirmée'} · ${formatQuantity(response.receipt.quantity)} ${asset.value.symbol} · frais ${formatCash(response.receipt.fee)}`,
+    message: `${activeSide.value === 'buy' ? 'Achat confirmé' : 'Vente confirmée'} · ${formatQuantity(response.receipt.quantity)} ${asset.value.symbol} · frais ${formatCash(response.receipt.fee)}${response.receipt.taxAccrued > 0 ? ` · taxe différée ${formatCash(response.receipt.taxAccrued)}` : ''}`,
   }
   quantityText.value = ''
 }
@@ -155,6 +155,10 @@ function submit() {
           <span>Frais ({{ formatRate(feeRate(asset.kind)) }})</span><strong>{{ estimate ? formatCash(estimate.fee) : '—' }}</strong>
           <span>{{ activeSide === 'buy' ? 'Total à payer' : 'Montant à recevoir' }}</span>
           <strong>{{ estimate ? formatCash(Math.abs(estimate.cashChange)) : '—' }}</strong>
+          <template v-if="activeSide === 'sell' && estimate">
+            <span>Plus-value nette réalisée</span><strong>{{ formatCash(estimate.netRealizedProfit) }}</strong>
+            <span>Taxe différée (due sous 72 h max.)</span><strong>{{ formatCash(estimate.taxAccrued) }}</strong>
+          </template>
         </div>
         <p v-if="quantityText.trim() && !ready && !status && !preview.ok"
           class="order-error" role="alert">{{ errors[preview.error] ?? 'Ordre invalide.' }}</p>
