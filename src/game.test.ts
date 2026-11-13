@@ -8,18 +8,20 @@ import {
   getLevel,
   getNextLevelThreshold,
   migrateLegacyGame,
+  migrateV2Game,
   purchaseUpgrade,
   restoreGame,
   UPGRADES,
 } from './game.ts'
 
-test('30 niveaux lissés avec des seuils strictement croissants', () => {
-  assert.equal(LEVEL_THRESHOLDS.length, 30)
+test('50 niveaux lissés avec des seuils strictement croissants', () => {
+  assert.equal(LEVEL_THRESHOLDS.length, 50)
   assert.equal(LEVEL_THRESHOLDS[0], 0)
   assert.equal(LEVEL_THRESHOLDS[1], 35)
-  assert.equal(LEVEL_THRESHOLDS[2], 77)
-  assert.equal(LEVEL_THRESHOLDS[9], 760)
-  assert.equal(LEVEL_THRESHOLDS[29], 41_775)
+  assert.equal(LEVEL_THRESHOLDS[2], 74)
+  assert.equal(LEVEL_THRESHOLDS[9], 475)
+  assert.equal(LEVEL_THRESHOLDS[29], 5_203)
+  assert.equal(LEVEL_THRESHOLDS[49], 37_002)
   assert.ok(LEVEL_THRESHOLDS.every((value, index) => index === 0 || value > LEVEL_THRESHOLDS[index - 1]!))
 })
 
@@ -27,9 +29,9 @@ test('le niveau dépend du total gagné, pas du solde', () => {
   assert.equal(getLevel(0), 1)
   assert.equal(getLevel(34), 1)
   assert.equal(getLevel(35), 2)
-  assert.equal(getLevel(77), 3)
-  assert.equal(getNextLevelThreshold(35), 77)
-  assert.equal(getNextLevelThreshold(41_775), null)
+  assert.equal(getLevel(74), 3)
+  assert.equal(getNextLevelThreshold(35), 74)
+  assert.equal(getNextLevelThreshold(37_002), null)
 })
 
 test('clic puis achat : niveau et total gagné sont préservés', () => {
@@ -52,16 +54,17 @@ test('impossible d acheter une amélioration avant son niveau ou sans fonds', ()
   assert.deepEqual(purchaseUpgrade(poor), poor)
 })
 
-test('améliorations croissantes et prix compatibles avec le palier', () => {
-  assert.equal(UPGRADES.length, 29)
+test('chaque achat apporte exactement +1 $/clic et les prix suivent les paliers', () => {
+  assert.equal(UPGRADES.length, 49)
   UPGRADES.forEach((upgrade, index) => {
     const step = LEVEL_THRESHOLDS[index + 1]! - LEVEL_THRESHOLDS[index]!
     assert.equal(upgrade.requiredLevel, index + 2)
     assert.ok(upgrade.price > 0 && upgrade.price < step)
-    assert.ok(upgrade.clickValue > (index === 0 ? 1 : UPGRADES[index - 1]!.clickValue))
-    if (index > 0) assert.ok(upgrade.clickValue - UPGRADES[index - 1]!.clickValue <= 2)
+    assert.equal(upgrade.clickValue, index + 2)
+    assert.equal(upgrade.clickValue - getClickValue(index), 1)
+    if (index > 0) assert.ok(upgrade.price >= UPGRADES[index - 1]!.price)
   })
-  assert.equal(UPGRADES[28]!.clickValue, 50)
+  assert.equal(UPGRADES[48]!.clickValue, 50)
 })
 
 test('progression complète : on peut acheter tous les niveaux sans blocage', () => {
@@ -86,14 +89,31 @@ test('les anciennes sauvegardes conservent le solde, le total et au moins les ga
     const migrated = migrateLegacyGame({ balance, lifetimeEarned, purchasedUpgrades })
     assert.equal(migrated.balance, balance)
     assert.equal(migrated.lifetimeEarned, lifetimeEarned)
-    assert.ok(getClickValue(migrated.purchasedUpgrades) >= oldClicks[purchasedUpgrades]!)
+    assert.equal(getClickValue(migrated.purchasedUpgrades), oldClicks[purchasedUpgrades]!)
   })
 })
 
 test('refus des sauvegardes invalides, corrompues ou impossibles', () => {
   assert.deepEqual(restoreGame(null), INITIAL_GAME)
   assert.deepEqual(restoreGame({ balance: 10, lifetimeEarned: 5, purchasedUpgrades: 0 }), INITIAL_GAME)
-  assert.deepEqual(restoreGame({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 29 }), INITIAL_GAME)
+  assert.deepEqual(restoreGame({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 49 }), INITIAL_GAME)
   assert.deepEqual(migrateLegacyGame({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 5 }), INITIAL_GAME)
   assert.deepEqual(restoreGame({ balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 }), { balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 })
+})
+
+test('migration v2 : chaque ancien boost conserve exactement le revenu par clic', () => {
+  let earned = 0
+  for (let purchases = 0; purchases <= 29; purchases++) {
+    if (purchases > 0) earned += Math.round(35 * 1.21 ** (purchases - 1))
+    const oldRate = purchases <= 9 ? purchases + 1 : 10 + 2 * (purchases - 9)
+    const balance = Math.floor(earned / 2)
+    const migrated = migrateV2Game({ balance, lifetimeEarned: earned, purchasedUpgrades: purchases })
+    assert.equal(migrated.balance, balance)
+    assert.equal(migrated.lifetimeEarned, earned)
+    assert.equal(getClickValue(migrated.purchasedUpgrades), oldRate)
+  }
+})
+
+test('migration v2 : les données impossibles sont refusées', () => {
+  assert.deepEqual(migrateV2Game({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 20 }), INITIAL_GAME)
 })
