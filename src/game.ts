@@ -1,3 +1,5 @@
+import { exactMoneyCents } from './money.ts'
+
 export interface GameState {
   balance: number
   lifetimeEarned: number
@@ -50,8 +52,7 @@ const isValidMoney = (value: unknown): value is number => {
   if (isValidInteger(value)) return true
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 ||
       value > Number.MAX_SAFE_INTEGER / 100) return false
-  const cents = value * 100
-  return Number.isSafeInteger(Math.round(cents)) && Math.abs(cents - Math.round(cents)) < 0.0001
+  return exactMoneyCents(value) !== null
 }
 
 export function getLevel(lifetimeEarned: number): number {
@@ -106,8 +107,7 @@ function isValidSignedBalance(value: unknown): value is number {
   if (isValidMoney(value)) return true
   if (typeof value !== 'number' || !Number.isFinite(value) || value >= 0 ||
       value < -Number.MAX_SAFE_INTEGER / 100) return false
-  const cents = value * 100
-  return Number.isSafeInteger(Math.round(cents)) && Math.abs(cents - Math.round(cents)) < 0.0001
+  return exactMoneyCents(value) !== null
 }
 
 export function restoreGame(raw: unknown, options: { allowNegativeBalance?: boolean } = {}): GameState {
