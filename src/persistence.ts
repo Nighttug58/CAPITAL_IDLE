@@ -1,11 +1,20 @@
-import { INITIAL_GAME, restoreGame, type GameState } from './game.ts'
+import { INITIAL_GAME, migrateLegacyGame, restoreGame, type GameState } from './game.ts'
 
-const STORAGE_KEY = 'capital-idle-save-v1'
+const STORAGE_KEY = 'capital-idle-save-v2'
+const LEGACY_STORAGE_KEY = 'capital-idle-save-v1'
 
 export function loadGame(): GameState {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    return saved ? restoreGame(JSON.parse(saved) as unknown) : { ...INITIAL_GAME }
+    if (saved !== null) return restoreGame(JSON.parse(saved) as unknown)
+
+    const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacySaved !== null) {
+      const migrated = migrateLegacyGame(JSON.parse(legacySaved) as unknown)
+      saveGame(migrated)
+      return migrated
+    }
+    return { ...INITIAL_GAME }
   } catch {
     return { ...INITIAL_GAME }
   }
