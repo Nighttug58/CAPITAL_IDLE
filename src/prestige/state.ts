@@ -95,6 +95,20 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
     !owned.every(value => typeof value === 'string' && knownCollectionIds.has(value)) ||
     new Set(owned).size !== owned.length) return fallback
 
+  // Chaque objet possédé doit avoir rapporté AU MOINS sa Fame de base.
+  // Impossible de posséder un objet sans achat, ou d'inventer une Fame
+  // collection si aucun objet n'a été acquis. Les boosts de Fame antérieurs
+  // restent enregistrés et ne sont jamais recalculés.
+  let collectionBaseMicros = 0
+  for (const id of owned) {
+    const slot = COLLECTION_SLOTS.find((item) => item.id === id)
+    if (!slot) return fallback
+    collectionBaseMicros += slot.fame * FAME_MICROS
+  }
+  if (!Number.isSafeInteger(collectionBaseMicros) ||
+    saved.collectionFameMicros < collectionBaseMicros ||
+    (owned.length === 0 && saved.collectionFameMicros !== 0)) return fallback
+
   return {
     experienceCents: saved.experienceCents,
     experienceCarryBps, clickCarryBps, tradingCarryBps,
