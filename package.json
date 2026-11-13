@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --experimental-strip-types --test src/money.test.ts src/game.test.ts src/capital.test.ts src/save-transfer.test.ts src/economy/catalog.test.ts src/economy/enterprises.test.ts src/economy/fiscal.test.ts src/economy/offline.test.ts src/economy/integration.test.ts src/economy/stats.test.ts src/trading/catalog.test.ts src/trading/market.test.ts src/trading/clock.test.ts src/trading/trades.test.ts src/trading/news.test.ts src/trading/dividends.test.ts src/trading/presentation.test.ts src/trading/order-ui.test.ts src/trading/stability.test.ts && npm run test:ui",
+    "test": "node --experimental-strip-types --test src/money.test.ts src/game.test.ts src/capital.test.ts src/save-transfer.test.ts src/prestige/catalog.test.ts src/economy/catalog.test.ts src/economy/enterprises.test.ts src/economy/fiscal.test.ts src/economy/offline.test.ts src/economy/integration.test.ts src/economy/stats.test.ts src/trading/catalog.test.ts src/trading/market.test.ts src/trading/clock.test.ts src/trading/trades.test.ts src/trading/news.test.ts src/trading/dividends.test.ts src/trading/presentation.test.ts src/trading/order-ui.test.ts src/trading/stability.test.ts && npm run test:ui",
     "test:ui": "vitest run src/components/trading-ui.test.ts src/components/enterprise-ui.test.ts src/components/stats-ui.test.ts --environment jsdom",
     "build:root": "npm run build && node scripts/sync-pages-root.mjs"
   },
