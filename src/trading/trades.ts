@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { creditExperience } from '../prestige/state.ts'
 import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
@@ -277,9 +278,11 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   if (!tracked) return reject(state, 'money-overflow')
   const taxable = accrueProfitTax(tracked, source, Math.max(0, profit))
   if (!taxable) return reject(state, 'money-overflow')
-  const taxAccrued = taxable.fiscal.taxesDueCents - state.fiscal.taxesDueCents
+  const withXp = creditExperience(taxable, levelEarnings)
+  if (!withXp) return reject(state, 'money-overflow')
+  const taxAccrued = withXp.fiscal.taxesDueCents - state.fiscal.taxesDueCents
   return {
-    ok: true, state: taxable,
+    ok: true, state: withXp,
     receipt: {
       assetId, side: 'sell', quantity, price,
       gross: toMoney(order.grossCents), fee: toMoney(order.feeCents),
