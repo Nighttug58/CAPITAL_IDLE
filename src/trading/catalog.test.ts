@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ASSETS, CATALOG_SNAPSHOT_DATE, createInitialQuotes, getAsset, getAvailableSupply } from './trading/catalog.ts'
+import { ASSETS, CATALOG_SNAPSHOT_DATE, createInitialQuotes, getAsset, getAvailableSupply } from './catalog.ts'
 
 test('catalogue exactement 20 actions, 15 cryptos, 10 memecoins', () => {
   assert.equal(ASSETS.length, 45)
