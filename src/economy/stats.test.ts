@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCapitalState, restoreCapitalState } from '../capital.ts'
+import { createInitialPrestigeState } from '../prestige/state.ts'
+import { getLevel, getNextLevelThreshold } from '../game.ts'
 import { getAsset } from '../trading/catalog.ts'
 import { buyAsset, sellAsset } from '../trading/trades.ts'
 import { advanceCapitalSecond } from '../trading/dividends.ts'
@@ -144,9 +146,14 @@ test('Progression et temps actif : plafonds de niveau, horaires sans simulation 
   assert.strictEqual(recordActivePlay(after, -100), after)
   assert.equal(getCapitalStatsOverview(after).activePlayMs, 90_000)
   assert.equal(getCapitalStatsOverview(after).level, getCapitalStatsOverview(first).level)
-  const final = { ...after, game: { ...after.game, lifetimeEarned: 100_000 } }
+  const final = {
+    ...after,
+    game: { ...after.game, lifetimeEarned: 100_000 },
+    prestige: createInitialPrestigeState(100_000),
+  }
   const view = getCapitalStatsOverview(final)
-  assert.equal(view.level, 50)
-  assert.equal(view.nextLevelAt, null)
-  assert.equal(view.levelProgressPercent, 100)
+  assert.equal(view.level, getLevel(100_000))
+  assert.ok(view.level > 50)
+  assert.equal(view.nextLevelAt, getNextLevelThreshold(100_000))
+  assert.ok(view.levelProgressPercent >= 0 && view.levelProgressPercent < 100)
 })
