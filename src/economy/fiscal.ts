@@ -61,7 +61,7 @@ export function accrueProfitTax(
       ...state.fiscal,
       taxesDueCents: due,
       dueBySourceCents: { ...state.fiscal.dueBySourceCents, [source]: sourceDue },
-      enterpriseTaxRemainderBps: source === 'enterprises' ? remainder : fractional,
+      enterpriseTaxRemainderBps: source === 'enterprises' ? remainder : state.fiscal.enterpriseTaxRemainderBps,
     },
   }
 }
