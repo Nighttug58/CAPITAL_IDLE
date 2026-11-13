@@ -145,7 +145,8 @@ button:disabled { cursor: not-allowed; }
 }
 .tap-zone:active { background: radial-gradient(ellipse 65% 51% at 50% 43%, rgba(190, 135, 54, .29), transparent 82%), #182023; }
 .tap-content { display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: clamp(7px, 1.5dvh, 15px); }
-.banknotes { font-size: clamp(82px, 14dvh, 116px); line-height: 1.22; filter: drop-shadow(0 9px 18px #0008) drop-shadow(0 0 25px #e5b46127); transform: translateZ(0); }
+.banknotes { font-size: clamp(82px, 14dvh, 116px); line-height: 1.22; filter: drop-shadow(0 9px 18px #0008) drop-shadow(0 0 25px #e5b46127); transform: translateZ(0) scale(1); transform-origin: center; transition: transform 120ms cubic-bezier(.2,.7,.2,1); will-change: transform; }
+.tap-zone:active .banknotes { transform: translateZ(0) scale(1.14); }
 .tap-action { font-size: 10px; font-weight: 780; letter-spacing: .24em; color: #b3a88e; }
 .tap-reward { font-size: 24px; font-weight: 800; letter-spacing: -.035em; color: #f3d594; }
 .tap-reward span { color: #92938e; font-size: 10px; letter-spacing: .15em; font-weight: 720; margin-left: 5px; }
@@ -216,5 +217,6 @@ button:disabled { cursor: not-allowed; }
 }
 @media (prefers-reduced-motion: reduce) {
   .progress-fill { transition: none; }
+  .banknotes { transition: none; }
   .floating-gain { animation-duration: 1ms; }
 }
