@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 3 terminées**  
+Statut : **en développement — passes 1 à 4 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -109,11 +109,14 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 4 — Temps réel, rattrapage hors ligne et persistance maîtrisée
 
-- [ ] Scheduler propre (pas de timers multiples) + timestamp de dernière simulation, pause/reprise au retour sur l'onglet, visibilité du navigateur.
-- [ ] Reconstituer l'évolution entre deux sessions de façon reproductible ; stratégie de rattrapage **bornée en coût** pour les très longues absences, sans boucle non bornée ni effacement silencieux des gains.
-- [ ] Conserver une chronologie/cohérence des quotes et de l'heure glissante ; éviter les doubles ticks et les doublons après reload.
-- [ ] Garde-fous réalistes pour horloges reculées, sauvegardes absurdes et durée énorme ; tests (fermé 1 h, 24 h, longue absence, reload).
+- [x] Scheduler propre (pas de timers multiples) + timestamp de dernière simulation, pause/reprise au retour sur l'onglet, visibilité du navigateur.
+- [x] Reconstituer l'évolution entre deux sessions de façon reproductible ; stratégie de rattrapage **bornée en coût** pour les très longues absences, sans boucle non bornée ni effacement silencieux des gains.
+- [x] Conserver une chronologie/cohérence des quotes et de l'heure glissante ; éviter les doubles ticks et les doublons après reload.
+- [x] Garde-fous réalistes pour horloges reculées, sauvegardes absurdes et durée énorme ; tests (fermé 1 h, 24 h, longue absence, reload).
 - **Livrable :** marché persistant sans backend, performant sur mobile.
+
+**Validée le 13/11/2026** — [code b237f33](https://github.com/Nighttug58/CAPITAL_IDLE/commit/b237f33d85f4bea4dd311ef5eb988ec07ca75248), **40 tests OK** (dont 8 nouveaux) et **npm run build OK** dans [GitHub Actions #43446216141](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43446216141). `src/trading/clock.ts` rejoue au plus 128 ticks de 5 s par tranche et conserve le retard restant sans supprimer de ticks ; les données historiques dépassant une heure sont omises pendant le rejeu, sans changer les cours ou le PRNG. `src/trading/runtime.ts` exploite un seul timer, gère visibilitychange/pagehide/pageshow et sauvegarde les progrès à intervalles maîtrisés. Le clicker reste inchangé visuellement. Le calcul des **News et dividendes hors ligne** sera ajouté aux passes 6–7 ; cette passe couvre pour l'instant le **marché des cours**.
+
 
 ### Passe 5 — Transactions et Portfolio : moteur financier pur
 
