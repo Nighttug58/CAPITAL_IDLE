@@ -1,12 +1,13 @@
 import { INITIAL_GAME, migrateLegacyGame, migrateV2Game, restoreGame, type GameState } from './game.ts'
 import { createCapitalState, restoreCapitalState, type CapitalState } from './capital.ts'
 
-const STORAGE_KEY = 'capital-idle-save-v4'
+const STORAGE_KEY = 'capital-idle-save-v5'
+const V4_STORAGE_KEY = 'capital-idle-save-v4'
 const V3_STORAGE_KEY = 'capital-idle-save-v3'
 const V2_STORAGE_KEY = 'capital-idle-save-v2'
 const V1_STORAGE_KEY = 'capital-idle-save-v1'
 
-// Un stockage absent ou une version JSON endommagée ne bloque jamais le jeu.
+// Un stockage absent ou un JSON endommagé ne bloque jamais le jeu.
 function readStorage(key: string): unknown {
   try {
     const text = localStorage.getItem(key)
@@ -30,10 +31,19 @@ function readPreviousGame(): GameState {
 }
 
 export function loadCapitalState(now = Date.now()): CapitalState {
+  // Une v5 présente est l'autorité, même corrompue : ne jamais ressusciter
+  // silencieusement la v4 périmée après un reset (passe 7).
   const current = readStorage(STORAGE_KEY)
   if (current !== undefined) return restoreCapitalState(current, now)
 
-  // La migration ne supprime jamais les sauvegardes antérieures.
+  const oldCapital = readStorage(V4_STORAGE_KEY)
+  if (oldCapital !== undefined) {
+    const migrated = restoreCapitalState(oldCapital, now)
+    saveCapitalState(migrated)
+    return migrated
+  }
+
+  // Les sauvegardes clicker v1/v2/v3 n'avaient aucun état Trading.
   const migrated = createCapitalState(readPreviousGame(), now)
   saveCapitalState(migrated)
   return migrated
@@ -43,6 +53,6 @@ export function saveCapitalState(state: CapitalState): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   } catch {
-    // En l'absence d'accès au stockage, le jeu reste utilisable en session.
+    // Si le stockage est saturé, le jeu reste accessible pendant la session.
   }
 }
