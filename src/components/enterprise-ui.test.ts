@@ -16,7 +16,7 @@ const mounted: VueWrapper[] = []
 
 function setup(original?: CapitalState) {
   let state = original ?? createCapitalState({
-    balance: 1000, lifetimeEarned: 1000, purchasedUpgrades: 0,
+    balance: 1_000_000, lifetimeEarned: 1_000_000, purchasedUpgrades: 0,
   }, START)
   let wrapper: VueWrapper
   const executeEnterprise = (action: EnterpriseAction, id: string): EnterpriseResult => {
@@ -44,8 +44,8 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(wrapper.findAll('.enterprise-card')).toHaveLength(20)
     const kiosk = wrapper.find('.enterprise-card')
     expect(kiosk.text()).toContain('Kiosque')
-    expect(kiosk.text()).toContain('0,005208')
-    expect(kiosk.text()).toContain('150')
+    expect(kiosk.text()).toContain('2,604167')
+    expect(kiosk.text()).toContain('75')
     expect(kiosk.find('button.enterprise-action').attributes('disabled')).toBeUndefined()
     const locked = wrapper.findAll('.enterprise-card')[19]!
     expect(locked.text()).toContain('Groupe technologique')
@@ -61,7 +61,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     await button.trigger('click')
     await nextTick()
     expect(getState().enterprises.owned.kiosque?.level).toBe(1)
-    expect(getState().game.balance).toBe(850)
+    expect(getState().game.balance).toBe(925_000)
     expect(wrapper.find('.enterprise-card').text()).toContain('Possédée · niv. 1/20')
     expect(wrapper.find('.enterprise-card').text()).toContain('Achat confirmé')
     expect(wrapper.find('.enterprise-card button.enterprise-action').text()).toContain('AMÉLIORER')
@@ -69,16 +69,16 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     await wrapper.find('.enterprise-card button.enterprise-action').trigger('click')
     await nextTick()
     expect(getState().enterprises.owned.kiosque?.level).toBe(2)
-    expect(getState().game.balance).toBe(850 - getEnterpriseUpgradeCostCents('kiosque', 1)! / 100)
+    expect(getState().game.balance).toBe(925_000 - getEnterpriseUpgradeCostCents('kiosque', 1)! / 100)
     expect(wrapper.find('.enterprise-card').text()).toContain('niveau 2/20')
     expect(wrapper.find('.enterprise-summary').text()).toContain('1')
     expect(wrapper.find('.enterprise-card .enterprise-level-fill').attributes('aria-valuenow')).toBe('2')
-    expect(getState().game.lifetimeEarned).toBe(1000)
+    expect(getState().game.lifetimeEarned).toBe(1_000_000)
   })
 
   it('au niveau 20 le bouton MAX est bloqué, sans option de revente', () => {
     const state = createCapitalState({ balance: 100_000, lifetimeEarned: 100_000, purchasedUpgrades: 0 }, START)
-    state.enterprises.owned.kiosque = { level: 20, investedCents: 385_000 }
+    state.enterprises.owned.kiosque = { level: 20, investedCents: 192_620_000 }
     const { wrapper } = setup(state)
     const kiosk = wrapper.find('.enterprise-card')
     expect(kiosk.text()).toContain('Possédée · niv. 20/20')
@@ -92,12 +92,12 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     const state = createCapitalState({ balance: 0, lifetimeEarned: 1000, purchasedUpgrades: 0 }, START)
     const { wrapper } = setup(state)
     expect(wrapper.find('.enterprise-card button.enterprise-action').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.enterprise-category .enterprise-card').text()).toContain('150')
+    expect(wrapper.find('.enterprise-category .enterprise-card').text()).toContain('75')
   })
 
   it('la navigation principale contient Entreprises et le clicker reste intact', async () => {
     const now = Date.now()
-    const state = createCapitalState({ balance: 1000, lifetimeEarned: 1000, purchasedUpgrades: 0 }, now)
+    const state = createCapitalState({ balance: 1_000_000, lifetimeEarned: 1_000_000, purchasedUpgrades: 0 }, now)
     localStorage.setItem('capital-idle-save-v5', JSON.stringify(state))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
@@ -111,10 +111,10 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(wrapper.find('.enterprise-card').text()).toContain('Possédée')
     const saved = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
     expect(saved.enterprises.owned.kiosque?.level).toBe(1)
-    expect(saved.game.balance).toBe(850)
+    expect(saved.game.balance).toBe(925_000)
     await buttons[0]!.trigger('click')
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
-    expect(wrapper.find('.balance-value').text()).toContain('850')
+    expect(wrapper.find('.balance-value').text()).toContain(new Intl.NumberFormat('fr-CH').format(925_000))
     await buttons[1]!.trigger('click')
     expect(wrapper.find('.trading-screen').isVisible()).toBe(true)
   })
