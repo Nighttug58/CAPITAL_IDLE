@@ -1,0 +1,34 @@
+import { buildStories } from './builder.ts'
+export const HACK_STORIES = buildStories({
+  prefix:'hack',category:'hack',kind:'crypto',target:'single',direction:-1,priceWeight:1,dividendWeight:0
+}, `
+{asset} signale une faille dans un pont numérique|Un contrat reliant deux réseaux montre un comportement inattendu et les opérateurs suspendent les échanges pendant l'analyse.|Les capitaux pourraient quitter temporairement l'écosystème.
+{asset} enquête sur une clé compromise|Des mouvements suspects sont associés à des accès d'administration qui auraient dû être désactivés après une intervention technique.|La confiance dépendra de la rapidité des vérifications.
+{asset} suspend un service de dépôt automatisé|Une anomalie dans les règles de retrait pousse une application partenaire à bloquer certaines opérations par précaution.|La liquidité utilisable pourrait se contracter.
+{asset} détecte un faux site de portefeuille|Des utilisateurs signalent une interface imitée qui tente d'obtenir leurs phrases de récupération à travers une campagne trompeuse.|Les pertes individuelles pourraient freiner les nouveaux entrants.
+{asset} découvre une manipulation d'oracle|Des données de prix incohérentes apparaissent lors de transactions complexes et les développeurs lancent une enquête publique.|Les services dépendants de ces flux pourraient limiter leur exposition.
+{asset} subit une attaque contre ses validateurs|Plusieurs nœuds font face à un trafic anormal qui ralentit le traitement de certaines opérations pendant plusieurs minutes.|La disponibilité perçue du réseau pourrait se détériorer.
+{asset} voit une plateforme bloquer les retraits|Un prestataire signale des rapprochements comptables incomplets et suspend les sorties jusqu'à leur validation.|Les utilisateurs pourraient déplacer leurs avoirs ailleurs.
+{asset} est affecté par un contrat mal configuré|Une vérification indépendante révèle des permissions trop larges dans une application utilisée avec le token.|Les fonds restent incertains tant que les droits ne sont pas corrigés.
+{asset} fait face à des transactions réorganisées|Des opérateurs observent des confirmations réécrites au-delà des paramètres habituels sur une portion du réseau.|Les échanges pourraient exiger davantage de validations.
+{asset} voit un service d'échange imité|Des publicités redirigent des internautes vers de faux portails prétendant offrir une conversion rapide du jeton.|L'alerte de sécurité pourrait ralentir certaines transactions.
+{asset} signale un problème de signatures|Une bibliothèque utilisée par des applications partenaires traite certaines vérifications de messages de façon insuffisante.|Les développeurs pourraient déployer des correctifs urgents.
+{asset} est confronté à des comptes dérobés|Une vague de connexions suspectes touche un intermédiaire populaire, tandis que le protocole lui-même semble opérationnel.|La distinction entre plateforme et réseau pourrait limiter la panique.
+{asset} voit des pools fermés préventivement|Des fournisseurs de liquidité interrompent leurs services après l'observation d'un bug susceptible d'affecter les calculs de conversion.|Le marché pourrait connaître un élargissement des écarts de prix.
+{asset} subit une panne chez un hébergeur majeur|Une interruption dans des centres de données désorganise les applications qui reposent sur un prestataire trop centralisé.|Les utilisateurs pourraient revoir leurs choix techniques.
+{asset} découvre une autorisation de retrait excessive|Un contrôle met en évidence des permissions signées trop généreusement par certains utilisateurs de contrats tiers.|Les portefeuilles concernés pourraient exiger des mesures immédiates.
+{asset} est touché par une fausse mise à jour|Un lien de téléchargement trompeur propose un logiciel modifié en prétendant provenir d'une équipe de développement connue.|Les nouvelles installations pourraient ralentir.
+{asset} enquête sur une saturation de mempool|De nombreuses petites transactions artificielles empêchent certaines opérations courantes d'être confirmées rapidement.|Les frais et les délais pourraient monter momentanément.
+{asset} subit des soupçons de manipulation de marché|Des volumes irréguliers entre comptes liés attirent l'attention de surveillants indépendants et d'opérateurs d'échange.|La confiance dans les cotations pourrait être ébranlée.
+{asset} signale la compromission d'un compte officiel|Un message frauduleux a été publié sur un canal communautaire utilisé habituellement pour les annonces techniques.|Les investisseurs pourraient se méfier des prochaines communications.
+{asset} doit révoquer un certificat de service|Une équipe détecte un problème d'authentification dans un composant d'accès aux données du réseau.|La réactivation du service pourrait prendre plusieurs heures.
+{asset} voit un agrégateur suspendre ses cotations|Des flux incohérents sont détectés entre plusieurs sources et les systèmes automatiques cessent d'afficher un cours unique.|La découverte de prix pourrait devenir moins fiable.
+{asset} subit un incident sur un multisignature|Une erreur de configuration empêche plusieurs gestionnaires d'autoriser conjointement les dépenses d'un coffre numérique.|Des transferts importants pourraient rester bloqués.
+{asset} découvre une dépendance logicielle vulnérable|Une bibliothèque très utilisée par des outils partenaires nécessite une mise à jour de sécurité urgente pour éviter des accès imprévus.|Le déploiement du correctif pourrait retarder des projets.
+{asset} voit un protocole de prêt suspendre les dépôts|Un défaut dans un mécanisme de garantie conduit à fermer temporairement un produit financier automatisé associé au token.|Les utilisateurs pourraient réduire leur exposition au risque.
+{asset} est visé par une campagne de bots|Des comptes automatisés propagent de fausses alertes pour provoquer des réactions de panique dans les communautés de discussion.|Le bruit informationnel pourrait amplifier les variations.
+{asset} enquête sur une faille de gouvernance|Des droits de vote mal délégués permettent théoriquement de proposer des changements inattendus à une application liée au réseau.|Les participants pourraient exiger un moratoire sur les modifications.
+{asset} fait face à un service d'indexation défaillant|Des applications affichent des historiques incomplets après une erreur d'actualisation d'un index de transactions.|La fiabilité des tableaux publics pourrait être remise en question.
+{asset} soupçonne une exploitation des frais|Une suite d'opérations inhabituelles révèle une possibilité de manipuler le calcul de commissions sur un service partenaire.|Les prestataires pourraient bloquer les opérations complexes.
+{asset} voit des alertes sur un portefeuille mobile|Un audit met en évidence une méthode de stockage des clés insuffisamment robuste dans une application distribuée par un tiers.|La nécessité de migrer les utilisateurs pourrait ralentir l'adoption.
+`);
