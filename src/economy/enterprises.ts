@@ -91,7 +91,8 @@ export function advanceEnterpriseIncome(state: CapitalState, now: number): Capit
   const lifetimeCents = validCents(state.game.lifetimeEarned)
   const trackedCents = validCents(state.stats.earnedBySource.enterprises)
   if (balanceCents === null || lifetimeCents === null || trackedCents === null) return state
-  if (BigInt(balanceCents) + payable > MAX_SAFE_CENTS ||
+  if (payable > MAX_SAFE_CENTS ||
+      BigInt(balanceCents) + payable > MAX_SAFE_CENTS ||
       BigInt(lifetimeCents) + payable > MAX_SAFE_CENTS ||
       BigInt(trackedCents) + payable > MAX_SAFE_CENTS) return state
 
