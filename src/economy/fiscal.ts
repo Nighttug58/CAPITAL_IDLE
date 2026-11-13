@@ -98,11 +98,22 @@ function debitTaxes(state: CapitalState, at: number): CapitalState | null {
   }
 }
 
-/** Échéance auto : s'exécute à la frontière de 72 h, jamais avant. */
+/**
+ * Prélèvement d'une ou de plusieurs échéances consécutives.
+ *
+ * Entre deux interactions, les entreprises n'évoluent pas et aucune vente
+ * automatique n'est possible. Il est donc mathématiquement identique de
+ * collecter en une fois la dette des périodes écoulées : le brut, le cumul
+ * des taxes payées, les reliquats et le solde final sont rigoureusement
+ * ceux des débits successifs toutes les 72 heures, sans intérêts ni pénalité.
+ * Le compteur reste ancré à la DERNIÈRE échéance, jamais au rechargement.
+ */
 export function collectTaxesAtDeadline(state: CapitalState, at: number): CapitalState | null {
-  const deadline = state.fiscal.periodStartedAt + FISCAL_PERIOD_MS
-  if (!validTime(deadline) || at !== deadline) return null
-  return debitTaxes(state, deadline)
+  const elapsed = at - state.fiscal.periodStartedAt
+  if (!validTime(at) || !validTime(state.fiscal.periodStartedAt) ||
+      !Number.isSafeInteger(elapsed) || elapsed < FISCAL_PERIOD_MS ||
+      elapsed % FISCAL_PERIOD_MS !== 0) return null
+  return debitTaxes(state, at)
 }
 
 export type EarlyTaxPaymentResult =
