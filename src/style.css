@@ -588,3 +588,190 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
  .backup-confirm { padding:10px; }
  .backup-import-details { grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); }
 }
+
+/* Fame & Collection — passe 6 : interfaces responsives, modales larges et défilantes. */
+.wallet-primary { display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; }
+.wallet-cash { flex:1 1 auto; min-width:0; text-align:left; }
+.wallet-primary .wallet-label { justify-content:flex-start; }
+.wallet-primary .balance-value { font-size:clamp(26px,7.4vw,42px); line-height:1.08; margin:8px 0 6px; letter-spacing:-.045em; }
+.wallet .lifetime-value { text-align:left; }
+.fame-shop-launch {
+  flex:0 0 auto; max-width:48%; display:flex; align-items:center; justify-content:center;
+  gap:5px; min-height:49px; padding:10px 12px; border-radius:12px;
+  border:1px solid #d0a5f5; background:linear-gradient(to bottom,#ad72ee 0%,#7b40c6 48%,#471d83 100%);
+  box-shadow:inset 0 1px 0 #e6c9ffb0,0 5px 18px #7029b147;
+  color:#fff; font-size:10px; font-weight:820; letter-spacing:.025em; white-space:nowrap;
+  transition:transform 140ms ease-out,filter 140ms ease-out;
+}
+.fame-shop-launch strong { font-size:clamp(12px,3.4vw,16px); font-variant-numeric:tabular-nums; }
+.fame-shop-launch strong span { color:#f8e0ff; font-size:17px; }
+.fame-shop-launch:active { transform:scale(.97); filter:brightness(.93); }
+.fame-shop-launch:focus-visible,.prestige-dialog button:focus-visible,.collection-tab:focus-visible,.collection-card:focus-visible {
+  outline:2px solid #f4d7ff; outline-offset:2px;
+}
+.bottom-nav .nav-home { min-width:0; flex:1 1 0; max-width:none; padding-inline:3px; font-size:clamp(8px,2.6vw,10px); }
+.bottom-nav .nav-home span { white-space:nowrap; letter-spacing:-.025em; }
+.bottom-nav { gap:clamp(2px,.9vw,6px); padding-inline:clamp(7px,2.8vw,18px); }
+
+/* Fixed overlay outside the page scroll: the dialog has its OWN scroll area. */
+.prestige-overlay {
+  position:fixed; z-index:60; inset:0; width:100%; height:100%; height:100dvh;
+  display:flex; justify-content:center; align-items:center;
+  background:rgba(4,5,10,.86); backdrop-filter:blur(5px);
+  padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px));
+  overflow:hidden;
+}
+.prestige-dialog {
+  width:min(100%,510px); min-width:0; max-height:min(91dvh,900px);
+  display:flex; flex-direction:column; min-height:0; overflow:hidden;
+  border:1px solid #785891; border-radius:18px;
+  background:linear-gradient(140deg,#22202d,#151720 72%); color:#f6f0fa;
+  box-shadow:0 18px 75px #000a,inset 0 1px #f0d2ff16;
+}
+.prestige-dialog-head {
+  flex:0 0 auto; display:flex; justify-content:space-between; align-items:flex-start;
+  gap:12px; padding:18px 18px 14px; border-bottom:1px solid #4b3c55;
+}
+.prestige-dialog-heading { min-width:0; flex:1 1 auto; }
+.prestige-eyebrow { display:block; font-weight:800; font-size:10px; letter-spacing:.11em; color:#c9a1eb; }
+.prestige-dialog-heading h2 { margin:6px 0 5px; font-size:clamp(22px,6vw,28px); line-height:1.2; letter-spacing:-.03em; color:#fff6ff; overflow-wrap:anywhere; }
+.prestige-dialog-heading p { margin:0; font-size:11px; color:#b9adbf; line-height:1.5; }
+.prestige-close {
+  flex:0 0 40px; width:40px; height:40px; display:grid; place-items:center;
+  border-radius:10px; border:1px solid #685473; background:#31283c;
+  color:#f9e5ff; font-size:27px; line-height:1;
+}
+.prestige-close:hover { background:#4a365a; }
+.prestige-dialog-scroll {
+  flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:#9c6bc1 #241c2c;
+  padding:14px 15px 18px;
+}
+.prestige-dialog-footer {
+  flex:0 0 auto; padding:10px 16px 13px; border-top:1px solid #47374c;
+  background:#201b2b; min-height:0;
+}
+.fame-shop-note { font-size:10px; line-height:1.5; color:#beafc5; margin:0; }
+.prestige-notice {
+  margin:9px 0 0; padding:9px 11px; border:1px solid #648879; border-radius:9px;
+  background:#253d36; color:#b2edcc; font-size:11px; line-height:1.4;
+}
+.prestige-notice-error { border-color:#a56c74; background:#432b35; color:#ffd4d8; }
+.fame-shop-summary { flex:0 0 auto; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:10px; padding:14px 17px; border-bottom:1px solid #4d3a59; background:#2a2038; }
+.fame-shop-summary>div { min-width:0; display:flex; flex-direction:column; gap:6px; }
+.fame-shop-summary span { color:#c2a9d0; font-size:10px; font-weight:770; letter-spacing:.08em; }
+.fame-shop-summary strong { font-size:clamp(17px,5vw,24px); font-variant-numeric:tabular-nums; color:#f0d3ff; overflow-wrap:anywhere; }
+.fame-shop-summary strong span { font-size:18px; color:#e7b6ff; }
+.fame-boost-card { border:1px solid #493952; background:linear-gradient(125deg,#2c2635,#1c2028); border-radius:13px; padding:13px; margin-bottom:10px; }
+.fame-boost-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.fame-boost-heading-main { min-width:0; flex:1 1 auto; }
+.fame-boost-heading-main strong { display:block; color:#faf0fc; font-size:14px; font-weight:770; line-height:1.3; }
+.fame-boost-heading-main p { margin:5px 0 0; color:#bdafc0; font-size:11px; line-height:1.4; }
+.fame-boost-level { flex:0 0 auto; white-space:nowrap; font-size:10px; font-weight:780; color:#e9bfff; border:1px solid #75558c; border-radius:7px; padding:6px 8px; background:#362544; }
+.fame-boost-track { height:9px; width:100%; overflow:hidden; margin-top:13px; border-radius:8px; background:#16131b; border:1px solid #574467; }
+.fame-boost-track span { display:block; height:100%; border-radius:8px; background:linear-gradient(90deg,#8251c4,#e4b5ff); }
+.fame-boost-meta { display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:10px; color:#bbaec3; font-size:11px; }
+.fame-boost-meta b,.fame-boost-max { color:#e2c4f7; }
+.fame-boost-footer { display:flex; align-items:end; justify-content:space-between; gap:12px; margin-top:13px; }
+.fame-boost-cost { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.fame-boost-cost span { color:#a69aae; font-size:9px; letter-spacing:.1em; font-weight:760; }
+.fame-boost-cost strong { font-size:13px; color:#f2e8f6; font-variant-numeric:tabular-nums; }
+.fame-buy-button,.collection-buy-button {
+  flex:0 0 auto; min-width:112px; min-height:44px; padding:11px 12px;
+  border-radius:10px; border:1px solid #d5a6f5;
+  background:linear-gradient(#ba7ced,#7638bc); color:#fff; font-size:11px; font-weight:830;
+  box-shadow:inset 0 1px #ead1ff88;
+}
+.fame-buy-button:disabled,.collection-buy-button:disabled { color:#b6acba; border-color:#514659; background:#342c3a; box-shadow:none; }
+
+/* Collection page: tabs fit horizontally, cards scroll independently of the bottom bar. */
+.collection-screen { min-height:0; overflow:hidden; display:flex; flex-direction:column; gap:11px; padding:clamp(10px,1.7dvh,18px) 15px 12px; }
+.collection-hero { flex:0 0 auto; display:flex; gap:12px; justify-content:space-between; align-items:center; min-width:0; padding:14px; border:1px solid #4e3950; border-radius:15px; background:linear-gradient(120deg,#28222c,#171d21); }
+.collection-hero>div:first-child { flex:1 1 auto; min-width:0; }
+.collection-hero h1 { color:#f3dcff; font-size:25px; margin:4px 0; letter-spacing:-.03em; }
+.collection-hero p { font-size:11px; line-height:1.4; color:#b7abb8; margin:0; }
+.collection-hero-progress { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex:0 0 auto; }
+.collection-hero-progress>span { font-size:9px; color:#b7acb5; letter-spacing:.1em; font-weight:750; }
+.collection-hero-progress strong { color:#eec3ff; font-size:22px; font-variant-numeric:tabular-nums; }
+.collection-hero-progress small { font-size:12px; color:#b7acb5; }
+.collection-summary { flex:0 0 auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.collection-summary>div { min-width:0; display:flex; flex-direction:column; gap:6px; padding:10px 12px; border:1px solid #403943; border-radius:11px; background:#202328; }
+.collection-summary span { color:#a8a5af; font-size:9px; font-weight:770; letter-spacing:.07em; }
+.collection-summary strong { color:#f5eee5; font-size:14px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.collection-fame-balance { color:#dcb1ff!important; }
+.collection-tabs { flex:0 0 auto; display:flex; gap:5px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; padding:3px 1px 7px; overscroll-behavior-x:contain; }
+.collection-tabs::-webkit-scrollbar { display:none; }
+.collection-tab { flex:1 0 82px; min-width:82px; min-height:56px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:6px 7px; border:1px solid #424047; border-radius:10px; color:#b5aeb8; background:#1b2226; font-size:10px; font-weight:730; }
+.collection-tab.is-selected { border-color:#b78ee0; background:linear-gradient(#4c355c,#292339); color:#f2ddff; }
+.collection-tab-symbol { font-size:19px; line-height:1.2; }
+.collection-category-line { flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px; color:#e4d9e7; font-size:12px; font-weight:770; }
+.collection-category-line span:last-child { color:#a99eb2; font-size:10px; }
+.collection-list-scroll { flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:#6d5b76 transparent; padding:2px 2px 16px; }
+.collection-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-content:start; }
+.collection-card { display:flex; flex-direction:column; overflow:hidden; min-width:0; padding:0; text-align:left; border:1px solid #393a41; border-radius:12px; background:#1b2025; color:#f1e6f2; }
+.collection-card.is-owned { border-color:#7e678b; background:#24222d; }
+.collection-card-art { position:relative; display:grid; place-items:center; min-height:102px; width:100%; background:radial-gradient(circle at 50% 40%,#4b355b,#201d29 70%); border-bottom:1px solid #3d3744; }
+.collection-card-art[data-category="autos"],.collection-detail-art[data-category="autos"] { background:radial-gradient(circle at 50% 38%,#634831,#231d20 73%); }
+.collection-card-art[data-category="paintings"],.collection-detail-art[data-category="paintings"] { background:radial-gradient(circle at 50% 38%,#36556d,#1a232c 73%); }
+.collection-card-art[data-category="antiquities"],.collection-detail-art[data-category="antiquities"] { background:radial-gradient(circle at 50% 38%,#74603d,#28241e 73%); }
+.collection-card-art[data-category="jewelry"],.collection-detail-art[data-category="jewelry"] { background:radial-gradient(circle at 50% 38%,#385e62,#1b252e 73%); }
+.collection-card-rank { position:absolute; top:8px; left:9px; padding:4px 5px; background:#16131b9e; border-radius:4px; font-size:9px; font-weight:800; color:#ddc8e7; letter-spacing:.04em; }
+.collection-card-glyph { font-size:42px; filter:drop-shadow(0 4px 12px #0009); }
+.collection-owned-tag { position:absolute; bottom:8px; right:9px; padding:5px 8px; font-size:9px; font-weight:790; border:1px solid #7bc09e; border-radius:6px; color:#bff5d6; background:#294738; }
+.collection-card-info { display:flex; flex-direction:column; gap:7px; min-width:0; padding:11px 10px 12px; }
+.collection-card-info strong { font-size:12px; line-height:1.35; min-height:32px; color:#f7eff9; overflow-wrap:anywhere; }
+.collection-card-price { color:#efdbb6; font-size:12px; font-weight:750; font-variant-numeric:tabular-nums; }
+.collection-card-rewards { display:flex; gap:6px; justify-content:space-between; flex-wrap:wrap; font-size:10px; font-weight:760; color:#d6aef5; }
+.collection-card-rewards span:last-child { color:#a6dabe; }
+.collection-disclaimer { margin:13px 0 0; color:#9ba2a0; font-size:10px; line-height:1.55; }
+.collection-overlay { z-index:65; }
+.collection-detail-dialog { max-width:490px; }
+.collection-detail-scroll { padding:16px; }
+.collection-detail-art { min-height:150px; display:grid; place-items:center; position:relative; border:1px solid #5f4c6a; border-radius:13px; background:radial-gradient(circle at 50% 35%,#5a3f70,#242033 70%); }
+.collection-detail-art>span:first-child { font-size:70px; line-height:1.2; filter:drop-shadow(0 8px 17px #0009); }
+.collection-detail-owned { position:absolute; right:10px; bottom:10px; padding:6px 9px; border:1px solid #82c09a; border-radius:6px; background:#294838; color:#cef7da; font-size:10px; font-weight:790; }
+.collection-detail-description { margin:15px 0; color:#d2c7d7; font-size:12px; line-height:1.65; }
+.collection-detail-data { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.collection-detail-data>div { display:flex; flex-direction:column; min-width:0; gap:6px; padding:11px; border:1px solid #51445b; border-radius:10px; background:#26232e; }
+.collection-detail-data>div:last-child { grid-column:1/-1; }
+.collection-detail-data span { font-size:9px; font-weight:780; letter-spacing:.09em; color:#b5a6bd; }
+.collection-detail-data strong { color:#f7ecfb; font-size:13px; overflow-wrap:anywhere; line-height:1.4; font-variant-numeric:tabular-nums; }
+.collection-detail-note { margin:13px 0; color:#b8aebd; font-size:10px; line-height:1.5; }
+.collection-buy-button { display:block; width:100%; min-height:47px; }
+.collection-confirm { border:1px solid #b89462; border-radius:10px; background:#3b302a; padding:13px; }
+.collection-confirm>strong { font-size:13px; color:#f7dcae; }
+.collection-confirm p { font-size:11px; line-height:1.55; color:#dccab8; }
+.collection-confirm-actions { display:flex; gap:9px; }
+.collection-confirm-actions button { flex:1 1 0; min-height:43px; border-radius:8px; padding:9px 10px; font-size:11px; font-weight:780; }
+.collection-cancel { color:#f5ece6; background:#383438; border:1px solid #796b67; }
+.collection-confirm-buy { color:#23170e; background:linear-gradient(#f4d5a3,#cda05c); border:1px solid #e8c48e; }
+@media(max-width:380px) {
+  .wallet-primary { gap:6px; }
+  .wallet-primary .balance-value { font-size:clamp(22px,7vw,28px); }
+  .fame-shop-launch { min-height:44px; padding:8px 6px; gap:3px; font-size:9px; }
+  .fame-shop-launch strong { font-size:12px; }
+  .collection-screen { padding-inline:9px; gap:8px; }
+  .collection-hero { padding:10px; }
+  .collection-hero p { font-size:10px; }
+  .collection-hero h1 { font-size:22px; }
+  .collection-card-art { min-height:86px; }
+  .collection-card-info { padding:9px 8px; }
+  .prestige-dialog-head { padding:12px; }
+  .prestige-dialog-scroll { padding:11px; }
+  .fame-boost-card { padding:10px; }
+  .fame-boost-footer { gap:8px; }
+  .fame-buy-button { min-width:95px; font-size:10px; }
+  .prestige-overlay { padding:8px; }
+  .collection-tab { flex-basis:79px; min-width:79px; }
+}
+@media(max-height:610px) {
+  .collection-screen { gap:7px; padding-block:7px; }
+  .collection-hero { padding:10px; }
+  .collection-summary>div { padding:8px; }
+  .collection-tab { min-height:47px; }
+  .collection-card-art { min-height:83px; }
+  .prestige-dialog { max-height:94dvh; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .fame-shop-launch { transition:none; }
+}
