@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import App from '../App.vue'
-import clickerStyles from '../style.css?raw'
+import { readFileSync } from 'node:fs'
 import TradingScreen from './TradingScreen.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
 import { createInitialQuotes } from '../trading/catalog.ts'
@@ -134,7 +134,8 @@ describe('Trading interface mobile',()=>{
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
   it('fait monter les gains aussi avec les animations réduites',()=>{
-    // jsdom ne simule pas visuellement les keyframes : contrôle les deux variantes CSS.
+    // Lecture directe : le chargement CSS de Vitest en jsdom peut renvoyer une chaîne vide.
+    const clickerStyles = readFileSync('src/style.css', 'utf8')
     expect(clickerStyles).toContain('@keyframes coin-rise')
     expect(clickerStyles).toContain('transform: translate(-50%, -120px)')
     expect(clickerStyles).toContain('gain-reduced-rise 1100ms')
