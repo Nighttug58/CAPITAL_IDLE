@@ -102,7 +102,7 @@ test('stocks, cryptos et memecoins : seules les ventes bénéficiaires créent u
     assert.ok(bought.ok, id)
     const sold = sellAsset(quoted(bought.state, id, price * 1.3), id, quantity)
     assert.ok(sold.ok, sold.ok ? id : `${id}: ${sold.error}`)
-    const source = getAsset(id)!.kind === 'stock' ? 'stocks' : getAsset(id)!.kind
+    const source = getAsset(id)!.kind === 'stock' ? 'stocks' : getAsset(id)!.kind === 'memecoin' ? 'memecoins' : 'crypto'
     assert.equal(sold.state.fiscal.dueBySourceCents[source], Math.round(sold.receipt.netRealizedProfit * 100 * .15), id)
     assert.equal(sold.receipt.cashChange > 0, true)
     assert.equal(sold.state.fiscal.taxesPaidCents, 0)
