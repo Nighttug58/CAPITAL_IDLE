@@ -120,7 +120,7 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 - [ ] Actions métier `buyEnterprise` / `upgradeEnterprise` : une seule propriété par type, **non revendable**, niveau maximum 20, fonds et déblocage vérifiés côté moteur.
 - [ ] Crédit continu du **revenu fixe brut** dans le solde et dans la progression, avec reste de centime maîtrisé, une seule source de crédit.
-- [ ] Ajouter **Entreprises** à la barre de navigation et construire l'écran mobile : catalogue verrouillé/achetable/possédé, niveau, coût prochain upgrade, rendement/s, paliers, MAX.
+- [ ] Ajouter **Entreprises** à la barre de navigation et construire l'écran mobile : catalogue verrouillé/achetable/possédé, niveau, coût de la prochaine amélioration, rendement/s et paliers spéciaux (une amélioration à la fois).
 - [ ] Mettre à jour l'état et les sauvegardes lors des achats et améliorations sans créer de timer parallèle.
 - [ ] Tests métier et Vue : fonds insuffisants, double achat impossible, niveau 20, absence de bouton Revente, navigation et petites largeurs.
 - **Livrable :** entreprises jouables en ligne, sans franchises, sans fiscalité encore activée.
