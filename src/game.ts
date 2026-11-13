@@ -114,7 +114,7 @@ export function restoreGame(raw: unknown, options: { allowNegativeBalance?: bool
   if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
   const saved = raw as Partial<GameState>
   const validBalance = options.allowNegativeBalance ? isValidSignedBalance(saved.balance) : isValidMoney(saved.balance)
-  if (!validBalance || !isValidMoney(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
+  if (typeof saved.balance !== 'number' || !validBalance || !isValidMoney(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
     return { ...INITIAL_GAME }
   }
   if (saved.balance > saved.lifetimeEarned || saved.purchasedUpgrades > UPGRADES.length) {
