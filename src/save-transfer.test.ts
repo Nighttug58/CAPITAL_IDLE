@@ -63,7 +63,7 @@ test('export JSON : format, version, nom du fichier et intégralité du snapshot
     ok: true,
     preview: { state, sourceVersion: 5, exportedAt: NOW + 10_000 },
   })
-  assert.equal(state.game.balance, 99_850, 'un export ne fait pas bouger le solde')
+  assert.equal(state.game.balance, 25_000, 'un export ne fait pas bouger le solde')
 })
 
 test('reprise complète : import après 90 jours conserve positions, niveaux, dettes et horodatages', () => {
@@ -203,6 +203,6 @@ test('l autosauvegarde demeure disponible après remplacement', () => {
     assert.equal(replaceCapitalSave(original), true)
     const modified = { ...original, game: { ...original.game, balance: original.game.balance + 1 } }
     saveCapitalState(modified)
-    assert.equal(JSON.parse(data.get('capital-idle-save-v5')!).game.balance, 99_851)
+    assert.equal(JSON.parse(data.get('capital-idle-save-v5')!).game.balance, 25_001)
   })
 })
