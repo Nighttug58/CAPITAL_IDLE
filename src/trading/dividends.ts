@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { creditExperience } from '../prestige/state.ts'
 import { advanceFiscalEconomy } from '../economy/clock.ts'
 import { recordDividendCredit } from '../economy/stats-ledger.ts'
 import { ASSETS } from './catalog.ts'
@@ -77,5 +78,7 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
   // sans prélever d'abord la dette des 72 heures correspondantes.
   const tracked = recordDividendCredit(credited, paidCents)
   if (!tracked) return capital // Ne pas encaisser sans tracer le dividende.
-  return advanceFiscalEconomy(tracked, at)
+  const withXp = creditExperience(tracked, paidCents)
+  if (!withXp) return capital
+  return advanceFiscalEconomy(withXp, at)
 }
