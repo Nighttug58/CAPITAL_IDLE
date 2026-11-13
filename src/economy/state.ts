@@ -37,6 +37,8 @@ export interface FiscalState {
 export type EarningsBreakdown = Record<EarningsSource, number>
 export type TradingLossBreakdown = Record<'stocks' | 'crypto' | 'memecoins', number>
 export interface StatsState {
+  // Version des compteurs détaillés : absence = sauvegarde v5 antérieure à la passe 6.
+  readonly sourceTrackingVersion: 1
   readonly startedAt: number
   readonly activePlayMs: number
   readonly clickCount: number
@@ -100,6 +102,7 @@ export function createInitialFiscalState(now = Date.now()): FiscalState {
 }
 export function createInitialStatsState(now = Date.now(), legacyUnclassified = 0): StatsState {
   return {
+    sourceTrackingVersion: 1,
     startedAt: safeTime(now), activePlayMs: 0, clickCount: 0,
     earnedBySource: emptyEarnings(isNonnegativeMoney(legacyUnclassified) ? legacyUnclassified : 0),
     realizedLossesBySource: emptyLosses(),
@@ -145,8 +148,19 @@ export function restoreStatsState(raw: unknown, now = Date.now(), legacyUnclassi
     !isSafeCount(raw.clickCount) ||
     !validAmounts(raw.earnedBySource, EARNINGS_SOURCES, isNonnegativeMoney) ||
     !validAmounts(raw.realizedLossesBySource, LOSS_SOURCES, isNonnegativeMoney)) return fallback()
+  // Les versions v5 plus anciennes comptaient les revenus Entreprises, mais
+  // pas les clics, dividendes ni les plus-values par catégorie. Il est donc
+  // impossible de les attribuer rétroactivement : conserver la différence
+  // positive de l'XP dans 'unclassified', exactement une fois.
+  if (!(raw.sourceTrackingVersion === undefined || raw.sourceTrackingVersion === 1)) return fallback()
+  const legacy = raw.sourceTrackingVersion !== 1
+  const earned = raw.earnedBySource as EarningsBreakdown
+  const knownXpBeforeTracking = earned.enterprises + earned.unclassified
+  const unknown = legacy ? Math.max(0, legacyUnclassified - knownXpBeforeTracking) : 0
   return {
+    sourceTrackingVersion: 1,
     startedAt: raw.startedAt, activePlayMs: raw.activePlayMs, clickCount: raw.clickCount,
-    earnedBySource: raw.earnedBySource, realizedLossesBySource: raw.realizedLossesBySource,
+    earnedBySource: unknown > 0 ? { ...earned, unclassified: earned.unclassified + unknown } : earned,
+    realizedLossesBySource: raw.realizedLossesBySource,
   }
 }
