@@ -147,12 +147,18 @@ button:disabled { cursor: not-allowed; }
 .tap-content { display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: clamp(7px, 1.5dvh, 15px); }
 .banknotes { font-size: clamp(82px, 14dvh, 116px); line-height: 1.22; filter: drop-shadow(0 9px 18px #0008) drop-shadow(0 0 25px #e5b46127); transform: translateZ(0) scale(1); transform-origin: center; transition: transform 120ms cubic-bezier(.2,.7,.2,1); will-change: transform; }
 .tap-zone:active .banknotes { transform: translateZ(0) scale(1.14); }
+.banknotes-popping { animation: banknotes-pop 240ms ease-out both; }
+@keyframes banknotes-pop {
+  0% { transform: translateZ(0) scale(1); }
+  45% { transform: translateZ(0) scale(1.16); }
+  100% { transform: translateZ(0) scale(1); }
+}
 .tap-action { font-size: 10px; font-weight: 780; letter-spacing: .24em; color: #b3a88e; }
 .tap-reward { font-size: 24px; font-weight: 800; letter-spacing: -.035em; color: #f3d594; }
 .tap-reward span { color: #92938e; font-size: 10px; letter-spacing: .15em; font-weight: 720; margin-left: 5px; }
 .floating-gain {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   left: 50%; top: 50%;
   pointer-events: none;
   color: #ffe5a3;
@@ -161,12 +167,12 @@ button:disabled { cursor: not-allowed; }
   white-space: nowrap;
   text-shadow: 0 2px 9px #000, 0 0 16px rgba(255, 205, 107, .52);
   will-change: transform, opacity;
-  animation: coin-rise 900ms cubic-bezier(.22,.72,.31,1) both;
+  animation: coin-rise 1100ms cubic-bezier(.22,.72,.31,1) both;
 }
 @keyframes coin-rise {
-  0% { transform: translate(-50%, -35%) scale(.8); opacity: 0; }
-  14% { transform: translate(-50%, -65%) scale(1.1); opacity: 1; }
-  55% { opacity: 1; }
+  0% { transform: translate(-50%, -35%) scale(.9); opacity: 1; }
+  15% { transform: translate(-50%, -65%) scale(1.1); opacity: 1; }
+  72% { opacity: 1; }
   100% { transform: translate(-50%, -150%) scale(1); opacity: 0; }
 }
 
@@ -218,7 +224,13 @@ button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .progress-fill { transition: none; }
   .banknotes { transition: none; }
-  .floating-gain { animation-duration: 1ms; }
+  .banknotes-popping { animation: none; }
+  /* Le montant reste affiché pendant une seconde, sans déplacement. */
+  .floating-gain { animation: gain-static 1100ms steps(1, end) both; }
+  @keyframes gain-static {
+    from { transform: translate(-50%, -50%); opacity: 1; }
+    to { transform: translate(-50%, -50%); opacity: 0; }
+  }
 }
 
 /* Trading : une page sans scroll global, avec listes internes défilantes. */

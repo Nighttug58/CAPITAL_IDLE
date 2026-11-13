@@ -39,6 +39,7 @@ const page = ref<'home' | 'trading'>('home')
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
+const tapAnimationId = ref(0)
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
 let applyingMarket = false
@@ -73,6 +74,8 @@ function click(event: MouseEvent) {
     ...floatingGains.value.slice(-11),
     { id: ++nextGainId, amount: gained, x, y },
   ]
+  // Relance le rebond visuel après chaque clic, même si le doigt est déjà relevé.
+  tapAnimationId.value++
 }
 
 function removeFloatingGain(id: number) {
@@ -225,7 +228,7 @@ onUnmounted(() => {
         @click="click"
       >
         <span class="tap-content">
-          <span class="banknotes" aria-hidden="true">💵</span>
+          <span :key="tapAnimationId" class="banknotes" :class="{ 'banknotes-popping': tapAnimationId > 0 }" aria-hidden="true">💵</span>
           <span class="tap-action">TOUCHER POUR GAGNER</span>
           <span class="tap-reward">+ {{ formatMoney(clickValue) }} <span>/ CLIC</span></span>
         </span>
