@@ -101,7 +101,7 @@ npm run build
 `npm test` exécute les vérifications de calculs financiers, les simulations temporelles, les migrations et les **tests de composants Vue**. `npm run build` lance le contrôle TypeScript puis génère `dist/` via Vite.
 
 - `src/game.ts` : clicker, seuils de niveau extensibles et améliorations du clic.
-- `src/prestige/catalog.ts`, `state.ts` : catalogue Fame/Collection et compteurs de progression (XP séparée, Fame, récompenses de niveaux). La boutique et la page Collection arriveront dans les passes suivantes de [leur roadmap](ROADMAP_FAME_COLLECTION.md).
+- `src/prestige/catalog.ts`, `state.ts`, `bonuses.ts` : catalogue Fame/Collection, compteurs de progression et **moteur commun des six bonus additifs**. Les revenus de clic, entreprises, dividendes, trading, XP et Fame utilisent ce calcul ; les fractions de centime sont conservées et les règles fiscales existantes restent applicables. Les achats et interfaces arriveront dans les passes suivantes de [leur roadmap](ROADMAP_FAME_COLLECTION.md).
 - `src/capital.ts` / `src/persistence.ts` / `src/save-transfer.ts` : solde unique, sauvegardes, migrations, import/export et reset.
 - `src/trading/catalog.ts` : 45 actifs, bornes et quantités.
 - `src/trading/market.ts`, `news.ts`, `yield.ts` : simulateur de cours, annonces et rendements.
