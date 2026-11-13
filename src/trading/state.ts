@@ -62,7 +62,11 @@ function isNews(value: unknown): value is MarketNews {
     value.affectedAssetIds.every(isAssetId) &&
     typeof value.impact === 'number' && Number.isFinite(value.impact) &&
     value.impact >= -1 && value.impact <= 1 &&
-    ['rumor', 'active', 'confirmed', 'denied'].includes(value.phase as string)
+    ['rumor', 'active', 'confirmed', 'denied'].includes(value.phase as string) &&
+    (value.resolution === undefined || value.resolution === 'confirmed' || value.resolution === 'denied') &&
+    (value.resolutionAt === undefined ||
+      (isTimestamp(value.resolutionAt) && value.resolutionAt > value.startedAt && value.resolutionAt < value.endsAt)) &&
+    ((value.resolution === undefined) === (value.resolutionAt === undefined))
 }
 
 export function createInitialTradingState(now = Date.now(), seed = Math.floor(Math.random() * 0xffffffff) + 1): TradingState {

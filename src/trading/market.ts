@@ -1,4 +1,5 @@
 import { ASSETS, createInitialQuotes } from './catalog.ts'
+import { advanceNewsTick, getNewsPressure } from './news.ts'
 import type { AssetDefinition, MarketQuote, PriceSample, TradingState } from './types.ts'
 
 export const MARKET_TICK_MS = 5_000
@@ -70,6 +71,7 @@ function updateQuote(
   current: MarketQuote,
   at: number,
   sharedNoise: number,
+  newsPressure: number,
   random: { next: () => number },
 ): MarketQuote {
   const profile = PROFILES[asset.kind]
@@ -97,7 +99,8 @@ function updateQuote(
   const regimeNoise = regime === 'frenzy' ? 2.2 : regime === 'steady' ? 0.7 : 1
   const noise = (signed(random) + sharedNoise * 0.45) * profile.noise * variation * regimeNoise
   const momentum = clamp(current.momentum, -0.08, 0.08)
-  let logMove = noise + regimeDirection * profile.drift * variation + momentum * 0.20
+  const newsMove = newsPressure * profile.noise * 0.62
+  let logMove = noise + regimeDirection * profile.drift * variation + momentum * 0.20 + newsMove
   if (shockTicksLeft > 0) {
     logMove += shockDrift
     shockTicksLeft--
@@ -155,6 +158,8 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
 
   const random = createRandom(state.seed)
   const sharedNoise = signed(random)
+  const events = advanceNewsTick(state.news, state.nextNewsAt, state.lastTickAt, at, () => random.next())
+  const pressure = getNewsPressure(events.news, at)
   const currentQuotes = Object.keys(state.quotes).length === 0
     ? createInitialQuotes(state.lastTickAt)
     : state.quotes
@@ -168,7 +173,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
       dividendYield: asset.initialDividendYield,
       updatedAt: state.lastTickAt,
     }
-    const quote = updateQuote(asset, current, at, sharedNoise, random)
+    const quote = updateQuote(asset, current, at, sharedNoise, pressure.price[asset.id] ?? 0, random)
     quotes[asset.id] = quote
     if (recordHistory) {
       history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price)
@@ -181,6 +186,8 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
     seed: random.seed(),
     quotes,
     history,
+    news: events.news,
+    nextNewsAt: events.nextNewsAt,
   }
 }
 

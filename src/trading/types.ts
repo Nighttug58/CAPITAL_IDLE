@@ -57,6 +57,8 @@ export interface MarketNews {
   affectedAssetIds: string[]
   impact: number
   phase: NewsPhase
+  resolution?: 'confirmed' | 'denied'
+  resolutionAt?: number
 }
 
 export interface TradingState {
