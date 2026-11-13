@@ -175,7 +175,7 @@ test('vente et clic : le dividende utilise seulement les titres encore détenus'
 
 test('24h sans application : solde, niveau, courbes et News identiques en rejeu complet ou découpé', () => {
   const initial = stockOwned(funded(1_000_000), 'nvideo', 1000)
-  const direct = replay(initial, 24 * GAME_YEAR_SECONDS)
+  const direct = replay(initial, GAME_YEAR_SECONDS)
   const resumed = catchup(initial, START + DAY)
   assert.deepEqual(resumed, direct)
   assert.ok(resumed.game.balance > initial.game.balance)
