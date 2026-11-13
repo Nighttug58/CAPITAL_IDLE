@@ -6,9 +6,25 @@
     <meta name="theme-color" content="#0d0e10" />
     <meta name="description" content="CAPITAL_IDLE — un clicker d'argent minimaliste." />
     <title>CAPITAL_IDLE</title>
+    <style>
+      /* Visible uniquement si le montage Vue echoue. */
+      .boot-error { visibility: hidden; animation: reveal-boot-error 0s 2s forwards;
+        max-width: 440px; margin: 18vh auto 0; padding: 24px;
+        color: #f1f1f2; background: #15171a; border: 1px solid #34363b;
+        font: 15px/1.6 system-ui, sans-serif; }
+      .boot-error h1 { margin: 0 0 18px; font-size: 18px; }
+      .boot-error a { color: #c9d9ff; }
+      @keyframes reveal-boot-error { to { visibility: visible; } }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="boot-error" role="alert">
+        <h1>CAPITAL_IDLE</h1>
+        <p>Le jeu n'a pas pu démarrer. Si GitHub Pages publie directement la branche <code>main</code>, il sert les sources TypeScript au lieu du site compilé.</p>
+        <p>Dans <a href="https://github.com/Nighttug58/CAPITAL_IDLE/settings/pages">Settings → Pages</a>, choisissez <strong>GitHub Actions</strong> comme source de publication, puis relancez le workflow <strong>Publish GitHub Pages</strong> dans l'onglet Actions.</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
