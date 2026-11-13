@@ -1,5 +1,5 @@
 import type { CapitalState } from '../capital.ts'
-import { getLevel, getNextLevelThreshold, LEVEL_THRESHOLDS } from '../game.ts'
+import { getLevel, getNextLevelThreshold, getLevelStartThreshold } from '../game.ts'
 import { getPortfolio } from '../trading/trades.ts'
 import { getTotalEnterpriseIncomeMicrosPerSecond } from './enterprises.ts'
 
@@ -17,7 +17,8 @@ export interface CapitalStatsOverview {
   readonly levelStart: number
   readonly nextLevelAt: number | null
   readonly levelProgressPercent: number
-  readonly lifetimeEarned: number // source de vérité XP, pas somme des plus-values brutes.
+  readonly lifetimeEarned: number // Revenus monétaires réels cumulés.
+  readonly experience: number // Source de vérité XP, distincte du cash et du revenu.
   readonly activePlayMs: number
   readonly clickCount: number
   readonly enterpriseCount: number
@@ -47,9 +48,10 @@ const SOURCES = [
 ] as const
 
 export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOverview {
-  const level = getLevel(state.game.lifetimeEarned)
-  const levelStart = LEVEL_THRESHOLDS[level - 1] ?? 0
-  const nextLevelAt = getNextLevelThreshold(state.game.lifetimeEarned)
+  const experience = state.prestige.experienceCents / 100
+  const level = getLevel(experience)
+  const levelStart = getLevelStartThreshold(level)
+  const nextLevelAt = getNextLevelThreshold(experience)
   const progress = nextLevelAt === null ? 100 :
     Math.min(100, Math.max(0, (state.game.lifetimeEarned - levelStart) /
       Math.max(1, nextLevelAt - levelStart) * 100))
@@ -86,6 +88,7 @@ export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOvervi
     nextLevelAt,
     levelProgressPercent: progress,
     lifetimeEarned: state.game.lifetimeEarned,
+    experience,
     activePlayMs: state.stats.activePlayMs,
     clickCount: state.stats.clickCount,
     enterpriseCount: holdings.length,
