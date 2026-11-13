@@ -149,7 +149,7 @@ function appendSample(
 
 // Un pas pur et reproductible, sans timer, réseau, Date.now() ni Math.random().
 // La passe 4 appellera cette fonction pour le rattrapage des périodes fermées.
-export function advanceMarketTick(state: TradingState): TradingState {
+export function advanceMarketTick(state: TradingState, recordHistory = true): TradingState {
   const at = state.lastTickAt + MARKET_TICK_MS
   if (!Number.isSafeInteger(at)) return state
 
@@ -170,7 +170,9 @@ export function advanceMarketTick(state: TradingState): TradingState {
     }
     const quote = updateQuote(asset, current, at, sharedNoise, random)
     quotes[asset.id] = quote
-    history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price)
+    if (recordHistory) {
+      history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price)
+    }
   }
 
   return {

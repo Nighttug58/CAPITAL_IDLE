@@ -12,6 +12,7 @@ import {
 } from './game.ts'
 import { loadCapitalState, saveCapitalState } from './persistence.ts'
 import type { CapitalState } from './capital.ts'
+import { createMarketRuntime } from './trading/runtime.ts'
 
 interface FloatingGain {
   id: number
@@ -35,6 +36,7 @@ const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
 let nextGainId = 0
+let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
 
 const progressStart = computed(() => LEVEL_THRESHOLDS[level.value - 1] ?? 0)
 const progressPercent = computed(() => {
@@ -80,6 +82,24 @@ function persist() {
   saveCapitalState(capital.value)
 }
 
+function syncMarketVisibility() {
+  if (document.hidden) {
+    marketRuntime?.pause()
+    persist()
+  } else {
+    marketRuntime?.resume()
+  }
+}
+
+function syncMarketPageShow() {
+  marketRuntime?.resume()
+}
+
+function syncMarketPageHide() {
+  marketRuntime?.pause()
+  persist()
+}
+
 function syncFullscreen() {
   isFullscreen.value = !!document.fullscreenElement
 }
@@ -96,16 +116,33 @@ async function toggleFullscreen() {
   }
 }
 
-watch(capital, persist, { flush: 'sync' })
+// Les clics sont sauvegardés aussitôt ; les centaines de ticks de rattrapage
+// ne déclenchent pas une écriture localStorage à chaque tranche.
+watch(game, persist, { flush: 'sync' })
 
 onMounted(() => {
+  marketRuntime = createMarketRuntime({
+    getState: () => capital.value.trading,
+    setState: (trading) => { capital.value = { ...capital.value, trading } },
+    persist,
+  })
+  marketRuntime.start()
+  if (document.hidden) marketRuntime.pause()
+
   document.addEventListener('fullscreenchange', syncFullscreen)
-  document.addEventListener('visibilitychange', persist)
+  document.addEventListener('visibilitychange', syncMarketVisibility)
+  window.addEventListener('pagehide', syncMarketPageHide)
+  window.addEventListener('pageshow', syncMarketPageShow)
 })
 
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', syncFullscreen)
-  document.removeEventListener('visibilitychange', persist)
+  document.removeEventListener('visibilitychange', syncMarketVisibility)
+  window.removeEventListener('pagehide', syncMarketPageHide)
+  window.removeEventListener('pageshow', syncMarketPageShow)
+  marketRuntime?.stop()
+  marketRuntime = null
+  persist()
 })
 </script>
 
