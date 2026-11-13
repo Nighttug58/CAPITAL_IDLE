@@ -1,6 +1,7 @@
 import type { CapitalState } from '../capital.ts'
 import { exactMoneyCents } from '../money.ts'
-import { earnClick } from '../game.ts'
+import { getClickValue } from '../game.ts'
+import { getTotalBonusBps, scaleRewardCents } from '../prestige/bonuses.ts'
 import { creditExperience } from '../prestige/state.ts'
 import type { EarningsSource } from './state.ts'
 
@@ -8,17 +9,29 @@ function monetaryCents(value: number): number | null { return exactMoneyCents(va
 
 /** Un clic modifie game + stats en une seule transition, jamais l'XP deux fois. */
 export function earnCapitalClick(state: CapitalState): CapitalState {
-  const nextGame = earnClick(state.game)
-  if (nextGame === state.game) return state
-  const reward = nextGame.lifetimeEarned - state.game.lifetimeEarned
+  const scaled = scaleRewardCents(
+    getClickValue(state.game.purchasedUpgrades) * 100,
+    getTotalBonusBps(state, 'click'),
+    state.prestige.clickCarryBps,
+  )
+  const cashCents = monetaryCents(state.game.balance)
+  const lifetimeCents = monetaryCents(state.game.lifetimeEarned)
   const oldCents = monetaryCents(state.stats.earnedBySource.clicks)
-  const rewardCents = monetaryCents(reward)
-  if (oldCents === null || rewardCents === null ||
+  if (!scaled || cashCents === null || lifetimeCents === null || oldCents === null) return state
+  const rewardCents = scaled.cents
+  if (!Number.isSafeInteger(cashCents + rewardCents) ||
+      !Number.isSafeInteger(lifetimeCents + rewardCents) ||
       !Number.isSafeInteger(oldCents + rewardCents) ||
       !Number.isSafeInteger(state.stats.clickCount + 1)) return state
 
   const credited: CapitalState = {
-    ...state, game: nextGame,
+    ...state,
+    game: {
+      ...state.game,
+      balance: (cashCents + rewardCents) / 100,
+      lifetimeEarned: (lifetimeCents + rewardCents) / 100,
+    },
+    prestige: { ...state.prestige, clickCarryBps: scaled.carryBps },
     stats: {
       ...state.stats,
       clickCount: state.stats.clickCount + 1,
