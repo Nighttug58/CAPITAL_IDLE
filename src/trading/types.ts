@@ -11,6 +11,15 @@ export interface AssetDefinition {
   readonly maxPrice: number
   readonly totalSupply: number
   readonly initialDividendYield: number | null
+  readonly sector: string
+  readonly inspiredBy: string | null
+  readonly sourceTicker: string
+  readonly priceSource: string
+  readonly priceReferenceDate: string
+  readonly referenceHighPrice: number
+  readonly supplyBasis: 'fictional-issue' | 'protocol-cap' | 'launch-supply' | 'game-cap'
+  readonly supplyNote: string
+  readonly quantityDecimals: number
 }
 
 export interface MarketQuote {
