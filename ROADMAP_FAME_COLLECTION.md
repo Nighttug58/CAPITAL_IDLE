@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 4/8 passes livrées**  
+**Statut : en cours — 5/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -151,13 +151,18 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Tests :** `src/prestige/shop.test.ts` couvre les six offres et prix, achat simple, achat répété au même palier, fonds insuffisants, état invalide, cash négatif (indépendant de la Fame), fractions avec Notoriété, persistance localStorage/export/import JSON, restauration anti-triche et **120 achats après niveau 100 + 50 collections pour 24 650 Fame, laissant 600 Fame**. Cette passe ne crée ni nouvel écran ni bouton d'achat (UI prévue passe 6).
 - **CI validée :** workflow GitHub Actions [run 43528260071](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43528260071) **success** avec **186 tests métier + 26 tests UI (212 au total)**, `vue-tsc --noEmit`, `vite build`, synchronisation du site `main/(root)` et demande de publication Pages réussies.
 
-### [ ] Passe 5 — Collections : 50 objets et transactions Gold → Fame
+### [x] Passe 5 — Collections : 50 objets et transactions Gold → Fame
 
 - Créer **50 fiches distinctes** : Montres / Autos / Peintures / Antiquités / Joaillerie, 10 par catégorie, descriptions courtes, prix cash validés, bonus parmi les six.
 - Actions métier d'achat unique en cash avec crédit Fame instantané et bonus permanent ; sans revente, sans XP, sans effet fiscale rétroactif.
 - Contrôler Fame par catégorie, requêtes par onglet, possession/idempotence, compatibilité patrimoine Stats.
 - Tests : prix cash, monnaie négative, achat répété, offre Fame sans Notoriété, avec Notoriété, total 20 200 de base et 50/50 possessions.
 - Livrable : collection complète dans le moteur, prête pour l'interface.
+- **Livraison du 14/11/2026 :** `src/prestige/collections-catalog.ts` crée les **50 fiches fictives uniques** (nom, description historique ou produit, visuel de catégorie, prix Gold, Fame de base, identifiant stable, statistique ciblée, bonus de +0,1 % à +5 %) en réutilisant exclusivement les emplacements/prix de `src/prestige/catalog.ts`. Cinq catégories contenant dix objets, lecture par ID et par catégorie, valeur comptable calculée à partir des prix réellement payés.
+- **Transactions métier :** `src/prestige/collections.ts` fournit `buyCollectionItem(state,id)`, `getCollectionOffer`, `getCollectionOffersByCategory` et `getCollectionProgress` pour alimenter la future interface. Les achats sont **définitifs et uniques**, débitent le cash au centime et créditent la Fame en micro-unités **une seule fois**. `Notoriété` est calculée au moment de l'achat **avant d'acquérir le bonus de l'objet**, donc une pièce améliorant la Fame ne bonifie pas rétroactivement sa propre acquisition. Aucun XP, revenu, dividende, tick de marché, fiscalité ni revente fictifs.
+- **Patrimoine et sauvegarde :** `src/economy/stats-overview.ts` ajoute `collectionCount` et `collectionBookValue` à la fortune nette. Un achat transfère de la liquidité vers un bien conservé à son **coût historique d'achat**, donc le patrimoine total ne double pas le cash et ne recalcule jamais la valeur sur le marché. `restorePrestigeState` et l'import v6 refusent les possessions sans Fame de base correspondante, les IDs inconnus et les doublons ; les sauvegardes v6 existantes et la migration v1–v5 sont préservées.
+- **Équilibrage :** 50 acquisitions garantissent **20 200 Fame de base**, soit **80 % de l'offre sans bonus au niveau 100**. Comme certains objets améliorent eux-mêmes les **futurs** gains de Fame, le total réellement reçu peut dépasser 20 200 Fame selon l'ordre d'achat ; ce surplus n'est ni passif ni rétroactif. Les coûts Fame Shop (24 650) et la garantie de financement au niveau 100 ne changent pas.
+- **Validation CI réelle :** GitHub Actions [run 43529609083](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43529609083) **success**, **194 tests métier + 26 UI = 220 tests réussis**, `vue-tsc --noEmit`, Vite et build des assets dans `main/(root)` exécutés. Les nouveaux tests `src/prestige/collections.test.ts` couvrent 50 fiches/achats, 5 catégories, chaque bonus, fonds manquants, cash négatif, refus de second achat, attribution Fame avec et sans Notoriété, export/import v6 et patrimoine inchangé. Un premier test supposait à tort que les objets ne bonifiaient pas la Fame d'autres achats ; l'assertion a été corrigée pour vérifier le minimum de 20 200 **et** les récompenses effectivement reçues. La page/modale UI restent réservées à la passe 6.
 
 ### [ ] Passe 6 — Interface Fame Shop & page Collection
 
