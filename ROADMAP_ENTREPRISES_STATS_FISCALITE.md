@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : à développer — 0/8 passes livrées**  
+**Statut : en cours — 1/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -100,12 +100,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 1 — Modèle unifié, migration et contrats financiers
 
-- [ ] Introduire dans `CapitalState` les modèles typés `enterprises`, `fiscal` et `stats` ; désigner les propriétaires de chaque compteur.
-- [ ] Préparer la **migration v4 → v5** avec conservation intégrale des parties et absence de taxation rétroactive ; maintenir les migrations anciennes par la chaîne existante.
-- [ ] Modifier de manière ciblée la validation/arithmétique du cash pour permettre un **solde négatif issu d'un prélèvement fiscal**, jamais un achat à découvert.
-- [ ] Définir le référentiel des catégories statistiques, la convention d'arrondi en centimes et la configuration du taux fiscal (décision encore ouverte).
-- [ ] Tests migration v1–v4, nouvelle partie, invalides, balance négatif valide, interdiction d'achat en négatif.
+- [x] Introduire dans `CapitalState` les modèles typés `enterprises`, `fiscal` et `stats` ; désigner les propriétaires de chaque compteur.
+- [x] Préparer la **migration v4 → v5** avec conservation intégrale des parties et absence de taxation rétroactive ; maintenir les migrations anciennes par la chaîne existante.
+- [x] Modifier de manière ciblée la validation/arithmétique du cash pour permettre un **solde négatif issu d'un prélèvement fiscal**, jamais un achat à découvert.
+- [x] Définir le référentiel des catégories statistiques, la convention d'arrondi en centimes et la configuration du taux fiscal (décision encore ouverte).
+- [x] Tests migration v1–v4, nouvelle partie, invalides, balance négatif valide, interdiction d'achat en négatif.
 - **Livrable :** nouveaux états persistants et contrats métier sans régression Trading.
+
+**Validée le 13/11/2026** — implémentation [d829971](https://github.com/Nighttug58/CAPITAL_IDLE/commit/d8299718d4889b5f34f17abcbbf3a6c80340a487) via [PR #1](https://github.com/Nighttug58/CAPITAL_IDLE/pull/1). Sauvegarde v5 (`src/capital.ts`, `src/persistence.ts`) ; nouveaux contrats `src/economy/state.ts` ; restauration de cash négatif **uniquement en v5** ; compteurs initiaux sans taxation rétroactive ; conservation du marché existant. Les gains des versions antérieures sont rangés dans **unclassified** faute de ventilation fiable. **GitHub Actions [#43490288670](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43490288670)** : étapes **Test**, **Build static site**, publication des ressources et déclenchement Pages **réussis**. Taux d'impôt toujours **non défini** (`FISCAL_TAX_RATE = null`), pas de taxe active.
 
 ### Passe 2 — Catalogue et équilibrage des 20 entreprises
 
