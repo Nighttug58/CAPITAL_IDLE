@@ -76,11 +76,14 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 1 — Fondations et sauvegarde versionnée
 
-- [ ] Définir les types métiers séparés (catalogue, cotation, positions, lots/coût moyen, dividendes, news, simulation/horloge) ; ne pas tout mettre dans App.vue.
-- [ ] Définir une autorité unique sur l'argent, les gains réalisés et le niveau ; préserver le moteur de clic existant.
-- [ ] Établir l'état initial Trading et sa persistance/migration versionnée depuis la v3, avec validation/restauration robustes.
-- [ ] Tests : anciennes parties inchangées, sérialisation, initialisation d'une partie vide, données corrompues.
+- [x] Définir les types métiers séparés (catalogue, cotation, positions, lots/coût moyen, dividendes, news, simulation/horloge) ; ne pas tout mettre dans App.vue.
+- [x] Définir une autorité unique sur l'argent, les gains réalisés et le niveau ; préserver le moteur de clic existant.
+- [x] Établir l'état initial Trading et sa persistance/migration versionnée depuis la v3, avec validation/restauration robustes.
+- [x] Tests : anciennes parties inchangées, sérialisation, initialisation d'une partie vide, données corrompues.
 - **Livrable :** modèle Trading sauvegardable et rétrocompatible, sans nouvelle interface obligatoire.
+
+**Validée le 13/11/2026** — commit de développement [040ce69](https://github.com/Nighttug58/CAPITAL_IDLE/commit/040ce69b739ec9839e853cc30d3b661a6ed74ae4). Les tests **npm test** (incluant 7 nouveaux tests) et **npm run build** ont réussi dans [GitHub Actions #43442174518](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43442174518). Le clicker existant utilise l'état v4 commun, sans changement visuel. Le stockage v3 est conservé pour migration et les fonctions d'achat/vente restent à faire en passe 5.
+
 
 ### Passe 2 — Catalogue des 45 actifs
 
