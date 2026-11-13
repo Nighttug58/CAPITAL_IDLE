@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 à 5 terminées**  
+Statut : **en développement — passes 1 à 6 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -131,12 +131,15 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 6 — Moteur d'événements News
 
-- [ ] Scheduler aléatoire 2–8 min ; événements à durée tirée une fois entre 2 et 30 min, timestamps/périodes/expiration reproductibles.
-- [ ] Effets progressifs sur cours, actifs multiples et marché entier ; chevauchements sous contrôle ; phase rumeur/confirmation quand pertinent.
-- [ ] Conserver 10 dernières expirées + tous les actifs ; support du rattrapage hors ligne et du lien vers les actifs.
-- [ ] Commencer avec un sous-ensemble d'événements représentatifs, bien rédigés et testés ; aucun contenu inventé pour prétendre au total de 300.
-- [ ] Tests sur compteur, expiration, chevauchements, reprise hors ligne, variation sous influence.
+- [x] Scheduler aléatoire 2–8 min ; événements à durée tirée une fois entre 2 et 30 min, timestamps/périodes/expiration reproductibles.
+- [x] Effets progressifs sur cours, actifs multiples et marché entier ; chevauchements sous contrôle ; phase rumeur/confirmation quand pertinent.
+- [x] Conserver 10 dernières expirées + tous les actifs ; support du rattrapage hors ligne et du lien vers les actifs.
+- [x] Commencer avec un sous-ensemble d'événements représentatifs, bien rédigés et testés ; aucun contenu inventé pour prétendre au total de 300.
+- [x] Tests sur compteur, expiration, chevauchements, reprise hors ligne, variation sous influence.
 - **Livrable :** les News font réellement bouger les marchés.
+
+**Validée le 13/11/2026** — [moteur News 0e5e65f](https://github.com/Nighttug58/CAPITAL_IDLE/commit/0e5e65f44640b941cd854de79c7aac601cb830ec), [tests b0bcfce](https://github.com/Nighttug58/CAPITAL_IDLE/commit/b0bcfce649817063743da6200d4b7630c511049c), [correctif test 1075b95](https://github.com/Nighttug58/CAPITAL_IDLE/commit/1075b95dd496bc13aa64f0e5e45fbab39d52ed00). **62 tests OK** et **npm run build OK** dans [GitHub Actions #43451766984](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43451766984). 26 récits originaux en français (objectif 300 passe 9) ; calendrier 2–8 minutes, durée 2–30 minutes, rumeurs dont l'issue est pré-tirée, chevauchements plafonnés, effets progressifs sur les prix, reprise 24 h identique au rejeu intégral, 10 News expirées + toutes les actives. Pression sur les rendements préparée pour la passe 7, **sans changement de dividendes pour le moment**. Pas encore d'onglet News visible (passes 8–9). Voir **TRADING_NEWS.md**.
+
 
 ### Passe 7 — Dividendes indépendants, dynamiques et hors ligne
 
