@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
 import App from '../App.vue'
@@ -27,7 +27,14 @@ function setup() {
     void wrapper.setProps({ state })
     return result
   }
-  wrapper = mount(StatsScreen, { props: { state, payTaxes }, attachTo: document.body })
+  wrapper = mount(StatsScreen, {
+    props: {
+      state, payTaxes,
+      exportSave: () => true,
+      importSave: () => false,
+      resetSave: () => false,
+    }, attachTo: document.body,
+  })
   mounted.push(wrapper)
   return { wrapper, getState: () => state }
 }
@@ -127,5 +134,111 @@ describe('Stats : progression et patrimoine complet', () => {
     expect(css).toContain('@media(max-width:360px)')
     expect(css).toContain('.stats-source-track')
     expect(css).toContain('.stats-balance-result')
+  })
+})
+
+describe('Gestion des sauvegardes dans Stats', () => {
+  it('place Exporter, Importer, Réinitialiser tout en bas sous la fiscalité', () => {
+    const { wrapper } = setup()
+    const buttons = wrapper.findAll('.stats-backup button.backup-action')
+    expect(buttons.map(button => button.text())).toEqual([
+      expect.stringContaining('Exporter la sauvegarde'),
+      expect.stringContaining('Importer une sauvegarde'),
+      'Réinitialiser la sauvegarde',
+    ])
+    expect(wrapper.find('.stats-scroll').element.lastElementChild?.classList.contains('stats-backup')).toBe(true)
+    expect(wrapper.find('.backup-hidden').attributes('accept')).toContain('.json')
+  })
+
+  it('RESET exige exactement le code et Annuler garde la partie', async () => {
+    const now = Date.now()
+    const original = createCapitalState({ balance: 567, lifetimeEarned: 567, purchasedUpgrades: 0 }, now)
+    original.fiscal.taxesDueCents = 750
+    original.fiscal.dueBySourceCents.stocks = 750
+    localStorage.setItem('capital-idle-save-v5', JSON.stringify(original))
+    localStorage.setItem('capital-idle-save-v4', JSON.stringify({ version: 4, game: original.game, trading: original.trading }))
+    const wrapper = mount(App, { attachTo: document.body })
+    mounted.push(wrapper)
+    await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
+
+    await wrapper.find('.backup-reset').trigger('click')
+    expect(wrapper.find('.backup-reset-confirm').exists()).toBe(true)
+    expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeDefined()
+    await wrapper.find('#reset-code').setValue('RESE')
+    expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeDefined()
+    await wrapper.find('.backup-reset-confirm .backup-confirm-actions button').trigger('click')
+    expect(wrapper.find('.backup-reset-confirm').exists()).toBe(false)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(567)
+
+    await wrapper.find('.backup-reset').trigger('click')
+    await wrapper.find('#reset-code').setValue('RESET')
+    expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeUndefined()
+    await wrapper.find('.backup-confirm-danger').trigger('click')
+    await nextTick()
+    const fresh = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
+    expect(fresh.game.balance).toBe(0)
+    expect(fresh.game.lifetimeEarned).toBe(0)
+    expect(fresh.fiscal.taxesDueCents).toBe(0)
+    expect(fresh.fiscal.taxesPaidCents).toBe(0)
+    expect(fresh.stats.clickCount).toBe(0)
+    expect(Object.keys(fresh.enterprises.owned)).toHaveLength(0)
+    expect(localStorage.getItem('capital-idle-save-v4')).toBeNull()
+    expect(wrapper.find('.backup-reset-confirm').exists()).toBe(false)
+  })
+
+  it('l import affiche le résumé, annule sans effet puis remplace après confirmation', async () => {
+    const now = Date.now()
+    const original = createCapitalState({ balance: 250, lifetimeEarned: 250, purchasedUpgrades: 0 }, now)
+    const loaded = createCapitalState({ balance: 1250, lifetimeEarned: 1250, purchasedUpgrades: 0 }, now - 30_000)
+    loaded.trading.positions.nvideo = { quantity: 1, costBasis: 100.50 }
+    loaded.trading.quotes.nvideo = { price: 110, momentum: 0, dividendYield: 0.05, updatedAt: now - 30_000 }
+    loaded.fiscal.taxesDueCents = 75
+    loaded.fiscal.dueBySourceCents.stocks = 75
+    localStorage.setItem('capital-idle-save-v5', JSON.stringify(original))
+    const wrapper = mount(App, { attachTo: document.body })
+    mounted.push(wrapper)
+    await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
+    const encoded = JSON.stringify({
+      format: 'CAPITAL_IDLE_SAVE', formatVersion: 1, exportedAt: now - 30_000, state: loaded,
+    })
+
+    async function choose(content: string) {
+      const file = new File([content], 'partie.json', { type: 'application/json' })
+      Object.defineProperty(file, 'text', { value: async () => content })
+      const input = wrapper.find('.backup-hidden')
+      Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+      await input.trigger('change')
+      await flushPromises()
+      await nextTick()
+    }
+
+    await choose(encoded)
+    expect(wrapper.find('.backup-confirm').exists()).toBe(true)
+    expect(wrapper.find('.backup-import-details').text()).toContain('1 250')
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
+    await wrapper.find('.backup-confirm-actions button').trigger('click')
+    expect(wrapper.find('.backup-confirm').exists()).toBe(false)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
+
+    await choose('{invalid')
+    expect(wrapper.find('.backup-error').exists()).toBe(true)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
+
+    await choose(encoded)
+    await wrapper.find('.backup-confirm-primary').trigger('click')
+    await flushPromises()
+    const imported = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
+    expect(imported.game.balance).toBe(1250)
+    expect(imported.trading.positions.nvideo.quantity).toBe(1)
+    expect(imported.fiscal.taxesDueCents).toBe(75)
+    expect(wrapper.find('.backup-confirm').exists()).toBe(false)
+  })
+
+  it('la zone gestion de sauvegarde reste lisible sur petit écran', () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toContain('.stats-backup {')
+    expect(css).toContain('.backup-action {')
+    expect(css).toContain('.backup-reset-confirm input {')
+    expect(css).toContain('@media(max-width:360px)')
   })
 })
