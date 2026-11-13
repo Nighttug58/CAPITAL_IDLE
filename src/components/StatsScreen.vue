@@ -4,10 +4,16 @@ import type { CapitalState } from '../capital.ts'
 import type { EarlyTaxPaymentResult } from '../economy/fiscal.ts'
 import { FISCAL_PERIOD_MS, FISCAL_TAX_RATE } from '../economy/state.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
+import {
+  MAX_IMPORT_FILE_BYTES, prepareSaveImport, type SaveImportPreview,
+} from '../save-transfer.ts'
 
 const props = defineProps<{
   state: CapitalState
   payTaxes: () => EarlyTaxPaymentResult
+  exportSave: () => boolean
+  importSave: (state: CapitalState) => boolean
+  resetSave: () => boolean
 }>()
 
 const overview = computed(() => getCapitalStatsOverview(props.state))
@@ -43,6 +49,84 @@ const sources = [
   { id: 'crypto', label: 'Cryptomonnaies' },
   { id: 'memecoins', label: 'Memecoins' },
 ] as const
+
+const backupFileInput = ref<HTMLInputElement | null>(null)
+const pendingImport = ref<SaveImportPreview | null>(null)
+const importName = ref('')
+const importError = ref('')
+const backupNotice = ref('')
+const resetConfirming = ref(false)
+const resetText = ref('')
+const importing = ref(false)
+
+const importErrors: Record<'file-too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-save', string> = {
+  'file-too-large': 'Fichier trop volumineux (16 Mo maximum).',
+  'invalid-json': 'Ce fichier n’est pas un JSON valide.',
+  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 uniquement).',
+  'invalid-save': 'Sauvegarde corrompue ou incohérente : aucune donnée n’a été remplacée.',
+}
+function openImportChooser() {
+  if (!backupFileInput.value) return
+  backupFileInput.value.value = ''
+  backupFileInput.value.click()
+}
+
+async function readImportFile(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  pendingImport.value = null
+  importError.value = ''
+  backupNotice.value = ''
+  if (!file) return
+  importName.value = file.name
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    importError.value = importErrors['file-too-large']
+    return
+  }
+  importing.value = true
+  try {
+    const contents = await file.text()
+    const result = prepareSaveImport(contents)
+    if (result.ok) pendingImport.value = result.preview
+    else importError.value = importErrors[result.error]
+  } catch {
+    importError.value = 'Lecture du fichier impossible. La partie actuelle est conservée.'
+  } finally {
+    importing.value = false
+  }
+}
+
+function confirmImport() {
+  if (!pendingImport.value) return
+  const imported = pendingImport.value
+  if (props.importSave(imported.state)) {
+    backupNotice.value = 'Sauvegarde importée. La progression et les échéances ont été restaurées.'
+    pendingImport.value = null
+    importError.value = ''
+  } else {
+    importError.value = 'Impossible d’écrire la sauvegarde : aucune partie n’a été remplacée.'
+  }
+}
+function exportBackup() {
+  backupNotice.value = props.exportSave()
+    ? 'Sauvegarde exportée en fichier JSON.'
+    : 'Export impossible sur cet appareil.'
+}
+function confirmReset() {
+  if (resetText.value !== 'RESET') return
+  if (props.resetSave()) {
+    backupNotice.value = 'Nouvelle partie créée. Tous les compteurs ont été réinitialisés.'
+    resetConfirming.value = false
+    resetText.value = ''
+    pendingImport.value = null
+  } else {
+    backupNotice.value = 'Réinitialisation impossible : la sauvegarde actuelle a été conservée.'
+  }
+}
+function closeReset() {
+  resetText.value = ''
+  resetConfirming.value = false
+}
 
 function pay() {
   const result = props.payTaxes()
@@ -168,7 +252,63 @@ function pay() {
         <p v-if="notice" class="stats-tax-notice" role="status">{{ notice }}</p>
       </section>
 
-      <p class="stats-followup-note">Import, export et réinitialisation de la sauvegarde : passe 7.</p>
+      <section class="stats-section stats-backup" aria-label="Gestion de la sauvegarde">
+        <div class="stats-section-heading">
+          <h2>Gestion de la sauvegarde</h2><span>LOCAL · JSON</span>
+        </div>
+        <p class="stats-footnote">Conservez une copie de votre partie ou restaurez un fichier sauvegardé. La sauvegarde automatique continue de fonctionner normalement.</p>
+        <button type="button" class="backup-action backup-export" @click="exportBackup">
+          <span class="backup-action-icon" aria-hidden="true">↓</span>
+          <span><strong>Exporter la sauvegarde</strong><small>Télécharger toutes les données en .json</small></span>
+        </button>
+        <button type="button" class="backup-action backup-import" :disabled="importing" @click="openImportChooser">
+          <span class="backup-action-icon" aria-hidden="true">↑</span>
+          <span><strong>Importer une sauvegarde</strong><small>Vérification et confirmation avant remplacement</small></span>
+        </button>
+        <input ref="backupFileInput" class="backup-hidden" type="file" accept=".json,application/json"
+          aria-label="Choisir un fichier de sauvegarde JSON" @change="readImportFile">
+        <p v-if="importing" class="stats-footnote" role="status">Vérification du fichier en cours…</p>
+        <p v-if="importError" class="backup-error" role="alert">{{ importError }}</p>
+
+        <div v-if="pendingImport" class="backup-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmer l'import de sauvegarde">
+          <strong>Remplacer la partie actuelle ?</strong>
+          <p>Le fichier <b>{{ importName }}</b> contient une sauvegarde v{{ pendingImport.sourceVersion }}. Les données actuelles seront remplacées.</p>
+          <div class="backup-import-details">
+            <span>Argent de la sauvegarde</span><strong>{{ cash(pendingImport.state.game.balance) }}</strong>
+            <span>Entreprises possédées</span><strong>{{ Object.keys(pendingImport.state.enterprises.owned).length }} / 20</strong>
+            <span>Taxes accumulées</span><strong>{{ money(pendingImport.state.fiscal.taxesDueCents) }}</strong>
+            <span>Date d’export</span>
+            <strong>{{ pendingImport.exportedAt === null ? 'Ancien format' : new Date(pendingImport.exportedAt).toLocaleString('fr-CH') }}</strong>
+          </div>
+          <p class="backup-warning">Après import, les revenus hors ligne et les échéances fiscales écoulées seront calculés normalement. Cette action écrasera la partie en cours.</p>
+          <div class="backup-confirm-actions">
+            <button type="button" @click="pendingImport = null">Annuler</button>
+            <button type="button" class="backup-confirm-primary" @click="confirmImport">Confirmer l’import</button>
+          </div>
+        </div>
+
+        <div class="backup-danger">
+          <strong>Zone dangereuse</strong>
+          <p>Réinitialiser supprimera définitivement votre progression, vos investissements, vos statistiques et vos taxes.</p>
+          <button type="button" class="backup-action backup-reset" @click="resetConfirming = true">
+            Réinitialiser la sauvegarde
+          </button>
+        </div>
+        <div v-if="resetConfirming" class="backup-confirm backup-reset-confirm" role="alertdialog"
+          aria-modal="true" aria-label="Confirmer la réinitialisation">
+          <strong>Supprimer définitivement la partie ?</strong>
+          <p>Cette opération est irréversible. Écrivez exactement <b>RESET</b> pour confirmer.</p>
+          <label for="reset-code">Confirmation de sécurité</label>
+          <input id="reset-code" v-model="resetText" type="text" autocomplete="off" spellcheck="false"
+            placeholder="Écrivez RESET" maxlength="5" @keydown.esc="closeReset">
+          <div class="backup-confirm-actions">
+            <button type="button" @click="closeReset">Annuler</button>
+            <button type="button" class="backup-confirm-danger" :disabled="resetText !== 'RESET'"
+              @click="confirmReset">Supprimer la sauvegarde</button>
+          </div>
+        </div>
+        <p v-if="backupNotice" class="stats-tax-notice" role="status">{{ backupNotice }}</p>
+      </section>
     </div>
   </main>
 </template>
