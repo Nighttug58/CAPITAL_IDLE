@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 3/8 passes livrées**  
+**Statut : en cours — 4/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -133,12 +133,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 4 — Taxes différées sur entreprises et ventes de titres
 
-- [ ] Créer **un moteur fiscal unique** avec compteur `taxesDue`, ventilation des sources, `taxesPaid`, dates de période et taux configuré.
-- [ ] Brancher l'accumulation des taxes sur bénéfices des entreprises ; **ne pas réduire le crédit brut**.
-- [ ] Brancher l'accumulation sur les **plus-values de ventes bénéficiaires** de `src/trading/trades.ts`, y compris memecoins, en réutilisant exactement le calcul du prix de revient et des frais déjà existants.
-- [ ] Implémenter **paiement manuel intégral** (remise du timer à 72 h) et **prélèvement automatique après 72 h** ; solde négatif autorisé, zéro double taxe.
-- [ ] Tests vente partielle, coût moyen, pertes, frais, taxes non immédiates, paiement avec solde insuffisant, redémarrage du timer et niveau joueur stable.
+- [x] Créer **un moteur fiscal unique** avec compteur `taxesDue`, ventilation des sources, `taxesPaid`, dates de période et taux configuré.
+- [x] Brancher l'accumulation des taxes sur bénéfices des entreprises ; **ne pas réduire le crédit brut**.
+- [x] Brancher l'accumulation sur les **plus-values de ventes bénéficiaires** de `src/trading/trades.ts`, y compris memecoins, en réutilisant exactement le calcul du prix de revient et des frais déjà existants.
+- [x] Implémenter **paiement manuel intégral** (remise du timer à 72 h) et **prélèvement automatique après 72 h** ; solde négatif autorisé, zéro double taxe.
+- [x] Tests vente partielle, coût moyen, pertes, frais, taxes non immédiates, paiement avec solde insuffisant, redémarrage du timer et niveau joueur stable.
 - **Livrable :** fiscalité cohérente en session, avec règle de taux explicitement fixée avant activation.
+
+**Validée le 13/11/2026** — [PR #4](https://github.com/Nighttug58/CAPITAL_IDLE/pull/4), [commit initial c442de0](https://github.com/Nighttug58/CAPITAL_IDLE/commit/c442de05188dafcc1cf7aedb3a1ffb28485a8d83), correctifs des deux catégories fiscales de Trading et [CI #43504552219](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43504552219) : **npm test (métier + UI), compilation TypeScript/Vite, synchronisation `main/root` et déclenchement Pages réussis**. Moteur unique `src/economy/fiscal.ts`, synchronisation `src/economy/clock.ts` ; dette fiscale par source et taxes payées, reliquats infra-centime entreprises, prélèvements toutes les **72 h réelles**, découvert fiscal permis sans diminution de l'XP, paiement anticipé avec reset d'horloge, débit atomique et calcul en périodes pour les absences. Taxes sur gains réalisés de `src/trading/trades.ts` après coût d'achat et commissions ; les ventes à perte ne sont pas taxées. Une **première page Stats fiscale** et son paiement avec confirmation sont disponibles dès cette passe ; le tableau de bord statistique complet reste à la passe 6. **Taux actif provisoire : 15 %**, défini uniquement dans `src/economy/state.ts`, à confirmer/ajuster ultérieurement (aucun caractère définitif). Tests métier/UX couvrent ventes partielles, actions/cryptos/memecoins, revenus bruts d'entreprises, taxes par source, paiement 72 h, paiement anticipé, solde négatif, rollover sur 10 jours et absence de double prélèvement.
 
 ### Passe 5 — Hors ligne illimité et chronologie des échéances
 
