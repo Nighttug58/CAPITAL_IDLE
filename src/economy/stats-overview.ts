@@ -3,6 +3,7 @@ import { getLevel, getNextLevelThreshold, getLevelStartThreshold } from '../game
 import { getPortfolio } from '../trading/trades.ts'
 import { getTotalEnterpriseIncomeMicrosPerSecond } from './enterprises.ts'
 import { getBonusMultiplier } from '../prestige/bonuses.ts'
+import { getCollectionBookValueCents } from '../prestige/collections-catalog.ts'
 
 export interface SourceStats {
   readonly id: string
@@ -26,6 +27,8 @@ export interface CapitalStatsOverview {
   readonly enterpriseLevels: number
   readonly enterpriseIncomePerSecond: number
   readonly enterpriseBookValue: number
+  readonly collectionCount: number
+  readonly collectionBookValue: number // Coût payé, sans valorisation de marché ni revente.
   readonly cash: number
   readonly assetMarketValue: number
   readonly unrealizedTradingProfit: number
@@ -60,10 +63,11 @@ export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOvervi
   const portfolio = getPortfolio(state)
   const holdings = Object.values(state.enterprises.owned)
   const enterpriseBookValue = holdings.reduce((sum, holding) => sum + holding.investedCents, 0) / 100
+  const collectionBookValue = (getCollectionBookValueCents(state.prestige.ownedCollectionIds) ?? 0) / 100
   const due = state.fiscal.taxesDueCents / 100
   const paid = state.fiscal.taxesPaidCents / 100
   // Les taxes déjà payées ont déjà réduit cash. Ne pas les soustraire deux fois.
-  const netWorth = state.game.balance + portfolio.marketValue + enterpriseBookValue - due
+  const netWorth = state.game.balance + portfolio.marketValue + enterpriseBookValue + collectionBookValue - due
 
   const sources = SOURCES.map(([id, label]) => {
     const gains = state.stats.earnedBySource[id]
@@ -96,6 +100,8 @@ export function getCapitalStatsOverview(state: CapitalState): CapitalStatsOvervi
     enterpriseLevels: holdings.reduce((sum, holding) => sum + holding.level, 0),
     enterpriseIncomePerSecond: getTotalEnterpriseIncomeMicrosPerSecond(state) * getBonusMultiplier(state, 'enterprise') / 1_000_000,
     enterpriseBookValue,
+    collectionCount: state.prestige.ownedCollectionIds.length,
+    collectionBookValue,
     cash: state.game.balance,
     assetMarketValue: portfolio.marketValue,
     unrealizedTradingProfit: portfolio.unrealizedNetProfit,
