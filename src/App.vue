@@ -69,77 +69,7 @@ const progressPercent = computed(() => {
 })
 
 const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
-const formatMoney = (value: number) => `${numberFormatter.format(value)} <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import {
-  getLevelStartThreshold,
-  getClickValue,
-  getLevel,
-  getNextLevelThreshold,
-  getNextUpgrade,
-  purchaseUpgrade,
-  type GameState,
-} from './game.ts'
-import { loadCapitalState, replaceCapitalSave, saveCapitalState } from './persistence.ts'
-import { createCapitalState } from './capital.ts'
-import { createSaveExport, exportFileName } from './save-transfer.ts'
-import type { CapitalState } from './capital.ts'
-import { createMarketRuntime } from './trading/runtime.ts'
-import { buyAsset, sellAsset } from './trading/trades.ts'
-import type { TradeResult, TradeSide } from './trading/trades.ts'
-import TradingScreen from './components/TradingScreen.vue'
-import EnterpriseScreen from './components/EnterpriseScreen.vue'
-import StatsScreen from './components/StatsScreen.vue'
-import FameShopModal from './components/FameShopModal.vue'
-import CollectionScreen from './components/CollectionScreen.vue'
-import { getBonusMultiplier } from './prestige/bonuses.ts'
-import { FAME_MICROS } from './prestige/state.ts'
-import { buyFameUpgrade, type FameShopPurchase } from './prestige/shop.ts'
-import { buyCollectionItem, type CollectionPurchase } from './prestige/collections.ts'
-import { advanceFiscalEconomy, payFiscalBalanceNow } from './economy/clock.ts'
-import type { EarlyTaxPaymentResult } from './economy/fiscal.ts'
-import { earnCapitalClick, recordActivePlay } from './economy/stats-ledger.ts'
-import { buyEnterprise, upgradeEnterprise } from './economy/enterprises.ts'
-import type { EnterpriseAction, EnterpriseResult } from './economy/enterprises.ts'
-
-interface FloatingGain {
-  id: number
-  amount: number
-  x: number
-  y: number
-}
-
-const capital = ref<CapitalState>(loadCapitalState())
-const game = computed<GameState>({
-  get: () => capital.value.game,
-  set: (updated) => { capital.value = { ...capital.value, game: updated } },
-})
-const level = computed(() => getLevel(capital.value.prestige.experienceCents / 100))
-const clickValue = computed(() => getClickValue(game.value.purchasedUpgrades) * getBonusMultiplier(capital.value, 'click'))
-const nextLevel = computed(() => getNextLevelThreshold(capital.value.prestige.experienceCents / 100))
-const nextUpgrade = computed(() => getNextUpgrade(game.value))
-const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
-const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
-const page = ref<'home' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
-const showFameShop = ref(false)
-const fameLaunch = ref<HTMLButtonElement | null>(null)
-const isFullscreen = ref(false)
-const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
-const floatingGains = ref<FloatingGain[]>([])
-const tapAnimationId = ref(0)
-let nextGainId = 0
-let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
-let applyingMarket = false
-let activeSince: number | null = null
-
-const progressStart = computed(() => getLevelStartThreshold(level.value))
-const progressPercent = computed(() => {
-  if (nextLevel.value === null) return 100
-  const range = nextLevel.value - progressStart.value
-  return range > 0 ? Math.min(100, Math.max(0, ((capital.value.prestige.experienceCents / 100 - progressStart.value) / range) * 100)) : 0
-})
-
-const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
+const formatMoney = (value: number) => numberFormatter.format(value) + ' $'
 
 const fameBalance = computed(() => numberFormatter.format(capital.value.prestige.fameMicros / FAME_MICROS))
 function openFameShop() {
