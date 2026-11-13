@@ -52,8 +52,9 @@ function trapFocus(event: KeyboardEvent) {
   if (event.key !== 'Tab' || !dialog.value) return
   const controls = Array.from(dialog.value.querySelectorAll<HTMLElement>(
     'button:not(:disabled), [href], input:not(:disabled), [tabindex]:not([tabindex="-1"])',
-  )).filter((el) => el.getClientRects().length > 0 || typeof window === 'undefined')
-  // JSDOM does not expose layout rectangles; production focus stays within the dialog.
+  ))
+  // The dialog only contains active controls; this also works in browsers
+  // without measurable layout rectangles (accessibility tools and JSDOM).
   if (controls.length === 0) return
   const first = controls[0]!
   const last = controls[controls.length - 1]!
