@@ -169,6 +169,9 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
   if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return reject(state, 'invalid-quantity')
   if (quantity > getAvailableSupply(asset, owned) + 1e-9) return reject(state, 'insufficient-supply')
+  // Éviter les achats de poussière qui seraient invendables sans aucun produit
+  // de vente après arrondi et commissions, même sans mouvement de marché.
+  if (!sellMoney(asset, price, quantity)) return reject(state, 'amount-too-small')
   const order = buyMoney(asset, price, quantity)
   if (!order) return reject(state, 'money-overflow')
 
