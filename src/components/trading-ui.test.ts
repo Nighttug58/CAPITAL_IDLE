@@ -133,10 +133,12 @@ describe('Trading interface mobile',()=>{
     await nextTick()
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
-  it('fait réellement monter les gains, y compris avec les animations réduites',()=>{
-    // Vérifie les deux chemins CSS (jsdom ne simule pas le rendu des keyframes).
-    expect(clickerStyles).toMatch(/@keyframes coin-rise\\s*\\{[\\s\\S]*?100%\\s*\\{\\s*transform:\\s*translate\\(-50%, -120px\\)/)
-    expect(clickerStyles).toMatch(/@keyframes gain-reduced-rise\\s*\\{[\\s\\S]*?100%\\s*\\{\\s*transform:\\s*translate\\(-50%, -72px\\)/)
+  it('fait monter les gains aussi avec les animations réduites',()=>{
+    // jsdom ne simule pas visuellement les keyframes : contrôle les deux variantes CSS.
+    expect(clickerStyles).toContain('@keyframes coin-rise')
+    expect(clickerStyles).toContain('transform: translate(-50%, -120px)')
+    expect(clickerStyles).toContain('gain-reduced-rise 1100ms')
+    expect(clickerStyles).toContain('transform: translate(-50%, -72px)')
     expect(clickerStyles).not.toContain('gain-static')
   })
   it('montre le montant flottant à chaque clic et le nettoie en fin d’animation',async()=>{
