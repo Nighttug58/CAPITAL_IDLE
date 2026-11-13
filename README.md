@@ -12,16 +12,23 @@ Clicker d'argent minimaliste, mobile-first : Vue 3, TypeScript et Vite.
 - Le mode plein écran utilise l'API native du navigateur si disponible.
 - Pas de revenus automatiques/offline pour cette première version.
 
-| Niveau | Total gagné nécessaire | Prix amélioration | Nouveau gain par clic |
-|---:|---:|---:|---:|
-| 1 | 0 $ | — | 1 $ |
-| 2 | 100 $ | 50 $ | 2 $ |
-| 3 | 500 $ | 250 $ | 5 $ |
-| 4 | 2 000 $ | 1 000 $ | 10 $ |
-| 5 | 10 000 $ | 5 000 $ | 25 $ |
-| 6 | 50 000 $ | 25 000 $ | 50 $ |
+| Niveau | Total gagné nécessaire | Revenu après achat |
+|---:|---:|---:|
+| 1 | 0 $ | 1 $/clic |
+| 2 | 35 $ | 2 $/clic |
+| 3 | 77 $ | 3 $/clic |
+| 5 | 190 $ | 5 $/clic |
+| 10 | 760 $ | 10 $/clic |
+| 15 | 2 237 $ | 20 $/clic |
+| 20 | 6 068 $ | 30 $/clic |
+| 25 | 16 003 $ | 40 $/clic |
+| 30 | 41 775 $ | 50 $/clic |
 
-Ces montants sont des réglages provisoires dans `src/game.ts`.
+La progression contient **30 niveaux et 29 améliorations**. Chaque palier de total gagné nécessite 21 % de gains additionnels de plus que le précédent, tandis que le gain par clic augmente de +1 jusqu'au niveau 10, puis de +2. Le prix d'achat correspond à environ 60 % du gain nécessaire entre deux niveaux, arrondi aux 5 $ les plus proches.
+
+**Compatibilité des sauvegardes :** au premier chargement de la version 2, une ancienne partie v1 est automatiquement migrée. Le solde et le total gagné sont conservés, et les améliorations déjà achetées sont converties sans diminuer le revenu par clic. La sauvegarde v1 originale reste intacte sur l'appareil.
+
+Les paramètres d'équilibrage sont regroupés dans `src/game.ts`.
 
 ## Développement
 
