@@ -53,7 +53,7 @@ export const ENTERPRISE_MILESTONES: readonly EnterpriseMilestone[] = Object.free
 ])
 
 const milestoneByLevel = new Map<number, EnterpriseMilestone>(
-  ENTERPRISE_MILESTONES.map((milestone) => [milestone.level, milestone]),
+  ENTERPRISE_MILESTONES.map((milestone) => [milestone.level, milestone] as const),
 )
 
 /**
@@ -130,7 +130,7 @@ function buildDefinition(row: EnterpriseRow): EnterpriseDefinition {
 }
 
 export const ENTERPRISES: readonly EnterpriseDefinition[] = Object.freeze(rows.map(buildDefinition))
-const enterprisesById = new Map(ENTERPRISES.map((enterprise) => [enterprise.id, enterprise]))
+const enterprisesById = new Map<string, EnterpriseDefinition>(ENTERPRISES.map((enterprise) => [enterprise.id, enterprise] as const))
 
 export function getEnterprise(id: string): EnterpriseDefinition | undefined {
   return enterprisesById.get(id)
