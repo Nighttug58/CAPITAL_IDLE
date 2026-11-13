@@ -49,7 +49,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(kiosk.find('button.enterprise-action').attributes('disabled')).toBeUndefined()
     const locked = wrapper.findAll('.enterprise-card')[19]!
     expect(locked.text()).toContain('Groupe technologique')
-    expect(locked.text()).toContain('niv. 50')
+    expect(locked.text()).toContain('Disponible') // niveau 50 atteint, mais prix de 300 Md$ inabordable
     expect(locked.find('button.enterprise-action').attributes('disabled')).toBeDefined()
     expect(wrapper.text().toLowerCase()).not.toContain('revendre')
     expect(wrapper.text().toLowerCase()).not.toContain('franchise')
