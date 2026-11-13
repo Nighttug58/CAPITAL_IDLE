@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 4/8 passes livrées**  
+**Statut : en cours — 5/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -144,12 +144,14 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 5 — Hors ligne illimité et chronologie des échéances
 
-- [ ] Raccorder les entreprises et la fiscalité à la reprise d'une partie sans multiplier les boucles temporelles.
-- [ ] Avancer les entreprises **par calcul de durée agrégé**, puis appliquer les échéances successives de 72 h dans le bon ordre ; respecter les revenus gagnés avant/après chaque échéance.
-- [ ] Garantir que le timer reste ancré à la dernière échéance/au dernier paiement manuel, et **ne repart jamais au chargement**.
-- [ ] Gérer navigation/masquage/rechargement/reprise/import sans double encaissement ni double prélèvement, y compris avec le replay du marché préexistant.
-- [ ] Tests absences 1 h, 72 h pile, 73 h, 10 jours, 90 jours, 1 an ; paiement anticipé, horloge reculée, valeurs extrêmes, performance mobile.
+- [x] Raccorder les entreprises et la fiscalité à la reprise d'une partie sans multiplier les boucles temporelles.
+- [x] Avancer les entreprises **par calcul de durée agrégé**, puis appliquer les échéances successives de 72 h dans le bon ordre ; respecter les revenus gagnés avant/après chaque échéance.
+- [x] Garantir que le timer reste ancré à la dernière échéance/au dernier paiement manuel, et **ne repart jamais au chargement**.
+- [x] Gérer navigation/masquage/rechargement/reprise/import sans double encaissement ni double prélèvement, y compris avec le replay du marché préexistant.
+- [x] Tests absences 1 h, 72 h pile, 73 h, 10 jours, 90 jours, 1 an ; paiement anticipé, horloge reculée, valeurs extrêmes, performance mobile.
 - **Livrable :** revenus d'entreprises sans limite de durée et fiscalité fiable après fermeture prolongée.
+
+**Validée le 13/11/2026** — [implémentation 7b7c174](https://github.com/Nighttug58/CAPITAL_IDLE/commit/7b7c17466c3c2b0d7a7cc90c373faba416d9cb99) via [PR #5](https://github.com/Nighttug58/CAPITAL_IDLE/pull/5). `src/economy/clock.ts` et `fiscal.ts` : rattrapage en temps constant **O(1)**, sans itération par seconde ni par période de 72 h ; crédit du brut jusqu'à la dernière échéance, collecte mathématiquement équivalente des taxes des périodes complètes (aucune pénalité/intérêt), puis dette de la période partielle. Le timer reste ancré à la **dernière échéance réelle** ou au paiement anticipé, jamais au rechargement. `src/trading/dividends.ts` réutilise cette même horloge pour ne pas contourner la collecte pendant le rejeu du marché ; le runtime reste à minuterie unique, sans double crédit. Scénarios de restauration JSON v5 et reprise simulée après sauvegarde ; l'UI **Importer** manuelle sera livrée à la passe 7 et devra conserver les timestamps. **12 tests ajoutés** dans `src/economy/offline.test.ts` (1 h, 72/73 h, 10/90/365 jours, 4/1000 ans, transactions proches d'échéance, paiement anticipé, horloge reculée, ancien état déjà crédité, runtime en pause/reprise, replay Trading et performance). [CI #43507010064](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43507010064) : **npm test, build TypeScript/Vite, synchronisation main/root et demande de publication GitHub Pages réussis**. Les limitations restent uniquement la capacité numérique de l'état monétaire (pas de plafond temporel artificiel).
 
 ### Passe 6 — Page Stats et fiscalité visible
 
