@@ -32,7 +32,7 @@ function tax(state: CapitalState, cents: number, source: 'enterprises' | 'stocks
   return result
 }
 function purchasedKiosk(): CapitalState {
-  const purchase = buyEnterprise(funded(1000), 'kiosque', T0)
+  const purchase = buyEnterprise(funded(100_000), 'kiosque', T0)
   assert.ok(purchase.ok)
   return purchase.state
 }

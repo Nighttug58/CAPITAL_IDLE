@@ -56,7 +56,8 @@ La navigation principale dispose d'un onglet **Entreprises**. Les 20 entreprises
 - Rendement **fixe et brut par seconde**, indépendant des News, des cours et des dividendes. Sans salariés, charges d'exploitation ou frais récurrents.
 - Revenus cumulés en fractions de centime pour ne pas perdre les petits gains ; encaissés dans le même solde, ils contribuent aussi à l'XP et aux statistiques.
 - **Hors ligne illimité en durée** : calcul agrégé, même après des mois ou des années, sous réserve de rester dans les bornes numériques des montants. Les entreprises ne progressent pas toutes seules durant une absence.
-- Rendements d'achat de référence **avant taxes et améliorations** : environ 8 h pour le Kiosque (150 $) et 64 h pour le Groupe technologique (300 M$). Les 20 niveaux sont documentés dans [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md).
+- **Prix de reprise ou d'implantation inspirés d'ordres de grandeur réels** : **75 000 $ pour le Kiosque** à **300 milliards $ pour le Groupe technologique**. Ce sont des évaluations fictives d'établissements de taille croissante, pas des cotations ou prix garantis. Les coûts d'amélioration augmentent avec le nouveau prix ; les entreprises déjà possédées ne sont pas refacturées.
+- **Rentabilité volontairement accélérée (gameplay)** : retour brut d'environ 8 h pour le Kiosque et 64 h pour le groupe technologique. Les **revenus fixes ont été recalculés proportionnellement aux nouveaux prix** ; ils ne reflètent pas des marges d'entreprises IRL. Détails, hypothèses et sources dans [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md).
 
 ## Fiscalité — échéance de 72 heures
 

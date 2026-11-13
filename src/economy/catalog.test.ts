@@ -125,8 +125,28 @@ test('rentabilité calibrée : premier achat ~8-64 h ; investissements de niveau
     assert.ok(Number.isSafeInteger(totalInvestmentCents))
     assert.ok(level20Hours >= actualHours && level20Hours <= actualHours * 1.2)
   }
-  assert.equal(ENTERPRISES[0]!.purchaseCostCents / 100, 150)
-  assert.equal(ENTERPRISES[19]!.purchaseCostCents / 100, 300_000_000)
+  assert.equal(ENTERPRISES[0]!.purchaseCostCents / 100, 75_000)
+  assert.equal(ENTERPRISES[19]!.purchaseCostCents / 100, 300_000_000_000)
+})
+
+test('nouveaux prix : acquisitions réelles de 75 k$ à 300 Md$, 20 prix strictement progressifs', () => {
+  const expectedDollars = [
+    75_000, 180_000, 300_000, 420_000, 600_000,
+    800_000, 1_200_000, 1_800_000, 2_500_000, 8_000_000,
+    16_000_000, 35_000_000, 80_000_000, 220_000_000, 500_000_000,
+    1_200_000_000, 3_000_000_000, 20_000_000_000, 85_000_000_000, 300_000_000_000,
+  ]
+  assert.deepEqual(ENTERPRISES.map(item => item.purchaseCostCents / 100), expectedDollars)
+  assert.ok(expectedDollars.every((value, index) => index === 0 || value > expectedDollars[index - 1]!))
+  // Ces montants doivent rester manipulables exactement en centimes et les
+  // coûts d'upgrade ne doivent pas déborder Number.MAX_SAFE_INTEGER.
+  for (const item of ENTERPRISES) {
+    assert.ok(Number.isSafeInteger(item.purchaseCostCents))
+    assert.ok(item.upgradeCostsCents.every(Number.isSafeInteger))
+    assert.ok(item.incomesMicrosPerSecond.every(Number.isSafeInteger))
+    const total = item.purchaseCostCents + item.upgradeCostsCents.reduce((a, b) => a + b, 0)
+    assert.ok(Number.isSafeInteger(total))
+  }
 })
 
 test('catalogue réellement figé, stable par consultation et indépendant du marché', () => {
