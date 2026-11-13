@@ -47,7 +47,10 @@ function isHistory(value: unknown): value is PriceSample[] {
   if (!Array.isArray(value) || value.length > MAX_PRICE_SAMPLES) return false
   let previousTime = -1
   return value.every((point: unknown) => {
-    if (!isRecord(point) || !isTimestamp(point.at) || !isAmount(point.price) || point.price <= 0 || point.at <= previousTime) return false
+    if (!isRecord(point) || !isTimestamp(point.at) || !isAmount(point.price) || point.price <= 0 || point.at <= previousTime ||
+      (point.dividendYield !== undefined &&
+        (typeof point.dividendYield !== 'number' || !Number.isFinite(point.dividendYield) ||
+         point.dividendYield < 0.01 || point.dividendYield > 0.30))) return false
     previousTime = point.at
     return true
   })

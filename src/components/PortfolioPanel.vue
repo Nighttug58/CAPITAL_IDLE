@@ -4,6 +4,7 @@ import type { CapitalState } from '../capital.ts'
 import { getPortfolio } from '../trading/trades.ts'
 import { formatCash, formatPerSecond, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
 
+defineEmits<{ 'open-asset': [id: string] }>()
 const props = defineProps<{ state: CapitalState }>()
 const portfolio = computed(() => getPortfolio(props.state))
 const dividendsPerSecond = computed(() =>
@@ -28,9 +29,10 @@ const dividendsPerSecond = computed(() =>
       <div v-if="portfolio.positions.length === 0" class="market-empty">
         <span class="market-empty-icon" aria-hidden="true">◇</span>
         <strong>Votre portefeuille est vide</strong>
-        <p>Consultez les cours dans Actions et Crypto. Les achats et ventes arrivent lors de la prochaine passe.</p>
+        <p>Consultez les cours dans Actions et Crypto, puis touchez un actif pour acheter vos premières unités.</p>
       </div>
-      <article v-for="position in portfolio.positions" :key="position.asset.id" class="portfolio-position">
+      <button type="button" v-for="position in portfolio.positions" :key="position.asset.id" class="portfolio-position"
+        :aria-label="'Consulter la position ' + position.asset.name" @click="$emit('open-asset', position.asset.id)">
         <div class="portfolio-position-header">
           <div><strong>{{ position.asset.name }}</strong><span>{{ position.asset.symbol }} · {{ formatQuantity(position.quantity) }} unités</span></div>
           <div class="portfolio-position-value">
@@ -47,7 +49,7 @@ const dividendsPerSecond = computed(() =>
             · {{ formatPerSecond(position.annualDividendEstimate / 86400) }}
           </span>
         </div>
-      </article>
+      </button>
     </div>
   </div>
 </template>

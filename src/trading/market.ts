@@ -138,6 +138,8 @@ function appendSample(
   previousPrice: number,
   now: number,
   price: number,
+  formerYield?: number | null,
+  currentYield?: number | null,
 ): PriceSample[] {
   const old = previous ?? []
   const cutoff = now - MARKET_HISTORY_MS
@@ -146,10 +148,10 @@ function appendSample(
   const result = old.slice(start)
   // Garde le point de départ lors du premier tick, s'il est dans la fenêtre.
   if (result.length === 0 && old.length === 0 && previousTime > cutoff) {
-    result.push({ at: previousTime, price: previousPrice })
+    result.push({ at: previousTime, price: previousPrice, ...(formerYield != null ? { dividendYield: formerYield } : {}) })
   }
   if (result.length > 0 && result[result.length - 1]!.at >= now) return result.slice(-MARKET_MAX_SAMPLES)
-  result.push({ at: now, price })
+  result.push({ at: now, price, ...(currentYield != null ? { dividendYield: currentYield } : {}) })
   return result.length <= MARKET_MAX_SAMPLES ? result : result.slice(-MARKET_MAX_SAMPLES)
 }
 
@@ -179,7 +181,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
     const quote = updateQuote(asset, current, at, sharedNoise, pressure.price[asset.id] ?? 0, pressure.dividend[asset.id] ?? 0, random)
     quotes[asset.id] = quote
     if (recordHistory) {
-      history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price)
+      history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price, current.dividendYield, quote.dividendYield)
     }
   }
 

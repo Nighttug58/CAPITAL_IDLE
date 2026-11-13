@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { formatChange, formatPrice, getAssetRows } from '../trading/presentation.ts'
 import type { TradingState } from '../trading/types.ts'
 
+const emit = defineEmits<{ 'open-asset': [id: string] }>()
 const props = defineProps<{
   kind: 'stock' | 'crypto'
   quotes: TradingState['quotes']
@@ -16,7 +17,8 @@ const title = computed(() => props.kind === 'stock' ? '20 entreprises' : '15 cry
   <div class="asset-panel">
     <div class="market-list-head"><strong>{{ title }}</strong><span>COURS SIMULÉS · 1 H</span></div>
     <div class="market-list-scroll" role="list" :aria-label="kind === 'stock' ? 'Cours des actions' : 'Cours des cryptomonnaies'">
-      <article v-for="row in rows" :key="row.asset.id" class="market-asset-row" role="listitem">
+      <button type="button" v-for="row in rows" :key="row.asset.id" class="market-asset-row"
+        :aria-label="'Voir et trader ' + row.asset.name" @click="emit('open-asset', row.asset.id)">
         <span class="market-symbol" :class="'market-symbol-' + row.asset.kind" aria-hidden="true">{{ row.asset.symbol.slice(0, 2) }}</span>
         <span class="market-asset-name">
           <strong>{{ row.asset.name }}</strong>
@@ -30,7 +32,7 @@ const title = computed(() => props.kind === 'stock' ? '20 entreprises' : '15 cry
           <strong>{{ formatPrice(row.price) }}</strong>
           <span :class="'market-direction-' + row.direction">{{ formatChange(row.changePercent) }}</span>
         </span>
-      </article>
+      </button>
     </div>
   </div>
 </template>

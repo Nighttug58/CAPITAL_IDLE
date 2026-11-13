@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { getNewsPresentation } from '../trading/news.ts'
 import { formatRemaining } from '../trading/presentation.ts'
 import type { MarketNews } from '../trading/types.ts'
+defineEmits<{ 'open-news': [id: string] }>()
 const props = defineProps<{ news: readonly MarketNews[]; now: number }>()
 const entries = computed(() =>
   props.news.slice().reverse().map((event) => ({ event, presentation: getNewsPresentation(event) }))
@@ -22,7 +23,8 @@ const entries = computed(() =>
         <strong>Aucune actualité pour le moment</strong>
         <p>Un événement fictif apparaît toutes les 2 à 8 minutes.</p>
       </div>
-      <article v-for="entry in entries" :key="entry.event.id" class="news-preview-row">
+      <button type="button" v-for="entry in entries" :key="entry.event.id" class="news-preview-row"
+        :aria-label="'Lire ' + entry.presentation!.headline" @click="$emit('open-news', entry.event.id)">
         <div class="news-preview-meta">
           <span>{{ entry.presentation!.category.toUpperCase() }}</span>
           <span :class="entry.event.endsAt > now ? 'news-active' : 'news-ended'">
@@ -35,7 +37,7 @@ const entries = computed(() =>
           {{ entry.presentation!.affectedAssets.slice(0, 3).map((asset) => asset.symbol).join(' · ') }}
           {{ entry.presentation!.affectedAssets.length > 3 ? ' · +' + (entry.presentation!.affectedAssets.length - 3) : '' }}
         </span>
-      </article>
+      </button>
     </div>
   </div>
 </template>

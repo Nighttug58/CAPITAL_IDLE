@@ -13,6 +13,8 @@ import {
 import { loadCapitalState, saveCapitalState } from './persistence.ts'
 import type { CapitalState } from './capital.ts'
 import { createMarketRuntime } from './trading/runtime.ts'
+import { buyAsset, sellAsset } from './trading/trades.ts'
+import type { TradeResult, TradeSide } from './trading/trades.ts'
 import TradingScreen from './components/TradingScreen.vue'
 
 interface FloatingGain {
@@ -79,6 +81,19 @@ function removeFloatingGain(id: number) {
 
 function buy() {
   game.value = purchaseUpgrade(game.value)
+}
+
+// Achat/vente déclenchés par l'UI : solde et portefeuille mis à jour ensemble.
+// La validation vient du moteur métier, jamais d'une formule du composant Vue.
+function executeTrade(side: TradeSide, assetId: string, quantity: number): TradeResult {
+  const result = side === 'buy'
+    ? buyAsset(capital.value, assetId, quantity)
+    : sellAsset(capital.value, assetId, quantity)
+  if (result.ok) {
+    capital.value = result.state
+    persist()
+  }
+  return result
 }
 
 function persist() {
@@ -237,7 +252,7 @@ onUnmounted(() => {
       </section>
     </main>
 
-    <TradingScreen v-show="page === 'trading'" :state="capital" />
+    <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' }"

@@ -40,6 +40,9 @@ export interface MarketQuote {
 export interface PriceSample {
   at: number
   price: number
+  // Rendement propre à l'action, pour afficher une seconde courbe historique.
+  // Facultatif : les sauvegardes v4 antérieures n'avaient pas cet historique.
+  dividendYield?: number
 }
 
 // Le coût total d'acquisition inclut les frais et diminue proportionnellement aux ventes.
