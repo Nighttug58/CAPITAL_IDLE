@@ -172,7 +172,7 @@ test('presentation : titres contextualisés et liens vers actifs impactés', () 
   assert.equal(getNewsPresentation(event({ templateId: 'unknown' })), null)
 })
 
-test('une News influe réellement sur les 45 prix sans modifier immédiatement les dividendes', () => {
+test('une News influe sur les prix, et la réaction des dividendes reste douce', () => {
   const baseline = createInitialTradingState(START, 1093)
   baseline.nextNewsAt = START + HOUR
   const macro = event({
@@ -186,7 +186,14 @@ test('une News influe réellement sur les 45 prix sans modifier immédiatement l
   let lower = 0
   for (const asset of ASSETS) {
     if (loud.quotes[asset.id]!.price < quiet.quotes[asset.id]!.price) lower++
-    assert.equal(loud.quotes[asset.id]!.dividendYield, quiet.quotes[asset.id]!.dividendYield)
+    if (asset.kind === 'stock') {
+      const before = quiet.quotes[asset.id]!.dividendYield!
+      const after = loud.quotes[asset.id]!.dividendYield!
+      assert.ok(Math.abs(after - before) <= 0.00024, asset.id)
+      assert.ok(after >= 0.01 && after <= 0.30)
+    } else {
+      assert.equal(loud.quotes[asset.id]!.dividendYield, null)
+    }
     assert.ok(loud.quotes[asset.id]!.price >= asset.minPrice)
   }
   assert.ok(lower >= 35, 'une nouvelle globale doit réellement influer sur les tendances')

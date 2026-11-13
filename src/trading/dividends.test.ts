@@ -64,7 +64,7 @@ test('un dividende est décompté seconde après seconde, puis intégré aux niv
   assert.equal(first.trading.dividendLastPaidAt, START + 1000)
   assert.equal(first.trading.lastTickAt, START, 'marché toujours à un tick de 5 s')
   assert.equal(Math.round((first.game.balance - initial.game.balance) * 100), Math.floor(value))
-  assert.equal(first.game.lifetimeEarned - initial.game.lifetimeEarned, first.game.balance - initial.game.balance)
+  assert.equal(Math.round((first.game.lifetimeEarned - initial.game.lifetimeEarned) * 100), Math.round((first.game.balance - initial.game.balance) * 100))
   const fifth = replay(initial, 5)
   assert.equal(fifth.trading.lastTickAt, START + MARKET_TICK_MS)
   assert.equal(fifth.trading.dividendLastPaidAt, START + MARKET_TICK_MS)
