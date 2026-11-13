@@ -214,7 +214,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
 
     await choose(encoded)
     expect(wrapper.find('.backup-confirm').exists()).toBe(true)
-    expect(wrapper.find('.backup-import-details').text()).toContain('1 250')
+    expect(wrapper.find('.backup-import-details').text()).toContain(new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 }).format(1250))
     expect(JSON.parse(localStorage.getItem('capital-idle-save-v5')!).game.balance).toBe(250)
     await wrapper.find('.backup-confirm-actions button').trigger('click')
     expect(wrapper.find('.backup-confirm').exists()).toBe(false)
