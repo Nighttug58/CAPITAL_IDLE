@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
-  LEVEL_THRESHOLDS,
+  getLevelStartThreshold,
   getClickValue,
   getLevel,
   getNextLevelThreshold,
@@ -37,9 +37,9 @@ const game = computed<GameState>({
   get: () => capital.value.game,
   set: (updated) => { capital.value = { ...capital.value, game: updated } },
 })
-const level = computed(() => getLevel(game.value.lifetimeEarned))
+const level = computed(() => getLevel(capital.value.prestige.experienceCents / 100))
 const clickValue = computed(() => getClickValue(game.value.purchasedUpgrades))
-const nextLevel = computed(() => getNextLevelThreshold(game.value.lifetimeEarned))
+const nextLevel = computed(() => getNextLevelThreshold(capital.value.prestige.experienceCents / 100))
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
@@ -53,11 +53,11 @@ let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
 let applyingMarket = false
 let activeSince: number | null = null
 
-const progressStart = computed(() => LEVEL_THRESHOLDS[level.value - 1] ?? 0)
+const progressStart = computed(() => getLevelStartThreshold(level.value))
 const progressPercent = computed(() => {
   if (nextLevel.value === null) return 100
   const range = nextLevel.value - progressStart.value
-  return range > 0 ? Math.min(100, Math.max(0, ((game.value.lifetimeEarned - progressStart.value) / range) * 100)) : 0
+  return range > 0 ? Math.min(100, Math.max(0, ((capital.value.prestige.experienceCents / 100 - progressStart.value) / range) * 100)) : 0
 })
 
 const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
@@ -95,7 +95,7 @@ function removeFloatingGain(id: number) {
 }
 
 function buy() {
-  game.value = purchaseUpgrade(game.value)
+  game.value = purchaseUpgrade(game.value, capital.value.prestige.experienceCents / 100)
 }
 
 // Achat/vente déclenchés par l'UI : solde et portefeuille mis à jour ensemble.
