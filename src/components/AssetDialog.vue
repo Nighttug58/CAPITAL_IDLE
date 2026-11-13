@@ -7,6 +7,7 @@ import { formatCash, formatChange, formatPerSecond, formatPrice, formatQuantity,
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import type { PriceSample } from '../trading/types.ts'
+import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
 
 const props = defineProps<{
   state: CapitalState
@@ -43,12 +44,7 @@ const dialogRoot = ref<HTMLElement | null>(null)
 
 onMounted(() => dialogRoot.value?.focus())
 watch(activeSide, () => { quantityText.value = ''; status.value = null })
-function parseQuantity(text: string): number {
-  const raw = text.trim().replace(',', '.')
-  if (!/^\d+(?:\.\d+)?$/.test(raw)) return Number.NaN
-  return Number(raw)
-}
-const quantity = computed(() => parseQuantity(quantityText.value))
+const quantity = computed(() => parseTradeQuantity(quantityText.value))
 const preview = computed(() => activeSide.value === 'buy'
   ? buyAsset(props.state, props.assetId, quantity.value)
   : sellAsset(props.state, props.assetId, quantity.value))
@@ -67,7 +63,7 @@ const errors: Record<string, string> = {
 }
 function chooseFraction(fraction: TradeFraction) {
   const amount = getQuickQuantity(props.state, props.assetId, activeSide.value, fraction)
-  quantityText.value = amount > 0 ? String(amount) : ''
+  quantityText.value = formatEditableQuantity(amount, asset.value.quantityDecimals)
   status.value = null
 }
 function submit() {
@@ -160,6 +156,8 @@ function submit() {
           <span>{{ activeSide === 'buy' ? 'Total à payer' : 'Montant à recevoir' }}</span>
           <strong>{{ estimate ? formatCash(Math.abs(estimate.cashChange)) : '—' }}</strong>
         </div>
+        <p v-if="quantityText.trim() && !ready && !status && !preview.ok"
+          class="order-error" role="alert">{{ errors[preview.error] ?? 'Ordre invalide.' }}</p>
         <p v-if="status" :class="status.success ? 'order-success' : 'order-error'" role="status">{{ status.message }}</p>
         <button class="order-submit" type="button" :disabled="!ready"
           @click="submit">
