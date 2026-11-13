@@ -93,7 +93,7 @@ test('expiration : les 10 dernières News expirées restent, et toutes les activ
   const list = Array.from({ length: 18 }, (_, index) => event({
     id: 'news-' + index,
     startedAt: START - 900_000 + index * 20_000,
-    endsAt: START - 200_000 + index * 20_000,
+    endsAt: START - 200_000 + index * 10_000,
   }))
   const active = [
     event({ id: 'news-active-a', startedAt: START - 20_000, endsAt: START + 200_000 }),
