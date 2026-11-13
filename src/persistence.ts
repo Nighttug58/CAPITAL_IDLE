@@ -1,7 +1,8 @@
 import { INITIAL_GAME, migrateLegacyGame, migrateV2Game, restoreGame, type GameState } from './game.ts'
 import { createCapitalState, restoreCapitalState, type CapitalState } from './capital.ts'
 
-const STORAGE_KEY = 'capital-idle-save-v5'
+const STORAGE_KEY = 'capital-idle-save-v6'
+const V5_STORAGE_KEY = 'capital-idle-save-v5'
 const V4_STORAGE_KEY = 'capital-idle-save-v4'
 const V3_STORAGE_KEY = 'capital-idle-save-v3'
 const V2_STORAGE_KEY = 'capital-idle-save-v2'
@@ -31,15 +32,22 @@ function readPreviousGame(): GameState {
 }
 
 export function loadCapitalState(now = Date.now()): CapitalState {
-  // Une v5 présente est l'autorité, même corrompue : ne jamais ressusciter
+  // Une v6 présente est l'autorité, même corrompue : ne jamais ressusciter
   // silencieusement la v4 périmée après un reset (passe 7).
-  // Une clé v5 présente reste prioritaire même si son JSON est corrompu :
+  // Une clé v6 présente reste prioritaire même si son JSON est corrompu :
   // un reset ne doit jamais ressusciter une v4 conservée par le navigateur.
   let currentText: string | null = null
   try { currentText = localStorage.getItem(STORAGE_KEY) } catch { /* stockage indisponible */ }
   if (currentText !== null) {
     const current = readStorage(STORAGE_KEY)
     return restoreCapitalState(current, now)
+  }
+
+  const v5 = readStorage(V5_STORAGE_KEY)
+  if (v5 !== undefined) {
+    const migrated = restoreCapitalState(v5, now)
+    saveCapitalState(migrated)
+    return migrated
   }
 
   const oldCapital = readStorage(V4_STORAGE_KEY)
@@ -68,18 +76,18 @@ export function saveCapitalState(state: CapitalState): void {
  * un échec de stockage ne peut PAS être silencieux : l'ancien état reste actif.
  * La clé v5 est écrite en premier. Les anciennes clés ne sont ensuite que des
  * reliquats ; leur suppression est best-effort et ne doit pas rendre l'opération
- * non atomique. Une v5 présente empêche toute migration fantôme v1-v4.
+ * non atomique. Une v6 présente empêche toute migration fantôme v1-v4.
  */
 export function replaceCapitalSave(state: CapitalState): boolean {
   try {
-    if (state.version !== 5) return false
+    if (state.version !== 6) return false
     const data = JSON.stringify(state)
     localStorage.setItem(STORAGE_KEY, data)
     if (localStorage.getItem(STORAGE_KEY) !== data) return false
   } catch {
     return false
   }
-  for (const old of [V4_STORAGE_KEY, V3_STORAGE_KEY, V2_STORAGE_KEY, V1_STORAGE_KEY]) {
+  for (const old of [V5_STORAGE_KEY, V4_STORAGE_KEY, V3_STORAGE_KEY, V2_STORAGE_KEY, V1_STORAGE_KEY]) {
     try { localStorage.removeItem(old) } catch { /* v5 prioritaire */ }
   }
   return true
