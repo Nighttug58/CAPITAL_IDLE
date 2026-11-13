@@ -69,38 +69,8 @@ test('format monétaire : centimes conservés, memecoins sans arrondir à zéro'
   assert.match(formatPrice(.00000434), /[1-9]/)
   assert.doesNotMatch(formatPrice(.00000434), /^0[,\.]0+\s\$$/)
   assert.match(formatPrice(.00000000434), /434/)
-  assert.equal(formatPrice(0), '0,00 
-  assert.equal(formatCash(Infinity), '—')
-  assert.equal(formatQuantity(.00000001), '0,00000001')
-  assert.equal(formatRate(.185), '18,50 %')
-  assert.equal(formatChange(1.25), '+1,25 %')
-  assert.equal(formatChange(-2.5), '-2,50 %')
-})
-
-test('compte à rebours : bornes, seconde montante et expiration exacte', () => {
-  assert.equal(formatRemaining(NOW + 120_000, NOW), '2:00')
-  assert.equal(formatRemaining(NOW + 120_001, NOW), '2:01')
-  assert.equal(formatRemaining(NOW + 1000, NOW), '0:01')
-  assert.equal(formatRemaining(NOW, NOW), 'Terminé')
-  assert.equal(formatRemaining(NOW - 1000, NOW), 'Terminé')
-  assert.equal(formatRemaining(NaN, NOW), '—')
-})
-
-test('calcule 45 séries avec 720 points sans données non finies', () => {
-  const history = Object.fromEntries(ASSETS.map((asset) => [asset.id,
-    Array.from({ length: 720 }, (_, i) => ({
-      at: NOW + i * 5_000, price: asset.referencePrice * (1 + 0.08 * Math.sin(i / 18)),
-    }))
-  ]))
-  const quotes = createInitialQuotes(NOW)
-  const start = performance.now()
-  const rows = [...getAssetRows('stock', quotes, history), ...getAssetRows('crypto', quotes, history)]
-  assert.equal(rows.length, 45)
-  assert.ok(rows.every((row) => row.sparkline.length > 10 && !row.sparkline.includes('NaN')))
-  assert.ok(performance.now() - start < 2_000)
-})
-)
-  assert.equal(formatPerSecond(0), '0,00 $/s')
+  assert.equal(formatPrice(0), formatCash(0))
+  assert.equal(formatPerSecond(0), formatCash(0) + '/s')
   assert.equal(formatPrice(Number.NaN), '—')
   assert.equal(formatCash(Infinity), '—')
   assert.equal(formatQuantity(.00000001), '0,00000001')
