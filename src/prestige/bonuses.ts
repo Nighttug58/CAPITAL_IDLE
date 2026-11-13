@@ -1,5 +1,5 @@
 import type { CapitalState } from '../capital.ts'
-import { COLLECTION_SLOTS, FAME_BOOST_BPS_PER_LEVEL, type FameBoostId } from './catalog.ts'
+import { getCollectionSlot, FAME_BOOST_BPS_PER_LEVEL, type FameBoostId } from './catalog.ts'
 
 /** One source of truth for all six bonuses: Fame Shop + owned luxury objects. */
 export interface BonusBreakdown {
@@ -12,11 +12,13 @@ export function getBonusBreakdown(
   state: Pick<CapitalState, 'prestige'>, id: FameBoostId,
 ): BonusBreakdown {
   const shopBps = state.prestige.boosts[id] * FAME_BOOST_BPS_PER_LEVEL
-  const owned = new Set(state.prestige.ownedCollectionIds)
-  const collectionBps = COLLECTION_SLOTS.reduce(
-    (sum, slot) => sum + (slot.boostId === id && owned.has(slot.id) ? slot.bonusBps : 0),
-    0,
-  )
+  let collectionBps = 0
+  // Iterate owned IDs only: no temporary Set or scan of the full catalog
+  // for every 1-second dividend tick or click.
+  for (const slotId of state.prestige.ownedCollectionIds) {
+    const slot = getCollectionSlot(slotId)
+    if (slot?.boostId === id) collectionBps += slot.bonusBps
+  }
   return { shopBps, collectionBps, totalBps: shopBps + collectionBps }
 }
 
