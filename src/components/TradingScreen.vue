@@ -90,10 +90,10 @@ function onKeydown(event: KeyboardEvent) {
   const buttons = Array.from(root.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'))
   if (!buttons.length) return
   const first = buttons[0]!, last = buttons[buttons.length - 1]!
-  if (event.shiftKey && (document.activeElement === first || !root.contains(document.activeElement))) {
+  if (event.shiftKey && (document.activeElement === root || document.activeElement === first || !root.contains(document.activeElement))) {
     event.preventDefault()
     last.focus()
-  } else if (!event.shiftKey && (document.activeElement === last || !root.contains(document.activeElement))) {
+  } else if (!event.shiftKey && (document.activeElement === root || document.activeElement === last || !root.contains(document.activeElement))) {
     event.preventDefault()
     first.focus()
   }
