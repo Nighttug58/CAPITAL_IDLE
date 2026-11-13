@@ -123,7 +123,7 @@ test('trading only boosts positive NET sale profit; tax and cash include gain, b
   assert.ok(sale.ok)
   assert.equal(normal.receipt.netRealizedProfit, 18.9)
   assert.equal(sale.receipt.netRealizedProfit, 19.84)
-  assert.equal(sale.receipt.cashChange - normal.receipt.cashChange, 0.94)
+  assert.equal(Math.round((sale.receipt.cashChange - normal.receipt.cashChange) * 100), 94)
   assert.equal(sale.state.prestige.tradingCarryBps, 5000)
   assert.ok(sale.state.fiscal.taxesDueCents > normal.state.fiscal.taxesDueCents)
   assert.equal(sale.state.game.lifetimeEarned, 1019.84)
