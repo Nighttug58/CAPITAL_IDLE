@@ -44,7 +44,7 @@ test('300 fiches originales, identifiants uniques, descriptions et catégories c
 test('les 274 nouvelles fiches sont distinctes et classées par thème', () => {
   const categories: Record<string, number> = {
     innovation: 47, finance: 33, scandal: 37, macro: 37,
-    crypto: 38, hack: 29, social: 36, rumors: 17,
+    crypto: 38, hack: 29, social: 36, rumor: 17,
   }
   for (const [category, count] of Object.entries(categories)) {
     const rows = NEWS_TEMPLATES.filter(item => item.id.startsWith('lib-' + category + '-'))
