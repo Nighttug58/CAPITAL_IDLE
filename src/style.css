@@ -169,11 +169,12 @@ button:disabled { cursor: not-allowed; }
   will-change: transform, opacity;
   animation: coin-rise 1100ms cubic-bezier(.22,.72,.31,1) both;
 }
+/* Pixels plutôt que pourcentages : la montée reste nette, quelle que soit la taille du montant. */
 @keyframes coin-rise {
-  0% { transform: translate(-50%, -35%) scale(.9); opacity: 1; }
-  15% { transform: translate(-50%, -65%) scale(1.1); opacity: 1; }
-  72% { opacity: 1; }
-  100% { transform: translate(-50%, -150%) scale(1); opacity: 0; }
+  0% { transform: translate(-50%, -8px) scale(.9); opacity: 1; }
+  15% { transform: translate(-50%, -26px) scale(1.1); opacity: 1; }
+  72% { transform: translate(-50%, -92px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -120px) scale(1); opacity: 0; }
 }
 
 .upgrade-card { flex: 0 0 auto; min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 15px; border-radius: 15px; border: 1px solid rgba(231, 203, 145, .16); background: linear-gradient(120deg, #1a2022, #111719); box-shadow: inset 0 1px #ffffff0a; }
@@ -225,11 +226,12 @@ button:disabled { cursor: not-allowed; }
   .progress-fill { transition: none; }
   .banknotes { transition: none; }
   .banknotes-popping { animation: none; }
-  /* Le montant reste affiché pendant une seconde, sans déplacement. */
-  .floating-gain { animation: gain-static 1100ms steps(1, end) both; }
-  @keyframes gain-static {
-    from { transform: translate(-50%, -50%); opacity: 1; }
-    to { transform: translate(-50%, -50%); opacity: 0; }
+  /* Même avec la réduction des animations, le gain monte doucement et reste lisible. */
+  .floating-gain { animation: gain-reduced-rise 1100ms ease-out both; }
+  @keyframes gain-reduced-rise {
+    0% { transform: translate(-50%, -8px); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translate(-50%, -72px); opacity: 0; }
   }
 }
 
