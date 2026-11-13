@@ -1,6 +1,7 @@
 import type { CapitalState } from '../capital.ts'
 import { exactMoneyCents } from '../money.ts'
 import { getLevel } from '../game.ts'
+import { creditExperience } from '../prestige/state.ts'
 import {
   ENTERPRISES,
   getEnterprise, getEnterpriseIncomeMicrosPerSecond, getEnterpriseUpgradeCostCents,
@@ -118,7 +119,9 @@ export function advanceEnterpriseIncome(state: CapitalState, now: number): Capit
   }
   // Si la taxe ne peut pas être représentée, ne pas créditer de revenu sans
   // dette fiscale correspondante : opération atomique.
-  return cents === 0 ? credited : (accrueProfitTax(credited, 'enterprises', cents) ?? state)
+  if (cents === 0) return credited
+  const taxed = accrueProfitTax(credited, 'enterprises', cents)
+  return taxed ? (creditExperience(taxed, cents) ?? state) : state
 }
 
 function settleIncome(state: CapitalState, now: number): CapitalState | null {
@@ -133,7 +136,7 @@ export function buyEnterprise(state: CapitalState, id: string, now = Date.now())
   const enterprise = getEnterprise(id)
   if (!enterprise) return reject(state, 'unknown-enterprise')
   if (state.enterprises.owned[id]) return reject(state, 'already-owned')
-  if (!isEnterpriseUnlocked(id, getLevel(state.game.lifetimeEarned))) return reject(state, 'level-locked')
+  if (!isEnterpriseUnlocked(id, getLevel(state.prestige.experienceCents / 100))) return reject(state, 'level-locked')
   if (!validTime(now) || now < state.enterprises.lastAccruedAt) return reject(state, 'invalid-clock')
 
   const settled = settleIncome(state, now)
