@@ -102,6 +102,21 @@ describe('Trading interface mobile',()=>{
     await wrapper.find('button.modal-close').trigger('click')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
+  it('affiche seulement les 10 dernières News sans masquer leur impact dans le moteur',async()=>{
+    const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
+    state.trading.news=Array.from({length:14},(_,index)=>({
+      ...news,
+      id:'news-'+index,
+      startedAt:NOW-14*30_000+index*30_000,
+      endsAt:NOW+120_000+index*30_000,
+    }))
+    const {wrapper,getState}=setup(state)
+    await tab(wrapper,3)
+    expect(wrapper.findAll('button.news-preview-row')).toHaveLength(10)
+    expect(getState().trading.news).toHaveLength(14)
+    expect(wrapper.find('.market-list-head span').text()).toContain('14 EN COURS')
+  })
+
   it('Escape et popstate ferment les fenêtres',async()=>{
     const {wrapper}=setup()
     await openNvideo(wrapper)
