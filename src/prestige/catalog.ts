@@ -94,6 +94,15 @@ export const COLLECTION_PRICES_DOLLARS: Readonly<Record<CollectionCategoryId, re
   jewelry: Object.freeze([3_000, 14_000, 85_000, 400_000, 1_800_000, 8_000_000, 28_000_000, 85_000_000, 150_000_000, 250_000_000]),
 })
 
+/** One permanent boost target per luxury item; all share the Fame Shop engine. */
+export const COLLECTION_BONUS_TARGETS: Readonly<Record<CollectionCategoryId, readonly FameBoostId[]>> = Object.freeze({
+  watches: Object.freeze(['dividend', 'fame', 'trading', 'click', 'dividend', 'xp', 'enterprise', 'fame', 'trading', 'fame']),
+  autos: Object.freeze(['click', 'trading', 'enterprise', 'xp', 'click', 'trading', 'enterprise', 'fame', 'click', 'trading']),
+  paintings: Object.freeze(['xp', 'fame', 'dividend', 'xp', 'fame', 'dividend', 'enterprise', 'fame', 'dividend', 'xp']),
+  antiquities: Object.freeze(['fame', 'xp', 'trading', 'fame', 'xp', 'dividend', 'click', 'fame', 'enterprise', 'fame']),
+  jewelry: Object.freeze(['fame', 'dividend', 'trading', 'enterprise', 'fame', 'click', 'dividend', 'fame', 'trading', 'enterprise']),
+})
+
 export interface CollectionPriceSlot {
   readonly id: string // Identifiant stable, conservé quand les fiches seront enrichies passe 5.
   readonly category: CollectionCategoryId
@@ -101,6 +110,7 @@ export interface CollectionPriceSlot {
   readonly priceCents: number
   readonly fame: number
   readonly bonusBps: number
+  readonly boostId: FameBoostId
 }
 
 export const COLLECTION_SLOTS: readonly CollectionPriceSlot[] = Object.freeze(
@@ -112,6 +122,7 @@ export const COLLECTION_SLOTS: readonly CollectionPriceSlot[] = Object.freeze(
       priceCents: COLLECTION_PRICES_DOLLARS[category][index]! * 100,
       fame: reward.fame,
       bonusBps: reward.bonusBps,
+      boostId: COLLECTION_BONUS_TARGETS[category][index]!,
     })),
   ),
 )
