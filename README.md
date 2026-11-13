@@ -7,8 +7,8 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 ## Accueil — le clicker
 
 - Départ à **0 $**, **1 $ par clic**.
-- **50 niveaux** calculés sur le total d'argent *réellement gagné dans le jeu*, sans perte de niveau à la dépense.
-- **49 améliorations** à débloquer dans l'ordre, augmentant chacune la rémunération de **+1 $ par clic**.
+- **Niveaux joueur sans plafond à 100** : les seuils d'origine 1–50 restent inchangés, puis la courbe continue. L'**XP possède un compteur indépendant** des revenus monétaires, sans perte de niveau à la dépense.
+- **49 améliorations historiques du clic** à débloquer dans l'ordre (niveaux 2–50), augmentant chacune la rémunération de **+1 $ par clic**. Elles conservent leur plafond ; ce n'est pas le niveau maximum du joueur.
 - **Un seul solde** finance les améliorations du clicker, les transactions Trading et les entreprises. Il peut devenir négatif après le prélèvement automatique ou manuel de taxes, mais **aucun achat à crédit** n'est permis.
 - Les niveaux bénéficient des clics, des dividendes encaissés, des revenus fixes des entreprises et des **profits nets réalisés** en Trading. Ni le capital récupéré lors d'une vente, ni les gains latents, ni les taxes payées ne donnent de l'expérience. Les dépenses et les impôts ne font pas redescendre le niveau.
 
@@ -76,9 +76,9 @@ La page **Stats** est l'onglet le plus à droite de la navigation principale. El
 
 ## Sauvegarde locale, import/export et rattrapage hors ligne
 
-- Sauvegarde automatique **v5** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v4** sont migrées vers v5 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
-- Tout en bas de **Stats** : **Exporter** télécharge un JSON complet et versionné (`CAPITAL_IDLE_save_YYYY-MM-DD.json`) ; **Importer** valide le fichier (v4/v5, taille maximale **16 Mo**, cohérence du schéma, valeurs, horloges et portefeuille), présente un aperçu et demande une **confirmation avant remplacement** ; **Réinitialiser** nécessite la saisie exacte de `RESET`.
-- Import et reset remplacent la sauvegarde v5 **après arrêt de l'ancien moteur**, puis reprennent le jeu sur les horloges sauvegardées. Un fichier invalide est rejeté sans effacer la partie. Les anciennes clés v1–v4 sont effacées lors du remplacement, et une v5 reste prioritaire pour empêcher la résurrection d'une ancienne partie.
+- Sauvegarde automatique **v6** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v5** sont migrées vers v6 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
+- Tout en bas de **Stats** : **Exporter** télécharge un JSON complet et versionné (`CAPITAL_IDLE_save_YYYY-MM-DD.json`) ; **Importer** valide le fichier (v4/v5/v6, taille maximale **16 Mo**, cohérence du schéma, valeurs, horloges et portefeuille), présente un aperçu et demande une **confirmation avant remplacement** ; **Réinitialiser** nécessite la saisie exacte de `RESET`.
+- Import et reset remplacent la sauvegarde v6 **après arrêt de l'ancien moteur**, puis reprennent le jeu sur les horloges sauvegardées. Un fichier invalide est rejeté sans effacer la partie. Les anciennes clés v1–v4 sont effacées lors du remplacement, et une v6 reste prioritaire pour empêcher la résurrection d'une ancienne partie.
 - La restauration conserve les dates de simulation ; le revenu d'entreprises et les taxes sont repris sur toute la durée écoulée. Le **Trading/News/dividendes** conserve volontairement son rejeu **par tranches bornées** : une très longue absence peut demander plusieurs cycles pour rattraper ce sous-système, sans limiter les revenus fixes des entreprises.
 - La sauvegarde et les historiques peuvent utiliser plusieurs mégaoctets. Si le stockage local est bloqué/saturé, la session peut rester jouable, mais la progression n'est pas garantie après fermeture. **Exporter régulièrement** une copie JSON sécurise la partie. Les JSON sont modifiables par l'utilisateur : la validation vérifie la structure, ce n'est pas un système anti-triche ni une preuve cryptographique.
 
@@ -100,7 +100,8 @@ npm run build
 
 `npm test` exécute les vérifications de calculs financiers, les simulations temporelles, les migrations et les **tests de composants Vue**. `npm run build` lance le contrôle TypeScript puis génère `dist/` via Vite.
 
-- `src/game.ts` : clicker, niveaux et améliorations.
+- `src/game.ts` : clicker, seuils de niveau extensibles et améliorations du clic.
+- `src/prestige/catalog.ts`, `state.ts` : catalogue Fame/Collection et compteurs de progression (XP séparée, Fame, récompenses de niveaux). La boutique et la page Collection arriveront dans les passes suivantes de [leur roadmap](ROADMAP_FAME_COLLECTION.md).
 - `src/capital.ts` / `src/persistence.ts` / `src/save-transfer.ts` : solde unique, sauvegardes, migrations, import/export et reset.
 - `src/trading/catalog.ts` : 45 actifs, bornes et quantités.
 - `src/trading/market.ts`, `news.ts`, `yield.ts` : simulateur de cours, annonces et rendements.
