@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **en développement — passes 1 et 2 terminées**  
+Statut : **en développement — passes 1 à 3 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -98,11 +98,14 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 3 — Simulateur de cours chaotiques
 
-- [ ] Implémenter un PRNG reproductible à graine sauvegardée et des ticks de 5 s avec régimes, momentum, bruit, volatilité par catégorie et clamps des prix.
-- [ ] Stocker/réduire l'historique à 1 h par actif ; exposer des séries simplifiées pour sparklines sans compromettre le graphique détaillé.
-- [ ] Calibrer pumps/crashes, éviter le comportement mécaniquement profitable aux bornes et la saturation immédiate.
-- [ ] Tests déterministes, frontières, valeurs extrêmes, indépendance relative et fluidité de 45 actifs.
+- [x] Implémenter un PRNG reproductible à graine sauvegardée et des ticks de 5 s avec régimes, momentum, bruit, volatilité par catégorie et clamps des prix.
+- [x] Stocker/réduire l'historique à 1 h par actif ; exposer des séries simplifiées pour sparklines sans compromettre le graphique détaillé.
+- [x] Calibrer pumps/crashes, éviter le comportement mécaniquement profitable aux bornes et la saturation immédiate.
+- [x] Tests déterministes, frontières, valeurs extrêmes, indépendance relative et fluidité de 45 actifs.
 - **Livrable :** marché vivant et visualisable par données, hors intégration News.
+
+**Validée le 13/11/2026** — [moteur 07415be](https://github.com/Nighttug58/CAPITAL_IDLE/commit/07415beefe2e4f81205d8ebb4ecd0e0b46dba181), **npm test** (9 nouveaux tests) et **npm run build** réussis dans [GitHub Actions #43445236181](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43445236181). Moteur pur `src/trading/market.ts` : PRNG xorshift32 sauvegardé, quatre régimes par actif, volatilité stock/crypto/memecoin, momentum, phases de pump/crash multi-ticks, respect des bornes sans retour imposé, 720 échantillons max par actif sur 1 h et sparklines réduites avec conservation des extrêmes. **La passe 4 doit encore brancher le scheduler et le rattrapage hors ligne** ; aucune animation en direct n'est encore visible dans l'UI.
+
 
 ### Passe 4 — Temps réel, rattrapage hors ligne et persistance maîtrisée
 
