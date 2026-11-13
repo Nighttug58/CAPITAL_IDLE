@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { creditExperience } from '../prestige/state.ts'
+import { getTotalBonusBps, scaleRewardCents } from '../prestige/bonuses.ts'
 import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
@@ -238,12 +239,20 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   const all = quantity >= position.quantity - 1e-9
   const soldBasis = all ? basisCents : Math.round(basisCents * (quantity / position.quantity))
   const profit = order.proceedsCents - soldBasis
-  const newRealized = realizedCents + profit
+  // Trading bonus rewards a positive realized NET gain only. Recovered cost
+  // basis and losses never receive a bonus, and the high-water XP guard stays.
+  const boosted = profit > 0
+    ? scaleRewardCents(profit, getTotalBonusBps(state, 'trading'), state.prestige.tradingCarryBps)
+    : null
+  if (profit > 0 && !boosted) return reject(state, 'money-overflow')
+  const effectiveProfit = boosted ? boosted.cents : profit
+  const bonusCashCents = effectiveProfit - profit
+  const newRealized = realizedCents + effectiveProfit
   const newCredited = Math.max(creditedCents, newRealized, 0)
   // Haut historique du bénéfice net cumulatif : une perte suivie d'un simple
   // retour à l'équilibre ne crédite PAS de nouveau le niveau.
   const levelEarnings = newCredited - creditedCents
-  if (![newRealized, newCredited, cashCents + order.proceedsCents, earnedCents + levelEarnings].every(Number.isSafeInteger)) {
+  if (![newRealized, newCredited, cashCents + order.proceedsCents + bonusCashCents, earnedCents + levelEarnings].every(Number.isSafeInteger)) {
     return reject(state, 'money-overflow')
   }
 
@@ -260,9 +269,12 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     ...state,
     game: {
       ...state.game,
-      balance: toMoney(cashCents + order.proceedsCents),
+      balance: toMoney(cashCents + order.proceedsCents + bonusCashCents),
       lifetimeEarned: toMoney(earnedCents + levelEarnings),
     },
+    prestige: boosted
+      ? { ...state.prestige, tradingCarryBps: boosted.carryBps }
+      : state.prestige,
     trading: {
       ...state.trading,
       positions,
@@ -274,9 +286,9 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   // de vente est déjà net de ses frais. Ne pas imposer le capital récupéré.
   // La taxe est une dette et ne modifie ni le cash de vente ni les niveaux.
   const source = asset.kind === 'stock' ? 'stocks' : asset.kind === 'memecoin' ? 'memecoins' : 'crypto'
-  const tracked = recordRealizedTrade(nextState, source, profit)
+  const tracked = recordRealizedTrade(nextState, source, effectiveProfit)
   if (!tracked) return reject(state, 'money-overflow')
-  const taxable = accrueProfitTax(tracked, source, Math.max(0, profit))
+  const taxable = accrueProfitTax(tracked, source, Math.max(0, effectiveProfit))
   if (!taxable) return reject(state, 'money-overflow')
   const withXp = creditExperience(taxable, levelEarnings)
   if (!withXp) return reject(state, 'money-overflow')
@@ -286,8 +298,8 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     receipt: {
       assetId, side: 'sell', quantity, price,
       gross: toMoney(order.grossCents), fee: toMoney(order.feeCents),
-      cashChange: toMoney(order.proceedsCents),
-      netRealizedProfit: toMoney(profit), levelEarnings: toMoney(levelEarnings),
+      cashChange: toMoney(order.proceedsCents + bonusCashCents),
+      netRealizedProfit: toMoney(effectiveProfit), levelEarnings: toMoney(levelEarnings),
       taxAccrued: toMoney(taxAccrued),
     },
   }
