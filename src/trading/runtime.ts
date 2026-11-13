@@ -1,7 +1,7 @@
 import { catchUpCapital, MAX_CATCH_UP_SECONDS } from './clock.ts'
 import { DIVIDEND_SECOND_MS } from './dividends.ts'
 import type { CapitalState } from '../capital.ts'
-import { advanceEnterpriseIncome } from '../economy/enterprises.ts'
+import { advanceFiscalEconomy } from '../economy/clock.ts'
 
 // Une seule minuterie récursive ; aucune boucle synchrone non bornée.
 // Les 256 secondes par tranche évitent de monopoliser le thread principal.
@@ -55,7 +55,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions) {
       // Le revenu fixe est calculé en une opération même après des mois
       // d'absence ; les ticks Trading restent rejoués par lots indépendants.
       // lastAccruedAt empêche de créditer une deuxième fois au rejeu Trading.
-      const withEnterpriseIncome = advanceEnterpriseIncome(current, timestamp)
+      const withEnterpriseIncome = advanceFiscalEconomy(current, timestamp)
       const result = catchUpCapital(withEnterpriseIncome, timestamp, MAX_CATCH_UP_SECONDS)
       if (result.processedSeconds > 0 || withEnterpriseIncome !== current) {
         options.setState(result.state)
