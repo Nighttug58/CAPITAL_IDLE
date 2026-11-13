@@ -160,8 +160,6 @@ onUnmounted(() => {
         :aria-label="`Gagner ${formatMoney(clickValue)} en cliquant`"
         @click="click"
       >
-        <span class="tap-corner tap-corner-top" aria-hidden="true"></span>
-        <span class="tap-corner tap-corner-bottom" aria-hidden="true"></span>
         <span class="tap-content">
           <span class="banknotes" aria-hidden="true">💵</span>
           <span class="tap-action">TOUCHER POUR GAGNER</span>
