@@ -161,6 +161,27 @@ describe('Trading interface mobile',()=>{
     expect(wrapper.findAll('.floating-gain')).toHaveLength(1)
     expect(wrapper.find('.floating-gain').text()).toBe('+1 $')
   })
+  it('garantit les contrats de hauteur et de scroll des modales Actions/Crypto/News sur petits écrans',async()=>{
+    const css=readFileSync('src/style.css','utf8')
+    // Invariants statiques : jsdom ne calcule pas une vraie boîte en pixels.
+    expect(css).toMatch(/\.trading-modal \{[^}]*width:100%; max-width:530px; height:min\(780px,100%\); max-height:100%; min-height:0;/)
+    expect(css).toMatch(/\.trading-modal-scroll \{[^}]*flex:1 1 0; min-height:0; overflow-y:auto;/)
+    expect(css).toContain('env(safe-area-inset-bottom,0px)')
+    expect(css).toContain('@media (max-height:570px)')
+    const {wrapper}=setup()
+    await openNvideo(wrapper)
+    const assetDialog=wrapper.find('.trading-asset-modal')
+    expect(assetDialog.exists()).toBe(true)
+    expect(assetDialog.attributes('aria-modal')).toBe('true')
+    expect(assetDialog.find('.trading-modal-scroll').exists()).toBe(true)
+    expect(assetDialog.find('.order-submit').exists()).toBe(true)
+    await assetDialog.find('button.modal-close').trigger('click')
+    await tab(wrapper,2)
+    await wrapper.find('button.market-asset-row').trigger('click')
+    expect(wrapper.find('.trading-asset-modal .trading-modal-scroll').exists()).toBe(true)
+    expect(wrapper.find('.trading-asset-modal .order-submit').exists()).toBe(true)
+  })
+
   it('conserve le clicker après navigation aller-retour',async()=>{
     const wrapper=mount(App,{attachTo:document.body})
     mounted.push(wrapper)
