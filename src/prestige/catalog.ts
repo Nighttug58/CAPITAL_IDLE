@@ -106,7 +106,7 @@ export interface CollectionPriceSlot {
 export const COLLECTION_SLOTS: readonly CollectionPriceSlot[] = Object.freeze(
   COLLECTION_CATEGORIES.flatMap(({ id: category }) =>
     COLLECTION_RANK_REWARDS.map((reward, index) => Object.freeze({
-      id: \`\${category}-\${String(reward.rank).padStart(2, '0')}\`,
+      id: `${category}-${String(reward.rank).padStart(2, '0')}`,
       category,
       rank: reward.rank,
       priceCents: COLLECTION_PRICES_DOLLARS[category][index]! * 100,
