@@ -1,15 +1,15 @@
-import { catchUpMarket, MAX_CATCH_UP_TICKS } from './clock.ts'
-import { MARKET_TICK_MS } from './market.ts'
-import type { TradingState } from './types.ts'
+import { catchUpCapital, MAX_CATCH_UP_SECONDS } from './clock.ts'
+import { DIVIDEND_SECOND_MS } from './dividends.ts'
+import type { CapitalState } from '../capital.ts'
 
 // Une seule minuterie récursive ; aucune boucle synchrone non bornée.
-// Les 128 ticks par tranche évitent de monopoliser le thread principal.
+// Les 256 secondes par tranche évitent de monopoliser le thread principal.
 const SAVE_INTERVAL_MS = 5_000
 const REPLAY_PAUSE_MS = 16
 
 export interface MarketRuntimeOptions {
-  getState: () => TradingState
-  setState: (state: TradingState) => void
+  getState: () => CapitalState
+  setState: (state: CapitalState) => void
   persist: () => void
   now?: () => number
   schedule?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>
@@ -50,17 +50,17 @@ export function createMarketRuntime(options: MarketRuntimeOptions) {
 
     try {
       const timestamp = now()
-      const result = catchUpMarket(options.getState(), timestamp, MAX_CATCH_UP_TICKS)
-      if (result.processedTicks > 0) {
+      const result = catchUpCapital(options.getState(), timestamp, MAX_CATCH_UP_SECONDS)
+      if (result.processedSeconds > 0) {
         options.setState(result.state)
         dirty = true
       }
-      saveIfDirty(result.pendingTicks === 0)
+      saveIfDirty(result.pendingSeconds === 0)
       if (!started || paused) return
 
-      const nextDelay = result.pendingTicks > 0
+      const nextDelay = result.pendingSeconds > 0
         ? REPLAY_PAUSE_MS
-        : Math.max(50, Math.min(MARKET_TICK_MS, result.state.lastTickAt + MARKET_TICK_MS - timestamp))
+        : Math.max(50, Math.min(DIVIDEND_SECOND_MS, result.state.trading.dividendLastPaidAt + DIVIDEND_SECOND_MS - timestamp))
       timer = schedule(process, nextDelay)
     } finally {
       processing = false

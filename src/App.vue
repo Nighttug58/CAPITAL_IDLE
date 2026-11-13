@@ -37,6 +37,7 @@ const supportsFullscreen = typeof document !== 'undefined' && typeof document.do
 const floatingGains = ref<FloatingGain[]>([])
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
+let applyingMarket = false
 
 const progressStart = computed(() => LEVEL_THRESHOLDS[level.value - 1] ?? 0)
 const progressPercent = computed(() => {
@@ -118,12 +119,16 @@ async function toggleFullscreen() {
 
 // Les clics sont sauvegardés aussitôt ; les centaines de ticks de rattrapage
 // ne déclenchent pas une écriture localStorage à chaque tranche.
-watch(game, persist, { flush: 'sync' })
+watch(game, () => { if (!applyingMarket) persist() }, { flush: 'sync' })
 
 onMounted(() => {
   marketRuntime = createMarketRuntime({
-    getState: () => capital.value.trading,
-    setState: (trading) => { capital.value = { ...capital.value, trading } },
+    getState: () => capital.value,
+    setState: (updated) => {
+      // Le runtime sauvegarde par batch, pas une fois par seconde hors ligne.
+      applyingMarket = true
+      try { capital.value = updated } finally { applyingMarket = false }
+    },
     persist,
   })
   marketRuntime.start()

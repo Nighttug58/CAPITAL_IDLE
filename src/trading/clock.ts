@@ -1,5 +1,7 @@
 import { MARKET_HISTORY_MS, MARKET_TICK_MS, advanceMarketTick } from './market.ts'
 import type { TradingState } from './types.ts'
+import type { CapitalState } from '../capital.ts'
+import { advanceCapitalSecond, DIVIDEND_SECOND_MS } from './dividends.ts'
 
 // Ne jamais réaliser toute une absence dans un seul appel bloquant.
 // Le retard restant reste dans lastTickAt et sera repris exactement au même tick.
@@ -43,4 +45,43 @@ export function catchUpMarket(
     processedTicks: steps,
     pendingTicks: available - steps,
   }
+}
+
+export const MAX_CATCH_UP_SECONDS = 256
+
+export interface CapitalCatchUp {
+  readonly state: CapitalState
+  readonly processedSeconds: number
+  readonly pendingSeconds: number
+}
+
+// Les dividendes sont rejoués réellement chaque seconde, tandis que le cours
+// évolue toutes les 5 s. Un batch est toujours borné pour protéger le mobile.
+export function catchUpCapital(
+  state: CapitalState,
+  now: number,
+  maxSeconds = MAX_CATCH_UP_SECONDS,
+): CapitalCatchUp {
+  const last = state.trading.dividendLastPaidAt
+  if (!Number.isSafeInteger(now) || now < 0 ||
+      !Number.isSafeInteger(last) || last < 0 || now <= last) {
+    return { state, processedSeconds: 0, pendingSeconds: 0 }
+  }
+  const available = Math.floor((now - last) / DIVIDEND_SECOND_MS)
+  const budget = Number.isFinite(maxSeconds)
+    ? Math.max(0, Math.min(MAX_CATCH_UP_SECONDS, Math.floor(maxSeconds))) : 0
+  const count = Math.min(available, budget)
+  if (count === 0) return { state, processedSeconds: 0, pendingSeconds: available }
+
+  let updated = state
+  const cutoff = now - MARKET_HISTORY_MS
+  let processedSeconds = 0
+  for (let i = 0; i < count; i++) {
+    const nextSecond = updated.trading.dividendLastPaidAt + DIVIDEND_SECOND_MS
+    const step = advanceCapitalSecond(updated, nextSecond > cutoff)
+    if (step === updated) break
+    updated = step
+    processedSeconds++
+  }
+  return { state: updated, processedSeconds, pendingSeconds: available - processedSeconds }
 }

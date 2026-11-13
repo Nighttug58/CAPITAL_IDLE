@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --experimental-strip-types --test src/game.test.ts src/capital.test.ts src/trading/catalog.test.ts src/trading/market.test.ts src/trading/clock.test.ts src/trading/trades.test.ts src/trading/news.test.ts"
+    "test": "node --experimental-strip-types --test src/game.test.ts src/capital.test.ts src/trading/catalog.test.ts src/trading/market.test.ts src/trading/clock.test.ts src/trading/trades.test.ts src/trading/news.test.ts src/trading/dividends.test.ts"
   },
   "dependencies": {
     "vue": "^3.5.23"

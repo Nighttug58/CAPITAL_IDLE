@@ -34,6 +34,9 @@ function isQuote(value: unknown): value is MarketQuote {
       typeof value.dividendYield === 'number' && Number.isFinite(value.dividendYield) &&
       value.dividendYield >= 0.01 && value.dividendYield <= 0.30
     )) && isTimestamp(value.updatedAt) &&
+    (value.dividendMomentum === undefined ||
+      (typeof value.dividendMomentum === 'number' && Number.isFinite(value.dividendMomentum) &&
+       Math.abs(value.dividendMomentum) <= 0.00024)) &&
     (value.regime === undefined || ['steady', 'bull', 'bear', 'frenzy'].includes(value.regime as string)) &&
     (value.regimeTicksLeft === undefined || (Number.isSafeInteger(value.regimeTicksLeft) && (value.regimeTicksLeft as number) >= 0 && (value.regimeTicksLeft as number) <= 115)) &&
     (value.shockDrift === undefined || (typeof value.shockDrift === 'number' && Number.isFinite(value.shockDrift) && Math.abs(value.shockDrift) <= 0.25)) &&
@@ -83,6 +86,8 @@ export function createInitialTradingState(now = Date.now(), seed = Math.floor(Ma
     realizedNetProfit: 0,
     creditedTradingProfit: 0,
     dividendCarry: 0,
+    dividendPendingCents: 0,
+    dividendLastPaidAt: timestamp,
   }
 }
 
@@ -100,7 +105,9 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     // Les premières sauvegardes v4 n'avaient pas encore ce compteur.
     !(raw.creditedTradingProfit === undefined ||
       (isAmount(raw.creditedTradingProfit) && raw.creditedTradingProfit >= raw.realizedNetProfit)) ||
-    !isAmount(raw.dividendCarry) || raw.dividendCarry >= 1
+    !isAmount(raw.dividendCarry) || raw.dividendCarry >= 1 ||
+    !(raw.dividendPendingCents === undefined || (Number.isSafeInteger(raw.dividendPendingCents) && isAmount(raw.dividendPendingCents))) ||
+    !(raw.dividendLastPaidAt === undefined || isTimestamp(raw.dividendLastPaidAt))
   ) return fallback()
 
   return {
@@ -115,5 +122,8 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     realizedNetProfit: raw.realizedNetProfit,
     creditedTradingProfit: typeof raw.creditedTradingProfit === 'number' ? raw.creditedTradingProfit : 0,
     dividendCarry: raw.dividendCarry,
+    dividendPendingCents: typeof raw.dividendPendingCents === 'number' ? raw.dividendPendingCents : 0,
+    // Anciennes v4 : le joueur ne détenait aucun revenu payé par le Trading.
+    dividendLastPaidAt: typeof raw.dividendLastPaidAt === 'number' ? raw.dividendLastPaidAt : raw.lastTickAt,
   } as TradingState
 }

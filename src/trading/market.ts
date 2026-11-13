@@ -1,5 +1,6 @@
 import { ASSETS, createInitialQuotes } from './catalog.ts'
 import { advanceNewsTick, getNewsPressure } from './news.ts'
+import { advanceDividendYield } from './yield.ts'
 import type { AssetDefinition, MarketQuote, PriceSample, TradingState } from './types.ts'
 
 export const MARKET_TICK_MS = 5_000
@@ -72,6 +73,7 @@ function updateQuote(
   at: number,
   sharedNoise: number,
   newsPressure: number,
+  dividendPressure: number,
   random: { next: () => number },
 ): MarketQuote {
   const profile = PROFILES[asset.kind]
@@ -117,10 +119,11 @@ function updateQuote(
   const price = clamp(current.price * Math.exp(clamp(logMove, -0.25, 0.25)), asset.minPrice, asset.maxPrice)
   const actualMove = Math.log(price / current.price)
 
+  const dividend = advanceDividendYield(asset, current, dividendPressure, () => random.next())
   return {
     price,
     momentum: clamp(momentum * 0.72 + actualMove * 0.28, -0.08, 0.08),
-    dividendYield: current.dividendYield, // La courbe indépendante viendra en passe 7.
+    ...dividend,
     updatedAt: at,
     regime,
     regimeTicksLeft,
@@ -173,7 +176,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
       dividendYield: asset.initialDividendYield,
       updatedAt: state.lastTickAt,
     }
-    const quote = updateQuote(asset, current, at, sharedNoise, pressure.price[asset.id] ?? 0, random)
+    const quote = updateQuote(asset, current, at, sharedNoise, pressure.price[asset.id] ?? 0, pressure.dividend[asset.id] ?? 0, random)
     quotes[asset.id] = quote
     if (recordHistory) {
       history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price)

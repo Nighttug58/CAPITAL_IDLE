@@ -28,6 +28,7 @@ export interface MarketQuote {
   price: number
   momentum: number
   dividendYield: number | null
+  dividendMomentum?: number
   updatedAt: number
   // Facultatif pour restaurer les cotations v4 préexistantes (passe 1).
   regime?: MarketRegime
@@ -74,5 +75,8 @@ export interface TradingState {
   // Plus haut cumul net atteint par les profits de ventes : protège les niveaux
   // contre un cycle perte -> récupération du même profit.
   creditedTradingProfit: number
+  // Fraction d'un centime et montants différés en cas de plafond monétaire.
   dividendCarry: number
+  dividendPendingCents: number
+  dividendLastPaidAt: number
 }
