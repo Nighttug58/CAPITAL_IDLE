@@ -544,3 +544,47 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
  .stats-overview > div { padding:10px; }
 }
 @media(max-height:610px) { .stats-section { padding:10px; } }
+
+
+/* Sauvegarde : dernière section de Stats, actions lisibles même à 320 px. */
+.stats-backup { margin-top:15px; margin-bottom:15px; }
+.stats-backup > .stats-footnote { margin-bottom:14px; }
+.backup-action { width:100%; min-height:61px; display:flex; align-items:center; gap:13px; padding:12px; margin-top:9px; text-align:left; border:1px solid #586951; border-radius:10px; background:#29372e; color:#ebeddf; }
+.backup-action > span:last-child { display:flex; flex-direction:column; gap:5px; flex:1 1 0; min-width:0; }
+.backup-action strong { font-size:13px; color:inherit; font-weight:770; }
+.backup-action small { font-size:11px; color:#b6c4b7; line-height:1.4; }
+.backup-action-icon { display:grid; place-items:center; width:35px; height:35px; flex:0 0 35px; background:#3c5645; border-radius:9px; color:#b4ebbf; font-size:25px; line-height:1; }
+.backup-import { border-color:#486879; background:#24333b; }
+.backup-import .backup-action-icon { background:#345267; color:#bce0f4; }
+.backup-action:disabled { opacity:.65; }
+.backup-action:focus-visible,.backup-confirm button:focus-visible,.backup-confirm input:focus-visible { outline:2px solid #edd49a; outline-offset:2px; }
+.backup-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.backup-danger { margin-top:20px; padding-top:15px; border-top:1px solid #665351; }
+.backup-danger > strong { font-size:12px; color:#f0b5ad; }
+.backup-danger p { font-size:11px; line-height:1.5; color:#baaaa4; margin:7px 0 10px; }
+.backup-reset { justify-content:center; min-height:46px; border:1px solid #ac6660; background:#432b2d; color:#ffccc6; font-weight:770; font-size:12px; text-align:center; }
+.backup-confirm { margin-top:12px; padding:13px; border-radius:11px; border:1px solid #96804e; background:#302c23; box-shadow:0 7px 22px #0004; }
+.backup-confirm > strong { display:block; color:#f7ddab; font-size:14px; }
+.backup-confirm p { font-size:12px; color:#ded1b6; line-height:1.6; }
+.backup-import-details { margin:13px 0; padding:11px 0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:10px; row-gap:9px; border-top:1px solid #6b6249; border-bottom:1px solid #6b6249; }
+.backup-import-details span { font-size:11px; color:#c6c8b9; }
+.backup-import-details strong { font-size:11px; color:#f4e9d2; text-align:right; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.backup-confirm .backup-warning { color:#f3bd97; }
+.backup-confirm-actions { display:flex; flex-wrap:wrap; gap:9px; justify-content:flex-end; }
+.backup-confirm-actions button { min-height:43px; border-radius:8px; border:1px solid #676b63; background:#323b36; color:#f3ead7; padding:10px 13px; font-size:11px; font-weight:770; flex:1 1 118px; }
+.backup-confirm-actions .backup-confirm-primary { border-color:#e9c584; background:linear-gradient(#f1d392,#ba8b46); color:#281e11; }
+.backup-confirm-actions .backup-confirm-danger { border-color:#de8780; background:#a13c3b; color:#fff5f2; }
+.backup-confirm-actions button:disabled { color:#aaa39d; border-color:#5d5552; background:#49413d; }
+.backup-reset-confirm { border-color:#a56460; background:#352729; }
+.backup-reset-confirm > strong { color:#ffd3c8; }
+.backup-reset-confirm label { display:block; font-size:11px; margin:12px 0 6px; color:#ead1c9; }
+.backup-reset-confirm input { display:block; width:100%; min-height:44px; border:1px solid #a5817a; border-radius:8px; background:#201c20; color:#f6ece9; padding:11px; font-size:15px; letter-spacing:.08em; }
+.backup-error { border:1px solid #a85d59; border-radius:9px; background:#4a292c; padding:10px; color:#ffd0c9; font-size:11px; line-height:1.5; }
+@media(max-width:360px) {
+ .stats-backup { padding:10px; }
+ .backup-action { padding:9px; gap:9px; }
+ .backup-action strong { font-size:12px; }
+ .backup-action-icon { width:30px; height:30px; flex-basis:30px; }
+ .backup-confirm { padding:10px; }
+ .backup-import-details { grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); }
+}

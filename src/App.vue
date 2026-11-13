@@ -9,7 +9,9 @@ import {
   purchaseUpgrade,
   type GameState,
 } from './game.ts'
-import { loadCapitalState, saveCapitalState } from './persistence.ts'
+import { loadCapitalState, replaceCapitalSave, saveCapitalState } from './persistence.ts'
+import { createCapitalState } from './capital.ts'
+import { createSaveExport, exportFileName } from './save-transfer.ts'
 import type { CapitalState } from './capital.ts'
 import { createMarketRuntime } from './trading/runtime.ts'
 import { buyAsset, sellAsset } from './trading/trades.ts'
@@ -160,6 +162,72 @@ function payTaxes(): EarlyTaxPaymentResult {
   return payment
 }
 
+/**
+ * Le runtime est stoppé avant une importation ou un reset. Son éventuelle
+ * dernière sauvegarde concerne encore l'ancienne partie ; l'écriture
+ * atomique v5 est donc faite seulement APRÈS cet arrêt.
+ */
+function startMarketRuntime() {
+  marketRuntime = createMarketRuntime({
+    getState: () => capital.value,
+    setState: (updated) => {
+      applyingMarket = true
+      try { capital.value = updated } finally { applyingMarket = false }
+    },
+    persist,
+  })
+  marketRuntime.start()
+  if (document.hidden) marketRuntime.pause()
+}
+
+function replaceWholeSave(next: CapitalState): boolean {
+  marketRuntime?.stop()
+  marketRuntime = null
+  if (!replaceCapitalSave(next)) {
+    startMarketRuntime() // échec d'écriture : continuer exactement l'ancienne partie
+    return false
+  }
+  applyingMarket = true
+  try {
+    capital.value = next
+    floatingGains.value = []
+    tapAnimationId.value = 0
+    nextGainId = 0
+  } finally { applyingMarket = false }
+  activeSince = document.hidden ? null : Date.now()
+  startMarketRuntime() // rattrapage horodaté de la sauvegarde importée
+  return true
+}
+
+function exportSave(): boolean {
+  let url: string | null = null
+  try {
+    settleEconomyNow()
+    persist()
+    const at = Date.now()
+    const json = createSaveExport(capital.value, at)
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+    url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = exportFileName(at)
+    document.body.appendChild(link)
+    try { link.click() } finally { link.remove() }
+    const exportedUrl = url
+    setTimeout(() => URL.revokeObjectURL(exportedUrl), 2_000)
+    return true
+  } catch {
+    if (url !== null) URL.revokeObjectURL(url)
+    return false
+  }
+}
+function importSave(next: CapitalState): boolean {
+  return replaceWholeSave(next)
+}
+function resetSave(): boolean {
+  return replaceWholeSave(createCapitalState(undefined, Date.now()))
+}
+
 function syncMarketVisibility() {
   if (document.hidden) {
     marketRuntime?.pause()
@@ -204,17 +272,7 @@ watch(game, () => { if (!applyingMarket) persist() }, { flush: 'sync' })
 
 onMounted(() => {
   activeSince = document.hidden ? null : Date.now()
-  marketRuntime = createMarketRuntime({
-    getState: () => capital.value,
-    setState: (updated) => {
-      // Le runtime sauvegarde par batch, pas une fois par seconde hors ligne.
-      applyingMarket = true
-      try { capital.value = updated } finally { applyingMarket = false }
-    },
-    persist,
-  })
-  marketRuntime.start()
-  if (document.hidden) marketRuntime.pause()
+  startMarketRuntime()
 
   document.addEventListener('fullscreenchange', syncFullscreen)
   document.addEventListener('visibilitychange', syncMarketVisibility)
@@ -320,7 +378,8 @@ onUnmounted(() => {
 
     <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
-    <StatsScreen v-show="page === 'stats'" :state="capital" :pay-taxes="payTaxes" />
+    <StatsScreen v-show="page === 'stats'" :state="capital" :pay-taxes="payTaxes"
+      :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' }"

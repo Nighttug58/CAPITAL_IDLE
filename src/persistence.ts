@@ -33,8 +33,14 @@ function readPreviousGame(): GameState {
 export function loadCapitalState(now = Date.now()): CapitalState {
   // Une v5 présente est l'autorité, même corrompue : ne jamais ressusciter
   // silencieusement la v4 périmée après un reset (passe 7).
-  const current = readStorage(STORAGE_KEY)
-  if (current !== undefined) return restoreCapitalState(current, now)
+  // Une clé v5 présente reste prioritaire même si son JSON est corrompu :
+  // un reset ne doit jamais ressusciter une v4 conservée par le navigateur.
+  let currentText: string | null = null
+  try { currentText = localStorage.getItem(STORAGE_KEY) } catch { /* stockage indisponible */ }
+  if (currentText !== null) {
+    const current = readStorage(STORAGE_KEY)
+    return restoreCapitalState(current, now)
+  }
 
   const oldCapital = readStorage(V4_STORAGE_KEY)
   if (oldCapital !== undefined) {
@@ -55,4 +61,26 @@ export function saveCapitalState(state: CapitalState): void {
   } catch {
     // Si le stockage est saturé, le jeu reste accessible pendant la session.
   }
+}
+
+/**
+ * Remplacement explicite pour import/reset. Contrairement à l'autosauvegarde,
+ * un échec de stockage ne peut PAS être silencieux : l'ancien état reste actif.
+ * La clé v5 est écrite en premier. Les anciennes clés ne sont ensuite que des
+ * reliquats ; leur suppression est best-effort et ne doit pas rendre l'opération
+ * non atomique. Une v5 présente empêche toute migration fantôme v1-v4.
+ */
+export function replaceCapitalSave(state: CapitalState): boolean {
+  try {
+    if (state.version !== 5) return false
+    const data = JSON.stringify(state)
+    localStorage.setItem(STORAGE_KEY, data)
+    if (localStorage.getItem(STORAGE_KEY) !== data) return false
+  } catch {
+    return false
+  }
+  for (const old of [V4_STORAGE_KEY, V3_STORAGE_KEY, V2_STORAGE_KEY, V1_STORAGE_KEY]) {
+    try { localStorage.removeItem(old) } catch { /* v5 prioritaire */ }
+  }
+  return true
 }
