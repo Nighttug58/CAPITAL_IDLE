@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { accrueProfitTax } from '../economy/fiscal.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
@@ -23,6 +24,7 @@ export interface TradeReceipt {
   readonly cashChange: number
   readonly netRealizedProfit: number
   readonly levelEarnings: number
+  readonly taxAccrued: number // dette future, jamais retenue immédiatement
 }
 
 export type TradeResult =
@@ -203,7 +205,7 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
       gross: toMoney(order.grossCents),
       fee: toMoney(order.feeCents),
       cashChange: -toMoney(order.totalCents),
-      netRealizedProfit: 0, levelEarnings: 0,
+      netRealizedProfit: 0, levelEarnings: 0, taxAccrued: 0,
     },
   }
 }
@@ -269,13 +271,20 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
       creditedTradingProfit: toMoney(newCredited),
     },
   }
+  // Le prix de revient vendu inclut déjà les frais d'achat ; le produit
+  // de vente est déjà net de ses frais. Ne pas imposer le capital récupéré.
+  // La taxe est une dette et ne modifie ni le cash de vente ni les niveaux.
+  const taxable = accrueProfitTax(nextState, asset.kind, Math.max(0, profit))
+  if (!taxable) return reject(state, 'money-overflow')
+  const taxAccrued = taxable.fiscal.taxesDueCents - state.fiscal.taxesDueCents
   return {
-    ok: true, state: nextState,
+    ok: true, state: taxable,
     receipt: {
       assetId, side: 'sell', quantity, price,
       gross: toMoney(order.grossCents), fee: toMoney(order.feeCents),
       cashChange: toMoney(order.proceedsCents),
       netRealizedProfit: toMoney(profit), levelEarnings: toMoney(levelEarnings),
+      taxAccrued: toMoney(taxAccrued),
     },
   }
 }

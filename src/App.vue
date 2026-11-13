@@ -17,6 +17,9 @@ import { buyAsset, sellAsset } from './trading/trades.ts'
 import type { TradeResult, TradeSide } from './trading/trades.ts'
 import TradingScreen from './components/TradingScreen.vue'
 import EnterpriseScreen from './components/EnterpriseScreen.vue'
+import StatsScreen from './components/StatsScreen.vue'
+import { advanceFiscalEconomy, payFiscalBalanceNow } from './economy/clock.ts'
+import type { EarlyTaxPaymentResult } from './economy/fiscal.ts'
 import { buyEnterprise, upgradeEnterprise } from './economy/enterprises.ts'
 import type { EnterpriseAction, EnterpriseResult } from './economy/enterprises.ts'
 
@@ -38,7 +41,7 @@ const nextLevel = computed(() => getNextLevelThreshold(game.value.lifetimeEarned
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
-const page = ref<'home' | 'trading' | 'enterprises'>('home')
+const page = ref<'home' | 'trading' | 'enterprises' | 'stats'>('home')
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
@@ -92,6 +95,7 @@ function buy() {
 // Achat/vente déclenchés par l'UI : solde et portefeuille mis à jour ensemble.
 // La validation vient du moteur métier, jamais d'une formule du composant Vue.
 function executeTrade(side: TradeSide, assetId: string, quantity: number): TradeResult {
+  settleEconomyNow()
   const result = side === 'buy'
     ? buyAsset(capital.value, assetId, quantity)
     : sellAsset(capital.value, assetId, quantity)
@@ -103,6 +107,7 @@ function executeTrade(side: TradeSide, assetId: string, quantity: number): Trade
 }
 
 function executeEnterprise(action: EnterpriseAction, id: string): EnterpriseResult {
+  settleEconomyNow()
   const result = action === 'buy'
     ? buyEnterprise(capital.value, id)
     : upgradeEnterprise(capital.value, id)
@@ -118,6 +123,26 @@ function executeEnterprise(action: EnterpriseAction, id: string): EnterpriseResu
 
 function persist() {
   saveCapitalState(capital.value)
+}
+
+function settleEconomyNow() {
+  const updated = advanceFiscalEconomy(capital.value, Date.now())
+  if (updated !== capital.value) {
+    applyingMarket = true
+    try { capital.value = updated } finally { applyingMarket = false }
+    persist()
+  }
+}
+
+function payTaxes(): EarlyTaxPaymentResult {
+  const payment = payFiscalBalanceNow(capital.value, Date.now())
+  if (payment.state !== capital.value) {
+    applyingMarket = true
+    try { capital.value = payment.state } finally { applyingMarket = false }
+    persist()
+    marketRuntime?.wake()
+  }
+  return payment
 }
 
 function syncMarketVisibility() {
@@ -274,6 +299,7 @@ onUnmounted(() => {
 
     <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
+    <StatsScreen v-show="page === 'stats'" :state="capital" :pay-taxes="payTaxes" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' }"
@@ -298,6 +324,13 @@ onUnmounted(() => {
           <path d="M3 10 6 4h12l3 6M9 21v-7h6v7M3 10h18" />
         </svg>
         <span>Entreprises</span>
+      </button>
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'stats' }"
+        :aria-current="page === 'stats' ? 'page' : undefined" @click="page = 'stats'">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18M7 15l4-4 3 2 5-6" />
+        </svg>
+        <span>Stats</span>
       </button>
     </nav>
   </div>
