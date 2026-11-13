@@ -9,8 +9,8 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 - Départ à **0 $**, **1 $ par clic**.
 - **50 niveaux** calculés sur le total d'argent *réellement gagné dans le jeu*, sans perte de niveau à la dépense.
 - **49 améliorations** à débloquer dans l'ordre, augmentant chacune la rémunération de **+1 $ par clic**.
-- Le même solde est utilisé pour les améliorations et les achats sur le Trading.
-- Les niveaux bénéficient des clics, des dividendes effectivement encaissés et des **profits nets réalisés** en Trading ; ni le capital récupéré lors d'une vente, ni les gains latents ne donnent de l'expérience.
+- **Un seul solde** finance les améliorations du clicker, les transactions Trading et les entreprises. Il peut devenir négatif après le prélèvement automatique ou manuel de taxes, mais **aucun achat à crédit** n'est permis.
+- Les niveaux bénéficient des clics, des dividendes encaissés, des revenus fixes des entreprises et des **profits nets réalisés** en Trading. Ni le capital récupéré lors d'une vente, ni les gains latents, ni les taxes payées ne donnent de l'expérience. Les dépenses et les impôts ne font pas redescendre le niveau.
 
 ## Trading — 45 instruments
 
@@ -23,10 +23,10 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 Les cours initiaux sont des **repères de gameplay figés au 13 novembre 2026**, pas des cotations actuelles. Tous les cours, variations, liquidités, News et dividendes sont simulés **sur l'appareil du joueur**, et n'ont aucun lien avec les marchés réels.
 
 - Les **45 actifs évoluent toutes les 5 secondes**, chacun avec son momentum, ses régimes, des chocs aléatoires et des bornes de prix.
-- Toutes les positions sont **au comptant**, sans levier, sans dette ni solde négatif. L'offre de chaque actif est plafonnée. Les cryptos autorisent des fractions.
+- Toutes les positions Trading sont **au comptant**, sans levier ni achat à découvert. La fiscalité peut entraîner un **solde global négatif** : cela n'autorise aucun achat de titres. L'offre de chaque actif est plafonnée. Les cryptos autorisent des fractions.
 - Ouvrir un actif donne accès à son cours, au graphique, aux bornes, aux quantités détenues et disponibles, ainsi qu'au formulaire **Acheter / Vendre**.
 - Les raccourcis **25 % / 50 % / MAX** prennent en compte le budget, les frais, la précision des quantités et les titres possédés. Les ventes affichent les montants nets.
-- Le **Portfolio** présente patrimoine, positions, coûts moyens, résultats latents nets de frais théoriques de revente et profits nets déjà réalisés.
+- Le **Portfolio** présente le solde, les positions, les coûts moyens, les résultats latents nets des frais théoriques de revente et les profits nets déjà réalisés. Le **patrimoine net incluant la fiscalité et les entreprises** est détaillé dans Stats.
 - Les graphiques conservent **jusqu'à une heure** d'évolution (au maximum 720 échantillons par instrument, à raison de 5 secondes).
 
 ### Dividendes : 24 heures = une année de jeu
@@ -49,17 +49,41 @@ Les versements sont calculés **chaque seconde réelle** et crédités au solde 
 - L'onglet News affiche les **10 dernières annonces** ; les événements encore actifs restent pris en compte dans la simulation même quand ils quittent cette liste.
 - Les fiches News indiquent le contexte, un scénario possible, le statut et les actifs ciblés. Les rumeurs peuvent être confirmées ou démenties, mais elles ne garantissent pas un mouvement de cours.
 
-## Sauvegarde locale et hors ligne
+## Entreprises — 20 commerces uniques
 
-- Une sauvegarde **v4** est conservée en `localStorage` sur le navigateur/appareil. **Pas de compte ni de synchronisation cloud** ; vider les données du site ou changer d'appareil peut faire perdre la progression.
-- Les anciennes parties **v1, v2 et v3** sont migrées vers la v4 avec conservation du solde, du total gagné et des améliorations déjà achetées. Les anciennes clés ne sont pas supprimées automatiquement.
-- À la réouverture, l'horloge reconstitue les cours, les News et les dividendes sur la durée passée. Le calcul s'effectue **par tranches bornées** afin de ne pas bloquer le téléphone. Une très longue absence peut demander plusieurs cycles avant de rattraper complètement le temps réel.
-- Une seule simulation détermine les cours et les dividendes ; aucune nouvelle n'est téléchargée et aucun service distant n'est requis pour jouer.
-- La sauvegarde et l'historique peuvent occuper plusieurs mégaoctets lorsque les 45 séries sont pleines. Si le stockage du navigateur est bloqué ou saturé, l'application reste utilisable pendant la session, **mais la nouvelle progression risque de ne pas être enregistrée**.
+La navigation principale dispose d'un onglet **Entreprises**. Les 20 entreprises deviennent accessibles progressivement du niveau joueur 3 au niveau 50, puis s'achètent **une seule fois** ; aucune franchise ni revente. Un achat débute au niveau 1. Chaque établissement dispose de **19 améliorations payantes**, jusqu'au **niveau 20**, avec bonus de revenu permanents aux niveaux **5, 10, 15 et 20**.
+
+- Rendement **fixe et brut par seconde**, indépendant des News, des cours et des dividendes. Sans salariés, charges d'exploitation ou frais récurrents.
+- Revenus cumulés en fractions de centime pour ne pas perdre les petits gains ; encaissés dans le même solde, ils contribuent aussi à l'XP et aux statistiques.
+- **Hors ligne illimité en durée** : calcul agrégé, même après des mois ou des années, sous réserve de rester dans les bornes numériques des montants. Les entreprises ne progressent pas toutes seules durant une absence.
+- Rendements d'achat de référence **avant taxes et améliorations** : environ 8 h pour le Kiosque (150 $) et 64 h pour le Groupe technologique (300 M$). Les 20 niveaux sont documentés dans [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md).
+
+## Fiscalité — échéance de 72 heures
+
+Le taux fiscal actif est **15 % à titre provisoire** (à confirmer lors de l'équilibrage). La taxe ne diminue **pas** immédiatement les gains ; elle s'accumule séparément dans `taxesDueCents`.
+
+- Sources imposables : **revenus bruts des entreprises**, correspondant à leurs bénéfices en l'absence de charges, et **plus-values positives réalisées** lors des ventes d'actions, de cryptos ou de memecoins, après prix de revient et frais. Le capital restitué, les pertes et les plus-values latentes ne sont pas imposés. **Clics et dividendes non taxés** dans cette version.
+- **Prélèvement automatique toutes les 72 heures réelles**. Le solde peut devenir négatif ; les revenus futurs le compensent sans intérêts ni pénalités.
+- Depuis **Stats**, un bouton **Payer les taxes maintenant** règle toute la dette accumulée, avec confirmation, puis repart sur **une nouvelle période de 72 h**. Impossible de redémarrer gratuitement le timer lorsque rien n'est dû.
+- Après une absence, les revenus des entreprises et les échéances fiscales échues sont calculés **en bloc**, sans sauter de périodes. Les sommes déjà prélevées ne sont jamais soustraites deux fois.
+
+## Stats — progression et patrimoine
+
+La page **Stats** est l'onglet le plus à droite de la navigation principale. Elle affiche la progression (niveau, XP, nombre de clics, temps actif), les gains et pertes réalisés par source, les entreprises possédées, le rendement fixe total, et le tableau fiscal (dette, ventilation, total payé, prochaine échéance).
+
+**Fortune nette = cash (éventuellement négatif) + valeur de marché des titres + montant investi dans les entreprises − taxes encore dues.** La valeur des entreprises est **comptable** et ne signifie pas qu'elles sont revendables. Les taxes déjà payées sont incluses dans le cash et non déduites une deuxième fois. Les recettes historiques dont l'origine ne peut pas être reconstituée apparaissent dans **Historique non ventilé**, sans inventer des gains par source.
+
+## Sauvegarde locale, import/export et rattrapage hors ligne
+
+- Sauvegarde automatique **v5** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v4** sont migrées vers v5 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
+- Tout en bas de **Stats** : **Exporter** télécharge un JSON complet et versionné (`CAPITAL_IDLE_save_YYYY-MM-DD.json`) ; **Importer** valide le fichier (v4/v5, taille maximale **16 Mo**, cohérence du schéma, valeurs, horloges et portefeuille), présente un aperçu et demande une **confirmation avant remplacement** ; **Réinitialiser** nécessite la saisie exacte de `RESET`.
+- Import et reset remplacent la sauvegarde v5 **après arrêt de l'ancien moteur**, puis reprennent le jeu sur les horloges sauvegardées. Un fichier invalide est rejeté sans effacer la partie. Les anciennes clés v1–v4 sont effacées lors du remplacement, et une v5 reste prioritaire pour empêcher la résurrection d'une ancienne partie.
+- La restauration conserve les dates de simulation ; le revenu d'entreprises et les taxes sont repris sur toute la durée écoulée. Le **Trading/News/dividendes** conserve volontairement son rejeu **par tranches bornées** : une très longue absence peut demander plusieurs cycles pour rattraper ce sous-système, sans limiter les revenus fixes des entreprises.
+- La sauvegarde et les historiques peuvent utiliser plusieurs mégaoctets. Si le stockage local est bloqué/saturé, la session peut rester jouable, mais la progression n'est pas garantie après fermeture. **Exporter régulièrement** une copie JSON sécurise la partie. Les JSON sont modifiables par l'utilisateur : la validation vérifie la structure, ce n'est pas un système anti-triche ni une preuve cryptographique.
 
 ## Interface
 
-Navigation **Accueil / Trading**, puis dans Trading : **Portfolio / Actions / Crypto / News**. Interface sombre à accents dorés, affichage adapté à la hauteur visible du smartphone, défilement limité aux listes et fenêtres internes, boutons de fermeture et prise en charge d'Échap et du retour navigateur pour les modales. Le mode plein écran natif est proposé quand le navigateur le permet.
+Navigation **Accueil / Trading / Entreprises / Stats**, puis dans Trading : **Portfolio / Actions / Crypto / News**. Interface sombre à accents dorés, affichage adapté à la hauteur visible du smartphone, défilement limité aux listes et fenêtres internes, boutons de fermeture et prise en charge d'Échap et du retour navigateur pour les modales. Le mode plein écran natif est proposé quand le navigateur le permet.
 
 ## Développement
 
@@ -76,15 +100,17 @@ npm run build
 `npm test` exécute les vérifications de calculs financiers, les simulations temporelles, les migrations et les **tests de composants Vue**. `npm run build` lance le contrôle TypeScript puis génère `dist/` via Vite.
 
 - `src/game.ts` : clicker, niveaux et améliorations.
-- `src/capital.ts` / `src/persistence.ts` : solde unique, sauvegardes et migrations.
+- `src/capital.ts` / `src/persistence.ts` / `src/save-transfer.ts` : solde unique, sauvegardes, migrations, import/export et reset.
 - `src/trading/catalog.ts` : 45 actifs, bornes et quantités.
 - `src/trading/market.ts`, `news.ts`, `yield.ts` : simulateur de cours, annonces et rendements.
 - `src/trading/dividends.ts`, `clock.ts`, `runtime.ts` : revenus et rattrapage hors ligne.
 - `src/trading/trades.ts` : achat, vente, frais et Portfolio.
+- `src/economy/catalog.ts`, `enterprises.ts`, `clock.ts`, `fiscal.ts` : entreprises, revenus fixes, rattrapage hors ligne et fiscalité.
+- `src/economy/stats-ledger.ts`, `stats-overview.ts` : statistiques par source et bilan patrimonial.
 - `src/components/` : interfaces et modales.
 - `src/trading/news-library/` : récits des événements fictifs.
 
-Voir également [la roadmap Trading](ROADMAP_TRADING.md), [les règles du moteur News](TRADING_NEWS.md) et [l'interface Trading](TRADING_INTERFACE.md).
+Voir également [la roadmap Trading](ROADMAP_TRADING.md), [la roadmap Entreprises/Stats/Fiscalité](ROADMAP_ENTREPRISES_STATS_FISCALITE.md), [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md), [les règles du moteur News](TRADING_NEWS.md) et [l'interface Trading](TRADING_INTERFACE.md).
 
 ## Déploiement GitHub Pages
 
