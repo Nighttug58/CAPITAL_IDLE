@@ -14,7 +14,7 @@ export const MAX_IMPORT_FILE_BYTES = 16 * 1024 * 1024
 
 export interface SaveImportPreview {
   readonly state: CapitalState
-  readonly sourceVersion: 4 | 5
+  readonly sourceVersion: 4 | 5 | 6
   readonly exportedAt: number | null
 }
 
@@ -104,10 +104,10 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
     saved = parsed.state
   }
 
-  if (!isRecord(saved) || (saved.version !== CAPITAL_SAVE_VERSION && saved.version !== 4)) {
+  if (!isRecord(saved) || (saved.version !== CAPITAL_SAVE_VERSION && saved.version !== 5 && saved.version !== 4)) {
     return { ok: false, error: 'unsupported-version' }
   }
-  const version = saved.version as 4 | 5
+  const version = saved.version as 4 | 5 | 6
   const restored = restoreCapitalState(saved, now)
 
   // V4 n'a que les sections game/trading. Les deux doivent être entièrement
@@ -121,13 +121,21 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
     const normalized = normalizeLegacyOptionalFields(saved, restored) as Record<string, unknown>
     if (!sameValue(normalized.trading, canonicalTrading)) return { ok: false, error: 'invalid-save' }
   } else {
-    // Aucune validation silencieuse : les monnaies, prix, positions, niveaux,
-    // dates, historiques et champs fiscaux doivent survivre sans altération.
-    if (!['game', 'trading', 'enterprises', 'fiscal', 'stats'].every((key) => isRecord(saved[key]))) {
+    // Un fichier v5 ne possède pas encore la section prestige, que la migration
+    // crédite une seule fois. Un fichier v6 doit en revanche la fournir intacte.
+    const required = version === 6
+      ? ['game', 'trading', 'enterprises', 'fiscal', 'stats', 'prestige']
+      : ['game', 'trading', 'enterprises', 'fiscal', 'stats']
+    if (!required.every((key) => isRecord(saved[key]))) {
       return { ok: false, error: 'invalid-save' }
     }
     const normalized = normalizeLegacyOptionalFields(saved, restored)
-    if (!sameValue(normalized, restored)) return { ok: false, error: 'invalid-save' }
+    if (version === 5) {
+      const legacyProjection: Record<string, unknown> = { ...restored }
+      delete legacyProjection.prestige
+      // Match the historical schema without the newly introduced v6 ledger.
+      if (!sameValue(normalized, { ...legacyProjection, version: 5 })) return { ok: false, error: 'invalid-save' }
+    } else if (!sameValue(normalized, restored)) return { ok: false, error: 'invalid-save' }
   }
 
   const dates = [
