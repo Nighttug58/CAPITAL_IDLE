@@ -100,10 +100,21 @@ export function purchaseUpgrade(state: GameState): GameState {
 }
 
 // Ne charge jamais un état incohérent ou des valeurs non sûres.
-export function restoreGame(raw: unknown): GameState {
+// Les anciennes sauvegardes exigent un cash positif. Seul le schéma v5
+// pourra autoriser un découvert consécutif à un prélèvement fiscal.
+function isValidSignedBalance(value: unknown): value is number {
+  if (isValidMoney(value)) return true
+  if (typeof value !== 'number' || !Number.isFinite(value) || value >= 0 ||
+      value < -Number.MAX_SAFE_INTEGER / 100) return false
+  const cents = value * 100
+  return Number.isSafeInteger(Math.round(cents)) && Math.abs(cents - Math.round(cents)) < 0.0001
+}
+
+export function restoreGame(raw: unknown, options: { allowNegativeBalance?: boolean } = {}): GameState {
   if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
   const saved = raw as Partial<GameState>
-  if (!isValidMoney(saved.balance) || !isValidMoney(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
+  const validBalance = options.allowNegativeBalance ? isValidSignedBalance(saved.balance) : isValidMoney(saved.balance)
+  if (!validBalance || !isValidMoney(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
     return { ...INITIAL_GAME }
   }
   if (saved.balance > saved.lifetimeEarned || saved.purchasedUpgrades > UPGRADES.length) {
