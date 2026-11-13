@@ -466,3 +466,43 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
   .enterprise-summary > div { min-height: 62px; padding: 9px; gap: 4px; }
   .enterprise-category { margin-bottom: 12px; }
 }
+
+
+/* Stats / fiscalité : bouton de navigation tout à droite, paiement confirmé. */
+.bottom-nav .nav-home { max-width: 132px; font-size: clamp(9px, 2.55vw, 11px); }
+.stats-screen { display:flex; flex-direction:column; min-height:0; overflow:hidden; padding:clamp(9px,1.7dvh,18px) 14px 12px; gap:11px; }
+.stats-heading { flex:0 0 auto; border:1px solid rgba(218,180,109,.25); border-radius:15px; background:linear-gradient(130deg,#29271f,#151b1c); padding:13px 15px; }
+.stats-heading h1 { color:#f5d996; font-size:clamp(21px,6vw,26px); margin:5px 0 5px; line-height:1.1; }
+.stats-heading p { margin:0; font-size:11px; color:#a9b3ab; line-height:1.5; }
+.stats-scroll { flex:1 1 0; min-height:0; overflow:auto; scrollbar-width:thin; scrollbar-color:#6b593a transparent; overscroll-behavior-y:contain; padding:1px 2px 16px; }
+.stats-overview { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.stats-overview > div { display:flex; flex-direction:column; gap:7px; min-width:0; padding:12px; border:1px solid #37423b; border-radius:12px; background:#1a2322; }
+.stats-overview span { color:#a5b0aa; font-size:9px; font-weight:780; letter-spacing:.09em; }
+.stats-overview strong { color:#ede7d9; font-weight:790; font-size:clamp(14px,4vw,18px); overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.stats-overview strong.tax-debt { color:#ffaaa2; }
+.stats-tax-panel { margin-top:14px; padding:14px; border:1px solid rgba(214,169,86,.34); border-radius:14px; background:linear-gradient(150deg,#242820,#151d1c); }
+.stats-tax-title { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.stats-tax-title h2 { margin:0; color:#f2dcac; font-size:16px; }
+.stats-tax-title span { font-size:11px; color:#d0b77e; }
+.stats-tax-due { padding:15px 0 13px; display:flex; flex-direction:column; gap:8px; border-bottom:1px solid #3b4238; }
+.stats-tax-due > span:first-child { color:#b3b8aa; font-size:10px; font-weight:800; letter-spacing:.09em; }
+.stats-tax-due > strong { color:#f0a9a5; font-size:clamp(23px,6vw,31px); letter-spacing:-.03em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.stats-tax-due > span:last-child { font-size:12px; color:#b8c0b5; }
+.stats-tax-due b { color:#f1d498; }
+.stats-tax-sources { margin:14px 0 12px; display:flex; flex-direction:column; gap:10px; }
+.stats-tax-sources > div { display:flex; justify-content:space-between; gap:10px; align-items:center; color:#b8c0b5; font-size:12px; }
+.stats-tax-sources strong { color:#ece8dd; font-size:12px; font-variant-numeric:tabular-nums; }
+.stats-tax-sources .stats-tax-total { padding-top:10px; border-top:1px solid #3e473d; }
+.stats-tax-help { font-size:11px; line-height:1.6; color:#a9b5a9; margin:14px 0; }
+.stats-tax-pay { width:100%; min-height:45px; padding:10px; border:1px solid #eaca8d; border-radius:10px; color:#251a0b; font-weight:840; background:linear-gradient(#f3d99c,#c49140); }
+.stats-tax-pay:disabled { color:#a6aca3; border-color:#535953; background:#303735; }
+.stats-tax-confirm { margin-top:12px; padding:12px; border-radius:10px; border:1px solid #746343; background:#302b20; }
+.stats-tax-confirm strong { color:#f5e3ba; font-size:13px; }
+.stats-tax-confirm p { color:#d6c7a9; font-size:12px; line-height:1.5; }
+.stats-tax-confirm > div { display:flex; gap:8px; justify-content:flex-end; }
+.stats-tax-confirm button { min-height:40px; border:1px solid #6a6b5a; border-radius:8px; background:#28312f; color:#e9e1ce; padding:8px; font-size:11px; font-weight:750; }
+.stats-tax-confirm button.stats-tax-confirm-pay { border-color:#efcf87; background:#c9984c; color:#26190b; }
+.stats-tax-notice { font-size:12px; line-height:1.5; border:1px solid #477358; background:#254434; color:#c7f2d3; padding:10px; border-radius:9px; }
+.stats-followup-note { color:#8e9d93; font-size:11px; line-height:1.6; text-align:center; padding:18px; }
+@media(max-width:360px) { .stats-screen { padding-inline:9px; } .stats-tax-panel { padding:10px; } .bottom-nav { gap:3px; } .bottom-nav .nav-home { padding:4px 2px; font-size:9px; } }
+@media(max-height:610px) { .stats-screen { gap:7px; } .stats-heading { padding:9px 12px; } .stats-overview > div { padding:9px; } }
