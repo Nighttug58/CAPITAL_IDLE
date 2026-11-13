@@ -55,18 +55,45 @@ const isValidMoney = (value: unknown): value is number => {
   return exactMoneyCents(value) !== null
 }
 
-export function getLevel(lifetimeEarned: number): number {
-  const earned = Number.isFinite(lifetimeEarned) ? Math.max(0, lifetimeEarned) : 0
+/**
+ * The first 50 thresholds and 49 original click upgrades are frozen for
+ * backward compatibility. Levels 51+ use the same progression dynamically;
+ * no arbitrary level-100 cap and no unbounded threshold array.
+ */
+export function getLevelStartThreshold(level: number): number {
+  if (!Number.isSafeInteger(level) || level < 1) return 0
+  if (level <= LEVEL_THRESHOLDS.length) return LEVEL_THRESHOLDS[level - 1]!
+  let threshold = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
+  for (let nextLevel = LEVEL_THRESHOLDS.length + 1; nextLevel <= level; nextLevel++) {
+    const increment = Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
+    if (!Number.isSafeInteger(increment) || !Number.isSafeInteger(threshold + increment)) return Number.POSITIVE_INFINITY
+    threshold += increment
+  }
+  return threshold
+}
+
+export function getLevel(experiencePoints: number): number {
+  const earned = Number.isFinite(experiencePoints) ? Math.max(0, experiencePoints) : 0
   let level = 1
   for (let index = 1; index < LEVEL_THRESHOLDS.length; index++) {
-    if (earned < LEVEL_THRESHOLDS[index]) break
+    if (earned < LEVEL_THRESHOLDS[index]!) return level
     level = index + 1
+  }
+  let threshold = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
+  for (let nextLevel = LEVEL_THRESHOLDS.length + 1; nextLevel < Number.MAX_SAFE_INTEGER; nextLevel++) {
+    const increment = Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
+    if (!Number.isSafeInteger(increment) || !Number.isSafeInteger(threshold + increment)) break
+    const nextThreshold = threshold + increment
+    if (earned < nextThreshold) break
+    threshold = nextThreshold
+    level = nextLevel
   }
   return level
 }
 
-export function getNextLevelThreshold(lifetimeEarned: number): number | null {
-  return LEVEL_THRESHOLDS[getLevel(lifetimeEarned)] ?? null
+export function getNextLevelThreshold(experiencePoints: number): number | null {
+  const threshold = getLevelStartThreshold(getLevel(experiencePoints) + 1)
+  return Number.isSafeInteger(threshold) ? threshold : null
 }
 
 export function getClickValue(purchasedUpgrades: number): number {
@@ -88,9 +115,9 @@ export function earnClick(state: GameState): GameState {
   }
 }
 
-export function purchaseUpgrade(state: GameState): GameState {
+export function purchaseUpgrade(state: GameState, experiencePoints = state.lifetimeEarned): GameState {
   const upgrade = getNextUpgrade(state)
-  if (!upgrade || getLevel(state.lifetimeEarned) < upgrade.requiredLevel || state.balance < upgrade.price) {
+  if (!upgrade || getLevel(experiencePoints) < upgrade.requiredLevel || state.balance < upgrade.price) {
     return state
   }
   return {
@@ -110,7 +137,7 @@ function isValidSignedBalance(value: unknown): value is number {
   return exactMoneyCents(value) !== null
 }
 
-export function restoreGame(raw: unknown, options: { allowNegativeBalance?: boolean } = {}): GameState {
+export function restoreGame(raw: unknown, options: { allowNegativeBalance?: boolean; experiencePoints?: number } = {}): GameState {
   if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
   const saved = raw as Partial<GameState>
   const validBalance = options.allowNegativeBalance ? isValidSignedBalance(saved.balance) : isValidMoney(saved.balance)
@@ -121,7 +148,7 @@ export function restoreGame(raw: unknown, options: { allowNegativeBalance?: bool
     return { ...INITIAL_GAME }
   }
   const highestPurchasedLevel = saved.purchasedUpgrades === 0 ? 1 : UPGRADES[saved.purchasedUpgrades - 1]!.requiredLevel
-  if (highestPurchasedLevel > getLevel(saved.lifetimeEarned)) return { ...INITIAL_GAME }
+  if (highestPurchasedLevel > getLevel(options.experiencePoints ?? saved.lifetimeEarned)) return { ...INITIAL_GAME }
   return {
     balance: saved.balance,
     lifetimeEarned: saved.lifetimeEarned,
