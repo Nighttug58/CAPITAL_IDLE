@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 1/8 passes livrées**  
+**Statut : en cours — 2/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -115,7 +115,7 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Validation exécutée :** `node --experimental-strip-types --test src/prestige/catalog.test.ts` → **5/5 PASS** ; `tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --allowImportingTsExtensions --strict --noUnusedLocals --noUnusedParameters src/prestige/catalog.ts` → **PASS**. Identité des contenus testés et commités vérifiée par SHA Git blob. **Limite :** `npm test` complet et `npm run build` du dépôt entier non exécutés localement (clone complet inaccessible dans l'environnement de validation) ; les exécuter dès qu'un environnement complet est disponible, au plus tard en passe 8. Aucun changement de runtime ni de l'UI à cette passe.
 
 
-### [ ] Passe 2 — Niveaux au-delà de 100, XP distincte, état Fame et migration
+### [x] Passe 2 — Niveaux au-delà de 100, XP distincte, état Fame et migration
 
 - Séparer XP de `lifetimeEarned` dans la progression : les 50 seuils historiques jusqu'au niveau 50 restent compatibles ; étendre les niveaux au-delà de 100 de manière stable et sûre.
 - Corriger `isEnterpriseUnlocked` qui rejette actuellement les joueurs de niveau >50, sans modifier les conditions de niveau minimum des 20 entreprises.
@@ -123,6 +123,10 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - Migrations : créditer une seule fois la somme des niveaux déjà atteints ; frais et bonus préexistants inchangés ; aucune monnaie perdue ni double récompense.
 - Tests : level-up multiple (y compris hors ligne), niveau 1, 50→51, 99→100, >100, migrations et sauvegardes invalides.
 - Livrable : progression sans plafond arbitraire à 100 et comptabilité Fame fiable.
+- **Livraison vérifiée du 13/11/2026 :** `src/game.ts` conserve les 50 seuils historiques et les 49 upgrades du clic, mais calcule les niveaux 51+ dynamiquement ; `src/economy/catalog.ts` accepte les joueurs de niveau supérieur à 50. L'état v6 ajoute `prestige.experienceCents`, `fameMicros`, les Fame cumulées et leur origine, le dernier niveau récompensé, les futurs niveaux de boosts et les collections possédées. La Fame niveau 1 vaut 1 ; chaque niveau atteint `n` attribue une fois `n` Fame (y compris saut de niveaux). Les revenus cash restent distincts de l'XP.
+- Les quatre propriétaires des crédits (clic, entreprises, dividendes, profits positifs reconnus au Trading) enregistrent maintenant l'XP et les Fame de niveaux via `creditExperience` ; ni les achats ni les taxes ne créent d'XP. L'affichage de progression et Stats lit l'XP distincte ; les revenus monétaires et leur ventilation restent inchangés.
+- **Sauvegarde :** priorité `localStorage` v6, migration **v1–v5** sans répétition, import JSON brut v4/v5/v6 validé avant remplacement, export complet v6 et reset conservés. Les tests historiques v5 ont été adaptés et `src/prestige/state.test.ts` couvre niveau 1, 50/51, 99/100, 100/101, sauts, restauration v5 et données Fame corrompues.
+- **Validation CI confirmée :** GitHub Actions `Build main/root site` a réussi `npm test` (incluant les tests UI Vue et les tests Fame) et `npm run build:root`, puis généré/commité les artefacts de production dans [`0390c371`](https://github.com/Nighttug58/CAPITAL_IDLE/commit/0390c3715a47df04f6d7aa169197b4eefd8bf7af). Les changements de gameplay visuel Fame/Collection restent réservés aux passes 4–7.
 
 ### [ ] Passe 3 — Moteur partagé de bonus, intégration aux six sources
 
