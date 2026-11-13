@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
+import { recordRealizedTrade } from '../economy/stats-ledger.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
@@ -274,7 +275,10 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   // Le prix de revient vendu inclut déjà les frais d'achat ; le produit
   // de vente est déjà net de ses frais. Ne pas imposer le capital récupéré.
   // La taxe est une dette et ne modifie ni le cash de vente ni les niveaux.
-  const taxable = accrueProfitTax(nextState, asset.kind === 'stock' ? 'stocks' : asset.kind === 'memecoin' ? 'memecoins' : 'crypto', Math.max(0, profit))
+  const source = asset.kind === 'stock' ? 'stocks' : asset.kind === 'memecoin' ? 'memecoins' : 'crypto'
+  const tracked = recordRealizedTrade(nextState, source, profit)
+  if (!tracked) return reject(state, 'money-overflow')
+  const taxable = accrueProfitTax(tracked, source, Math.max(0, profit))
   if (!taxable) return reject(state, 'money-overflow')
   const taxAccrued = taxable.fiscal.taxesDueCents - state.fiscal.taxesDueCents
   return {

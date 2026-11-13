@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { advanceFiscalEconomy } from '../economy/clock.ts'
+import { recordDividendCredit } from '../economy/stats-ledger.ts'
 import { ASSETS } from './catalog.ts'
 import { MARKET_TICK_MS, advanceMarketTick } from './market.ts'
 import type { TradingState } from './types.ts'
@@ -74,5 +75,7 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
   // Même propriétaire de la chronologie fiscale que le runtime : le replay
   // Trading ne peut plus encaisser un revenu d'entreprise après une échéance
   // sans prélever d'abord la dette des 72 heures correspondantes.
-  return advanceFiscalEconomy(credited, at)
+  const tracked = recordDividendCredit(credited, paidCents)
+  if (!tracked) return capital // Ne pas encaisser sans tracer le dividende.
+  return advanceFiscalEconomy(tracked, at)
 }

@@ -506,3 +506,41 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
 .stats-followup-note { color:#8e9d93; font-size:11px; line-height:1.6; text-align:center; padding:18px; }
 @media(max-width:360px) { .stats-screen { padding-inline:9px; } .stats-tax-panel { padding:10px; } .bottom-nav { gap:3px; } .bottom-nav .nav-home { padding:4px 2px; font-size:9px; } }
 @media(max-height:610px) { .stats-screen { gap:7px; } .stats-heading { padding:9px 12px; } .stats-overview > div { padding:9px; } }
+
+
+/* Stats v2 : sections scrollables, typographie resserrée, graphiques légers. */
+.stats-section { border:1px solid #38433c; border-radius:13px; background:linear-gradient(150deg,#1e2925,#161e1d); padding:14px; margin-top:13px; min-width:0; }
+.stats-section-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.stats-section-heading h2 { font-size:15px; color:#f1d99e; margin:0; font-weight:780; }
+.stats-section-heading > span { font-size:9px; font-weight:760; color:#b8ac90; letter-spacing:.06em; }
+.stats-footnote { color:#9caea3; font-size:11px; line-height:1.55; margin:11px 0 0; }
+.stats-progress-meter { width:100%; height:9px; border-radius:6px; background:#29352d; overflow:hidden; }
+.stats-progress-meter > div { height:100%; border-radius:6px; background:linear-gradient(90deg,#997037,#f0d192); }
+.stats-progress-description { display:flex; justify-content:space-between; gap:8px; align-items:center; margin:9px 0 14px; color:#b8c3b6; font-size:10px; font-variant-numeric:tabular-nums; }
+.stats-mini-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.stats-mini-grid > div { display:flex; min-width:0; flex-direction:column; gap:7px; padding:11px; border-radius:9px; background:#24312b; border:1px solid #384b3d; }
+.stats-mini-grid span { font-size:9px; letter-spacing:.035em; font-weight:710; color:#aab8ad; }
+.stats-mini-grid strong { font-size:clamp(12px,3.5vw,17px); font-variant-numeric:tabular-nums; color:#f0e7d4; overflow-wrap:anywhere; }
+.stats-mini-grid .stats-income-value { color:#96e4b6; }
+.stats-source-list { display:flex; flex-direction:column; gap:15px; margin-top:16px; }
+.stats-source { min-width:0; }
+.stats-source-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; color:#e4e5d9; font-size:12px; }
+.stats-source-top span { color:#bce4cb; font-weight:720; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; text-align:right; }
+.stats-source-track { height:6px; border-radius:5px; overflow:hidden; background:#2b3831; }
+.stats-source-track > div { height:100%; background:linear-gradient(90deg,#758b6b,#b3c889); border-radius:5px; }
+.stats-source-loss { display:flex; justify-content:space-between; gap:9px; margin-top:6px; color:#c5aaa3; font-size:10px; }
+.stats-source-loss strong { color:#ffaba2; }
+.stats-totals,.stats-balance-list { display:flex; flex-direction:column; gap:10px; margin-top:16px; padding-top:12px; border-top:1px solid #41483b; }
+.stats-totals > div,.stats-balance-list > div { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; font-size:11px; color:#b4c2b6; }
+.stats-totals strong,.stats-balance-list strong { text-align:right; color:#f1ead8; font-size:12px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.stats-totals strong.tax-debt,.stats-balance-list strong.tax-debt { color:#ffaaa2; }
+.stats-balance-list > div.stats-balance-result { padding-top:11px; border-top:1px solid #65714e; font-weight:800; font-size:13px; color:#f2d994; }
+.stats-balance-list > div.stats-balance-result strong { color:#f2d994; font-size:15px; }
+@media(max-width:360px) {
+ .stats-section { padding:10px; margin-top:9px; }
+ .stats-section-heading h2 { font-size:14px; }
+ .stats-mini-grid > div { padding:9px; }
+ .stats-source-top { font-size:11px; }
+ .stats-overview > div { padding:10px; }
+}
+@media(max-height:610px) { .stats-section { padding:10px; } }

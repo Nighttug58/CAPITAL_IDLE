@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { readFileSync } from 'node:fs'
 import App from '../App.vue'
 import StatsScreen from './StatsScreen.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
@@ -81,5 +82,50 @@ describe('Stats / fiscalité', () => {
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
     await nav[1]!.trigger('click')
     expect(wrapper.find('.trading-screen').isVisible()).toBe(true)
+  })
+})
+
+describe('Stats : progression et patrimoine complet', () => {
+  it('affiche toutes les sources, les niveaux, les entreprises et le bilan sans le compter deux fois', () => {
+    const { wrapper } = setup()
+    expect(wrapper.find('.stats-progress').exists()).toBe(true)
+    expect(wrapper.find('.stats-enterprises').exists()).toBe(true)
+    expect(wrapper.find('.stats-assets').exists()).toBe(true)
+    expect(wrapper.findAll('.stats-source')).toHaveLength(7)
+    expect(wrapper.find('.stats-source[data-source="unclassified"]').text()).toContain('Historique non ventilé')
+    expect(wrapper.find('.stats-source[data-source="clicks"]').text()).toContain('Clics')
+    expect(wrapper.find('.stats-source[data-source="dividends"]').text()).toContain('Dividendes')
+    expect(wrapper.find('.stats-sources').text()).toContain('Pertes réalisées')
+    expect(wrapper.find('.stats-assets').text()).toContain('Taxes encore dues')
+    expect(wrapper.find('.stats-assets').text()).toContain('Fortune nette')
+    expect(wrapper.find('.stats-progress-meter').attributes('role')).toBe('progressbar')
+    expect(wrapper.find('.stats-progress-meter').attributes('aria-valuenow')).toBeDefined()
+  })
+
+  it('comptabilise un clic réel puis l affiche sur Stats sans changer le cumul historique', async () => {
+    const now = Date.now()
+    const state = createCapitalState({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 0 }, now)
+    localStorage.setItem('capital-idle-save-v5', JSON.stringify(state))
+    const wrapper = mount(App, { attachTo: document.body })
+    mounted.push(wrapper)
+    await wrapper.find('.tap-zone').trigger('click')
+    await nextTick()
+    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
+    expect(stored.stats.clickCount).toBe(1)
+    expect(stored.stats.earnedBySource.clicks).toBe(1)
+    expect(stored.stats.earnedBySource.unclassified).toBe(100)
+    expect(stored.game.lifetimeEarned).toBe(101)
+    await wrapper.findAll('.bottom-nav button')[3]!.trigger('click')
+    expect(wrapper.find('.stats-source[data-source="clicks"]').text()).toContain('1')
+    expect(wrapper.find('.stats-progress').text()).toContain('101')
+  })
+
+  it('petits écrans : sections scrollables et mise en page à deux colonnes repliables', () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toContain('.stats-scroll { flex:1 1 0; min-height:0; overflow:auto;')
+    expect(css).toContain('.stats-mini-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));')
+    expect(css).toContain('@media(max-width:360px)')
+    expect(css).toContain('.stats-source-track')
+    expect(css).toContain('.stats-balance-result')
   })
 })
