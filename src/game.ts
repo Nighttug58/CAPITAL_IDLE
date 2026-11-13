@@ -10,17 +10,33 @@ export interface Upgrade {
   readonly clickValue: number
 }
 
-// Le niveau dépend UNIQUEMENT du total gagné depuis le début de la partie.
-// Chaque niveau après le premier déverrouille une amélioration payante.
-export const LEVEL_THRESHOLDS = [0, 100, 500, 2_000, 10_000, 50_000] as const
+// Progression douce : 30 niveaux, étapes qui grandissent de 21 % par niveau.
+// Le niveau dépend exclusivement des gains cumulés, jamais du solde.
+const LEVEL_COUNT = 30
+const FIRST_LEVEL_STEP = 35
+const STEP_GROWTH = 1.21
 
-export const UPGRADES: readonly Upgrade[] = [
-  { requiredLevel: 2, price: 50, clickValue: 2 },
-  { requiredLevel: 3, price: 250, clickValue: 5 },
-  { requiredLevel: 4, price: 1_000, clickValue: 10 },
-  { requiredLevel: 5, price: 5_000, clickValue: 25 },
-  { requiredLevel: 6, price: 25_000, clickValue: 50 },
-]
+export const LEVEL_THRESHOLDS: readonly number[] = (() => {
+  const thresholds = [0]
+  for (let level = 2; level <= LEVEL_COUNT; level++) {
+    const increment = Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (level - 2))
+    thresholds.push(thresholds[thresholds.length - 1]! + increment)
+  }
+  return thresholds
+})()
+
+const clickValueForLevel = (level: number): number =>
+  level <= 10 ? level : 10 + 2 * (level - 10)
+
+export const UPGRADES: readonly Upgrade[] = LEVEL_THRESHOLDS.slice(1).map((threshold, index) => {
+  const level = index + 2
+  const step = threshold - LEVEL_THRESHOLDS[index]!
+  return {
+    requiredLevel: level,
+    price: Math.max(5, Math.round((step * 0.6) / 5) * 5),
+    clickValue: clickValueForLevel(level),
+  }
+})
 
 export const INITIAL_GAME: Readonly<GameState> = {
   balance: 0,
@@ -93,4 +109,31 @@ export function restoreGame(raw: unknown): GameState {
     lifetimeEarned: saved.lifetimeEarned,
     purchasedUpgrades: saved.purchasedUpgrades,
   }
+}
+
+// Les anciennes sauvegardes v1 avaient seulement 6 niveaux et des boosts de
+// 1 / 2 / 5 / 10 / 25 / 50 $ par clic. Préserver au moins ce revenu après migration.
+const LEGACY_THRESHOLDS = [0, 100, 500, 2_000, 10_000, 50_000] as const
+const LEGACY_CLICK_VALUES = [1, 2, 5, 10, 25, 50] as const
+
+export function migrateLegacyGame(raw: unknown): GameState {
+  if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
+  const previous = raw as Partial<GameState>
+  if (!isValidInteger(previous.balance) || !isValidInteger(previous.lifetimeEarned) || !isValidInteger(previous.purchasedUpgrades)) {
+    return { ...INITIAL_GAME }
+  }
+  if (previous.balance > previous.lifetimeEarned || previous.purchasedUpgrades >= LEGACY_CLICK_VALUES.length) {
+    return { ...INITIAL_GAME }
+  }
+  if (previous.purchasedUpgrades > 0 && previous.lifetimeEarned < LEGACY_THRESHOLDS[previous.purchasedUpgrades]!) {
+    return { ...INITIAL_GAME }
+  }
+
+  const oldClickValue = LEGACY_CLICK_VALUES[previous.purchasedUpgrades]!
+  const purchasedUpgrades = oldClickValue === 1 ? 0 : UPGRADES.findIndex((upgrade) => upgrade.clickValue >= oldClickValue) + 1
+  return restoreGame({
+    balance: previous.balance,
+    lifetimeEarned: previous.lifetimeEarned,
+    purchasedUpgrades,
+  })
 }
