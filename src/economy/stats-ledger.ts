@@ -1,12 +1,9 @@
 import type { CapitalState } from '../capital.ts'
+import { exactMoneyCents } from '../money.ts'
 import { earnClick } from '../game.ts'
 import type { EarningsSource } from './state.ts'
 
-function monetaryCents(value: number): number | null {
-  const cents = Math.round(value * 100)
-  return Number.isFinite(value) && Number.isSafeInteger(cents) &&
-    Math.abs(value * 100 - cents) < 0.0001 ? cents : null
-}
+function monetaryCents(value: number): number | null { return exactMoneyCents(value) }
 
 /** Un clic modifie game + stats en une seule transition, jamais l'XP deux fois. */
 export function earnCapitalClick(state: CapitalState): CapitalState {
