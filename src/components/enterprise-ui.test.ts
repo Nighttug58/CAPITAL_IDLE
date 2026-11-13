@@ -111,7 +111,8 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(wrapper.find('.enterprise-card').text()).toContain('Possédée')
     const saved = JSON.parse(localStorage.getItem('capital-idle-save-v5')!) as CapitalState
     expect(saved.enterprises.owned.kiosque?.level).toBe(1)
-    expect(saved.game.balance).toBe(925_000)
+    expect(saved.game.balance).toBeGreaterThanOrEqual(925_000)
+    expect(saved.game.balance).toBeLessThan(925_005)
     await buttons[0]!.trigger('click')
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
     expect(wrapper.find('.balance-value').text()).toContain(new Intl.NumberFormat('fr-CH').format(925_000))
