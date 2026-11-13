@@ -1,4 +1,5 @@
 import type { CapitalState } from '../capital.ts'
+import { exactMoneyCents } from '../money.ts'
 import { getLevel } from '../game.ts'
 import {
   ENTERPRISES,
@@ -34,12 +35,7 @@ function reject(state: CapitalState, error: EnterpriseError): EnterpriseResult {
   return { ok: false, state, error }
 }
 
-function validCents(value: number): number | null {
-  if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER / CENTS_PER_DOLLAR) return null
-  const cents = Math.round(value * CENTS_PER_DOLLAR)
-  return Number.isSafeInteger(cents) && Math.abs(value * CENTS_PER_DOLLAR - cents) < 0.0001
-    ? cents : null
-}
+function validCents(value: number): number | null { return exactMoneyCents(value) }
 
 function validTime(time: number): boolean {
   return Number.isSafeInteger(time) && time >= 0
