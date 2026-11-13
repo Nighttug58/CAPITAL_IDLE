@@ -63,7 +63,7 @@ describe('Fame Shop & Collection — responsive UI', () => {
     expect(wrapper.find('.fame-boost-card[data-boost="click"] .fame-boost-level').text()).toContain('1/20')
     expect(wrapper.find('.fame-boost-card[data-boost="click"] .fame-boost-cost').text()).toContain('67')
     expect(wrapper.find('.fame-shop-summary').text()).toContain('1 / 120')
-    expect(wrapper.find('.fame-shop-dialog .prestige-notice').text()).toContain('Achetée')
+    expect(wrapper.find('.fame-shop-dialog .prestige-notice').text()).toContain('achetée')
     await wrapper.find('.prestige-close').trigger('click')
     expect(wrapper.find('.fame-shop-dialog').exists()).toBe(false)
     await wrapper.find('.fame-shop-launch').trigger('click')
