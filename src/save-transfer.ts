@@ -72,6 +72,15 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
       }
     }
   }
+  if (input.version === 6) {
+    const prestige = input.prestige
+    if (isRecord(prestige) && isRecord(restored.prestige)) {
+      // Preserve valid Fame acquired before sub-cent carry fields existed.
+      for (const field of ['experienceCarryBps', 'clickCarryBps', 'tradingCarryBps'] as const) {
+        if (!(field in prestige)) prestige[field] = 0
+      }
+    }
+  }
   return input
 }
 
