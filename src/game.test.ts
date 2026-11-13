@@ -117,3 +117,22 @@ test('migration v2 : chaque ancien boost conserve exactement le revenu par clic'
 test('migration v2 : les données impossibles sont refusées', () => {
   assert.deepEqual(migrateV2Game({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 20 }), INITIAL_GAME)
 })
+
+test('le solde négatif est refusé par défaut et accepté uniquement pour la v5 fiscale', () => {
+  const raw = { balance: -12.34, lifetimeEarned: 100, purchasedUpgrades: 1 }
+  assert.deepEqual(restoreGame(raw), INITIAL_GAME)
+  assert.deepEqual(restoreGame(raw, { allowNegativeBalance: true }), raw)
+  assert.deepEqual(restoreGame({ ...raw, balance: Number.NaN }, { allowNegativeBalance: true }), INITIAL_GAME)
+  assert.deepEqual(restoreGame({ ...raw, balance: Number.NEGATIVE_INFINITY }, { allowNegativeBalance: true }), INITIAL_GAME)
+  assert.deepEqual(restoreGame({ ...raw, balance: -0.001 }, { allowNegativeBalance: true }), INITIAL_GAME)
+  assert.deepEqual(restoreGame({ ...raw, balance: Number.MIN_SAFE_INTEGER }, { allowNegativeBalance: true }), INITIAL_GAME)
+})
+
+test('un joueur endetté gagne normalement des clics sans pouvoir acheter à crédit', () => {
+  const negative = restoreGame({ balance: -5, lifetimeEarned: 100, purchasedUpgrades: 1 }, { allowNegativeBalance: true })
+  assert.deepEqual(purchaseUpgrade(negative), negative)
+  const credited = earnClick(negative)
+  assert.equal(credited.balance, -3)
+  assert.equal(credited.lifetimeEarned, 102)
+  assert.equal(purchaseUpgrade(credited), credited)
+})
