@@ -214,6 +214,7 @@ function pay() {
           <div><span>Liquidités (découvert inclus)</span><strong :class="{ 'tax-debt': overview.cash < 0 }">{{ cash(overview.cash) }}</strong></div>
           <div><span>Actions et cryptos · valeur de marché</span><strong>{{ cash(overview.assetMarketValue) }}</strong></div>
           <div><span>Entreprises · valeur comptable</span><strong>{{ cash(overview.enterpriseBookValue) }}</strong></div>
+          <div><span>Collections · valeur comptable</span><strong>{{ cash(overview.collectionBookValue) }}</strong></div>
           <div><span>Taxes encore dues</span><strong class="tax-debt">−{{ cash(overview.taxesDue) }}</strong></div>
           <div class="stats-balance-result"><span>Fortune nette</span><strong :class="{ 'tax-debt': overview.netWorth < 0 }">{{ cash(overview.netWorth) }}</strong></div>
         </div>
