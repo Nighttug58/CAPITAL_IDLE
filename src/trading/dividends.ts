@@ -1,5 +1,5 @@
 import type { CapitalState } from '../capital.ts'
-import { advanceEnterpriseIncome } from '../economy/enterprises.ts'
+import { advanceFiscalEconomy } from '../economy/clock.ts'
 import { ASSETS } from './catalog.ts'
 import { MARKET_TICK_MS, advanceMarketTick } from './market.ts'
 import type { TradingState } from './types.ts'
@@ -71,6 +71,8 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
       dividendPendingCents,
     },
   }
-  // Même horloge que les dividendes et le marché, aucun timer supplémentaire.
-  return advanceEnterpriseIncome(credited, at)
+  // Même propriétaire de la chronologie fiscale que le runtime : le replay
+  // Trading ne peut plus encaisser un revenu d'entreprise après une échéance
+  // sans prélever d'abord la dette des 72 heures correspondantes.
+  return advanceFiscalEconomy(credited, at)
 }
