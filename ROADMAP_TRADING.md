@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
-Statut : **planification validée, implémentation non commencée**  
+Statut : **en développement — passes 1 et 2 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**
 
@@ -87,11 +87,14 @@ Dernière définition fonctionnelle : **13 novembre 2026**
 
 ### Passe 2 — Catalogue des 45 actifs
 
-- [ ] Ajouter exactement 20 entreprises fictives et leurs tickers, profils, prix de référence, quantités, bornes, rendements initiaux.
-- [ ] Ajouter exactement 15 cryptos et 10 memecoins authentiques, prix de référence et offre de création/max, avec une fiche de provenance/datation des références.
-- [ ] Conserver les règles de calcul des bornes explicites, contrôler les incohérences d'actifs sans plafond naturel ; permettre la totalité du stock achetable.
-- [ ] Tests d'unicité, de nombres, de bornes et de quantités.
+- [x] Ajouter exactement 20 entreprises fictives et leurs tickers, profils, prix de référence, quantités, bornes, rendements initiaux.
+- [x] Ajouter exactement 15 cryptos et 10 memecoins authentiques, prix de référence et offre de création/max, avec une fiche de provenance/datation des références.
+- [x] Conserver les règles de calcul des bornes explicites, contrôler les incohérences d'actifs sans plafond naturel ; permettre la totalité du stock achetable.
+- [x] Tests d'unicité, de nombres, de bornes et de quantités.
 - **Livrable :** catalogue auditable, exploitable par moteur et UI.
+
+**Validée le 13/11/2026** — [catalogue 1bea41b](https://github.com/Nighttug58/CAPITAL_IDLE/commit/1bea41bc87d2bdac6e9ca3b6fe28b89a5fc886d3), [correctif a479024](https://github.com/Nighttug58/CAPITAL_IDLE/commit/a4790242b3c2318a5dd9a3e7a8239b650c95f570). **npm test** et **npm run build** réussis dans [GitHub Actions #43443878397](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43443878397). Sources et quantités explicitées dans **TRADING_ASSETS.md**. Le plafond crypto V1 est provisoirement 5× le prix de référence du 13/11, et non 5× un record historique non vérifié ; cette convention pourra être affinée avant simulation.
+
 
 ### Passe 3 — Simulateur de cours chaotiques
 
