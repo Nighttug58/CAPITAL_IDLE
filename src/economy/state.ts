@@ -1,10 +1,11 @@
 /**
  * Contrats persistants de l'économie (passe 1).
- * Aucun moteur de revenu ou prélèvement n'est activé ici.
+ * Tous les montants fiscaux sont stockés en centimes entiers.
  * Fiscalité : entiers en centimes ; statistiques de gains : dollars (format du jeu).
  */
 export const FISCAL_PERIOD_MS = 72 * 60 * 60 * 1_000
-export const FISCAL_TAX_RATE: number | null = null // À décider avant activation en passe 4.
+// Taux de gameplay provisoire proposé : 15 %, centralisé et modifiable.
+export const FISCAL_TAX_RATE = 0.15
 export const MAX_ENTERPRISE_LEVEL = 20
 
 export type TaxSource = 'enterprises' | 'stocks' | 'crypto' | 'memecoins'
@@ -29,6 +30,8 @@ export interface FiscalState {
   readonly taxesPaidCents: number
   readonly dueBySourceCents: TaxBreakdown
   readonly paidBySourceCents: TaxBreakdown
+  // Reste fractionnaire des taxes entreprises, en dix-millièmes de centime.
+  readonly enterpriseTaxRemainderBps: number
 }
 
 export type EarningsBreakdown = Record<EarningsSource, number>
@@ -92,6 +95,7 @@ export function createInitialFiscalState(now = Date.now()): FiscalState {
   return {
     periodStartedAt: safeTime(now), taxesDueCents: 0, taxesPaidCents: 0,
     dueBySourceCents: emptyTaxes(), paidBySourceCents: emptyTaxes(),
+    enterpriseTaxRemainderBps: 0,
   }
 }
 export function createInitialStatsState(now = Date.now(), legacyUnclassified = 0): StatsState {
@@ -124,11 +128,14 @@ export function restoreFiscalState(raw: unknown, now = Date.now()): FiscalState 
     !Number.isSafeInteger(totalCents(raw.dueBySourceCents)) ||
     !Number.isSafeInteger(totalCents(raw.paidBySourceCents)) ||
     totalCents(raw.dueBySourceCents) !== raw.taxesDueCents ||
-    totalCents(raw.paidBySourceCents) !== raw.taxesPaidCents) return fallback()
+    totalCents(raw.paidBySourceCents) !== raw.taxesPaidCents ||
+    !(raw.enterpriseTaxRemainderBps === undefined ||
+      (isSafeCount(raw.enterpriseTaxRemainderBps) && raw.enterpriseTaxRemainderBps < 10_000))) return fallback()
   return {
     periodStartedAt: raw.periodStartedAt,
     taxesDueCents: raw.taxesDueCents, taxesPaidCents: raw.taxesPaidCents,
     dueBySourceCents: raw.dueBySourceCents, paidBySourceCents: raw.paidBySourceCents,
+    enterpriseTaxRemainderBps: typeof raw.enterpriseTaxRemainderBps === 'number' ? raw.enterpriseTaxRemainderBps : 0,
   }
 }
 
