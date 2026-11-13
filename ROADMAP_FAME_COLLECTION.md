@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : planifiée — 0/8 passes livrées**  
+**Statut : en cours — 1/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -53,7 +53,7 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - Cinq **onglets** uniquement : **Montres, Autos, Peintures, Antiquités, Joaillerie**.
 - **10 objets par catégorie**, catalogue immuable : ID stable, nom, courte description, catégorie, prix en Gold/cash, illustration ou traitement visuel, Fame attribuée, type de bonus parmi les **six existants**, bonus en points de base, état possédé.
 - Sélection ⇒ **modale descriptive** lisible avec résumé, prix, Fame attribuée, effet et bouton Acheter. **Un achat par objet**, définitif ; **aucune revente**, aucun double crédit après réouverture/import.
-- Le prix en Gold augmente avec le rang/rareté. **Déterminer les 50 prix réels lors de l'équilibrage** à partir des revenus/entreprises déjà dans le jeu (et de la précision monétaire), plutôt que d'inventer maintenant une grille incompatible. Prévoir des objets accessibles tôt et des objets prestigieux de fin de progression.
+- Le prix en Gold augmente avec le rang/rareté. **Les 50 prix fictifs ont été fixés en passe 1** dans `src/prestige/catalog.ts`, entre **1 500 $ et 450 M$**, en s'appuyant sur les jalons du catalogue Entreprises (Kiosque 75 k$, Centre commercial 500 M$ / retour brut 30 h). Ils restent ajustables ultérieurement sur justification mesurée, sans toucher à la Fame attribuée. Prévoir des objets accessibles tôt et des objets prestigieux de fin de progression.
 - Bonus d'objet **petits et permanents**, de **+0,1 %** à **+5,0 %**, répartis sur les mêmes six statistiques que la boutique, et jamais un bonus nouveau.
 
 | Rang dans chaque catégorie | Fame de base | Bonus permanent |
@@ -105,12 +105,15 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 
 ## 2. Plan d'implémentation en 8 passes
 
-### [ ] Passe 1 — Socle de catalogue et tests d'équilibrage
+### [x] Passe 1 — Socle de catalogue et tests d'équilibrage
 
 - Fixer des IDs stables pour les six bonus et cinq catégories ; ajouter tables immuables : 20 coûts normaux, 20 coûts Notoriété, rangs collection Fame/bonus.
 - Créer les tests vérifiant sommes **3 890 / 5 200 / 24 650**, **4 040 × 5 = 20 200**, **25 250 − 24 650 = 600**, **80 %** de Fame de base issues des collections.
 - Déterminer les **50 prix cash**, avec simulation/profil de revenus existants (départ, niveaux 10/25/50/75/100, revenus entreprises/Trading, hors ligne) et borner chaque prix en centimes sûrs.
 - Livrable : catalogue central et règles de calcul testées, **sans changement visible dans le jeu**.
+- **Livraison du 13/11/2026 :** `src/prestige/catalog.ts` (six boosts, prix exacts des 20 paliers, cinq catégories, 50 emplacements à ID stable, récompenses et 50 prix cash immuables), `src/prestige/catalog.test.ts` (cinq tests), `package.json` (script npm test mis à jour). Contrôle de sommes : 3 890 × 5 + 5 200 = 24 650 ; 50 objets = 20 200 Fame ; niveau 100 = 5 050 ; solde sans boosts = 600.
+- **Validation exécutée :** `node --experimental-strip-types --test src/prestige/catalog.test.ts` → **5/5 PASS** ; `tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --allowImportingTsExtensions --strict --noUnusedLocals --noUnusedParameters src/prestige/catalog.ts` → **PASS**. Identité des contenus testés et commités vérifiée par SHA Git blob. **Limite :** `npm test` complet et `npm run build` du dépôt entier non exécutés localement (clone complet inaccessible dans l'environnement de validation) ; les exécuter dès qu'un environnement complet est disponible, au plus tard en passe 8. Aucun changement de runtime ni de l'UI à cette passe.
+
 
 ### [ ] Passe 2 — Niveaux au-delà de 100, XP distincte, état Fame et migration
 
