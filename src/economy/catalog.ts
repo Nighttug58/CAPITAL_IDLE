@@ -57,31 +57,34 @@ const milestoneByLevel = new Map<number, EnterpriseMilestone>(
 )
 
 /**
- * Coûts progressifs selon la taille : l'achat initial rapporte en ~8 h pour
- * le kiosque, ~64 h pour un groupe technologique, avant taxes et améliorations.
- * Les valeurs représentent du GAMEPLAY (jamais des estimations économiques).
+ * Prix indicatifs en dollars pour l'acquisition/constitution d'entreprises réelles,
+ * du microcommerce au groupe multinational (ordre de grandeur, taille spécifiée
+ * par la documentation). Sources et hypothèses : ENTREPRISES_ECONOMIE.md.
+ * Les revenus restent volontairement accélérés pour le gameplay : retour brut
+ * d'environ 8 à 64 heures réelles, pas un rendement financier IRL.
+ * Les investissements des entreprises déjà achetées ne sont pas réécrits.
  */
 const rows: readonly EnterpriseRow[] = [
-  { id: 'kiosque', name: 'Kiosque', category: 'small', requiredPlayerLevel: 3, priceDollars: 150, targetPaybackHours: 8 },
-  { id: 'cafe', name: 'Café', category: 'small', requiredPlayerLevel: 5, priceDollars: 350, targetPaybackHours: 9 },
-  { id: 'laverie', name: 'Laverie automatique', category: 'small', requiredPlayerLevel: 7, priceDollars: 750, targetPaybackHours: 10 },
-  { id: 'boulangerie', name: 'Boulangerie', category: 'small', requiredPlayerLevel: 9, priceDollars: 1_500, targetPaybackHours: 11 },
-  { id: 'superette', name: 'Supérette', category: 'local', requiredPlayerLevel: 12, priceDollars: 3_500, targetPaybackHours: 12 },
-  { id: 'restaurant', name: 'Restaurant', category: 'local', requiredPlayerLevel: 14, priceDollars: 7_500, targetPaybackHours: 13 },
-  { id: 'station-lavage', name: 'Station de lavage', category: 'local', requiredPlayerLevel: 16, priceDollars: 16_000, targetPaybackHours: 14 },
-  { id: 'garage', name: 'Garage automobile', category: 'local', requiredPlayerLevel: 18, priceDollars: 35_000, targetPaybackHours: 15 },
-  { id: 'salle-sport', name: 'Salle de sport', category: 'services', requiredPlayerLevel: 21, priceDollars: 75_000, targetPaybackHours: 16 },
-  { id: 'cinema', name: 'Cinéma', category: 'services', requiredPlayerLevel: 23, priceDollars: 150_000, targetPaybackHours: 18 },
-  { id: 'hotel', name: 'Hôtel', category: 'services', requiredPlayerLevel: 25, priceDollars: 300_000, targetPaybackHours: 20 },
-  { id: 'concession', name: 'Concession automobile', category: 'services', requiredPlayerLevel: 27, priceDollars: 650_000, targetPaybackHours: 22 },
-  { id: 'entrepot', name: 'Entrepôt logistique', category: 'industry', requiredPlayerLevel: 30, priceDollars: 1_400_000, targetPaybackHours: 24 },
-  { id: 'usine', name: 'Usine de production', category: 'industry', requiredPlayerLevel: 32, priceDollars: 3_000_000, targetPaybackHours: 27 },
-  { id: 'centre-commercial', name: 'Centre commercial', category: 'industry', requiredPlayerLevel: 34, priceDollars: 6_500_000, targetPaybackHours: 30 },
-  { id: 'laboratoire', name: 'Laboratoire', category: 'industry', requiredPlayerLevel: 36, priceDollars: 14_000_000, targetPaybackHours: 34 },
-  { id: 'data-center', name: 'Data center', category: 'major', requiredPlayerLevel: 40, priceDollars: 30_000_000, targetPaybackHours: 39 },
-  { id: 'compagnie-aerienne', name: 'Compagnie aérienne', category: 'major', requiredPlayerLevel: 43, priceDollars: 65_000_000, targetPaybackHours: 45 },
-  { id: 'groupe-energetique', name: 'Entreprise énergétique', category: 'major', requiredPlayerLevel: 46, priceDollars: 140_000_000, targetPaybackHours: 54 },
-  { id: 'groupe-technologique', name: 'Groupe technologique', category: 'major', requiredPlayerLevel: 50, priceDollars: 300_000_000, targetPaybackHours: 64 },
+  { id: 'kiosque', name: 'Kiosque', category: 'small', requiredPlayerLevel: 3, priceDollars: 75_000, targetPaybackHours: 8 },
+  { id: 'cafe', name: 'Café', category: 'small', requiredPlayerLevel: 5, priceDollars: 180_000, targetPaybackHours: 9 },
+  { id: 'laverie', name: 'Laverie automatique', category: 'small', requiredPlayerLevel: 7, priceDollars: 300_000, targetPaybackHours: 10 },
+  { id: 'boulangerie', name: 'Boulangerie', category: 'small', requiredPlayerLevel: 9, priceDollars: 420_000, targetPaybackHours: 11 },
+  { id: 'superette', name: 'Supérette', category: 'local', requiredPlayerLevel: 12, priceDollars: 600_000, targetPaybackHours: 12 },
+  { id: 'restaurant', name: 'Restaurant', category: 'local', requiredPlayerLevel: 14, priceDollars: 800_000, targetPaybackHours: 13 },
+  { id: 'station-lavage', name: 'Station de lavage', category: 'local', requiredPlayerLevel: 16, priceDollars: 1_200_000, targetPaybackHours: 14 },
+  { id: 'garage', name: 'Garage automobile', category: 'local', requiredPlayerLevel: 18, priceDollars: 1_800_000, targetPaybackHours: 15 },
+  { id: 'salle-sport', name: 'Salle de sport', category: 'services', requiredPlayerLevel: 21, priceDollars: 2_500_000, targetPaybackHours: 16 },
+  { id: 'cinema', name: 'Cinéma', category: 'services', requiredPlayerLevel: 23, priceDollars: 8_000_000, targetPaybackHours: 18 },
+  { id: 'hotel', name: 'Hôtel', category: 'services', requiredPlayerLevel: 25, priceDollars: 16_000_000, targetPaybackHours: 20 },
+  { id: 'concession', name: 'Concession automobile', category: 'services', requiredPlayerLevel: 27, priceDollars: 35_000_000, targetPaybackHours: 22 },
+  { id: 'entrepot', name: 'Entrepôt logistique', category: 'industry', requiredPlayerLevel: 30, priceDollars: 80_000_000, targetPaybackHours: 24 },
+  { id: 'usine', name: 'Usine de production', category: 'industry', requiredPlayerLevel: 32, priceDollars: 220_000_000, targetPaybackHours: 27 },
+  { id: 'centre-commercial', name: 'Centre commercial', category: 'industry', requiredPlayerLevel: 34, priceDollars: 500_000_000, targetPaybackHours: 30 },
+  { id: 'laboratoire', name: 'Laboratoire', category: 'industry', requiredPlayerLevel: 36, priceDollars: 1_200_000_000, targetPaybackHours: 34 },
+  { id: 'data-center', name: 'Data center', category: 'major', requiredPlayerLevel: 40, priceDollars: 3_000_000_000, targetPaybackHours: 39 },
+  { id: 'compagnie-aerienne', name: 'Compagnie aérienne', category: 'major', requiredPlayerLevel: 43, priceDollars: 20_000_000_000, targetPaybackHours: 45 },
+  { id: 'groupe-energetique', name: 'Entreprise énergétique', category: 'major', requiredPlayerLevel: 46, priceDollars: 85_000_000_000, targetPaybackHours: 54 },
+  { id: 'groupe-technologique', name: 'Groupe technologique', category: 'major', requiredPlayerLevel: 50, priceDollars: 300_000_000_000, targetPaybackHours: 64 },
 ]
 
 export const ENTERPRISE_CATEGORIES: Readonly<Record<EnterpriseCategory, string>> = Object.freeze({
