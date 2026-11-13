@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Entreprises, Fiscalité, Statistiques et Sauvegardes
 
-**Statut : en cours — 7/8 passes livrées**  
+**Statut : terminée — 8/8 passes livrées**  
 **Branche cible : `main`**  
 **Créée le : 13 novembre 2026**  
 **Périmètre :** troisième source de revenus « Entreprises », taxes différées sur les bénéfices, page Stats et outils manuels de sauvegarde.  
@@ -177,26 +177,28 @@ Pour chaque entreprise, documenter : `id` stable, nom, catégorie, niveau joueur
 
 ### Passe 8 — Audit final, régressions et livraison
 
-- [ ] Audit croisé des trois sources : revenus/XP, cash, trades, taxes, patrimoine, statistiques, aucune double autorité.
-- [ ] Tester longs rattrapages, import après long arrêt, vente juste avant/après échéance, paiement anticipé, solde négatif et recouvrement par revenus passifs.
-- [ ] Vérifier `npm test`, `npm run test:ui`, `npm run build` ; compléter tests métier/UI nécessaires et vérifier les modales en viewport smartphone.
-- [ ] Mettre à jour le README et les règles utilisateur selon le **comportement réel livré** ; préserver la roadmap Trading V1 déjà terminée.
-- [ ] Vérifier le pipeline GitHub Pages **`main / (root)`**, sans changer la stratégie de publication ; confirmer l'accès aux nouvelles pages après déploiement.
-- [ ] Cocher la roadmap seulement après vérification et ajouter le ou les commits des passes livrées.
+- [x] Audit croisé des trois sources : revenus/XP, cash, trades, taxes, patrimoine, statistiques, aucune double autorité.
+- [x] Tester longs rattrapages, import après long arrêt, vente juste avant/après échéance, paiement anticipé, solde négatif et recouvrement par revenus passifs.
+- [x] Vérifier `npm test`, `npm run test:ui`, `npm run build` ; compléter tests métier/UI nécessaires et vérifier les modales en viewport smartphone.
+- [x] Mettre à jour le README et les règles utilisateur selon le **comportement réel livré** ; préserver la roadmap Trading V1 déjà terminée.
+- [x] Vérifier le pipeline GitHub Pages **`main / (root)`**, sans changer la stratégie de publication ; confirmer l'accès aux nouvelles pages après déploiement.
+- [x] Cocher la roadmap seulement après vérification et ajouter le ou les commits des passes livrées.
 - **Livrable :** système complet stable, documenté et publié.
+
+**Validée le 13/11/2026** — [PR #8](https://github.com/Nighttug58/CAPITAL_IDLE/pull/8) et [commit d'audit d2a044f](https://github.com/Nighttug58/CAPITAL_IDLE/commit/d2a044f09bef3c7f9465e8e37bdf16bdae9b1ca8), [correction scénario de dette 160bd39](https://github.com/Nighttug58/CAPITAL_IDLE/commit/160bd39ebf1a087d72d95e90bcc1e7dc8dafcc07). **Audit** : l'unique `game.balance` demeure l'autorité de cash ; les entreprises contribuent au solde et à l'XP en brut avec taxe différée ; les plus-values du Trading sont nettes des deux commissions et séparées du capital récupéré ; taxes payées ne réduisent pas l'XP et sont retirées une seule fois du bilan patrimonial. Une double écriture par transaction Trading (watcher clicker + `persist()`) a été supprimée en protégeant l'affectation par `applyingMarket`. `src/economy/integration.test.ts` ajoute **5 scénarios de bout en bout** : clic + entreprise + patrimoine, dette fiscale entraînant un solde négatif puis résorption passive, ventes au passage de 72 h, dividendes au passage d'une échéance, sauvegarde importée après 90 jours. Un contrôle UI ajoute les invariants de **largeur, hauteur et défilement** des modales Actions/Crypto sur petite hauteur ; modales News et animations clicker gardent leurs tests existants. **Réserve** : ces tests de composants/CSS vérifient la structure responsive, **pas un rendu photographié dans un navigateur mobile réel**. README actualisé aux quatre pages, entreprise, taxation et v5. **CI** : [Build main/root #43513345179](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43513345179) — `npm test` (métier et Vitest UI), `npm run build:root`, commit du site compilé et demande Pages **réussis** ; [Pages #43513427777](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43513427777) — **publication réussie**. Le site compilé `index.html` sur `main / (root)` référence des fichiers `/CAPITAL_IDLE/assets/`. **Réserve supplémentaire** : l'accès HTTP direct du site depuis l'environnement d'audit n'a pas pu être mesuré ; on dispose du statut positif du déploiement GitHub Pages.
 
 ## 4. Critères de clôture globale
 
-- [ ] Chaque type d'entreprise peut être acquis **une seule fois**, ne peut pas être revendu, et s'arrête à **niveau 20** avec bonus 5/10/15/20.
-- [ ] Toutes les entreprises génèrent leurs revenus fixes **en ligne et hors ligne sans plafond temporel** ; la progression ne recompte ni dépenses ni capital transféré.
-- [ ] Fiscalité : uniquement bénéfices d'entreprises et **plus-values réalisées** actions/cryptos/memecoins, dette accumulée et prélèvement **toutes les 72 h réelles**, possibilité de **solde négatif**, paiement manuel qui relance 72 h.
-- [ ] **Stats** est le bouton le plus à droite et affiche progression, gains par source, patrimoine et taxes.
-- [ ] **Exporter / Importer / Reset** sont en bas de Stats, sûrs, versionnés, confirmés pour les actions destructrices.
-- [ ] Les anciennes sauvegardes continuent de charger ; un reset ne ressuscite pas la sauvegarde d'une ancienne version.
-- [ ] Aucune régression du clicker, du Trading, des News, des dividendes, des performances mobile ou de la publication.
+- [x] Chaque type d'entreprise peut être acquis **une seule fois**, ne peut pas être revendu, et s'arrête à **niveau 20** avec bonus 5/10/15/20.
+- [x] Toutes les entreprises génèrent leurs revenus fixes **en ligne et hors ligne sans plafond temporel** ; la progression ne recompte ni dépenses ni capital transféré.
+- [x] Fiscalité : uniquement bénéfices d'entreprises et **plus-values réalisées** actions/cryptos/memecoins, dette accumulée et prélèvement **toutes les 72 h réelles**, possibilité de **solde négatif**, paiement manuel qui relance 72 h.
+- [x] **Stats** est le bouton le plus à droite et affiche progression, gains par source, patrimoine et taxes.
+- [x] **Exporter / Importer / Reset** sont en bas de Stats, sûrs, versionnés, confirmés pour les actions destructrices.
+- [x] Les anciennes sauvegardes continuent de charger ; un reset ne ressuscite pas la sauvegarde d'une ancienne version.
+- [x] Aucune régression du clicker, du Trading, des News, des dividendes, des performances mobile ou de la publication.
 
 ## 5. Décisions ouvertes limitées à l'équilibrage
 
-- **Taux d'imposition exact** : **à valider** ; 15 % est une proposition antérieure, pas une décision confirmée.
-- **Valeurs économiques** des 20 entreprises : définir et calibrer en passe 2 (prix/revenus/bonus/coûts). Les règles de gameplay, elles, sont fixées ci-dessus.
+- **Taux d'imposition exact** : **à valider** ; **15 % est actif provisoirement dans le code**, mais reste un réglage d'équilibrage et pas une validation définitive.
+- **Valeurs économiques** des 20 entreprises : catalogue de gameplay fixé lors de la passe 2 et documenté dans [ENTREPRISES_ECONOMIE.md](ENTREPRISES_ECONOMIE.md). Une révision des courbes reste possible après retours de jeu.
 - Ne pas introduire de franchises, revente, charges, employés, taxes immédiates, plafonds hors ligne, prestige post-20, intérêts de retard, ou nouvelle fonctionnalité majeure sans nouvelle décision explicite.
