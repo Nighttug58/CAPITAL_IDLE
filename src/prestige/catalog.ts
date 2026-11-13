@@ -96,11 +96,11 @@ export const COLLECTION_PRICES_DOLLARS: Readonly<Record<CollectionCategoryId, re
 
 /** One permanent boost target per luxury item; all share the Fame Shop engine. */
 export const COLLECTION_BONUS_TARGETS: Readonly<Record<CollectionCategoryId, readonly FameBoostId[]>> = Object.freeze({
-  watches: Object.freeze(['dividend', 'fame', 'trading', 'click', 'dividend', 'xp', 'enterprise', 'fame', 'trading', 'fame']),
-  autos: Object.freeze(['click', 'trading', 'enterprise', 'xp', 'click', 'trading', 'enterprise', 'fame', 'click', 'trading']),
-  paintings: Object.freeze(['xp', 'fame', 'dividend', 'xp', 'fame', 'dividend', 'enterprise', 'fame', 'dividend', 'xp']),
-  antiquities: Object.freeze(['fame', 'xp', 'trading', 'fame', 'xp', 'dividend', 'click', 'fame', 'enterprise', 'fame']),
-  jewelry: Object.freeze(['fame', 'dividend', 'trading', 'enterprise', 'fame', 'click', 'dividend', 'fame', 'trading', 'enterprise']),
+  watches: Object.freeze(['dividend', 'fame', 'trading', 'click', 'dividend', 'xp', 'enterprise', 'fame', 'trading', 'fame'] as const),
+  autos: Object.freeze(['click', 'trading', 'enterprise', 'xp', 'click', 'trading', 'enterprise', 'fame', 'click', 'trading'] as const),
+  paintings: Object.freeze(['xp', 'fame', 'dividend', 'xp', 'fame', 'dividend', 'enterprise', 'fame', 'dividend', 'xp'] as const),
+  antiquities: Object.freeze(['fame', 'xp', 'trading', 'fame', 'xp', 'dividend', 'click', 'fame', 'enterprise', 'fame'] as const),
+  jewelry: Object.freeze(['fame', 'dividend', 'trading', 'enterprise', 'fame', 'click', 'dividend', 'fame', 'trading', 'enterprise'] as const),
 })
 
 export interface CollectionPriceSlot {
