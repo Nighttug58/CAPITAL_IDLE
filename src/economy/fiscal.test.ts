@@ -153,7 +153,7 @@ test('échéance exacte 72h : prélèvement automatique même avec découvert, X
   assert.equal(due.fiscal.taxesPaidCents, 1500)
   assert.equal(due.fiscal.paidBySourceCents.stocks, 1500)
   assert.equal(due.fiscal.periodStartedAt, T0 + FISCAL_PERIOD_MS)
-  assert.equal(advanceFiscalEconomy(due, T0 + FISCAL_PERIOD_MS), due === advanceFiscalEconomy(due, T0 + FISCAL_PERIOD_MS) ? due.game.balance : due.game.balance)
+  assert.strictEqual(advanceFiscalEconomy(due, T0 + FISCAL_PERIOD_MS), due)
   const secondDue = advanceFiscalEconomy(due, T0 + 2 * FISCAL_PERIOD_MS)
   assert.equal(secondDue.fiscal.periodStartedAt, T0 + 2 * FISCAL_PERIOD_MS)
   assert.equal(secondDue.fiscal.taxesPaidCents, 1500)
