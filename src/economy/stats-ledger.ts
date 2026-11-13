@@ -1,6 +1,7 @@
 import type { CapitalState } from '../capital.ts'
 import { exactMoneyCents } from '../money.ts'
 import { earnClick } from '../game.ts'
+import { creditExperience } from '../prestige/state.ts'
 import type { EarningsSource } from './state.ts'
 
 function monetaryCents(value: number): number | null { return exactMoneyCents(value) }
@@ -16,7 +17,7 @@ export function earnCapitalClick(state: CapitalState): CapitalState {
       !Number.isSafeInteger(oldCents + rewardCents) ||
       !Number.isSafeInteger(state.stats.clickCount + 1)) return state
 
-  return {
+  const credited: CapitalState = {
     ...state, game: nextGame,
     stats: {
       ...state.stats,
@@ -27,6 +28,7 @@ export function earnCapitalClick(state: CapitalState): CapitalState {
       },
     },
   }
+  return creditExperience(credited, rewardCents) ?? state
 }
 
 /** Transactions bénéficiaires et perdantes : gains et pertes distincts de l'XP. */
