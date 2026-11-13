@@ -52,14 +52,16 @@ test('le rechargement JSON en milieu de tendance reprend bit pour bit la même t
   assert.deepEqual(resumed, before)
 })
 
-test('les 45 actifs respectent leurs bornes et conservent leurs rendements initialement inchangés', () => {
+test('les 45 actifs respectent leurs bornes et les rendements actions restent entre 1 et 30 %', () => {
   const state = simulate(950, 981)
   for (const asset of ASSETS) {
     const quote = state.quotes[asset.id]!
     assert.ok(Number.isFinite(quote.price))
     assert.ok(quote.price >= asset.minPrice, `${asset.id}: below min`)
     assert.ok(quote.price <= asset.maxPrice, `${asset.id}: above max`)
-    assert.equal(quote.dividendYield, asset.initialDividendYield)
+    if (asset.kind === 'stock') {
+      assert.ok(quote.dividendYield !== null && quote.dividendYield >= 0.01 && quote.dividendYield <= 0.30)
+    } else assert.equal(quote.dividendYield, null)
     assert.ok(['steady', 'bull', 'bear', 'frenzy'].includes(quote.regime!))
     assert.ok((quote.regimeTicksLeft ?? -1) >= 0)
     assert.ok((quote.shockTicksLeft ?? -1) >= 0)

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { catchUpMarket, MAX_CATCH_UP_TICKS } from './clock.ts'
+import { catchUpMarket, MAX_CATCH_UP_TICKS, MAX_CATCH_UP_SECONDS } from './clock.ts'
+import { createCapitalState } from '../capital.ts'
 import { MARKET_HISTORY_MS, MARKET_MAX_SAMPLES, MARKET_TICK_MS, advanceMarketTick } from './market.ts'
 import { createMarketRuntime } from './runtime.ts'
 import { createInitialTradingState, restoreTradingState } from './state.ts'
@@ -101,7 +102,8 @@ test('sauvegarde au milieu du rattrapage : reprises successives sans divergence'
 
 test('scheduler : un timer unique, pause et reprise après onglet masqué', () => {
   let current = START
-  let state = createInitialTradingState(START, 48)
+  let state = createCapitalState(undefined, START)
+  state.trading.seed = 48
   let nextHandle = 0
   let saved = 0
   const scheduled = new Map<number, { fn: () => void; delay: number }>()
@@ -123,7 +125,8 @@ test('scheduler : un timer unique, pause et reprise après onglet masqué', () =
   current += 2 * MARKET_TICK_MS
   runtime.wake()
   assert.equal(scheduled.size, 1)
-  assert.equal(state.lastTickAt, current)
+  assert.equal(state.trading.lastTickAt, current)
+  assert.equal(state.trading.dividendLastPaidAt, current)
   assert.equal(saved, 1)
 
   runtime.pause()
@@ -131,7 +134,8 @@ test('scheduler : un timer unique, pause et reprise après onglet masqué', () =
   assert.equal(scheduled.size, 0)
   current += 10 * MARKET_TICK_MS
   runtime.resume()
-  assert.equal(state.lastTickAt, current)
+  assert.equal(state.trading.lastTickAt, current)
+  assert.equal(state.trading.dividendLastPaidAt, current)
   assert.equal(scheduled.size, 1)
   assert.equal(saved, 2)
 
@@ -142,7 +146,8 @@ test('scheduler : un timer unique, pause et reprise après onglet masqué', () =
 
 test('scheduler : longues absences découpées avec un délai pour respirer', () => {
   let now = START + 3 * HOUR
-  let state = createInitialTradingState(START, 50)
+  let state = createCapitalState(undefined, START)
+  state.trading.seed = 50
   let scheduled: { fn: () => void; delay: number } | null = null
   let saves = 0
   const runtime = createMarketRuntime({
@@ -157,14 +162,15 @@ test('scheduler : longues absences découpées avec un délai pour respirer', ()
     cancel: () => { scheduled = null },
   })
   runtime.start()
-  assert.equal(state.lastTickAt, START + MAX_CATCH_UP_TICKS * MARKET_TICK_MS)
+  assert.equal(state.trading.dividendLastPaidAt, START + MAX_CATCH_UP_SECONDS * 1000)
   assert.equal(scheduled?.delay, 16)
-  for (let count = 0; count < 100 && state.lastTickAt < now; count++) {
+  for (let count = 0; count < 100 && state.trading.dividendLastPaidAt < now; count++) {
     const next = scheduled
     assert.ok(next)
     next.fn()
   }
-  assert.equal(state.lastTickAt, now)
+  assert.equal(state.trading.dividendLastPaidAt, now)
+  assert.equal(state.trading.lastTickAt, now)
   assert.ok(saves > 0)
   runtime.stop()
 })
