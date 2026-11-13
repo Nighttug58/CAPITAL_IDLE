@@ -142,7 +142,7 @@ export function getEnterprise(id: string): EnterpriseDefinition | undefined {
 export function isEnterpriseUnlocked(id: string, playerLevel: number): boolean {
   const enterprise = getEnterprise(id)
   return enterprise !== undefined && Number.isSafeInteger(playerLevel) &&
-    playerLevel >= enterprise.requiredPlayerLevel && playerLevel <= 50
+    playerLevel >= enterprise.requiredPlayerLevel
 }
 
 export function getEnterprisePurchaseCostCents(id: string): number | null {
