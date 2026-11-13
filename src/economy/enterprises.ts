@@ -6,6 +6,7 @@ import {
   isEnterpriseUnlocked,
 } from './catalog.ts'
 import { MAX_ENTERPRISE_LEVEL } from './state.ts'
+import { accrueProfitTax } from './fiscal.ts'
 
 const CENTS_PER_DOLLAR = 100
 // Revenu catalogue = microdollars par SECONDE ; une milliseconde vaut 1 nanodollar.
@@ -63,8 +64,9 @@ export function getTotalEnterpriseIncomeMicrosPerSecond(state: CapitalState): nu
  * Le timestamp unique est l'autorité pour éviter tout double crédit, y compris
  * si le moteur Trading rattrape plus tard les ticks 5 s / dividendes.
  *
- * Cette passe crédite le revenu BRUT. La passe 4 ajoutera la taxe, la passe 5
- * découpera chronologiquement les intervalles traversant une échéance fiscale.
+ * Le revenu est toujours BRUT au crédit ; la taxe correspondante augmente
+ * la dette fiscale sans diminution immédiate du solde. L'orchestrateur
+ * `advanceFiscalEconomy` coupe le temps aux échéances de 72 h.
  */
 export function advanceEnterpriseIncome(state: CapitalState, now: number): CapitalState {
   const start = state.enterprises.lastAccruedAt
@@ -98,7 +100,7 @@ export function advanceEnterpriseIncome(state: CapitalState, now: number): Capit
 
   // Les transactions monétaires restent au centime ; le sous-centime est conservé.
   const cents = Number(payable)
-  return {
+  const credited: CapitalState = {
     ...state,
     game: cents === 0 ? state.game : {
       ...state.game,
@@ -118,6 +120,9 @@ export function advanceEnterpriseIncome(state: CapitalState, now: number): Capit
       },
     },
   }
+  // Si la taxe ne peut pas être représentée, ne pas créditer de revenu sans
+  // dette fiscale correspondante : opération atomique.
+  return cents === 0 ? credited : (accrueProfitTax(credited, 'enterprises', cents) ?? state)
 }
 
 function settleIncome(state: CapitalState, now: number): CapitalState | null {
