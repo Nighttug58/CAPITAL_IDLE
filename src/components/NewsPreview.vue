@@ -6,7 +6,7 @@ import type { MarketNews } from '../trading/types.ts'
 defineEmits<{ 'open-news': [id: string] }>()
 const props = defineProps<{ news: readonly MarketNews[]; now: number }>()
 const entries = computed(() =>
-  props.news.slice().reverse().map((event) => ({ event, presentation: getNewsPresentation(event) }))
+  props.news.slice(-10).reverse().map((event) => ({ event, presentation: getNewsPresentation(event) }))
     .filter((entry) => entry.presentation !== null)
 )
 </script>
