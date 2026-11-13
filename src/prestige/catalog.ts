@@ -55,6 +55,26 @@ export function getNextFameBoostCost(id: string, currentLevel: number): number |
 
 export const TOTAL_FAME_SHOP_COST = FAME_BOOSTS.reduce((sum, boost) => sum + boost.totalCost, 0)
 
+/**
+ * Total Fame already spent on the six boost trees. Derive the ledger from the
+ * immutable price catalog rather than storing a second spend counter.
+ * Any invalid, unknown or out-of-range level makes the ledger invalid.
+ */
+export function getPurchasedFameBoostCost(
+  levels: Readonly<Record<FameBoostId, number>>,
+): number | null {
+  if (!levels || typeof levels !== 'object' || Array.isArray(levels) ||
+    Object.keys(levels).length !== FAME_BOOST_IDS.length) return null
+
+  let spent = 0
+  for (const boost of FAME_BOOSTS) {
+    const level = levels[boost.id]
+    if (!Number.isSafeInteger(level) || level < 0 || level > MAX_FAME_BOOST_LEVEL) return null
+    for (let index = 0; index < level; index++) spent += boost.costs[index]!
+  }
+  return spent
+}
+
 export const COLLECTION_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'watches', label: 'Montres' }),
   Object.freeze({ id: 'autos', label: 'Autos' }),
