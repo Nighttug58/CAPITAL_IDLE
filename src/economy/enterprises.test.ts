@@ -131,7 +131,7 @@ test('revenus fixes et moteur marché : avance par second, jamais de double cré
   assert.equal(afterReplay.stats.earnedBySource.enterprises, ahead.stats.earnedBySource.enterprises)
   const restored = restoreCapitalState(JSON.parse(JSON.stringify(afterReplay)), START + 9000)
   assert.deepEqual(advanceEnterpriseIncome(restored, START + 9000), restored)
-  const batch = catchUpCapital(ahead, START + 10_000)
+  const batch = catchUpCapital(ahead, START + 9000)
   assert.equal(batch.state.enterprises.lastAccruedAt, START + 9000)
   assert.equal(batch.state.game.balance, ahead.game.balance)
 })
