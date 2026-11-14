@@ -30,15 +30,15 @@ export const LEVEL_THRESHOLDS: readonly number[] = (() => {
 })()
 
 /**
- * Clicker balance v2:
+ * Clicker pricing:
  * - Level 1 starts at $1/click, level 1000 pays $1000/click.
- * - Every tier has a +50% premium over the previous linear PRICE grid.
- *   This is still arithmetic growth (not 1.5^tier, which would overflow).
- * - First 49 player-level gates preserve their historical rank, even though
- *   level thresholds are now four times higher.
- * - Beyond click level 50, one player level unlocks 20 more click tiers;
- *   player level 1000 is not required to reach click level 1000.
- * Existing purchases and cash amounts are never repriced retroactively.
+ * - The first tier costs $375, then successive PRICE INCREASES grow by
+ *   just +0.05% per tier: round(750 * 1.0005 ** (tierIndex - 1)).
+ *   This adds a gentle exponential bend to the previously linear +$750
+ *   schedule, NOT an explosive 50% compound increase per purchase.
+ * - First 49 player-level gates keep their rank (levels 2–50).
+ * - Beyond click level 50, each player level unlocks 20 click tiers.
+ * - Existing purchased tiers and wallet values are never repriced retroactively.
  */
 export const MAX_CLICK_LEVEL = 1000
 export const ORIGINAL_FIRST_CLICK_UPGRADE_PRICE = 250
@@ -46,21 +46,31 @@ export const ORIGINAL_CLICK_UPGRADE_PRICE_STEP = 500
 export const CLICK_PRICE_PREMIUM_BPS = 15_000
 export const FIRST_CLICK_UPGRADE_PRICE = ORIGINAL_FIRST_CLICK_UPGRADE_PRICE * CLICK_PRICE_PREMIUM_BPS / 10_000
 export const CLICK_UPGRADE_PRICE_STEP = ORIGINAL_CLICK_UPGRADE_PRICE_STEP * CLICK_PRICE_PREMIUM_BPS / 10_000
+/** Increase the PRICE INCREMENT by 0.05% at each step, not the full price. */
+export const CLICK_PRICE_INCREMENT_GROWTH = 0.0005
 export const EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL = 20
 
-export const UPGRADES: readonly Upgrade[] = Object.freeze(Array.from(
-  { length: MAX_CLICK_LEVEL - 1 },
-  (_, index): Upgrade => {
+export const UPGRADES: readonly Upgrade[] = Object.freeze((() => {
+  const upgrades: Upgrade[] = []
+  let price = FIRST_CLICK_UPGRADE_PRICE
+  for (let index = 0; index < MAX_CLICK_LEVEL - 1; index++) {
+    if (index > 0) {
+      const increment = Math.round(
+        CLICK_UPGRADE_PRICE_STEP * (1 + CLICK_PRICE_INCREMENT_GROWTH) ** (index - 1),
+      )
+      price += increment
+    }
     const clickValue = index + 2
-    return Object.freeze({
+    upgrades.push(Object.freeze({
       requiredLevel: clickValue <= 50
         ? clickValue
         : 50 + Math.ceil((clickValue - 50) / EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL),
-      price: FIRST_CLICK_UPGRADE_PRICE + index * CLICK_UPGRADE_PRICE_STEP,
+      price,
       clickValue,
-    })
-  },
-))
+    }))
+  }
+  return upgrades
+})())
 
 export const INITIAL_GAME: Readonly<GameState> = {
   balance: 0,
