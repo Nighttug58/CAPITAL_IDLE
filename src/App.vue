@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   getLevelStartThreshold,
   getClickValue,
+  MAX_CLICK_LEVEL,
   getLevel,
   getNextLevelThreshold,
   getNextUpgrade,
@@ -376,7 +377,7 @@ onUnmounted(() => {
       <section class="level-panel" aria-label="Progression du niveau">
         <div class="level-heading">
           <span class="level-label">NIVEAU <strong>{{ level }}</strong></span>
-          <span class="level-goal">{{ nextLevel === null ? 'NIVEAU MAX' : `SUIVANT · ${formatMoney(nextLevel)}` }}</span>
+          <span class="level-goal">{{ nextLevel === null ? 'NIVEAU MAX' : `SUIVANT · ${numberFormatter.format(nextLevel)} XP` }}</span>
         </div>
         <div
           class="progress-frame"
@@ -417,6 +418,7 @@ onUnmounted(() => {
         <div class="upgrade-copy">
           <span class="eyebrow">PROCHAINE AMÉLIORATION</span>
           <strong>{{ nextUpgrade ? '+1 $ / clic' : 'CLIC MAX' }}</strong>
+          <span class="upgrade-tier">CLIC NIV. {{ game.purchasedUpgrades + 1 }} / {{ MAX_CLICK_LEVEL }}</span>
           <span class="upgrade-price">{{ nextUpgrade ? `Coût · ${formatMoney(nextUpgrade.price)}` : 'Tout est débloqué' }}</span>
         </div>
         <button class="upgrade-button" type="button" :disabled="!upgradeAffordable" @click="buy">
