@@ -1,4 +1,4 @@
-import { INITIAL_GAME, restoreGame, type GameState } from './game.ts'
+import { INITIAL_GAME, restoreGame, upgradeLegacyExperienceCents, type GameState } from './game.ts'
 import {
   createInitialEnterpriseState, createInitialFiscalState, createInitialStatsState,
   restoreEnterpriseState, restoreFiscalState, restoreStatsState,
@@ -32,7 +32,7 @@ export function createCapitalState(game: GameState = { ...INITIAL_GAME }, now = 
     enterprises: createInitialEnterpriseState(now),
     fiscal: createInitialFiscalState(now),
     stats: createInitialStatsState(now, game.lifetimeEarned),
-    prestige: createInitialPrestigeState(game.lifetimeEarned),
+    prestige: createInitialPrestigeState(game.lifetimeEarned, true),
   }
 }
 
@@ -48,7 +48,10 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
   // Migration v4 : ne pas remettre les revenus historiques dans une catégorie
   // inventée, ne pas imposer rétroactivement, conserver l'intégralité du Trading.
   if (raw.version === 4) {
-    const game = restoreGame(raw.game)
+    const historicalEarnings = isRecord(raw.game) && typeof raw.game.lifetimeEarned === 'number'
+      ? raw.game.lifetimeEarned * 100 : 0
+    const migratedExperience = upgradeLegacyExperienceCents(historicalEarnings)
+    const game = restoreGame(raw.game, { experiencePoints: migratedExperience === null ? undefined : migratedExperience / 100 })
     return {
       version: CAPITAL_SAVE_VERSION,
       game,
@@ -60,13 +63,22 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
     }
   }
 
-  const candidateXp = isRecord(raw.prestige) && typeof raw.prestige.experienceCents === 'number'
-    ? raw.prestige.experienceCents / 100
-    : undefined
-  const game = restoreGame(raw.game, { allowNegativeBalance: true, experiencePoints: raw.version === 6 ? candidateXp : undefined })
+  const historicalExperience = isRecord(raw.prestige) && typeof raw.prestige.experienceCents === 'number'
+    ? raw.prestige.experienceCents : undefined
+  const candidateExperience = historicalExperience === undefined ? undefined
+    : raw.version === 6 && raw.prestige && isRecord(raw.prestige) && raw.prestige.xpCurveVersion === 2
+      ? historicalExperience : upgradeLegacyExperienceCents(historicalExperience)
+  const legacyEarnedCents = isRecord(raw.game) && typeof raw.game.lifetimeEarned === 'number'
+    ? raw.game.lifetimeEarned * 100 : null
+  const v5Experience = legacyEarnedCents === null ? null : upgradeLegacyExperienceCents(legacyEarnedCents)
+  const game = restoreGame(raw.game, {
+    allowNegativeBalance: true,
+    experiencePoints: (raw.version === 6 ? candidateExperience : v5Experience) === null
+      ? undefined : (raw.version === 6 ? candidateExperience : v5Experience)! / 100,
+  })
   const prestige = raw.version === 6
     ? restorePrestigeState(raw.prestige, game.lifetimeEarned)
-    : createInitialPrestigeState(game.lifetimeEarned)
+    : createInitialPrestigeState(game.lifetimeEarned, true)
   return {
     version: CAPITAL_SAVE_VERSION,
     game,
