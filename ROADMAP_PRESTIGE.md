@@ -1,9 +1,9 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : planification validée, aucune passe entamée.**  
+**État : passe 1 terminée (1/7), passe 2 à faire.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
-**Portée de ce commit : documentation uniquement. Aucune règle runtime, interface, sauvegarde ou test n'est modifié ici.**
+**Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
 
 ## 0. Objectif et audit de l'existant
 
@@ -112,7 +112,7 @@ Le **bonus ultime de Prestige**, débloqué après 87/87 niveaux, est une **exte
 
 ## 3. Roadmap d'implémentation — 7 passes
 
-Une seule passe par **next**. Les cases ci-dessous sont **toutes non cochées au 14/11/2026**.
+Une seule passe par **next**. **Passe 1 cochée après implémentation des contrats et tests le 14/11/2026 ; passes 2 à 7 non commencées.**
 
 ### Passe 1 — Architecture, contrats et calibrage
 
@@ -222,7 +222,7 @@ Une seule passe par **next**. Les cases ci-dessous sont **toutes non cochées au
 
 | Passe | Statut | Commit | Notes |
 | --- | --- | --- | --- |
-| 1 — Architecture | ☑ Terminée | ce commit | P0 = 100 M$, contrats purs et tests ajoutés |
+| 1 — Architecture | ☑ Terminée | `ac0eb03` | P0 = 100 M$, contrats purs et tests ajoutés |
 | 2 — Moteur | ☐ À faire | — | Migration / Fame / fiscalité |
 | 3 — UI Shop | ☐ À faire | — | 18 upgrades |
 | 4 — Marché | ☐ À faire | — | Deux horloges |
