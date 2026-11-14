@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CAPITAL_SAVE_VERSION, createCapitalState, restoreCapitalState } from '../capital.ts'
-import { getLevelStartThreshold } from '../game.ts'
+import { getLevel, getLevelStartThreshold, LEVEL_THRESHOLD_FACTOR } from '../game.ts'
 import { createSaveExport, prepareSaveImport } from '../save-transfer.ts'
 import { isEnterpriseUnlocked } from '../economy/catalog.ts'
 import { BASE_XP_EARN_RATE_BPS, FAME_MICROS, creditExperience, restorePrestigeState } from './state.ts'
@@ -83,4 +83,53 @@ test('corrupted Fame is never silently accepted by strict v6 imports', () => {
     const result = prepareSaveImport(createSaveExport({ ...original, prestige }, NOW), NOW)
     assert.deepEqual(result, { ok: false, error: 'invalid-save' })
   }
+})
+
+test('legacy v6: preserve current player level, 49 click upgrades and Fame on 4x XP migration', () => {
+  const historicEarnings = getLevelStartThreshold(50) / LEVEL_THRESHOLD_FACTOR
+  const game = {
+    balance: 12_000, lifetimeEarned: historicEarnings, purchasedUpgrades: 49,
+  }
+  const template = createCapitalState(game, NOW)
+  const historicLevel = getLevel(historicEarnings * LEVEL_THRESHOLD_FACTOR)
+  assert.equal(historicLevel, 50)
+  const historicFame = historicLevel * (historicLevel + 1) / 2 * FAME_MICROS
+  const historicPrestige = {
+    ...template.prestige,
+    experienceCents: historicEarnings * 100,
+    lastAwardedLevel: historicLevel,
+    fameMicros: historicFame, lifetimeFameMicros: historicFame,
+    levelFameMicros: historicFame,
+  }
+  const { xpCurveVersion: _curve, ...legacyPrestige } = historicPrestige
+  void _curve
+  const legacy = { ...template, prestige: legacyPrestige }
+  const restored = restoreCapitalState(legacy, NOW)
+  assert.deepEqual(restored.game, game)
+  assert.equal(restored.prestige.lastAwardedLevel, 50)
+  assert.equal(restored.prestige.experienceCents, getLevelStartThreshold(50) * 100)
+  assert.equal(restored.prestige.fameMicros, historicFame)
+  assert.equal(restored.prestige.lifetimeFameMicros, historicFame)
+  assert.equal(restored.prestige.xpCurveVersion, 2)
+  assert.deepEqual(restoreCapitalState(restored, NOW), restored)
+  const accepted = prepareSaveImport(createSaveExport(legacy, NOW), NOW)
+  assert.ok(accepted.ok)
+  assert.deepEqual(accepted.preview.state, restored)
+  const twice = prepareSaveImport(createSaveExport(restored, NOW), NOW)
+  assert.ok(twice.ok)
+  assert.deepEqual(twice.preview.state, restored)
+})
+
+test('fresh XP remains 1 per dollar; level 2 requires 140 XP, Fame paid once', () => {
+  const initial = createCapitalState(undefined, NOW)
+  const almost = creditExperience(initial, 13_900)
+  assert.ok(almost)
+  assert.equal(almost.prestige.experienceCents, 13_900)
+  assert.equal(almost.prestige.lastAwardedLevel, 1)
+  assert.equal(almost.prestige.fameMicros, FAME_MICROS)
+  const crossed = creditExperience(almost, 100)
+  assert.ok(crossed)
+  assert.equal(crossed.prestige.experienceCents, 14_000)
+  assert.equal(crossed.prestige.lastAwardedLevel, 2)
+  assert.equal(crossed.prestige.fameMicros, 3 * FAME_MICROS)
 })
