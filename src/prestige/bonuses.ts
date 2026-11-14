@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { getCollectionSlot, FAME_BOOST_BPS_PER_LEVEL, type FameBoostId } from './catalog.ts'
+import { getAbsolutePrestigeStatus } from './absolute.ts'
 
 /** One source of truth for all six bonuses: Fame Shop + owned luxury objects. */
 export interface BonusBreakdown {
@@ -19,7 +20,9 @@ export function getBonusBreakdown(
     const slot = getCollectionSlot(slotId)
     if (slot?.boostId === id) collectionBps += slot.bonusBps
   }
-  return { shopBps, collectionBps, totalBps: shopBps + collectionBps }
+  // Prestige amplifies only purchased Shop bonuses, NEVER the collection share.
+  const factor = getAbsolutePrestigeStatus(state).factor
+  return { shopBps, collectionBps, totalBps: shopBps * factor + collectionBps }
 }
 
 export function getTotalBonusBps(state: Pick<CapitalState, 'prestige'>, id: FameBoostId): number {
@@ -31,21 +34,51 @@ export function getBonusMultiplier(state: Pick<CapitalState, 'prestige'>, id: Fa
 }
 
 /**
- * Reward in integer cents with a carry expressed in 1/10 000th of a cent.
- * The original cash is preserved, even when a +0.1% collection bonus
- * is too small to yield one whole cent on a single interaction.
+ * Convert an unrounded 1.01^N factor into a high-precision fixed-point rate
+ * (one-millionth of a basis point). All money arithmetic then uses BigInt,
+ * so fractional boosted bonuses never pass through unsafe JS money floats.
+ * Extreme boosts that cannot fit in this finite rate are rejected, not minted.
+ */
+export const BONUS_RATE_PRECISION = 1_000_000
+const RATE_DENOMINATOR = BigInt(10_000 * BONUS_RATE_PRECISION)
+const PRECISION = BigInt(BONUS_RATE_PRECISION)
+export function getRewardRateUnits(bonusBps: number): bigint | null {
+  if (!Number.isFinite(bonusBps) || bonusBps < 0) return null
+  const units = Math.round(bonusBps * BONUS_RATE_PRECISION)
+  if (!Number.isSafeInteger(units)) return null
+  return RATE_DENOMINATOR + BigInt(units)
+}
+
+/** Scale any nonnegative bigint unit (e.g. enterprise nanodollars) safely. */
+export function scaleRewardUnits(base: bigint, bonusBps: number): bigint | null {
+  if (base < 0n) return null
+  const rate = getRewardRateUnits(bonusBps)
+  return rate === null ? null : base * rate / RATE_DENOMINATOR
+}
+
+/**
+ * Reward in integer cents with a saved carry expressed in 1/10 000th cent.
+ * At Prestige multipliers the rate uses 1e-6 bp precision; only the tiny
+ * remainder below the preexisting carry resolution is rounded.
  */
 export function scaleRewardCents(
   baseCents: number, bonusBps: number, carryBps = 0,
 ): { readonly cents: number; readonly carryBps: number } | null {
   if (!Number.isSafeInteger(baseCents) || baseCents < 0 ||
-    !Number.isSafeInteger(bonusBps) || bonusBps < 0 ||
     !Number.isSafeInteger(carryBps) || carryBps < 0 || carryBps >= 10_000) return null
+  const rate = getRewardRateUnits(bonusBps)
+  if (rate === null) return null
 
-  const scaled = BigInt(baseCents) * BigInt(10_000 + bonusBps) + BigInt(carryBps)
-  const whole = scaled / 10_000n
-  if (whole > BigInt(Number.MAX_SAFE_INTEGER)) return null
-  return { cents: Number(whole), carryBps: Number(scaled % 10_000n) }
+  const scaled = BigInt(baseCents) * rate + BigInt(carryBps) * PRECISION
+  const whole = scaled / RATE_DENOMINATOR
+  const remainder = scaled % RATE_DENOMINATOR
+  // Round only the sub-carry remainder. A carry rounding to one full cent
+  // rolls into the payout rather than ever becoming invalid.
+  const roundedCarry = (remainder + PRECISION / 2n) / PRECISION
+  const additionalCent = roundedCarry >= 10_000n ? 1n : 0n
+  const cents = whole + additionalCent
+  if (cents > BigInt(Number.MAX_SAFE_INTEGER)) return null
+  return { cents: Number(cents), carryBps: Number(additionalCent ? 0n : roundedCarry) }
 }
 
 /** New Fame events only. Calculations never reprice already-awarded Fame. */
@@ -53,7 +86,6 @@ export function scaleNewFameMicros(
   state: Pick<CapitalState, 'prestige'>, baseFameMicros: number,
 ): number | null {
   if (!Number.isSafeInteger(baseFameMicros) || baseFameMicros < 0) return null
-  const bonusBps = getTotalBonusBps(state, 'fame')
-  const amount = BigInt(baseFameMicros) * BigInt(10_000 + bonusBps) / 10_000n
-  return amount <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(amount) : null
+  const amount = scaleRewardUnits(BigInt(baseFameMicros), getTotalBonusBps(state, 'fame'))
+  return amount !== null && amount <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(amount) : null
 }
