@@ -3,6 +3,7 @@ import { DIVIDEND_SECOND_MS } from './dividends.ts'
 import type { CapitalState } from '../capital.ts'
 import { advanceFiscalEconomy } from '../economy/clock.ts'
 import { settleStaking } from './staking.ts'
+import { runAutomationFrame } from '../ascension/automation-runtime.ts'
 
 // Une seule minuterie récursive ; aucune boucle synchrone non bornée.
 // Les 256 secondes par tranche évitent de monopoliser le thread principal.
@@ -16,6 +17,7 @@ export interface MarketRuntimeOptions {
   now?: () => number
   schedule?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>
   cancel?: (handle: ReturnType<typeof setTimeout>) => void
+  isForeground?: () => boolean
 }
 
 export function createMarketRuntime(options: MarketRuntimeOptions) {
@@ -61,8 +63,13 @@ export function createMarketRuntime(options: MarketRuntimeOptions) {
       // Rewards are paid in crypto units and never change cash/XP/tax here.
       const withStaking = settleStaking(withEnterpriseIncome, timestamp)
       const result = catchUpCapital(withStaking, timestamp, MAX_CATCH_UP_SECONDS)
-      if (result.processedSeconds > 0 || withStaking !== current) {
-        options.setState(result.state)
+      // Bots have no offline catchup. One active-frame evaluation only once
+      // ALL bounded market replay is finished, with persisted cursor gates.
+      const nextState = result.pendingSeconds === 0
+        ? runAutomationFrame(result.state, timestamp, options.isForeground?.() ?? true)
+        : result.state
+      if (nextState !== current) {
+        options.setState(nextState)
         dirty = true
       }
       saveIfDirty(result.pendingSeconds === 0)
@@ -70,7 +77,7 @@ export function createMarketRuntime(options: MarketRuntimeOptions) {
 
       const nextDelay = result.pendingSeconds > 0
         ? REPLAY_PAUSE_MS
-        : Math.max(50, Math.min(DIVIDEND_SECOND_MS, result.state.trading.dividendLastPaidAt + DIVIDEND_SECOND_MS - timestamp))
+        : Math.max(50, Math.min(DIVIDEND_SECOND_MS, nextState.trading.dividendLastPaidAt + DIVIDEND_SECOND_MS - timestamp))
       timer = schedule(process, nextDelay)
     } finally {
       processing = false

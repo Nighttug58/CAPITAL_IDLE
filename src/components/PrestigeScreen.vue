@@ -7,6 +7,9 @@ import { ASCENSION_UPGRADES, ASCENSION_TOTAL_COST, ASCENSION_TOTAL_LEVELS } from
 import { ASCENSION_CATEGORIES, ASCENSION_PRESENTATION } from '../ascension/presentation.ts'
 import { getAscensionOffers, type AscensionPurchase, type AscensionShopError } from '../ascension/shop.ts'
 import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
+import type { AscensionAutomationSettings, AscensionMarketOrder } from '../ascension/contracts.ts'
+import type { AutomationActionResult } from '../ascension/automation-orders.ts'
+import AutomationPanel from './AutomationPanel.vue'
 import { MARKET_SPEEDS, marketSpeed, frenzyActive, FRENZY_COOLDOWN_MS, type MarketActionResult } from '../ascension/market-effects.ts'
 
 const props = defineProps<{
@@ -15,6 +18,9 @@ const props = defineProps<{
   performCycle: () => AscensionResult
   selectSpeed: (speed: number) => MarketActionResult
   activateFrenzy: () => MarketActionResult
+  saveAutomation: (patch: Partial<AscensionAutomationSettings>) => AutomationActionResult
+  createOrder: (order: Omit<AscensionMarketOrder,'id'|'createdAtRealMs'>) => AutomationActionResult
+  cancelOrder: (id: number) => AutomationActionResult
 }>()
 const emit = defineEmits<{ back: [] }>()
 
@@ -220,6 +226,8 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
         </div>
       </section>
 
+      <AutomationPanel :state="state" :save-automation="saveAutomation"
+        :create-order="createOrder" :cancel-order="cancelOrder" />
       <section class="ascension-shop-heading" aria-label="Catalogue des améliorations Prestige">
         <div><span class="ascension-eyebrow">BOUTIQUE PERMANENTE</span><h2>Améliorations Prestige</h2></div>
         <span>{{ toGo }} niveaux restants</span>
@@ -240,7 +248,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           </div>
           <div class="ascension-upgrade-effect">
             <span>Au maximum : <strong>{{ row.item.effect }}</strong></span>
-            <span class="ascension-phase">Effet activé à la passe {{ row.item.phase }}</span>
+            <span class="ascension-phase">Effet disponible</span>
           </div>
           <div class="ascension-upgrade-footer">
             <span class="ascension-upgrade-cost">{{ row.offer.nextCost === null ? 'TERMINÉ' : fmt(row.offer.nextCost) + ' PP · prochain niveau' }}</span>
@@ -252,7 +260,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           </div>
         </article>
       </section>
-      <p class="ascension-endnote">Les achats sont permanents et non remboursables. Les effets seront activés progressivement dans les prochaines passes ; le Fame et ses bonus restent distincts.</p>
+      <p class="ascension-endnote">Les achats sont permanents et non remboursables. Les améliorations débloquées fonctionnent dès leur achat et leur activation éventuelle ; le Fame et ses bonus restent distincts.</p>
     </div>
 
     <footer class="ascension-footer">

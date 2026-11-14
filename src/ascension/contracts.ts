@@ -50,6 +50,22 @@ export interface AscensionAutomationSettings {
   readonly allowedAssetIds: readonly string[]
   readonly maxOrderCents: number
   readonly cashReserveCents: number
+  /** Thresholds in basis points, 10%=1000, -5%=500. Defaults for older saves. */
+  readonly takeProfitBps?: number
+  readonly stopLossBps?: number
+  readonly enterpriseBudgetCents?: number
+}
+
+export type AscensionOrderKind = 'limit' | 'stop-loss' | 'take-profit'
+/** Pending market order, executed exactly once by the existing Trading engine. */
+export interface AscensionMarketOrder {
+  readonly id: number
+  readonly assetId: string
+  readonly side: 'buy' | 'sell'
+  readonly kind: AscensionOrderKind
+  readonly triggerPrice: number
+  readonly quantity: number
+  readonly createdAtRealMs: number
 }
 
 /**
@@ -69,6 +85,11 @@ export interface AscensionRunState {
   /** Active power is stored in real milliseconds, not accelerated market ticks. */
   readonly frenzyEndsAtRealMs?: number
   readonly frenzyReadyAtRealMs?: number
+  /** All clocks and pending orders are cycle-scoped and persisted. */
+  readonly lastAutomationAtRealMs?: number
+  readonly lastStrategyAtRealMs?: number
+  readonly nextOrderId?: number
+  readonly marketOrders?: readonly AscensionMarketOrder[]
   /** Les ordres/stakes/liquidités appartiendront au cycle, pas aux points PP. */
 }
 

@@ -184,6 +184,20 @@ L'amélioration Prestige **Staking crypto** (40 PP) débloque un onglet **Stakin
 
 Les tests `src/trading/staking.test.ts` et `src/components/staking-ui.test.ts` ont été ajoutés aux scripts npm, mais **leur exécution et le build ne sont pas attestés** dans cette session. La version statique publiée à la racine GitHub Pages n'a pas été régénérée.
 
+
+### Passe 6 — Automatisations Prestige
+
+Quatre améliorations de la boutique Prestige contrôlent des bots qui n'ajoutent aucune seconde minuterie : **Auto Click** (1 clic par seconde et par niveau, maximum 20), **Auto Investisseur**, **Auto Trader** et **Auto Entreprise**. L'amélioration distincte **Ordres automatiques** débloque les ordres limites (achat sous le seuil, vente au-dessus), Stop Loss et Take Profit (ventes). Les contrôles sont réunis sur la page Prestige, dans **Automatisations**.
+
+- **Sessions réellement actives** : les bots ne travaillent que lorsque le jeu est visible au premier plan et que le moteur de marché a rattrapé le temps réel. Les clics sont calculés une fois par seconde réelle (pas d'animations flottantes), les stratégies une fois toutes les **5 secondes réelles**. Les curseurs d'exécution sont persistants, aucun rattrapage de clicks ou d'achats hors ligne.
+- **Même moteur économique** : Auto Click utilise `earnCapitalClick` (Fame, XP, bilan des gains, bonus clic). Investisseur / Trader / Ordres utilisent `buyAsset` et `sellAsset` (frais, liquidités, staking, taxes différées, XP sur bénéfice réalisé et garde anti-doublon). Auto Entreprise utilise `buyEnterprise` et `upgradeEnterprise` avec les coûts, niveaux requis et revenus normaux.
+- **Paramètres** : liste autorisée d'actifs, budget maximal par ordre, réserve minimale de cash, budget entreprises, Take Profit (10 % initialement) et Stop Loss (5 % initialement). Un solde négatif ne permet aucun achat automatique. Le bot tente un achat/une vente/une opération d'entreprise au plus toutes les 5 secondes ; les transactions non autorisées par l'économie sont refusées.
+- **Ordres conditionnels** : au plus **24 ordres** en attente, identifiants croissants, déclenchement au prix du marché simulé (pas de prix garanti), une exécution réussie supprime définitivement l'ordre. Un ordre non exécutable reste en attente pour une prochaine cotation. Les ordres sont évalués dans l'ordre de leur création. La réserve cash est respectée à l'exécution d'un ordre d'achat. Les commandes peuvent être annulées sans frais.
+- **Priorité déterministe** : ordre conditionnel → Auto Trader → Auto Investisseur → Auto Entreprise, après le replay économique. Les toggles, limites, curseurs et ordres sont propres au cycle et sont supprimés par un Prestige, mais les niveaux Prestige débloqués restent permanents.
+- **Sauvegarde** : les champs additionnels de `ascension.run` restent compatibles avec les anciennes sauvegardes **v7**, tout en refusant les stratégies ou ordres activés sans upgrade, les horodatages non valides, les doublons d'identifiants et les prix/quantités impossibles. Aucune création ou suppression d'ordre n'est affichée comme réussie avant remplacement atomique de la sauvegarde.
+
+Fichiers principaux : `src/ascension/automation-{runtime,orders,validation}.ts`, `src/components/AutomationPanel.vue`, `src/trading/runtime.ts`. Tests métier `src/ascension/automation.test.ts` et Vue `src/components/automation-ui.test.ts` ajoutés à `package.json`. **Tests et compilation non exécutés dans cet environnement** (pas d'accès au clone/dépendances npm). GitHub Actions payants non déclenchés et site compilé à la racine non modifié.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.

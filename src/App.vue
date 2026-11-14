@@ -27,6 +27,10 @@ import PrestigeScreen from './components/PrestigeScreen.vue'
 import { buyAscensionUpgrade, type AscensionPurchase } from './ascension/shop.ts'
 import { commitPrestige, type AscensionResult } from './ascension/engine.ts'
 import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
+import {
+  configureAutomation, createMarketOrder, cancelMarketOrder, type AutomationActionResult,
+} from './ascension/automation-orders.ts'
+import type { AscensionAutomationSettings, AscensionMarketOrder } from './ascension/contracts.ts'
 import { getBonusMultiplier } from './prestige/bonuses.ts'
 import { FAME_MICROS } from './prestige/state.ts'
 import { buyFameUpgrade, type FameShopPurchase } from './prestige/shop.ts'
@@ -235,6 +239,7 @@ function payTaxes(): EarlyTaxPaymentResult {
 function startMarketRuntime() {
   marketRuntime = createMarketRuntime({
     getState: () => capital.value,
+    isForeground: () => !document.hidden,
     setState: (updated) => {
       applyingMarket = true
       try { capital.value = updated } finally { applyingMarket = false }
@@ -309,6 +314,31 @@ function executePrestigeCycle(): AscensionResult {
   const outcome = commitPrestige(capital.value, Date.now(), replaceWholeSave)
   if (!outcome.ok && outcome.error === 'pending-market-replay') marketRuntime?.wake()
   return outcome
+}
+function executeAutomationSettings(
+  patch: Partial<AscensionAutomationSettings>,
+): AutomationActionResult {
+  const result = configureAutomation(capital.value, patch)
+  if (!result.ok || result.state === capital.value) return result
+  return replaceWholeSave(result.state)
+    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+}
+function executeCreateOrder(
+  order: Omit<AscensionMarketOrder, 'id' | 'createdAtRealMs'>,
+): AutomationActionResult {
+  const result = createMarketOrder(capital.value, order, Date.now())
+  if (!result.ok) {
+    if (result.error === 'pending-replay') marketRuntime?.wake()
+    return result
+  }
+  return replaceWholeSave(result.state)
+    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+}
+function executeCancelOrder(id: number): AutomationActionResult {
+  const result = cancelMarketOrder(capital.value, id)
+  if (!result.ok) return result
+  return replaceWholeSave(result.state)
+    ? result : { ok: false, state: capital.value, error: 'storage-error' }
 }
 function executeMarketSpeed(speed: number): MarketActionResult {
   const result = selectMarketSpeed(capital.value, speed, Date.now())
@@ -495,6 +525,8 @@ onUnmounted(() => {
     <PrestigeScreen v-if="page === 'prestige'" :state="capital"
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
+      :save-automation="executeAutomationSettings" :create-order="executeCreateOrder"
+      :cancel-order="executeCancelOrder"
       @back="returnHomeFromPrestige" />
     <TradingScreen v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking" />

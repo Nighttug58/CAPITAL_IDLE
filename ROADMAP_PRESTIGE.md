@@ -1,6 +1,6 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : passe 5 implémentée (5/7), passe 6 à faire ; tests et build à exécuter.**  
+**État : passe 6 implémentée (6/7), passe 7 à faire ; tests et build à exécuter.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
 **Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
@@ -164,13 +164,13 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 ### Passe 6 — Bots, ordres et capacités actives
 
-- [ ] Auto Click : 1 à 20 clics/s sur session active avec même autorité de revenus/XP que clic manuel, sans spam d'animations, aucune accumulation d'intervalles.
-- [ ] Auto Investisseur : liste d'actifs, budget, réserve cash, taille d'ordre, activation individuelle.
-- [ ] Auto Trader + Ordres automatiques : prix limite, Stop Loss, Take Profit, seuils de gain/perte, ordre d'exécution déterministe.
-- [ ] Auto Entreprise : achats/améliorations selon budget, conditions de déblocage et réserve.
-- [ ] Intégrer au runtime unique et protéger reprise, visibilité, arrêt, reset/import, changements de stratégie et boucles d'ordres.
-- [ ] Frénésie boursière contrôlable depuis l'interface ; timing et cooldown persistés en temps réel si non terminés à la passe 4.
-- [ ] Tests frais, fiscalité, insuffisance de liquidité, solde négatif, cumul Auto Click/Fame, pas de double ordre ni achats sur anciennes sauvegardes.
+- [x] Auto Click : 1 à 20 clics/s sur session active avec même autorité de revenus/XP que clic manuel, sans spam d'animations, aucune accumulation d'intervalles.
+- [x] Auto Investisseur : liste d'actifs, budget, réserve cash, taille d'ordre, activation individuelle.
+- [x] Auto Trader + Ordres automatiques : prix limite, Stop Loss, Take Profit, seuils de gain/perte, ordre d'exécution déterministe.
+- [x] Auto Entreprise : achats/améliorations selon budget, conditions de déblocage et réserve.
+- [x] Intégrer au runtime unique et protéger reprise, visibilité, arrêt, reset/import, changements de stratégie et boucles d'ordres.
+- [x] Frénésie boursière contrôlable depuis l'interface ; timing et cooldown persistés en temps réel si non terminés à la passe 4.
+- [x] Tests frais, fiscalité, insuffisance de liquidité, solde négatif, cumul Auto Click/Fame, pas de double ordre ni achats sur anciennes sauvegardes.
 - **Livrable :** automatisations pilotables et sûres, sans gain de ressources gratuit.
 
 ### Passe 7 — Équilibrage, audit et livraison
@@ -300,6 +300,20 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 - Tests Vue **`src/components/staking-ui.test.ts`** : absence de l'onglet avant achat, intégration au Trading, dépôt/retrait/solde, affichage mobile.
 - Mise à jour de `package.json` ; aucun workflow payant déclenché. **`npm test`, `npm run test:ui` et `npm run build` NON exécutés ici** : ce commit ne constitue pas une preuve de compilation ou d'équilibrage final. Vérifier la suite et la performance du replay avant déploiement.
 
+
+## 3septies. Résultat de la passe 6 — automatisations et ordres
+
+**Statut :** implémentation et tests ajoutés au code source sur `main`, mais **aucune exécution des tests ni compilation Vite/vue-tsc** dans cette session sans clone local/dépendances. Aucun workflow GitHub Actions payant et aucun déploiement des fichiers compilés à la racine.
+
+- `src/ascension/contracts.ts`, `src/ascension/state.ts` : configuration étendue sans casser les vieux états v7, curseurs de clics/bots, séquence monotone d'IDs, ordres par cycle. Contrôle strict des clés, niveaux Prestige débloqués, limites, timestamps, prix et précision. Les objets et règles du cycle sont réinitialisés au Prestige.
+- `src/ascension/automation-validation.ts`, `src/ascension/automation-orders.ts` : validateurs séparés pour éviter les cycles de dépendances ; activation/restriction des quatre bots par upgrade acheté, paramètres de budget, cash reserve et seuils, création/annulation jusqu'à 24 ordres, ordre déterministe par ID.
+- `src/ascension/automation-runtime.ts` : transition pure de session active, 1–20 Auto Click/seconde réelle via `earnCapitalClick`, sans replay hors ligne ; toutes les cinq secondes réelles, jusqu'à une exécution d'ordre, de vente Auto Trader, d'achat Auto Investisseur et d'entreprise. Déclenchement par vrai prix de marché simulé ; limites d'achats incluant les frais et la réserve de cash, ventes via Trading (frais/liquidité/staking/fiscalité/XP), entreprise via ses propriétaires métiers (niveaux/prix).
+- `src/trading/runtime.ts` et `src/App.vue` : **un seul runtime** ; automatisation uniquement après l'achèvement du rattrapage de cotations et de fiscalité, et lorsque l'application est au premier plan. Le curseur persisted empêche une seconde exécution accidentelle à timestamp identique et limite le replay massif. Actions de réglage et ordres appliqués uniquement après succès du remplacement de sauvegarde v7.
+- `src/components/AutomationPanel.vue`, `src/components/PrestigeScreen.vue`, `src/style.css` : switches explicites, configuration, sélection des marchés, règles d'achat/vente, formulaire ordres conditionnels, liste des ordres et annulation ; interface mobile scrollable. Frénésie boursière conserve les contrôles réalisés en passe 4.
+- `src/ascension/automation.test.ts`, `src/components/automation-ui.test.ts` : cas d'achat d'upgrades, Fame & XP d'Auto Click, répétitions contrôlées, limites budgets/réserve, exécution unique et annulation des ordres, frais et taxe Trading, niveaux Entreprises, solde négatif, sauvegarde JSON et états falsifiés, Prestige reset. Scripts npm mis à jour.
+
+**Note de validation :** ces scénarios sont écrits mais leur réussite n'a pas été démontrée. La **passe 7 devra d'abord trouver et corriger** toute erreur de compilation/tests avant de pouvoir considérer CAPITAL_IDLE comme prêt à déployer. La passe 6 n'a pas modifié l'artefact compilé GitHub Pages.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -318,7 +332,7 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 | 3 — UI Shop | ☑ Implémentée | commit de passe 3 | Page, achats PP, confirmation, tests ajoutés ; exécution non vérifiée |
 | 4 — Marché | ☑ Implémentée | commit de passe 4 | Horloge virtuelle, news, liquidité et UI ; suite non exécutée |
 | 5 — Staking | ☑ Implémentée | commit de passe 5 | Staking réel, reward lots, retraits, auto-compound et UI ; tests non exécutés |
-| 6 — Automates | ☐ À faire | — | Exécution sûre |
+| 6 — Automates | ☑ Implémentée | commit de passe 6 | Clics/bots/ordres, contrôle UI et validation v7 ; exécution des tests non attestée |
 | 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
 
-**Suite immédiate :** au prochain « next », tenter en priorité l'exécution de `npm test` et `npm run build` dans un environnement disposant des dépendances ; puis commencer **la passe 6 seulement** (Auto Click, bots et ordres automatiques).
+**Suite immédiate :** au prochain « next », attaquer **la passe 7 seulement** : audit de cohérence, dette technique et tests, correction des anomalies, équilibrage, build et déploiement statique si l'environnement le permet. Les suites npm restent non exécutées pour les passes 2–6.

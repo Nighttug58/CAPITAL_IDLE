@@ -82,7 +82,7 @@ describe('Prestige économique — page et boutique', () => {
     expect(click.find('.ascension-upgrade-level').text()).toContain('1/20')
     expect(click.find('.ascension-upgrade-cost').text()).toContain('2 PP')
     expect(wrapper.find('.ascension-notice').text()).toContain('Auto Click')
-    expect(wrapper.find('.ascension-upgrade[data-upgrade="auto-click"] .ascension-phase').text()).toContain('passe 6')
+    expect(wrapper.find('.ascension-upgrade[data-upgrade="auto-click"] .ascension-phase').text()).toContain('Effet disponible')
     wrapper.unmount()
     mounted.splice(mounted.indexOf(wrapper), 1)
     const restarted = mount(App, { attachTo: document.body })

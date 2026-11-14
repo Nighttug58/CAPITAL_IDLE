@@ -2,10 +2,11 @@ import {
   ASCENSION_SHOP_EXPECTED_LEVELS, ASCENSION_SHOP_EXPECTED_TOTAL_PP,
   type AscensionAutomationSettings, type AscensionCycleSummary,
   type AscensionProgress, type AscensionRunState, type AscensionSaveSection,
-  type AscensionSpeed,
+  type AscensionSpeed, type AscensionMarketOrder,
 } from './contracts.ts'
 import { ASCENSION_TOTAL_COST, ASCENSION_TOTAL_LEVELS, ascensionSpentPoints, createZeroAscensionLevels } from './catalog.ts'
-import { getAsset } from '../trading/catalog.ts'
+import { validAutomation } from './automation-validation.ts'
+import { validMarketOrders } from './automation-orders.ts'
 import { previewPrestigePoints } from './contracts.ts'
 
 export const MAX_ASCENSION_HISTORY = 100
@@ -21,6 +22,10 @@ const speed = (value: unknown): value is AscensionSpeed =>
 export function createInitialAscensionRun(now: number): AscensionRunState {
   return {
     startedAtRealMs: now,
+    lastAutomationAtRealMs: now,
+    lastStrategyAtRealMs: now,
+    nextOrderId: 1,
+    marketOrders: [],
     marketClock: { simulatedAtMs: now, realAnchorMs: now, selectedSpeed: 1 },
     automation: {
       autoClickEnabled: false, investorEnabled: false,
@@ -39,19 +44,6 @@ export function createInitialAscensionState(now: number, highestFameAwardedLevel
     },
     run: createInitialAscensionRun(now),
   }
-}
-
-function validAutomation(value: unknown): value is AscensionAutomationSettings {
-  if (!record(value) || !keys(value, [
-    'autoClickEnabled', 'investorEnabled', 'traderEnabled', 'enterpriseEnabled',
-    'allowedAssetIds', 'maxOrderCents', 'cashReserveCents',
-  ])) return false
-  if (['autoClickEnabled', 'investorEnabled', 'traderEnabled', 'enterpriseEnabled']
-    .some(id => typeof value[id] !== 'boolean')) return false
-  if (!safe(value.maxOrderCents) || !safe(value.cashReserveCents) ||
-      !Array.isArray(value.allowedAssetIds) || value.allowedAssetIds.length > 45) return false
-  return value.allowedAssetIds.every((id: unknown) => typeof id === 'string' && !!getAsset(id)) &&
-    new Set(value.allowedAssetIds).size === value.allowedAssetIds.length
 }
 
 function validHistory(history: unknown, count: number, lifetime: number, highest: number, now: number): history is AscensionCycleSummary[] {
@@ -97,8 +89,13 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
       levelFameMicros < progress.highestFameAwardedLevel * (progress.highestFameAwardedLevel + 1) / 2 * 1_000_000 ||
       !validHistory(progress.history, progress.prestigeCount, progress.lifetimePoints, progress.highestFameAwardedLevel, now)) return null
 
-  if (!(keys(run, ['startedAtRealMs','marketClock','automation']) ||
-        keys(run, ['startedAtRealMs','marketClock','automation','frenzyEndsAtRealMs','frenzyReadyAtRealMs'])) ||
+  const runBase = ['startedAtRealMs','marketClock','automation']
+  const runOptional = [
+    'frenzyEndsAtRealMs','frenzyReadyAtRealMs',
+    'lastAutomationAtRealMs','lastStrategyAtRealMs','nextOrderId','marketOrders',
+  ]
+  if (!runBase.every(key => Object.hasOwn(run, key)) ||
+      !Object.keys(run).every(key => runBase.includes(key) || runOptional.includes(key)) ||
       !safe(run.startedAtRealMs) || run.startedAtRealMs > now + 5 * 60_000 ||
       !record(run.marketClock) || !keys(run.marketClock, ['simulatedAtMs','realAnchorMs','selectedSpeed']) ||
       !safe(run.marketClock.realAnchorMs) || run.marketClock.realAnchorMs > now + 5 * 60_000 ||
@@ -108,6 +105,22 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
       ([1, 1.5, 2, 3, 4, 5] as const).indexOf(run.marketClock.selectedSpeed as AscensionSpeed) >
         (progress.upgradeLevels as Record<string, number>)['time-accelerator']! ||
       !validAutomation(run.automation) ||
+      (record(run.automation) &&
+        (['autoClickEnabled','investorEnabled','traderEnabled','enterpriseEnabled'] as const)
+          .some((flag, index) => run.automation[flag] === true &&
+            (progress.upgradeLevels as Record<string,number>)[
+              ['auto-click','auto-investor','auto-trader','auto-enterprise'][index]!
+            ] === 0)) ||
+      (run.lastAutomationAtRealMs !== undefined &&
+        (!safe(run.lastAutomationAtRealMs) || run.lastAutomationAtRealMs > now + 5 * 60_000 ||
+          run.lastAutomationAtRealMs < run.startedAtRealMs)) ||
+      (run.lastStrategyAtRealMs !== undefined &&
+        (!safe(run.lastStrategyAtRealMs) || run.lastStrategyAtRealMs > now + 5 * 60_000 ||
+          run.lastStrategyAtRealMs < run.startedAtRealMs)) ||
+      (run.nextOrderId !== undefined && (!safe(run.nextOrderId) || run.nextOrderId < 1)) ||
+      (run.marketOrders !== undefined && !validMarketOrders(run.marketOrders, run.nextOrderId, run.startedAtRealMs, now)) ||
+      (run.marketOrders !== undefined && (run.marketOrders as AscensionMarketOrder[]).length > 0 &&
+        (progress.upgradeLevels as Record<string, number>)['automatic-orders'] === 0) ||
       (run.frenzyEndsAtRealMs !== undefined &&
         (progress.upgradeLevels as Record<string, number>)['market-frenzy'] === 0) ||
       (run.frenzyEndsAtRealMs !== undefined && (!safe(run.frenzyEndsAtRealMs) || !safe(run.frenzyReadyAtRealMs) ||
@@ -126,6 +139,10 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
     },
     run: {
       startedAtRealMs: run.startedAtRealMs,
+      ...(run.lastAutomationAtRealMs !== undefined ? { lastAutomationAtRealMs: run.lastAutomationAtRealMs as number } : {}),
+      ...(run.lastStrategyAtRealMs !== undefined ? { lastStrategyAtRealMs: run.lastStrategyAtRealMs as number } : {}),
+      ...(run.nextOrderId !== undefined ? { nextOrderId: run.nextOrderId as number } : {}),
+      ...(run.marketOrders !== undefined ? { marketOrders: (run.marketOrders as AscensionMarketOrder[]).map(order => ({ ...order })) } : {}),
       ...(run.frenzyEndsAtRealMs !== undefined
         ? { frenzyEndsAtRealMs: run.frenzyEndsAtRealMs as number, frenzyReadyAtRealMs: run.frenzyReadyAtRealMs as number }
         : {}),

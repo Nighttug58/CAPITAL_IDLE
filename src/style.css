@@ -1178,3 +1178,68 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
   .staking-facts { gap:4px; }
   .staking-facts span { padding:5px 6px; font-size:9px; }
 }
+
+
+/* Prestige — passe 6: automation configuration, conditional orders, and execution visibility. */
+.automation-panel { padding:14px; margin:13px 0 5px; border-radius:12px;
+  border:1px solid #56746c; background:linear-gradient(145deg,#213434,#22282b); }
+.automation-heading h2 { margin:5px 0 7px; color:#d9eee2; font-size:18px; }
+.automation-heading p,.automation-config>p,.automation-orders>p { color:#b4c8c2; font-size:11px; line-height:1.5; margin:0 0 12px; }
+.automation-locked { padding:10px; border:1px dashed #5a7773; border-radius:8px;
+  color:#aec6be; font-size:11px; line-height:1.5; }
+.automation-switches { display:grid; gap:7px; margin-top:12px; }
+.automation-switch { display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 12px; background:#1c292b; border:1px solid #486462; border-radius:8px; }
+.automation-switch>div { display:flex; flex:1; flex-direction:column; gap:4px; min-width:0; }
+.automation-switch strong { font-size:12px; color:#dcefe7; }
+.automation-switch small { font-size:10px; color:#acbdbb; }
+.automation-switch>button { min-height:34px; min-width:98px; padding:6px 9px;
+  background:#3e5350; color:#deeee8; border:1px solid #729589; border-radius:7px;
+  font-size:10px; font-weight:780; }
+.automation-switch>button[aria-pressed="true"] { background:#3b9871; border-color:#b4ead1; color:#092d1c; }
+.automation-switch>button:disabled { opacity:.47; cursor:not-allowed; }
+.automation-config,.automation-assets,.automation-orders { margin-top:13px; padding-top:12px; border-top:1px solid #58716b70; }
+.automation-config h3,.automation-assets h3,.automation-orders h3 { font-size:13px; margin:0 0 9px; color:#cfe6d9; }
+.automation-assets h3 small,.automation-orders h3 small { color:#a1c3af; font-weight:500; }
+.automation-fields,.automation-order-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.automation-fields label,.automation-order-fields label { display:flex; flex-direction:column; gap:5px;
+  min-width:0; font-size:10px; color:#bed4c8; font-weight:600; }
+.automation-fields input,.automation-order-fields input,.automation-order-fields select {
+  display:block; width:100%; min-width:0; min-height:37px; padding:8px;
+  color:#e6f7ee; border:1px solid #61867d; border-radius:7px;
+  background:#132222; font-size:13px; }
+.automation-save { min-height:37px; margin-top:11px; padding:9px 12px; color:#133124;
+  border:1px solid #b1eace; border-radius:7px; background:#80c7a1;
+  font-size:11px; font-weight:820; }
+.automation-save:disabled { cursor:not-allowed; opacity:.45; }
+.automation-assets-list { max-height:160px; overflow-y:auto; overscroll-behavior:contain;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; padding-right:2px; }
+.automation-assets-list label { display:flex; gap:5px; align-items:center; min-width:0;
+  border:1px solid #465e5b; background:#1b292a; color:#d4e9df; border-radius:6px; padding:6px; }
+.automation-assets-list label.is-selected { border-color:#8dc2a6; background:#294438; }
+.automation-assets-list input { flex:0 0 auto; accent-color:#74c99a; width:14px; height:14px; }
+.automation-assets-list span { font-size:10px; font-weight:740; }
+.automation-assets-list small { font-size:8px; color:#aebdb8; overflow:hidden; text-overflow:ellipsis; }
+.automation-order-current { margin:9px 0 0 !important; color:#a7c8b3; }
+.automation-pending { display:grid; gap:7px; margin-top:13px; }
+.automation-pending article { display:flex; align-items:center; justify-content:space-between;
+  gap:9px; padding:9px; border:1px solid #5c776a; background:#1e3030; border-radius:8px; }
+.automation-pending article>div { min-width:0; display:flex; flex-direction:column; gap:4px; }
+.automation-pending strong { font-size:11px; color:#dbe8e1; }
+.automation-pending small { font-size:10px; color:#b0c7b8; overflow-wrap:anywhere; }
+.automation-pending button { flex:0 0 auto; min-height:31px; border-radius:6px;
+  background:#4e3533; border:1px solid #a77b70; color:#f1d6cf; font-size:10px; padding:7px; }
+.automation-empty { color:#a9bcb0; font-size:11px; margin:13px 0 0; }
+.automation-notice { margin:12px 0 0; padding:9px; color:#dcf5e3; font-size:11px;
+  background:#31563f; border:1px solid #739e82; border-radius:7px; }
+.automation-notice.is-error { color:#fcd2c9; background:#52362d; border-color:#996e61; }
+.automation-panel button:focus-visible,.automation-panel input:focus-visible,
+.automation-panel select:focus-visible { outline:2px solid #bbf2d6; outline-offset:2px; }
+@media(max-width:430px) {
+  .automation-panel { padding:10px; }
+  .automation-assets-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .automation-assets-list small { display:none; }
+  .automation-switch { padding:8px; gap:5px; }
+  .automation-switch>button { min-width:80px; }
+  .automation-fields,.automation-order-fields { gap:7px; }
+}
