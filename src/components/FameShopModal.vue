@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { FAME_BOOSTS } from '../prestige/catalog.ts'
 import { getBonusBreakdown } from '../prestige/bonuses.ts'
+import { getAbsolutePrestigeStatus } from '../prestige/absolute.ts'
 import { getFameShopOffers, type FameShopError, type FameShopPurchase } from '../prestige/shop.ts'
 import { FAME_MICROS } from '../prestige/state.ts'
 
@@ -23,6 +24,11 @@ const rows = computed(() => FAME_BOOSTS.map((boost, index) => ({
   boost, offer: offers.value[index]!, collectionBonus: getBonusBreakdown(props.state, boost.id).collectionBps,
 })))
 const purchasedLevels = computed(() => offers.value.reduce((total, offer) => total + offer.currentLevel, 0))
+const absolute = computed(() => getAbsolutePrestigeStatus(props.state))
+const factorText = computed(() => absolute.value.overflowed
+  ? 'HORS LIMITE'
+  : '×' + new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 }).format(absolute.value.factor))
+const remainingSteps = computed(() => Math.max(0, absolute.value.requiredLevels - absolute.value.purchasedLevels))
 
 const errors: Record<FameShopError, string> = {
   'unknown-boost': 'Cette amélioration est introuvable.',
@@ -112,6 +118,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </div>
           <div class="fame-boost-meta">
             <span>Shop : <b>+{{ percentage(row.offer.currentBonusBps) }}</b></span>
+            <span v-if="absolute.unlocked">Shop avec Prestige : <b>+{{ percentage(row.offer.currentBonusBps * absolute.factor) }}</b></span>
             <span v-if="row.collectionBonus > 0">Collection : <b>+{{ percentage(row.collectionBonus) }}</b></span>
             <span v-if="row.offer.nextBonusBps !== null">Prochain : <b>+{{ percentage(row.offer.nextBonusBps) }}</b></span>
             <span v-else class="fame-boost-max">Bonus au maximum</span>
@@ -127,6 +134,32 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
               {{ row.offer.nextCostFame === null ? 'MAX' : row.offer.canAfford ? 'ACHETER' : 'FAME INSUFF.' }}
             </button>
           </div>
+        </article>
+        <article class="absolute-prestige-card" :class="{ 'absolute-prestige-unlocked': absolute.unlocked }"
+          data-boost="absolute">
+          <div class="absolute-prestige-heading">
+            <div>
+              <span class="prestige-eyebrow">✦ ULTIME AMÉLIORATION</span>
+              <h3>Prestige absolu</h3>
+            </div>
+            <span class="absolute-prestige-state">{{ absolute.unlocked ? 'DÉBLOQUÉ' : 'VERROUILLÉ' }}</span>
+          </div>
+          <p v-if="!absolute.unlocked">
+            Déblocage automatique et gratuit après les 120 niveaux du Fame Shop.
+            Encore {{ remainingSteps }} {{ remainingSteps === 1 ? 'palier' : 'paliers' }} à acheter.
+          </p>
+          <template v-else>
+            <strong class="absolute-prestige-factor">{{ factorText }}</strong>
+            <p>Chaque tranche entière de 100 Fame <b>disponibles</b> multiplie uniquement les bonus du Fame Shop par ×1,01.</p>
+            <div class="absolute-prestige-details">
+              <span>{{ absolute.fameSteps }} tranches actives</span>
+              <span>Prochaine tranche : {{ absolute.nextStepAtFame }} Fame</span>
+            </div>
+            <p v-if="absolute.overflowed" class="prestige-notice prestige-notice-error">
+              Facteur trop élevé pour être représenté : les gains dépassant les limites monétaires sont refusés.
+            </p>
+          </template>
+          <p class="absolute-prestige-footnote">Les bonus de collection ne sont jamais multipliés. Aucun achat supplémentaire.</p>
         </article>
       </div>
       <footer class="prestige-dialog-footer">
