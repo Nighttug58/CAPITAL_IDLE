@@ -5,6 +5,8 @@ import {
   LEVEL_THRESHOLDS,
   earnClick,
   getClickValue,
+  getClickUpgradeIncrement,
+  CLICK_INCOME_TIER_SIZE,
   getLevel,
   getLevelStartThreshold,
   getNextLevelThreshold,
@@ -72,13 +74,18 @@ test('999 améliorations du clic : augmentation des écarts de prix de 0,05 % co
   assert.equal(FIRST_CLICK_UPGRADE_PRICE, 375)
   assert.equal(CLICK_UPGRADE_PRICE_STEP, 750)
   assert.equal(CLICK_PRICE_INCREMENT_GROWTH, 0.0005)
+  assert.equal(CLICK_INCOME_TIER_SIZE, 50)
   let lastIncrease = 0
+  let expectedIncome = 1
   UPGRADES.forEach((upgrade, index) => {
     const clickValue = index + 2
     const expectedGate = clickValue <= 50 ? clickValue : 50 + Math.ceil((clickValue - 50) / 20)
     assert.equal(upgrade.requiredLevel, expectedGate)
-    assert.equal(upgrade.clickValue, clickValue)
-    assert.equal(upgrade.clickValue - getClickValue(index), 1)
+    const increment = Math.ceil(clickValue / CLICK_INCOME_TIER_SIZE)
+    expectedIncome += increment
+    assert.equal(getClickUpgradeIncrement(clickValue), increment)
+    assert.equal(upgrade.clickValue, expectedIncome)
+    assert.equal(upgrade.clickValue - getClickValue(index), increment)
     if (index === 0) assert.equal(upgrade.price, 375)
     else {
       const increase = upgrade.price - UPGRADES[index - 1]!.price
@@ -105,8 +112,40 @@ test('999 améliorations du clic : augmentation des écarts de prix de 0,05 % co
   const oldLastPrice = FIRST_CLICK_UPGRADE_PRICE + 998 * CLICK_UPGRADE_PRICE_STEP
   assert.ok(UPGRADES[998]!.price > oldLastPrice)
   assert.ok(UPGRADES[998]!.price < oldLastPrice * 1.3, 'exponential bend must stay mild at max tier')
-  assert.equal(getClickValue(999), 1000)
+  assert.equal(getClickValue(999), 10_500)
   assert.equal(getNextUpgrade({ ...INITIAL_GAME, purchasedUpgrades: 999 }), null)
+})
+
+test('bonus Gold par tranche de 50 niveaux de clic, sans rupture au niveau 50', () => {
+  const examples = [
+    { level: 1, income: 1, nextIncrement: 1 },
+    { level: 49, income: 49, nextIncrement: 1 },
+    { level: 50, income: 50, nextIncrement: 2 },
+    { level: 51, income: 52, nextIncrement: 2 },
+    { level: 99, income: 148, nextIncrement: 2 },
+    { level: 100, income: 150, nextIncrement: 3 },
+    { level: 101, income: 153, nextIncrement: 3 },
+    { level: 150, income: 300, nextIncrement: 4 },
+    { level: 200, income: 500, nextIncrement: 5 },
+    { level: 500, income: 2750, nextIncrement: 11 },
+    { level: 999, income: 10_480, nextIncrement: 20 },
+    { level: 1000, income: 10_500, nextIncrement: 0 },
+  ] as const
+  for (const { level, income, nextIncrement } of examples) {
+    assert.equal(getClickValue(level - 1), income, 'click level ' + level)
+    assert.equal(getClickUpgradeIncrement(level + 1), nextIncrement, 'upgrade after ' + level)
+    assert.equal(earnClick({ balance: 0, lifetimeEarned: 0, purchasedUpgrades: level - 1 }).balance,
+      income, 'the actual click credits the complete amount at level ' + level)
+  }
+  assert.equal(getClickUpgradeIncrement(1), 0)
+  assert.equal(getClickUpgradeIncrement(1001), 0)
+  assert.equal(getClickUpgradeIncrement(Number.NaN), 0)
+  assert.equal(UPGRADES[48]!.clickValue, 50)
+  assert.equal(UPGRADES[49]!.clickValue, 52)
+  assert.equal(UPGRADES[98]!.clickValue, 150)
+  assert.equal(UPGRADES[998]!.clickValue, 10_500)
+  assert.ok(UPGRADES.every((upgrade, i) => i === 0 ||
+    upgrade.clickValue > UPGRADES[i - 1]!.clickValue))
 })
 
 test('on peut acheter les 999 améliorations, sans niveau joueur 1000 ni achat à crédit', () => {
@@ -121,7 +160,7 @@ test('on peut acheter les 999 améliorations, sans niveau joueur 1000 ni achat �
   }
   assert.equal(state.purchasedUpgrades, 999)
   assert.equal(state.balance, 0)
-  assert.equal(getClickValue(state.purchasedUpgrades), 1000)
+  assert.equal(getClickValue(state.purchasedUpgrades), 10_500)
   assert.strictEqual(purchaseUpgrade(state), state)
 })
 
