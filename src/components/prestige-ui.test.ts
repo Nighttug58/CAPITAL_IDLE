@@ -19,10 +19,10 @@ function mountSaved(balance: number, earned: number = balance) {
   const state = createCapitalState({
     balance, lifetimeEarned: earned, purchasedUpgrades: 0,
   }, Date.now())
-  localStorage.setItem('capital-idle-save-v6', JSON.stringify(state))
+  localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
-  const current = () => JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
+  const current = () => JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
   return { wrapper, current, initial: state }
 }
 
@@ -40,7 +40,7 @@ describe('Click rewards — tranches de 50 niveaux', () => {
       const state = createCapitalState({
         balance: earned, lifetimeEarned: earned, purchasedUpgrades: upgrades,
       }, Date.now())
-      localStorage.setItem('capital-idle-save-v6', JSON.stringify(state))
+      localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
       const wrapper = mount(App, { attachTo: document.body })
       mounted.push(wrapper)
       const upgradeCard = wrapper.find('.upgrade-card')
@@ -266,7 +266,7 @@ describe('Prestige absolu — écran et sauvegarde', () => {
   it('120/120 : Prestige est gratuit, facteur ×1,01⁶ et Fame ventilée avec bonus non multipliés', async () => {
     const endgame = completedPrestigeState()
     expect(getAbsolutePrestigeStatus(endgame).factor).toBe(1.01 ** 6)
-    localStorage.setItem('capital-idle-save-v6', JSON.stringify(endgame))
+    localStorage.setItem('capital-idle-save-v7', JSON.stringify(endgame))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.find('.fame-shop-launch').trigger('click')
@@ -295,12 +295,12 @@ describe('Prestige absolu — écran et sauvegarde', () => {
     expect(stats.find('.stats-prestige-boost[data-boost="click"]').text()).toContain('avec Prestige')
     expect(stats.find('.stats-prestige-boost[data-boost="fame"]').text()).toContain('Collection')
     expect(stats.text()).toContain('jamais aux collections')
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v6')!).prestige.fameMicros).toBe(600 * FAME_MICROS)
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v7')!).prestige.fameMicros).toBe(600 * FAME_MICROS)
   })
 
   it('Prestige rechargé n’est ni remboursé ni obtenu une seconde fois, puis RESET le désactive', async () => {
     const initial = completedPrestigeState()
-    localStorage.setItem('capital-idle-save-v6', JSON.stringify(initial))
+    localStorage.setItem('capital-idle-save-v7', JSON.stringify(initial))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
@@ -309,7 +309,7 @@ describe('Prestige absolu — écran et sauvegarde', () => {
     await wrapper.find('#reset-code').setValue('RESET')
     await wrapper.find('.backup-confirm-danger').trigger('click')
     await nextTick()
-    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
+    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
     expect(getAbsolutePrestigeStatus(stored).unlocked).toBe(false)
     expect(stored.prestige.fameMicros).toBe(FAME_MICROS)
     expect(stored.prestige.ownedCollectionIds).toHaveLength(0)

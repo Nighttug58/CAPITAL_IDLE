@@ -9,7 +9,7 @@ import { BASE_XP_EARN_RATE_BPS, FAME_MICROS, creditExperience, restorePrestigeSt
 const NOW = 1_800_000_000_000
 test('fresh Fame and level-up: level 1 grants 1, level 2 grants 2', () => {
   const fresh = createCapitalState(undefined, NOW)
-  assert.equal(CAPITAL_SAVE_VERSION, 6)
+  assert.equal(CAPITAL_SAVE_VERSION, 7)
   assert.equal(fresh.prestige.experienceCents, 0)
   assert.equal(fresh.prestige.fameMicros, FAME_MICROS)
   assert.equal(fresh.prestige.lastAwardedLevel, 1)
@@ -47,11 +47,12 @@ test('v5 migration allocates Fame once and preserves economic history', () => {
   const current = createCapitalState({
     balance: 1200, lifetimeEarned: getLevelStartThreshold(50) / 4, purchasedUpgrades: 3,
   }, NOW)
-  const { prestige: _old, ...other } = current
+  const { prestige: _old, ascension: _oldAscension, ...other } = current
   void _old
+  void _oldAscension
   const savedV5 = { ...other, version: 5 }
   const first = restoreCapitalState(savedV5, NOW)
-  assert.equal(first.version, 6)
+  assert.equal(first.version, 7)
   assert.deepEqual(first.game, current.game)
   assert.deepEqual(first.trading, current.trading)
   assert.deepEqual(first.fiscal, current.fiscal)
@@ -103,7 +104,9 @@ test('legacy v6: preserve current player level, 49 click upgrades and Fame on 4x
   }
   const { xpCurveVersion: _curve, ...legacyPrestige } = historicPrestige
   void _curve
-  const legacy = { ...template, prestige: legacyPrestige }
+  const { ascension: _v7, ...beforeAscension } = template
+  void _v7
+  const legacy = { ...beforeAscension, version: 6, prestige: legacyPrestige }
   const restored = restoreCapitalState(legacy, NOW)
   assert.deepEqual(restored.game, game)
   assert.equal(restored.prestige.lastAwardedLevel, 50)
@@ -112,7 +115,7 @@ test('legacy v6: preserve current player level, 49 click upgrades and Fame on 4x
   assert.equal(restored.prestige.lifetimeFameMicros, historicFame)
   assert.equal(restored.prestige.xpCurveVersion, 2)
   assert.deepEqual(restoreCapitalState(restored, NOW), restored)
-  const accepted = prepareSaveImport(createSaveExport(legacy, NOW), NOW)
+  const accepted = prepareSaveImport(JSON.stringify(legacy), NOW)
   assert.ok(accepted.ok)
   assert.deepEqual(accepted.preview.state, restored)
   const twice = prepareSaveImport(createSaveExport(restored, NOW), NOW)

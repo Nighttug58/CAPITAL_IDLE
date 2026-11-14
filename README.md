@@ -76,7 +76,7 @@ La page **Stats** est l'onglet le plus à droite de la navigation principale. El
 
 ## Sauvegarde locale, import/export et rattrapage hors ligne
 
-- Sauvegarde automatique **v6** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v5** sont migrées vers v6 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
+- Sauvegarde automatique **v7** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v6** sont migrées vers v7 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
 - Tout en bas de **Stats** : **Exporter** télécharge un JSON complet et versionné (`CAPITAL_IDLE_save_YYYY-MM-DD.json`) ; **Importer** valide le fichier (v4/v5/v6, taille maximale **16 Mo**, cohérence du schéma, valeurs, horloges et portefeuille), présente un aperçu et demande une **confirmation avant remplacement** ; **Réinitialiser** nécessite la saisie exacte de `RESET`.
 - Import et reset remplacent la sauvegarde v6 **après arrêt de l'ancien moteur**, puis reprennent le jeu sur les horloges sauvegardées. Un fichier invalide est rejeté sans effacer la partie. Les anciennes clés v1–v5 sont effacées lors du remplacement, et une v6 reste prioritaire pour empêcher la résurrection d'une ancienne partie.
 - La restauration conserve les dates de simulation ; le revenu d'entreprises et les taxes sont repris sur toute la durée écoulée. Le **Trading/News/dividendes** conserve volontairement son rejeu **par tranches bornées** : une très longue absence peut demander plusieurs cycles pour rattraper ce sous-système, sans limiter les revenus fixes des entreprises.
@@ -143,6 +143,20 @@ npm run build
 - `src/trading/news-library/` : récits des événements fictifs.
 
 Voir également [la roadmap Trading](ROADMAP_TRADING.md), [la roadmap Entreprises/Stats/Fiscalité](ROADMAP_ENTREPRISES_STATS_FISCALITE.md), [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md), [les règles du moteur News](TRADING_NEWS.md) et [l'interface Trading](TRADING_INTERFACE.md).
+
+
+## Nouveau Prestige économique — passe 2 (14/11/2026)
+
+Les **Points de Prestige (PP)** ne sont pas la Fame : le domaine `src/ascension/` est distinct du module Fame historique `src/prestige/`. Le moteur métier est implémenté en passe 2 et l'écran d'activation sera livré en passe 3. **Le site compilé à la racine ne contient pas encore cette interface.**
+
+- Conditions : **niveau 100** sur le cycle et **100 M$** de patrimoine éligible hors collection permanente ; PP = `floor(20 × sqrt(patrimoine / 100 M$))`.
+- Un Prestige remet à zéro cash, XP du cycle, achats de clics, investissements, entreprises et statistiques du cycle, mais conserve Fame, objets, boosts Fame, PP, niveaux de Prestige et historique des cycles.
+- La Fame gagnée pour des niveaux atteints lors de cycles précédents ne peut pas être regagnée : un record global du plus haut niveau récompensé est persisté.
+- La dette fiscale **doit être nulle après rattrapage** et le calendrier des **72 h réelles** est conservé. Le moteur refuse aussi le reset avant la fin d'un replay marché/dividendes en attente.
+- **Sauvegarde v7** : migrations locales v1–v6, imports v4/v5/v6/v7 avec validation de l'état Prestige et des dépenses en PP. Import et RESET complet remplacent toujours l'ensemble de la partie, pas seulement le cycle.
+- La transition est pure ; l'intégration UI utilisera `commitPrestige` avec `replaceCapitalSave` après arrêt du runtime. Aucune PP n'est créditée si l'écriture échoue. Les nouveaux bonus et achats Prestige ne sont pas encore activés en passe 2.
+
+Voir [ROADMAP_PRESTIGE.md](ROADMAP_PRESTIGE.md) pour la progression et les limites de validation.
 
 ## Déploiement GitHub Pages
 

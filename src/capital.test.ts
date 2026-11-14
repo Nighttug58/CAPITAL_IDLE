@@ -29,7 +29,7 @@ function withStorage(run: (values: Map<string, string>) => void): void {
 
 test('une partie neuve possède un solde unique, trading vide et états économiques v5', () => {
   const state = createCapitalState(undefined, NOW)
-  assert.equal(state.version, 6)
+  assert.equal(state.version, 7)
   assert.equal(state.version, CAPITAL_SAVE_VERSION)
   assert.deepEqual(state.game, { balance: 0, lifetimeEarned: 0, purchasedUpgrades: 0 })
   assert.equal(state.trading.lastTickAt, NOW)
@@ -105,7 +105,7 @@ test('migration v4 vers v5 : trading préservé, taxes nulles, pas de gains hist
     const previousV4 = { version: 4, game: oldGame, trading: legacy.trading }
     storage.set('capital-idle-save-v4', JSON.stringify(previousV4))
     const migrated = loadCapitalState(NOW)
-    assert.equal(migrated.version, 6)
+    assert.equal(migrated.version, 7)
     assert.deepEqual(migrated.game, oldGame)
     assert.deepEqual(migrated.trading, legacy.trading)
     assert.deepEqual(migrated.enterprises.owned, {})
@@ -115,7 +115,7 @@ test('migration v4 vers v5 : trading préservé, taxes nulles, pas de gains hist
     assert.equal(migrated.stats.earnedBySource.unclassified, 300)
     assert.equal(migrated.stats.earnedBySource.clicks, 0)
     assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v4')!), previousV4)
-    assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v6')!), migrated)
+    assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v7')!), migrated)
   })
 })
 
@@ -125,11 +125,11 @@ test('migration v3 vers v5 : conservation du solde, du cumul et des amélioratio
     storage.set('capital-idle-save-v3', JSON.stringify(oldGame))
     const current = loadCapitalState(NOW)
     assert.deepEqual(current.game, oldGame)
-    assert.equal(current.version, 6)
+    assert.equal(current.version, 7)
     assert.equal(current.trading.lastTickAt, NOW)
     assert.equal(current.fiscal.periodStartedAt, NOW)
     assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v3')!), oldGame)
-    assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v6')!).game, oldGame)
+    assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v7')!).game, oldGame)
   })
 })
 
@@ -143,7 +143,7 @@ test('les anciennes sauvegardes v1 et v2 restent migrables vers v5', () => {
       assert.equal(migrated.game.balance, 50)
       assert.equal(migrated.game.lifetimeEarned, 100)
       assert.equal(migrated.game.purchasedUpgrades, 1)
-      assert.ok(storage.has('capital-idle-save-v6'))
+      assert.ok(storage.has('capital-idle-save-v7'))
     })
   }
 })
@@ -197,4 +197,23 @@ test('v5 : rejette les valeurs non sûres tout en conservant les sections valide
   const restored = restoreCapitalState(corruptStats, NOW)
   assert.equal(restored.stats.earnedBySource.unclassified, 100)
   assert.equal(restored.stats.earnedBySource.clicks, 0)
+})
+
+test('v6 migre vers v7 une fois ; une clé v7 corrompue ne ressuscite jamais la v6', () => {
+  withStorage(storage => {
+    const original = createCapitalState({ balance: 2500, lifetimeEarned: 2500, purchasedUpgrades: 0 }, NOW)
+    const { ascension: _ignored, ...old } = original
+    void _ignored
+    storage.set('capital-idle-save-v6', JSON.stringify({ ...old, version: 6 }))
+    const migrated = loadCapitalState(NOW)
+    assert.equal(migrated.version, 7)
+    assert.equal(migrated.game.balance, 2500)
+    assert.equal(migrated.ascension.progress.highestFameAwardedLevel, migrated.prestige.lastAwardedLevel)
+    assert.deepEqual(JSON.parse(storage.get('capital-idle-save-v7')!), migrated)
+    storage.set('capital-idle-save-v7', '{broken')
+    const reset = loadCapitalState(NOW + 1)
+    assert.equal(reset.game.balance, 0)
+    assert.equal(reset.ascension.progress.availablePoints, 0)
+    assert.ok(storage.has('capital-idle-save-v6'))
+  })
 })

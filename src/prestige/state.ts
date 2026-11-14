@@ -147,7 +147,11 @@ export function creditExperience(state: CapitalState, earnedCents: number): Capi
   const experienceCents = previous.experienceCents + scaledXp.cents
   if (!Number.isSafeInteger(experienceCents)) return null
   const lastAwardedLevel = getLevel(experienceCents / 100)
-  const baseFameMicros = (levelsTotal(lastAwardedLevel) - levelsTotal(previous.lastAwardedLevel)) * FAME_MICROS
+  // Replaying levels already achieved in previous Prestige cycles earns NO Fame.
+  // The run level still follows XP for the legacy Fame state validator.
+  const highestAwarded = state.ascension.progress.highestFameAwardedLevel
+  const newRecord = Math.max(highestAwarded, lastAwardedLevel)
+  const baseFameMicros = (levelsTotal(newRecord) - levelsTotal(highestAwarded)) * FAME_MICROS
   if (!Number.isSafeInteger(baseFameMicros)) return null
   const awardedMicros = scaleNewFameMicros(state, baseFameMicros)
   if (awardedMicros === null) return null
@@ -161,6 +165,10 @@ export function creditExperience(state: CapitalState, earnedCents: number): Capi
     prestige: {
       ...previous, experienceCents, experienceCarryBps: scaledXp.carryBps,
       lastAwardedLevel, fameMicros, lifetimeFameMicros, levelFameMicros,
+    },
+    ascension: newRecord === highestAwarded ? state.ascension : {
+      ...state.ascension,
+      progress: { ...state.ascension.progress, highestFameAwardedLevel: newRecord },
     },
   }
 }

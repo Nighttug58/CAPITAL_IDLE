@@ -1,6 +1,6 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : passe 1 terminée (1/7), passe 2 à faire.**  
+**État : passe 2 implémentée (2/7), passe 3 à faire ; tests et build à exécuter.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
 **Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
@@ -126,12 +126,12 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 ### Passe 2 — Moteur de Prestige, économie et sauvegarde
 
-- [ ] Implémenter eligibility, richesse Prestige sans collections, formule des PP, achat des cycles et états refusés.
-- [ ] Rattraper les échéances, empêcher l'effacement de taxes et conserver la période réelle ; transaction de Prestige atomique / idempotente.
-- [ ] Réinitialiser uniquement l'économie du run, les portefeuilles, les entreprises, les news/ordres/stakes ; conserver Fame, bonus, collections et acquisitions Prestige.
-- [ ] Séparer niveau du run et record mondial de niveaux rémunérés en Fame, avec migration et conservation de l'historique.
-- [ ] Brancher sauvegarde, import/export, reset complet, migration des anciens fichiers et validation de PP non forgés (ledger des dépenses calculé depuis le catalogue).
-- [ ] Tests : 1er/2e Prestige, niveau <100, seuil, défaut cash, taxes impayées, erreur de stockage, double activation, import v4/v5/v6, replay sans récompense de Fame en double.
+- [x] Implémenter eligibility, richesse Prestige sans collections, formule des PP, achat des cycles et états refusés.
+- [x] Rattraper les échéances, empêcher l'effacement de taxes et conserver la période réelle ; transaction de Prestige atomique / idempotente.
+- [x] Réinitialiser uniquement l'économie du run, les portefeuilles, les entreprises, les news/ordres/stakes ; conserver Fame, bonus, collections et acquisitions Prestige.
+- [x] Séparer niveau du run et record mondial de niveaux rémunérés en Fame, avec migration et conservation de l'historique.
+- [x] Brancher sauvegarde, import/export, reset complet, migration des anciens fichiers et validation de PP non forgés (ledger des dépenses calculé depuis le catalogue).
+- [x] Tests : 1er/2e Prestige, niveau <100, seuil, défaut cash, taxes impayées, erreur de stockage, double activation, import v4/v5/v6, replay sans récompense de Fame en double.
 - **Livrable :** moteur métier de Prestige fonctionnel et persistant, sans boutique UI finale.
 
 ### Passe 3 — Boutique et écran Prestige
@@ -209,6 +209,26 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 - **Testabilité** : code de calcul isolé, contrats immuables, `src/ascension/contracts.test.ts` branché dans `npm test` ; chaque futur step garde des tests purs Node, UI Vitest, migrations, fiscalité, replay, `npm run build` et limites de débit. La suite ne peut conclure « tests réussis » sans avoir réellement exécuté les commandes.
 - **État des validations de cette passe** : vérification du contenu et des prix par lecture du dépôt ; calcul indépendant de la formule réalisé. **Suite complète `npm test` et `npm run build` non exécutée dans cette session** (GitHub accessible par connecteur, mais clonage/npm distant non accessibles). Aucun workflow GitHub Actions déclenché.
 
+
+## 3ter. Résultat de la passe 2 — moteur, réinitialisation, sauvegarde v7
+
+**Périmètre :** moteur métier et migration, sans bouton de Prestige dans l'interface. HEAD de référence au démarrage : `739295a` ; aucun AGENTS.md dans l'arborescence main. La racine GitHub Pages n'a pas été recompilée.
+
+### Fonctionnalités intégrées
+
+- `src/ascension/catalog.ts` : 18 identifiants et coûts déterministes (87 niveaux, 1 637 PP) + validateur de dépenses. Les achats utilisateur et leurs effets arrivent en passe 3 et suivantes.
+- `src/ascension/state.ts` : sections permanentes/temporaires initialisées en v7, migration v6, validation stricte des PP, historiques (100 derniers cycles), horloges, settings et record Fame global.
+- `src/ascension/engine.ts` : `performPrestige`, transaction métier refusable (niveau 100, 100 M$ hors collections, dette fiscale nulle, marché rattrapé, horloge sûre) et `commitPrestige` avec writer atomique ; second Prestige impossible sans regagner le niveau 100 et le patrimoine.
+- `src/prestige/state.ts` : les nouveaux niveaux ne créditent de Fame que s'ils battent le **record mondial de niveaux**. L'XP et le niveau du run restent distincts ; aucune collection n'est rachetable.
+- `src/capital.ts`, `src/persistence.ts`, `src/save-transfer.ts` : état v7, priorités v7 > v6 > anciennes, import v4/v5/v6/v7, validation intégrale, reset complet, aucune ancienne sauvegarde ressuscitée après reset. Le calendrier fiscal et les taxes déjà payées sont préservés pendant Prestige mais pas pendant RESET complet.
+- Tests métier `src/ascension/engine.test.ts`, tests existants adaptés aux nouvelles clés v7, plus couverture UI de gestion des sauvegardes adaptée. Le programme de tests est inscrit dans `package.json`.
+
+### Validation / limites explicites
+
+- Vérification statique et audit des chemins d'état au dépôt GitHub. Les résultats des **tests Node/Vitest** et du **build Vite/vue-tsc** ne peuvent pas être attestés dans cette session : le dépôt est accessible par connecteur GitHub, sans clone npm utilisable ; **aucun workflow payant déclenché**.
+- Avant la passe 3, exécuter `npm test` puis `npm run build` sur un environnement avec dépendances et résoudre tout échec avant d'activer la boutique. Les tests nouvellement écrits ne sont **pas** des résultats d'exécution.
+- Pas de bouton Prestige, pas d'auto-click, pas de vitesse de marché ni staking à cette étape. L'interface publique compilée à la racine n'a pas changé.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -223,11 +243,11 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 | Passe | Statut | Commit | Notes |
 | --- | --- | --- | --- |
 | 1 — Architecture | ☑ Terminée | `ac0eb03` | P0 = 100 M$, contrats purs et tests ajoutés |
-| 2 — Moteur | ☐ À faire | — | Migration / Fame / fiscalité |
+| 2 — Moteur | ☑ Implémentée | commit de passe 2 | Moteur, v7, Fame et tests ; exécution de la suite non vérifiée |
 | 3 — UI Shop | ☐ À faire | — | 18 upgrades |
 | 4 — Marché | ☐ À faire | — | Deux horloges |
 | 5 — Staking | ☐ À faire | — | Tokens verrouillés |
 | 6 — Automates | ☐ À faire | — | Exécution sûre |
 | 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
 
-**Suite immédiate :** au prochain « next », commencer **la passe 2 seulement** (moteur Prestige, persistance v7, anti-double Fame et fiscalité).
+**Suite immédiate :** au prochain « next », vérifier en premier la suite de tests et le build, puis commencer **la passe 3 seulement** (boutique et UI Prestige).

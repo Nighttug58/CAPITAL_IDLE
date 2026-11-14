@@ -1,22 +1,21 @@
 import { INITIAL_GAME, LEVEL_THRESHOLD_FACTOR, migrateLegacyGame, migrateV2Game, restoreGame, type GameState } from './game.ts'
 import { createCapitalState, restoreCapitalState, type CapitalState } from './capital.ts'
 import { createInitialPrestigeState } from './prestige/state.ts'
+import { createInitialAscensionState } from './ascension/state.ts'
 
-const STORAGE_KEY = 'capital-idle-save-v6'
+const STORAGE_KEY = 'capital-idle-save-v7'
+const V6_STORAGE_KEY = 'capital-idle-save-v6'
 const V5_STORAGE_KEY = 'capital-idle-save-v5'
 const V4_STORAGE_KEY = 'capital-idle-save-v4'
 const V3_STORAGE_KEY = 'capital-idle-save-v3'
 const V2_STORAGE_KEY = 'capital-idle-save-v2'
 const V1_STORAGE_KEY = 'capital-idle-save-v1'
 
-// Un stockage absent ou un JSON endommagé ne bloque jamais le jeu.
 function readStorage(key: string): unknown {
   try {
     const text = localStorage.getItem(key)
     return text === null ? undefined : JSON.parse(text) as unknown
-  } catch {
-    return undefined
-  }
+  } catch { return undefined }
 }
 
 function readPreviousGame(): GameState {
@@ -26,76 +25,54 @@ function readPreviousGame(): GameState {
     const oldXp = typeof legacy?.lifetimeEarned === 'number' ? legacy.lifetimeEarned * LEVEL_THRESHOLD_FACTOR : undefined
     return restoreGame(v3, { experiencePoints: oldXp })
   }
-
   const v2 = readStorage(V2_STORAGE_KEY)
   if (v2 !== undefined) return migrateV2Game(v2)
-
   const v1 = readStorage(V1_STORAGE_KEY)
   if (v1 !== undefined) return migrateLegacyGame(v1)
-
   return { ...INITIAL_GAME }
 }
 
 export function loadCapitalState(now = Date.now()): CapitalState {
-  // Une v6 présente est l'autorité, même corrompue : ne jamais ressusciter
-  // silencieusement la v4 périmée après un reset (passe 7).
-  // Une clé v6 présente reste prioritaire même si son JSON est corrompu :
-  // un reset ne doit jamais ressusciter une v4 conservée par le navigateur.
+  // Current key is authoritative even when corrupt: never resurrect an
+  // obsolete save after a reset. The explicit import path remains available.
   let currentText: string | null = null
-  try { currentText = localStorage.getItem(STORAGE_KEY) } catch { /* stockage indisponible */ }
-  if (currentText !== null) {
-    const current = readStorage(STORAGE_KEY)
-    return restoreCapitalState(current, now)
-  }
+  try { currentText = localStorage.getItem(STORAGE_KEY) } catch { /* unavailable */ }
+  if (currentText !== null) return restoreCapitalState(readStorage(STORAGE_KEY), now)
 
-  const v5 = readStorage(V5_STORAGE_KEY)
-  if (v5 !== undefined) {
-    const migrated = restoreCapitalState(v5, now)
+  for (const key of [V6_STORAGE_KEY, V5_STORAGE_KEY, V4_STORAGE_KEY]) {
+    const legacy = readStorage(key)
+    if (legacy === undefined) continue
+    const migrated = restoreCapitalState(legacy, now)
     saveCapitalState(migrated)
     return migrated
   }
 
-  const oldCapital = readStorage(V4_STORAGE_KEY)
-  if (oldCapital !== undefined) {
-    const migrated = restoreCapitalState(oldCapital, now)
-    saveCapitalState(migrated)
-    return migrated
-  }
-
-  // Les sauvegardes clicker v1/v2/v3 n'avaient aucun état Trading.
   const previousGame = readPreviousGame()
   const base = createCapitalState(previousGame, now)
-  const migrated: CapitalState = { ...base, prestige: createInitialPrestigeState(previousGame.lifetimeEarned, true) }
+  const prestige = createInitialPrestigeState(previousGame.lifetimeEarned, true)
+  const migrated: CapitalState = {
+    ...base, prestige,
+    ascension: createInitialAscensionState(now, prestige.lastAwardedLevel),
+  }
   saveCapitalState(migrated)
   return migrated
 }
 
 export function saveCapitalState(state: CapitalState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch {
-    // Si le stockage est saturé, le jeu reste accessible pendant la session.
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) }
+  catch { /* noncritical autosave failure */ }
 }
 
-/**
- * Remplacement explicite pour import/reset. Contrairement à l'autosauvegarde,
- * un échec de stockage ne peut PAS être silencieux : l'ancien état reste actif.
- * La clé v6 est écrite en premier. Les anciennes clés ne sont ensuite que des
- * reliquats ; leur suppression est best-effort et ne doit pas rendre l'opération
- * non atomique. Une v6 présente empêche toute migration fantôme v1-v4.
- */
+/** Import, full reset and cycle transitions must never partially replace state. */
 export function replaceCapitalSave(state: CapitalState): boolean {
   try {
-    if (state.version !== 6) return false
+    if (state.version !== 7) return false
     const data = JSON.stringify(state)
     localStorage.setItem(STORAGE_KEY, data)
     if (localStorage.getItem(STORAGE_KEY) !== data) return false
-  } catch {
-    return false
-  }
-  for (const old of [V5_STORAGE_KEY, V4_STORAGE_KEY, V3_STORAGE_KEY, V2_STORAGE_KEY, V1_STORAGE_KEY]) {
-    try { localStorage.removeItem(old) } catch { /* v6 prioritaire */ }
+  } catch { return false }
+  for (const key of [V6_STORAGE_KEY, V5_STORAGE_KEY, V4_STORAGE_KEY, V3_STORAGE_KEY, V2_STORAGE_KEY, V1_STORAGE_KEY]) {
+    try { localStorage.removeItem(key) } catch { /* current v7 remains authoritative */ }
   }
   return true
 }

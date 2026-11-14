@@ -60,7 +60,7 @@ test('scaling a small +0.1% click keeps fractional cents until paid, never mints
   const reloaded = restoreCapitalState(state, NOW)
   assert.deepEqual(reloaded, state)
   assert.deepEqual(prepareSaveImport(createSaveExport(state, NOW), NOW), {
-    ok: true, preview: { state, sourceVersion: 6, exportedAt: NOW },
+    ok: true, preview: { state, sourceVersion: 7, exportedAt: NOW },
   })
   assert.deepEqual(scaleRewardCents(1, 10, 9990), { cents: 2, carryBps: 0 })
 })

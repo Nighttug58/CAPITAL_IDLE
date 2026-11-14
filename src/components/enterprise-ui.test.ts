@@ -98,7 +98,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
   it('la navigation principale contient Entreprises et le clicker reste intact', async () => {
     const now = Date.now()
     const state = createCapitalState({ balance: 1_000_000, lifetimeEarned: 1_000_000, purchasedUpgrades: 0 }, now)
-    localStorage.setItem('capital-idle-save-v6', JSON.stringify(state))
+    localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     const buttons = wrapper.findAll('.bottom-nav button')
@@ -109,7 +109,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     await wrapper.find('.enterprise-card button.enterprise-action').trigger('click')
     await nextTick()
     expect(wrapper.find('.enterprise-card').text()).toContain('Possédée')
-    const saved = JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
+    const saved = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
     expect(saved.enterprises.owned.kiosque?.level).toBe(1)
     expect(saved.game.balance).toBeGreaterThanOrEqual(925_000)
     expect(saved.game.balance).toBeLessThan(925_005)

@@ -63,7 +63,7 @@ test('export JSON : format, version, nom du fichier et intégralité du snapshot
   assert.equal(exportFileName(NOW), 'CAPITAL_IDLE_save_2027-01-15.json')
   assert.deepEqual(prepareSaveImport(text, NOW + 10_000), {
     ok: true,
-    preview: { state, sourceVersion: 6, exportedAt: NOW + 10_000 },
+    preview: { state, sourceVersion: 7, exportedAt: NOW + 10_000 },
   })
   assert.equal(state.game.balance, 25_000, 'un export ne fait pas bouger le solde')
 })
@@ -88,11 +88,12 @@ test('anciens fichiers bruts v4 et v5 : migration sans taxation du passé', () =
   const rawV6 = JSON.stringify(original)
   const modern = prepareSaveImport(rawV6, NOW)
   assert.ok(modern.ok)
-  assert.equal(modern.preview.sourceVersion, 6)
+  assert.equal(modern.preview.sourceVersion, 7)
   assert.deepEqual(modern.preview.state, original)
 
-  const { prestige: _oldPrestige, ...oldSnapshot } = original
+  const { prestige: _oldPrestige, ascension: _oldAscension, ...oldSnapshot } = original
   void _oldPrestige
+  void _oldAscension
   const oldV5 = { ...oldSnapshot, version: 5 }
   const legacyFive = prepareSaveImport(JSON.stringify(oldV5), NOW)
   assert.ok(legacyFive.ok)
@@ -178,10 +179,10 @@ test('limite de taille protège contre un énorme fichier', () => {
 test('reset : priorité de v6 et nettoyage des cinq anciennes sauvegardes', () => {
   store((data) => {
     const old = fixture()
-    for (const version of [1, 2, 3, 4, 5]) data.set(`capital-idle-save-v${version}`, JSON.stringify(old))
+    for (const version of [1, 2, 3, 4, 5, 6]) data.set(`capital-idle-save-v${version}`, JSON.stringify(old))
     const fresh = createCapitalState(undefined, NOW + DAY)
     assert.equal(replaceCapitalSave(fresh), true)
-    for (const version of [1, 2, 3, 4, 5]) assert.equal(data.has(`capital-idle-save-v${version}`), false)
+    for (const version of [1, 2, 3, 4, 5, 6]) assert.equal(data.has(`capital-idle-save-v${version}`), false)
     assert.deepEqual(loadCapitalState(NOW + DAY), fresh)
     assert.equal(fresh.fiscal.periodStartedAt, NOW + DAY)
     assert.equal(fresh.stats.startedAt, NOW + DAY)
@@ -194,7 +195,7 @@ test('une v6 corrompue n autorise pas la résurrection de la v4', () => {
   store(data => {
     const old = fixture()
     data.set('capital-idle-save-v4', JSON.stringify({ version: 4, game: old.game, trading: old.trading }))
-    data.set('capital-idle-save-v6', '{invalid')
+    data.set('capital-idle-save-v7', '{invalid')
     const current = loadCapitalState(NOW + 1)
     assert.equal(current.game.balance, 0)
     assert.equal(current.fiscal.periodStartedAt, NOW + 1)
@@ -205,12 +206,12 @@ test('une v6 corrompue n autorise pas la résurrection de la v4', () => {
 test('échec d écriture du reset / import : ne pas détruire l ancienne sauvegarde', () => {
   store(data => {
     const original = fixture()
-    data.set('capital-idle-save-v6', JSON.stringify(original))
+    data.set('capital-idle-save-v7', JSON.stringify(original))
     const fresh = createCapitalState(undefined, NOW + 10)
     assert.equal(replaceCapitalSave(fresh), false)
     assert.deepEqual(loadCapitalState(NOW + 10), original)
-    assert.deepEqual(JSON.parse(data.get('capital-idle-save-v6')!), original)
-  }, key => { if (key === 'capital-idle-save-v6') throw new Error('Quota') })
+    assert.deepEqual(JSON.parse(data.get('capital-idle-save-v7')!), original)
+  }, key => { if (key === 'capital-idle-save-v7') throw new Error('Quota') })
 })
 
 test('l autosauvegarde demeure disponible après remplacement', () => {
@@ -219,6 +220,6 @@ test('l autosauvegarde demeure disponible après remplacement', () => {
     assert.equal(replaceCapitalSave(original), true)
     const modified = { ...original, game: { ...original.game, balance: original.game.balance + 1 } }
     saveCapitalState(modified)
-    assert.equal(JSON.parse(data.get('capital-idle-save-v6')!).game.balance, 25_001)
+    assert.equal(JSON.parse(data.get('capital-idle-save-v7')!).game.balance, 25_001)
   })
 })

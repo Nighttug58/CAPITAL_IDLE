@@ -14,7 +14,7 @@ export const MAX_IMPORT_FILE_BYTES = 16 * 1024 * 1024
 
 export interface SaveImportPreview {
   readonly state: CapitalState
-  readonly sourceVersion: 4 | 5 | 6
+  readonly sourceVersion: 4 | 5 | 6 | 7
   readonly exportedAt: number | null
 }
 
@@ -119,10 +119,10 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
     saved = parsed.state
   }
 
-  if (!isRecord(saved) || (saved.version !== CAPITAL_SAVE_VERSION && saved.version !== 5 && saved.version !== 4)) {
+  if (!isRecord(saved) || (saved.version !== CAPITAL_SAVE_VERSION && saved.version !== 6 && saved.version !== 5 && saved.version !== 4)) {
     return { ok: false, error: 'unsupported-version' }
   }
-  const version = saved.version as 4 | 5 | 6
+  const version = saved.version as 4 | 5 | 6 | 7
   const restored = restoreCapitalState(saved, now)
 
   // V4 n'a que les sections game/trading. Les deux doivent être entièrement
@@ -141,9 +141,11 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
   } else {
     // Un fichier v5 ne possède pas encore la section prestige, que la migration
     // crédite une seule fois. Un fichier v6 doit en revanche la fournir intacte.
-    const required = version === 6
-      ? ['game', 'trading', 'enterprises', 'fiscal', 'stats', 'prestige']
-      : ['game', 'trading', 'enterprises', 'fiscal', 'stats']
+    const required = version === 7
+      ? ['game', 'trading', 'enterprises', 'fiscal', 'stats', 'prestige', 'ascension']
+      : version === 6
+        ? ['game', 'trading', 'enterprises', 'fiscal', 'stats', 'prestige']
+        : ['game', 'trading', 'enterprises', 'fiscal', 'stats']
     if (!required.every((key) => isRecord(saved[key]))) {
       return { ok: false, error: 'invalid-save' }
     }
@@ -151,8 +153,13 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
     if (version === 5) {
       const legacyProjection: Record<string, unknown> = { ...restored }
       delete legacyProjection.prestige
-      // Match the historical schema without the newly introduced v6 ledger.
+      delete legacyProjection.ascension
+      // v5 lacked both Fame and the new Prestige currency.
       if (!sameValue(normalized, { ...legacyProjection, version: 5 })) return { ok: false, error: 'invalid-save' }
+    } else if (version === 6) {
+      const legacyProjection: Record<string, unknown> = { ...restored }
+      delete legacyProjection.ascension
+      if (!sameValue(normalized, { ...legacyProjection, version: 6 })) return { ok: false, error: 'invalid-save' }
     } else if (!sameValue(normalized, restored)) return { ok: false, error: 'invalid-save' }
   }
 
@@ -160,6 +167,7 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
     restored.trading.lastTickAt, restored.trading.dividendLastPaidAt,
     restored.enterprises.lastAccruedAt, restored.fiscal.periodStartedAt,
     restored.stats.startedAt,
+    restored.ascension.run.startedAtRealMs, restored.ascension.run.marketClock.realAnchorMs,
   ]
   if (dates.some((time) => time > now + 5 * 60_000)) return { ok: false, error: 'invalid-save' }
   if (restored.fiscal.periodStartedAt > restored.enterprises.lastAccruedAt ||
