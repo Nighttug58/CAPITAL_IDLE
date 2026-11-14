@@ -212,7 +212,7 @@ export function migrateLegacyGame(raw: unknown): GameState {
     balance: previous.balance,
     lifetimeEarned: previous.lifetimeEarned,
     purchasedUpgrades,
-  })
+  }, { experiencePoints: previous.lifetimeEarned * LEVEL_THRESHOLD_FACTOR })
 }
 
 // Ancien équilibrage v2 : 30 niveaux, +1$/clic jusqu'au niveau 10, puis +2$/clic.
@@ -246,5 +246,5 @@ export function migrateV2Game(raw: unknown): GameState {
     balance: previous.balance,
     lifetimeEarned: previous.lifetimeEarned,
     purchasedUpgrades: oldClickValue - 1,
-  })
+  }, { experiencePoints: previous.lifetimeEarned * LEVEL_THRESHOLD_FACTOR })
 }
