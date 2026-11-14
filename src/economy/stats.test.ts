@@ -148,12 +148,12 @@ test('Progression et temps actif : plafonds de niveau, horaires sans simulation 
   assert.equal(getCapitalStatsOverview(after).level, getCapitalStatsOverview(first).level)
   const final = {
     ...after,
-    game: { ...after.game, lifetimeEarned: 100_000 },
-    prestige: createInitialPrestigeState(100_000),
+    game: { ...after.game, lifetimeEarned: getLevelStartThreshold(51) },
+    prestige: createInitialPrestigeState(getLevelStartThreshold(51)),
   }
   const view = getCapitalStatsOverview(final)
-  assert.equal(view.level, getLevel(100_000))
+  assert.equal(view.level, getLevel(getLevelStartThreshold(51)))
   assert.ok(view.level > 50)
-  assert.equal(view.nextLevelAt, getNextLevelThreshold(100_000))
+  assert.equal(view.nextLevelAt, getNextLevelThreshold(getLevelStartThreshold(51)))
   assert.ok(view.levelProgressPercent >= 0 && view.levelProgressPercent < 100)
 })
