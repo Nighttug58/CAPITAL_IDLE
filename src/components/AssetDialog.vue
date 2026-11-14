@@ -5,6 +5,7 @@ import { getAsset, getAvailableSupply } from '../trading/catalog.ts'
 import { getNewsPresentation } from '../trading/news.ts'
 import { formatCash, formatChange, formatPerSecond, formatPrice, formatQuantity, formatRate, sparklinePoints } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
+import { availableMarketLiquidity } from '../trading/liquidity.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import type { PriceSample } from '../trading/types.ts'
 import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
@@ -24,6 +25,8 @@ const currentPrice = computed(() => quote.value?.price ?? asset.value.referenceP
 const position = computed(() => props.state.trading.positions[props.assetId])
 const owned = computed(() => position.value?.quantity ?? 0)
 const available = computed(() => getAvailableSupply(asset.value, owned.value))
+const liquidityBuy = computed(() => availableMarketLiquidity(props.state, props.assetId, 'buy'))
+const liquiditySell = computed(() => availableMarketLiquidity(props.state, props.assetId, 'sell'))
 const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
@@ -57,6 +60,7 @@ const errors: Record<string, string> = {
   'invalid-price': 'Cours indisponible : transaction suspendue.',
   'insufficient-funds': 'Solde insuffisant, frais compris.',
   'insufficient-supply': 'Quantité supérieure à l’offre restante.',
+  'insufficient-liquidity': 'Liquidité insuffisante sur ce marché : attends sa régénération.',
   'insufficient-holdings': 'Vous ne détenez pas autant d’unités.',
   'amount-too-small': 'Ordre trop petit pour couvrir les arrondis et les frais.',
   'money-overflow': 'Montant trop élevé pour être calculé avec précision.',
@@ -112,6 +116,8 @@ function submit() {
         <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
         <div><span>Disponibles</span><strong>{{ formatQuantity(available) }}</strong></div>
         <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
+        <div><span>Liquidité à l’achat</span><strong>{{ formatQuantity(liquidityBuy) }}</strong></div>
+        <div><span>Liquidité à la vente</span><strong>{{ formatQuantity(liquiditySell) }}</strong></div>
       </div>
       <div v-if="asset.kind === 'stock'" class="dividend-detail">
         <div class="dividend-detail-head">

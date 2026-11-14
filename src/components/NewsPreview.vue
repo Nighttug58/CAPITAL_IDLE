@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getNewsPresentation } from '../trading/news.ts'
+import type { peekUpcomingNews } from '../ascension/market-effects.ts'
 import { formatRemaining } from '../trading/presentation.ts'
 import type { MarketNews } from '../trading/types.ts'
 defineEmits<{ 'open-news': [id: string] }>()
-const props = defineProps<{ news: readonly MarketNews[]; now: number }>()
+const props = defineProps<{
+  news: readonly MarketNews[]
+  now: number
+  upcoming?: ReturnType<typeof peekUpcomingNews>
+}>()
 const entries = computed(() =>
   props.news.slice(-10).reverse().map((event) => ({ event, presentation: getNewsPresentation(event) }))
     .filter((entry) => entry.presentation !== null)
@@ -18,6 +23,12 @@ const entries = computed(() =>
       <span>{{ news.filter((event) => event.endsAt > now).length }} EN COURS</span>
     </div>
     <div class="market-list-scroll news-scroll">
+      <div v-if="upcoming" class="news-future-preview" aria-label="Vision anticipée">
+        <span>VISION ANTICIPÉE · DANS {{ upcoming.secondsRemaining }} s</span>
+        <strong>{{ upcoming.presentation.headline }}</strong>
+        <p>{{ upcoming.presentation.description }}</p>
+        <small>Annonce future déterminée · ses effets resteront incertains</small>
+      </div>
       <div v-if="entries.length === 0" class="market-empty">
         <span class="market-empty-icon" aria-hidden="true">◷</span>
         <strong>Aucune actualité pour le moment</strong>

@@ -173,23 +173,27 @@ test('MAX achetable avec frais et précision ; 25 % et 50 % ne dépassent jamais
   }
 })
 
-test('quantité totale en circulation achetable et entièrement restituée à la vente', () => {
+test('profondeur de marché bornée indépendamment de la supply, achats et ventes au même prix', () => {
   const id = 'bitcoin'
   const stock = getAsset(id)!.totalSupply
   const start = funded(3_000_000_000_000)
-  assert.equal(getMaximumBuyQuantity(start, id), stock)
-  const purchase = buyAsset(start, id, stock)
+  const max = getMaximumBuyQuantity(start, id)
+  assert.ok(max > 0 && max < stock)
+  assert.equal(max, 210, 'liquidité de base = 0,001 % de la supply')
+  const exceeds = buyAsset(start, id, max + 1)
+  assert.equal(exceeds.ok, false)
+  if (!exceeds.ok) assert.equal(exceeds.error, 'insufficient-liquidity')
+  const purchase = buyAsset(start, id, max)
   assert.equal(purchase.ok, true)
   if (!purchase.ok) return
-  assert.equal(purchase.state.trading.positions.bitcoin?.quantity, stock)
+  assert.equal(purchase.state.trading.positions.bitcoin?.quantity, max)
   assert.equal(getMaximumBuyQuantity(purchase.state, id), 0)
-  assert.equal(buyAsset(purchase.state, id, 0.00000001).ok, false)
-  assert.equal(getQuickQuantity(purchase.state, id, 'sell', 1), stock)
-  const sale = sellAsset(purchase.state, id, stock)
+  assert.equal(getQuickQuantity(purchase.state, id, 'sell', 1), max)
+  const sale = sellAsset(purchase.state, id, max)
   assert.equal(sale.ok, true)
   if (!sale.ok) return
   assert.equal(sale.state.trading.positions.bitcoin, undefined)
-  assert.equal(getMaximumBuyQuantity(sale.state, id), stock)
+  assert.equal(getMaximumBuyQuantity(sale.state, id), 0, 'une poche épuisée régénère en temps réel')
   assert.ok(sale.state.game.balance < start.game.balance)
 })
 

@@ -7,11 +7,14 @@ import { ASCENSION_UPGRADES, ASCENSION_TOTAL_COST, ASCENSION_TOTAL_LEVELS } from
 import { ASCENSION_CATEGORIES, ASCENSION_PRESENTATION } from '../ascension/presentation.ts'
 import { getAscensionOffers, type AscensionPurchase, type AscensionShopError } from '../ascension/shop.ts'
 import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
+import { MARKET_SPEEDS, marketSpeed, frenzyActive, FRENZY_COOLDOWN_MS, type MarketActionResult } from '../ascension/market-effects.ts'
 
 const props = defineProps<{
   state: CapitalState
   purchaseUpgrade: (id: string, currentLevel: number) => AscensionPurchase
   performCycle: () => AscensionResult
+  selectSpeed: (speed: number) => MarketActionResult
+  activateFrenzy: () => MarketActionResult
 }>()
 const emit = defineEmits<{ back: [] }>()
 
@@ -32,6 +35,12 @@ const worth = computed(() => eligiblePrestigeWorthFromOverview(overview.value))
 const level = computed(() => overview.value.level)
 const pointPreview = computed(() => previewPrestigePoints(worth.value ?? 0, level.value))
 const progress = computed(() => props.state.ascension.progress)
+const currentSpeed = computed(() => marketSpeed(props.state))
+const unlockedSpeedLevel = computed(() => progress.value.upgradeLevels['time-accelerator'])
+const hasFrenzy = computed(() => progress.value.upgradeLevels['market-frenzy'] > 0)
+const frenzyOn = computed(() => frenzyActive(props.state, props.state.trading.dividendLastPaidAt))
+const frenzyRemaining = computed(() => Math.max(0, (props.state.ascension.run.frenzyReadyAtRealMs ?? 0) - props.state.trading.dividendLastPaidAt))
+const frenzyTime = computed(() => Math.ceil(frenzyRemaining.value / 60_000))
 const offers = computed(() => getAscensionOffers(props.state))
 const purchasedLevels = computed(() => Object.values(progress.value.upgradeLevels).reduce((sum, current) => sum + current, 0))
 const spentPoints = computed(() => progress.value.lifetimePoints - progress.value.availablePoints)
@@ -78,6 +87,26 @@ function buy(id: string, expected: number) {
       ? label + ' : niveau ' + result.receipt.newLevel + ' acheté pour ' + fmt(result.receipt.costPoints) + ' PP.'
       : shopErrors[result.error]
   } finally { busy.value = false }
+}
+
+function changeMarketSpeed(speed: number) {
+  if (busy.value || confirming.value) return
+  const result = props.selectSpeed(speed)
+  noticeError.value = !result.ok
+  notice.value = result.ok ? 'Vitesse du marché : ×' + speed + ' activée.'
+    : result.error === 'locked' ? 'Cette vitesse doit être débloquée dans la boutique.'
+    : result.error === 'pending-replay' ? 'Le marché doit finir son rattrapage avant de changer la vitesse.'
+    : 'Impossible de sauvegarder la nouvelle vitesse.'
+}
+function launchFrenzy() {
+  if (busy.value || confirming.value) return
+  const result = props.activateFrenzy()
+  noticeError.value = !result.ok
+  notice.value = result.ok ? 'Frénésie activée : news ±50 % pendant 60 secondes réelles.'
+    : result.error === 'cooldown' ? 'Le pouvoir est encore en recharge.'
+    : result.error === 'locked' ? 'Achète Frénésie boursière pour débloquer le pouvoir.'
+    : result.error === 'pending-replay' ? 'Le marché doit finir son rattrapage avant d’activer le pouvoir.'
+    : 'Pouvoir temporairement indisponible.'
 }
 
 function openConfirmation() {
@@ -172,6 +201,23 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           @click="openConfirmation">
           {{ affordPrestige ? 'EFFECTUER LE PRESTIGE' : 'PRESTIGE VERROUILLÉ' }}
         </button>
+      </section>
+
+      <section class="ascension-powers" aria-label="Commandes Prestige des marchés">
+        <div class="ascension-panel-title"><div><span class="ascension-eyebrow">BONUS ACTIFS · TRADING</span><h2>Contrôles du marché</h2></div></div>
+        <p>L’accélérateur modifie uniquement la vitesse des cours. Impôts, dividendes, news et cooldowns continuent en temps réel.</p>
+        <div class="ascension-speed-row" role="group" aria-label="Vitesse du marché">
+          <button v-for="(speed, index) in MARKET_SPEEDS" :key="speed" type="button"
+            class="ascension-speed-button" :class="{ 'is-selected': currentSpeed === speed }"
+            :aria-pressed="currentSpeed === speed" :disabled="index > unlockedSpeedLevel || busy || confirming"
+            @click="changeMarketSpeed(speed)">×{{ speed }}</button>
+        </div>
+        <div class="ascension-frenzy-row">
+          <div><strong>Frénésie boursière</strong><small>{{ frenzyOn ? 'ACTIF · news plus fortes' : hasFrenzy ? '60 secondes réelles · recharge 30 minutes' : 'Disponible après achat de l’upgrade' }}</small></div>
+          <button type="button" class="ascension-frenzy-button"
+            :disabled="!hasFrenzy || frenzyRemaining > 0 || busy || confirming"
+            @click="launchFrenzy">{{ frenzyOn ? 'ACTIF' : frenzyRemaining > 0 ? frenzyTime + ' min' : 'ACTIVER' }}</button>
+        </div>
       </section>
 
       <section class="ascension-shop-heading" aria-label="Catalogue des améliorations Prestige">

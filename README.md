@@ -163,6 +163,13 @@ Voir [ROADMAP_PRESTIGE.md](ROADMAP_PRESTIGE.md) pour la progression et les limit
 
 Une page **Prestige** distincte du Fame Shop est accessible depuis l'accueil, sans déplacer **Stats** de l'extrémité droite de la navigation à cinq onglets. Elle affiche les PP, le nombre de cycles, le seuil de 100 M$ hors collections, les conditions de fiscalité, et le catalogue de **18 upgrades / 87 niveaux / 1 637 PP** regroupés en cinq familles. Chaque achat vérifie le niveau attendu, les coûts du catalogue et le ledger PP, puis écrit la sauvegarde v7 avant d'afficher le succès. Les achats sont irréversibles. Une confirmation manuelle **PRESTIGE** est nécessaire pour détruire le run ; la Fame, ses bonus, les collections et la progression PP sont conservés. La page avertit que les effets de news, staking et bots ne deviendront actifs qu'aux passes 4 à 6 ; l'achat à ce stade ne simule pas de faux revenus. Tests domaine et tests Vue dédiés ajoutés.
 
+
+### Passe 4 — Marchés Prestige, temps et liquidités
+
+Le marché sépare maintenant la **vitesse virtuelle des cours** du temps réel. Dans la page Prestige, l'accélérateur de marché permet de sélectionner ×1, ×1,5, ×2, ×3, ×4 ou ×5 selon le niveau acheté ; les dividendes, taxes (72 h), entreprises et cooldowns ne sont pas accélérés. Les News conservent une durée réelle tout en bénéficiant des améliorations de durée ×2, puissance bilatérale ×2, fréquence +50 %, vision anticipée, propagation sur une deuxième cible et Frénésie activable. Le Radar de volatilité est visible dans Trading une fois débloqué. Les actions/cryptos sont soumises à une profondeur d'ordre indépendante de leur supply, régénérée selon le temps réel, améliorée par les bonus ×3 et ×2,5. Les achats et ventes insuffisamment liquides sont refusés, sans slippage supplémentaire dans cette passe.
+
+L'interface affiche la liquidité à l'achat et à la vente dans le détail d'un actif. Le code source de ces fonctions est dans `src/ascension/market-effects.ts`, `src/trading/{market,news,liquidity,trades,dividends}.ts`. La suite de tests a été étendue, **sans exécution npm ni build confirmés** pour cette passe. Les fichiers statiques GitHub Pages à la racine ne sont donc pas synchronisés à ce stade.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.

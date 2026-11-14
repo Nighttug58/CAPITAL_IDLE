@@ -46,6 +46,12 @@ export interface PriceSample {
 }
 
 // Le coût total d'acquisition inclut les frais et diminue proportionnellement aux ventes.
+export interface LiquidityPool {
+  buyUnits: number
+  sellUnits: number
+  updatedAt: number // real-time, always in milliseconds
+}
+
 export interface Position {
   quantity: number
   costBasis: number
@@ -74,6 +80,10 @@ export interface TradingState {
   history: Record<string, PriceSample[]>
   positions: Record<string, Position>
   news: MarketNews[]
+  /** News already selected in the persisted PRNG stream, shown by Vision anticipée. */
+  upcomingNews?: MarketNews
+  /** Per-asset order-book depth; absent on old v4–v7 saves. */
+  liquidity?: Record<string, LiquidityPool>
   realizedNetProfit: number
   // Plus haut cumul net atteint par les profits de ventes : protège les niveaux
   // contre un cycle perte -> récupération du même profit.

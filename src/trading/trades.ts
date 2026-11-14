@@ -5,6 +5,7 @@ import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
+import { availableMarketLiquidity, consumeMarketLiquidity } from './liquidity.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
 // Le stockage reste exprimé en dollars (compatibilité v1-v4), avec des montants
@@ -15,7 +16,7 @@ const MAX_CENTS = Number.MAX_SAFE_INTEGER
 export type TradeSide = 'buy' | 'sell'
 export type TradeError = 'unknown-asset' | 'invalid-quantity' | 'invalid-price' |
   'insufficient-funds' | 'insufficient-supply' | 'insufficient-holdings' |
-  'amount-too-small' | 'money-overflow'
+  'amount-too-small' | 'money-overflow' | 'insufficient-liquidity'
 export type TradeFraction = 0.25 | 0.5 | 1
 
 export interface TradeReceipt {
@@ -125,7 +126,7 @@ export function getMaximumBuyQuantity(state: CapitalState, assetId: string): num
   if (price === null || wallet === null || wallet <= 0) return 0
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
   if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return 0
-  const available = getAvailableSupply(asset, owned)
+  const available = Math.min(getAvailableSupply(asset, owned), availableMarketLiquidity(state, assetId, 'buy'))
   if (available <= 0) return 0
 
   const upper = Math.min(available, wallet / (CENTS * price))
@@ -156,7 +157,7 @@ export function getQuickQuantity(
   if (!asset || ![0.25, 0.5, 1].includes(fraction)) return 0
   const max = side === 'buy'
     ? getMaximumBuyQuantity(state, assetId)
-    : (state.trading.positions[assetId]?.quantity ?? 0)
+    : Math.min(state.trading.positions[assetId]?.quantity ?? 0, availableMarketLiquidity(state, assetId, 'sell'))
   if (!Number.isFinite(max) || max <= 0) return 0
   return fraction === 1 ? max : floorWithPrecision(max * fraction, asset.quantityDecimals)
 }
@@ -171,6 +172,7 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
   if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return reject(state, 'invalid-quantity')
   if (quantity > getAvailableSupply(asset, owned) + 1e-9) return reject(state, 'insufficient-supply')
+  if (quantity > availableMarketLiquidity(state, assetId, 'buy') + 1e-9) return reject(state, 'insufficient-liquidity')
   // Éviter les achats de poussière qui seraient invendables sans aucun produit
   // de vente après arrondi et commissions, même sans mouvement de marché.
   if (!sellMoney(asset, price, quantity)) return reject(state, 'amount-too-small')
@@ -190,12 +192,15 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
     quantity: Math.min(totalQuantity, asset.totalSupply),
     costBasis: toMoney(oldBasis + order.totalCents),
   }
+  const liquidity = consumeMarketLiquidity(state, assetId, 'buy', quantity)
+  if (!liquidity) return reject(state, 'insufficient-liquidity')
   const nextState: CapitalState = {
     ...state,
     game: { ...state.game, balance: toMoney(cash - order.totalCents) },
     trading: {
       ...state.trading,
       positions: { ...state.trading.positions, [asset.id]: nextPosition },
+      liquidity,
     },
   }
   return {
@@ -216,6 +221,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   if (!isQuantity(quantity, asset)) return reject(state, 'invalid-quantity')
   const position = state.trading.positions[assetId]
   if (!position || quantity > position.quantity + 1e-9) return reject(state, 'insufficient-holdings')
+  if (quantity > availableMarketLiquidity(state, assetId, 'sell') + 1e-9) return reject(state, 'insufficient-liquidity')
 
   const price = validQuote(asset, state)
   if (price === null) return reject(state, 'invalid-price')
@@ -265,6 +271,8 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     }
   }
 
+  const liquidity = consumeMarketLiquidity(state, assetId, 'sell', quantity)
+  if (!liquidity) return reject(state, 'insufficient-liquidity')
   const nextState: CapitalState = {
     ...state,
     game: {
@@ -278,6 +286,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     trading: {
       ...state.trading,
       positions,
+      liquidity,
       realizedNetProfit: toMoney(newRealized),
       creditedTradingProfit: toMoney(newCredited),
     },

@@ -5,6 +5,7 @@ import type { MarketNews } from '../trading/types.ts'
 import { getAsset } from '../trading/catalog.ts'
 import type { TradeResult, TradeSide } from '../trading/trades.ts'
 import { formatCash } from '../trading/presentation.ts'
+import { peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
 import AssetList from './AssetList.vue'
 import PortfolioPanel from './PortfolioPanel.vue'
 import NewsPreview from './NewsPreview.vue'
@@ -27,6 +28,8 @@ const tabs: { key: Tab; label: string }[] = [
   { key: 'news', label: 'News' },
 ]
 const activeNews = computed(() => props.state.trading.news.find(e => e.id === selectedNewsId.value) ?? selectedNewsSnapshot.value)
+const upcoming = computed(() => peekUpcomingNews(props.state, props.state.trading.dividendLastPaidAt))
+const radar = computed(() => volatilityRadar(props.state).slice(0, 3))
 const hasDialog = computed(() => selectedAssetId.value !== null || selectedNewsId.value !== null)
 let historyEntry = false
 let returnFocus: HTMLElement | null = null
@@ -115,6 +118,10 @@ onUnmounted(() => {
       <div><span class="eyebrow">CAPITAL · MARCHÉS</span><strong>Trading</strong><span class="trading-hero-note">Marché fictif · évolution en direct</span></div>
       <div class="trading-wallet"><span>SOLDE DISPONIBLE</span><strong>{{ formatCash(state.game.balance) }}</strong></div>
     </div>
+    <div v-if="radar.length" class="trading-radar" aria-label="Radar de volatilité">
+      <strong>RADAR VOLATILITÉ</strong>
+      <span v-for="item in radar" :key="item.id">{{ item.symbol }} · {{ item.volatilityPercent.toFixed(2) }} %</span>
+    </div>
     <div class="trading-tabs" aria-label="Rubriques Trading">
       <button
         v-for="tab in tabs" :key="tab.key" type="button" class="trading-tab"
@@ -128,7 +135,8 @@ onUnmounted(() => {
       <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'stocks'" kind="stock" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'crypto'" kind="crypto" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
-      <NewsPreview v-else :news="state.trading.news" :now="state.trading.dividendLastPaidAt" @open-news="openNews" />
+      <NewsPreview v-else :news="state.trading.news" :now="state.trading.dividendLastPaidAt"
+        :upcoming="upcoming" @open-news="openNews" />
     </section>
     <p v-if="activeTab === 'stocks' || activeTab === 'crypto'" class="trading-disclaimer">
       Touchez un actif pour consulter ses détails et trader

@@ -1,3 +1,4 @@
+import { validMarketLiquidity } from './liquidity.ts'
 import type { MarketNews, MarketQuote, Position, PriceSample, TradingState } from './types.ts'
 
 const MAX_ASSETS = 45
@@ -63,7 +64,7 @@ function isPosition(value: unknown): value is Position {
 function isNews(value: unknown): value is MarketNews {
   return isRecord(value) && isAssetId(value.id) && isAssetId(value.templateId) &&
     isTimestamp(value.startedAt) && isTimestamp(value.endsAt) && value.endsAt > value.startedAt &&
-    value.endsAt - value.startedAt <= 30 * 60 * 1000 &&
+    value.endsAt - value.startedAt <= 60 * 60 * 1000 &&
     Array.isArray(value.affectedAssetIds) && value.affectedAssetIds.length <= MAX_ASSETS &&
     value.affectedAssetIds.every(isAssetId) &&
     typeof value.impact === 'number' && Number.isFinite(value.impact) &&
@@ -86,6 +87,7 @@ export function createInitialTradingState(now = Date.now(), seed = Math.floor(Ma
     history: {},
     positions: {},
     news: [],
+    liquidity: {},
     realizedNetProfit: 0,
     creditedTradingProfit: 0,
     dividendCarry: 0,
@@ -103,6 +105,9 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     !(raw.nextNewsAt === null || isTimestamp(raw.nextNewsAt)) ||
     !isMap(raw.quotes, isQuote) || !isMap(raw.history, isHistory) || !isMap(raw.positions, isPosition) ||
     !Array.isArray(raw.news) || raw.news.length > MAX_NEWS_IN_SAVE || !raw.news.every(isNews) ||
+    !validMarketLiquidity(raw.liquidity) ||
+    !(raw.upcomingNews === undefined || (isNews(raw.upcomingNews) &&
+      raw.nextNewsAt !== null && raw.upcomingNews.startedAt === raw.nextNewsAt)) ||
     typeof raw.realizedNetProfit !== 'number' || !Number.isFinite(raw.realizedNetProfit) ||
     Math.abs(raw.realizedNetProfit) > MAX_MONEY ||
     // Les premières sauvegardes v4 n'avaient pas encore ce compteur.
@@ -122,6 +127,8 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     history: raw.history,
     positions: raw.positions,
     news: raw.news,
+    ...(raw.upcomingNews !== undefined ? { upcomingNews: raw.upcomingNews } : {}),
+    liquidity: raw.liquidity ?? {},
     realizedNetProfit: raw.realizedNetProfit,
     creditedTradingProfit: typeof raw.creditedTradingProfit === 'number' ? raw.creditedTradingProfit : 0,
     dividendCarry: raw.dividendCarry,

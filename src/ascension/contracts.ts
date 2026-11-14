@@ -66,6 +66,9 @@ export interface AscensionRunState {
   readonly startedAtRealMs: number
   readonly marketClock: AscensionMarketClock
   readonly automation: AscensionAutomationSettings
+  /** Active power is stored in real milliseconds, not accelerated market ticks. */
+  readonly frenzyEndsAtRealMs?: number
+  readonly frenzyReadyAtRealMs?: number
   /** Les ordres/stakes/liquidités appartiendront au cycle, pas aux points PP. */
 }
 

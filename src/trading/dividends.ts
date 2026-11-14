@@ -5,6 +5,7 @@ import { advanceFiscalEconomy } from '../economy/clock.ts'
 import { recordDividendCredit } from '../economy/stats-ledger.ts'
 import { ASSETS } from './catalog.ts'
 import { MARKET_TICK_MS, advanceMarketTick } from './market.ts'
+import { marketNewsEffects, marketSpeed } from '../ascension/market-effects.ts'
 import type { TradingState } from './types.ts'
 
 export const DIVIDEND_SECOND_MS = 1_000
@@ -35,9 +36,44 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
   const at = previous + DIVIDEND_SECOND_MS
   if (!Number.isSafeInteger(at)) return capital
 
+  const run = capital.ascension.run
+  let clock = run.marketClock
+  let origin = run.startedAtRealMs
+  // Pre-pass-4 v7 saves had a dormant marketClock. Rebase it once to the
+  // actual last paid real second before starting accelerated simulation.
+  const dormant = clock.simulatedAtMs === origin && clock.realAnchorMs === origin
+    && previous !== origin
+  if (dormant) {
+    origin = previous
+    clock = { ...clock, realAnchorMs: previous, simulatedAtMs: previous }
+  }
+  // Replay must never travel backwards through the virtual market clock.
+  if (clock.realAnchorMs !== previous || at < clock.realAnchorMs) return capital
+  const speed = marketSpeed(capital)
+  const nextSimulatedAt = clock.simulatedAtMs + (at - clock.realAnchorMs) * speed
+  if (!Number.isSafeInteger(nextSimulatedAt)) return capital
+  const previousTicks = Math.floor((clock.simulatedAtMs - origin) / MARKET_TICK_MS)
+  const nextTicks = Math.floor((nextSimulatedAt - origin) / MARKET_TICK_MS)
+  if (nextTicks < previousTicks || nextTicks - previousTicks > 1) return capital
+
   let trading = capital.trading
-  if (at >= trading.lastTickAt + MARKET_TICK_MS) {
-    trading = advanceMarketTick(trading, recordHistory)
+  if (nextTicks > previousTicks) {
+    const effects = marketNewsEffects(capital, at)
+    trading = advanceMarketTick(trading, recordHistory, {
+      realAt: at,
+      speed,
+      // Dividends are denominated in REAL seconds and their rate moves on
+      // real 5s boundaries, not on every extra price-only virtual tick.
+      updateDividends: Math.floor((at - origin) / MARKET_TICK_MS) >
+        Math.floor((Math.max(origin, trading.lastTickAt) - origin) / MARKET_TICK_MS),
+      newsStrength: effects.impactMultiplier,
+      news: {
+        durationMultiplier: effects.durationMultiplier,
+        frequencyMultiplier: effects.frequencyMultiplier,
+        propagateSingle: effects.propagateSingle,
+        eager: true,
+      },
+    })
   }
 
   const accruedCents = dividendCentsForSecond(trading) * getBonusMultiplier(capital, 'dividend')
@@ -72,6 +108,14 @@ export function advanceCapitalSecond(capital: CapitalState, recordHistory = true
       dividendLastPaidAt: at,
       dividendCarry: carry,
       dividendPendingCents,
+    },
+    ascension: {
+      ...capital.ascension,
+      run: {
+        ...run,
+        startedAtRealMs: origin,
+        marketClock: { ...clock, realAnchorMs: at, simulatedAtMs: nextSimulatedAt },
+      },
     },
   }
   // Même propriétaire de la chronologie fiscale que le runtime : le replay

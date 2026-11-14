@@ -1,5 +1,5 @@
 import { ASSETS, createInitialQuotes } from './catalog.ts'
-import { advanceNewsTick, getNewsPressure } from './news.ts'
+import { advanceNewsTick, getNewsPressure, type NewsClockOptions } from './news.ts'
 import { advanceDividendYield } from './yield.ts'
 import type { AssetDefinition, MarketQuote, PriceSample, TradingState } from './types.ts'
 
@@ -75,6 +75,8 @@ function updateQuote(
   newsPressure: number,
   dividendPressure: number,
   random: { next: () => number },
+  updateDividends = true,
+  dividendPressureLimit = 1.25,
 ): MarketQuote {
   const profile = PROFILES[asset.kind]
   const variation = assetVariation(asset)
@@ -119,7 +121,9 @@ function updateQuote(
   const price = clamp(current.price * Math.exp(clamp(logMove, -0.25, 0.25)), asset.minPrice, asset.maxPrice)
   const actualMove = Math.log(price / current.price)
 
-  const dividend = advanceDividendYield(asset, current, dividendPressure, () => random.next())
+  const dividend = updateDividends
+    ? advanceDividendYield(asset, current, dividendPressure, () => random.next(), dividendPressureLimit)
+    : { dividendYield: current.dividendYield, ...(current.dividendMomentum !== undefined ? { dividendMomentum: current.dividendMomentum } : {}) }
   return {
     price,
     momentum: clamp(momentum * 0.72 + actualMove * 0.28, -0.08, 0.08),
@@ -157,14 +161,26 @@ function appendSample(
 
 // Un pas pur et reproductible, sans timer, réseau, Date.now() ni Math.random().
 // La passe 4 appellera cette fonction pour le rattrapage des périodes fermées.
-export function advanceMarketTick(state: TradingState, recordHistory = true): TradingState {
-  const at = state.lastTickAt + MARKET_TICK_MS
+export interface MarketTickOptions {
+  readonly realAt?: number
+  readonly speed?: number
+  readonly updateDividends?: boolean
+  readonly newsStrength?: number
+  readonly news?: NewsClockOptions
+}
+export function advanceMarketTick(state: TradingState, recordHistory = true, options: MarketTickOptions = {}): TradingState {
+  // Real-time ticks remain 5 seconds in legacy callers. With Prestige, extra
+  // virtual ticks have real timestamps and no accelerated tax/dividend clock.
+  const at = options.realAt ?? state.lastTickAt + MARKET_TICK_MS
   if (!Number.isSafeInteger(at)) return state
 
   const random = createRandom(state.seed)
   const sharedNoise = signed(random)
-  const events = advanceNewsTick(state.news, state.nextNewsAt, state.lastTickAt, at, () => random.next())
-  const pressure = getNewsPressure(events.news, at)
+  const events = advanceNewsTick(state.news, state.nextNewsAt, state.lastTickAt, at, () => random.next(),
+    options.news ? { ...options.news, upcomingNews: state.upcomingNews } : {})
+  const strength = options.newsStrength ?? 1
+  const pressure = getNewsPressure(events.news, at, strength)
+  const speed = Math.max(1, Math.min(5, options.speed ?? 1))
   const currentQuotes = Object.keys(state.quotes).length === 0
     ? createInitialQuotes(state.lastTickAt)
     : state.quotes
@@ -178,10 +194,18 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
       dividendYield: asset.initialDividendYield,
       updatedAt: state.lastTickAt,
     }
-    const quote = updateQuote(asset, current, at, sharedNoise, pressure.price[asset.id] ?? 0, pressure.dividend[asset.id] ?? 0, random)
+    const quote = updateQuote(asset, current, at, sharedNoise,
+      (pressure.price[asset.id] ?? 0) / speed, pressure.dividend[asset.id] ?? 0,
+      random, options.updateDividends ?? true, 1.25 * strength)
     quotes[asset.id] = quote
     if (recordHistory) {
-      history[asset.id] = appendSample(state.history[asset.id], state.lastTickAt, current.price, at, quote.price, current.dividendYield, quote.dividendYield)
+      const series = state.history[asset.id]
+      const previousSample = series?.[series.length - 1]
+      // At ×5 the price may tick each real second, but the 1h chart remains
+      // 720 real-time samples rather than shrinking to just 12 minutes.
+      history[asset.id] = previousSample && at - previousSample.at < MARKET_TICK_MS
+        ? series!.slice()
+        : appendSample(series, state.lastTickAt, current.price, at, quote.price, current.dividendYield, quote.dividendYield)
     }
   }
 
@@ -193,6 +217,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true): Tr
     history,
     news: events.news,
     nextNewsAt: events.nextNewsAt,
+    ...(options.news?.eager ? { upcomingNews: events.upcomingNews } : {}),
   }
 }
 

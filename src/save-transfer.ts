@@ -53,6 +53,9 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
   const input = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>
   const trading = input.trading
   if (isRecord(trading)) {
+    // Pre-pass-4 saves did not persist order-book depth.
+    // An empty book ledger means every asset starts at its base depth.
+    if (!('liquidity' in trading)) trading.liquidity = {}
     if (!('creditedTradingProfit' in trading)) trading.creditedTradingProfit = 0
     if (!('dividendPendingCents' in trading)) trading.dividendPendingCents = 0
     if (!('dividendLastPaidAt' in trading)) trading.dividendLastPaidAt = trading.lastTickAt

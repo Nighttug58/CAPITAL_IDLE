@@ -1069,3 +1069,41 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
   .topbar-actions { gap:5px; }
   .fullscreen-button { width:34px; height:36px; }
 }
+
+
+/* Prestige passe 4 — commandes market, radar et Vision anticipée. */
+.ascension-powers {
+  padding:14px; margin:13px 0 3px; border:1px solid #706044;
+  border-radius:12px; background:linear-gradient(145deg,#292d2b,#1f2527);
+}
+.ascension-powers h2 { color:#f0d7a7; font-size:17px; margin:5px 0 9px; }
+.ascension-powers>p { font-size:11px; line-height:1.5; margin:0 0 12px; color:#c1b9ad; }
+.ascension-speed-row { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:5px; margin-bottom:12px; }
+.ascension-speed-button {
+  min-width:0; min-height:36px; border-radius:7px;
+  color:#e3d5bd; background:#282e2e; border:1px solid #695b42;
+  font-size:12px; font-weight:760; font-variant-numeric:tabular-nums;
+}
+.ascension-speed-button.is-selected { color:#241b10; background:#e8c47b; border-color:#f6dcaa; }
+.ascension-speed-button:disabled:not(.is-selected) { opacity:.32; cursor:not-allowed; }
+.ascension-frenzy-row { display:flex; justify-content:space-between; align-items:center; gap:10px; border-top:1px solid #75664d55; padding-top:12px; }
+.ascension-frenzy-row>div { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.ascension-frenzy-row strong { color:#f2dbad; font-size:12px; }
+.ascension-frenzy-row small { color:#b5ab99; font-size:10px; line-height:1.4; }
+.ascension-frenzy-button { flex:0 0 auto; min-width:90px; min-height:35px; border-radius:8px; background:#9f643f; color:#fff2df; border:1px solid #c88d5e; font-size:11px; font-weight:780; }
+.ascension-frenzy-button:disabled { cursor:not-allowed; opacity:.52; }
+.ascension-speed-button:focus-visible,.ascension-frenzy-button:focus-visible { outline:2px solid #ffe1a7; outline-offset:2px; }
+.trading-radar { display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding:7px 13px; background:#272c2b; border-bottom:1px solid #4b584f; font-size:10px; color:#ddcfab; }
+.trading-radar strong { font-size:9px; color:#e6c27e; letter-spacing:.04em; }
+.trading-radar span { border:1px solid #536459; border-radius:5px; padding:3px 5px; color:#d5ded5; }
+.news-future-preview { padding:12px; margin:0 0 12px; border:1px solid #a47c45; border-radius:10px; background:linear-gradient(135deg,#423322,#2a2b29); display:flex; flex-direction:column; gap:6px; }
+.news-future-preview>span { color:#f2d090; font-size:10px; font-weight:800; letter-spacing:.05em; }
+.news-future-preview>strong { color:#f0e0c6; font-size:13px; }
+.news-future-preview>p { color:#ccc0ac; font-size:11px; line-height:1.45; margin:0; }
+.news-future-preview>small { color:#bba888; font-size:10px; }
+@media(max-width:380px) {
+  .ascension-powers { padding:10px; }
+  .ascension-speed-button { min-height:34px; font-size:10px; }
+  .ascension-speed-row { gap:3px; }
+  .trading-radar { gap:4px; padding:5px 8px; }
+}

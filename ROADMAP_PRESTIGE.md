@@ -1,6 +1,6 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : passe 3 implémentée (3/7), passe 4 à faire ; tests et build à exécuter.**  
+**État : passe 4 implémentée (4/7), passe 5 à faire ; tests et build à exécuter.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
 **Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
@@ -146,11 +146,11 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 ### Passe 4 — Accélérateur, News et liquidités
 
-- [ ] Isoler temps réel / temps virtuel en restant déterministe en sauvegarde, replay et pause/reprise.
-- [ ] Accélérateur 5 niveaux : vitesses ×1/×1,5/×2/×3/×4/×5, activation désactivation sans réinterpréter le passé.
-- [ ] News : durée ×2, impact ×2 bilatéral (prix + dividende), fréquence +50 %, anticipation, propagation, radar, frénésie +50 % pendant 60 s et cooldown 30 min.
-- [ ] Introduire liquidité par actif, profondeur ×3, récupération ×2,5 ; relier achats manuels et ordres métier au même moteur, respect supply et frais.
-- [ ] Tests limites ±, double influence/cap, PRNG, rattrapage long, fiscalité 72 h stable, dividendes non multipliés, historique 1 h, dérive sans news artificiellement amplifiée à ×5.
+- [x] Isoler temps réel / temps virtuel en restant déterministe en sauvegarde, replay et pause/reprise.
+- [x] Accélérateur 5 niveaux : vitesses ×1/×1,5/×2/×3/×4/×5, activation désactivation sans réinterpréter le passé.
+- [x] News : durée ×2, impact ×2 bilatéral (prix + dividende), fréquence +50 %, anticipation, propagation, radar, frénésie +50 % pendant 60 s et cooldown 30 min.
+- [x] Introduire liquidité par actif, profondeur ×3, récupération ×2,5 ; relier achats manuels et ordres métier au même moteur, respect supply et frais.
+- [x] Tests limites ±, double influence/cap, PRNG, rattrapage long, fiscalité 72 h stable, dividendes non multipliés, historique 1 h, dérive sans news artificiellement amplifiée à ×5.
 - **Livrable :** nouveau comportement des marchés, volontairement plus stratégique et risqué.
 
 ### Passe 5 — Staking crypto
@@ -244,6 +244,35 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 **Limite de validation :** tests Node/Vitest et `npm run build` non exécutés dans cet environnement sans copie clonable du dépôt et sans accès npm réseau. Il est interdit de déclarer le déploiement ou la réussite des tests sans exécution réelle. Les effets de jeu des 18 upgrades sont hors périmètre et ne sont pas activés tant que les passes suivantes ne les implémentent pas.
 
+
+## 3quinquies. Passe 4 — séparation des horloges, news et profondeur de marché
+
+**Portée :** code métier et UI source modifiés sur `main`. Aucun workflow GitHub Actions déclenché, aucun artefact GitHub Pages (racine main) recompilé dans cette session. **Tests ajoutés mais non exécutés** faute d'accès aux dépendances npm et au dépôt clonable dans le conteneur de cette conversation.
+
+### Marché, horloges, évolutions
+
+- `src/trading/dividends.ts` exploite `ascension.run.marketClock` comme **frontière virtuelle cumulée** : une seconde réelle ajoute 1/1,5/2/3/4/5 secondes de temps de cours, le nombre de ticks étant dérivé des quanta virtuels de 5 000 ms. Le pas réel des dividendes demeure 1 seconde ; les variations du rendement restent sur une cadence autour de 5 secondes réelles, indépendante du nombre de ticks de prix. Les anciens états v7 dotés d'une horloge virtuelle dormant depuis la passe 2 sont réancrés à leur dernière seconde réelle traitée.
+- `src/trading/market.ts` accepte un timestamp **réel** pour les ticks virtuels supplémentaires, tout en conservant exactement le comportement des appelants historiques sans options. La pression prix des news est divisée par la vitesse sélectionnée pour éviter l'effet secondaire `×5 vitesse = ×5 impact`. Les 720 points d'historique correspondent toujours à **une heure réelle** ; au-delà d'un tick/s les points ne sont conservés qu'à un pas réel de 5 s. Les quotes restent bornées.
+- `src/ascension/market-effects.ts` contrôle les vitesses déverrouillées, protège contre un changement en plein rattrapage, active Frénésie (+50 % pendant 60 s, cooldown réel de 30 min) et expose preview et radar. Le verrou de la Frenzy est persistant et vérifié à l'import.
+- La fiscalité, les entreprises, les cooldowns et le versement des dividendes conservent leur horloge réelle : aucun changement au contrat des 72 h et pas de crédit fictif lors d'une accélération.
+
+### News
+
+- `src/trading/news.ts` : durée des événements nouveaux `×(1 + .25 × niveau)` jusqu'à **×2** ; puissance symétrique en hausse/baisse et sur pression dividendes jusqu'à **×2** ; intensité Frénésie `×1,5` supplémentaire (plafonnée à 3). Fréquence `×(1 + .05 × niveau)` jusqu'à **+50 %**, horodatée en temps réel, **indépendante de la vitesse virtuelle**.
+- Propagation additionnelle **uniquement pour les news `single`**, à un second actif distinct du même univers, sans doubler les news globales, sectorielles ou par catégorie.
+- Vision anticipée : annonce future **choisie une seule fois** à la planification, stockée dans `trading.upcomingNews` et affichée dans sa fenêtre de 6–30 s ; voir l'annonce ne la relance pas ou ne consomme pas de PRNG en plus. Message de simulation, pas garantie de résultat financier.
+- Le simulateur historique `advanceNewsTick` sans options garde sa signature et ses comportements de référence. Les durées de 60 min des news Prestige sont acceptées par le validateur, le plafond de base reste 30 min.
+
+### Liquidité et UI
+
+- `src/trading/liquidity.ts` : **profondeur par actif, séparée de `totalSupply`** et par sens (buy/sell), base **0,001 % de la supply**, capacité finale ×3, recharge de base **10 % de capacité/minute réelle**, vitesse de recharge finale ×2,5. Calcul paresseux au moment d'un ordre, sans timer indépendant ; restitution totale après 10 minutes réelles à niveau zéro.
+- `src/trading/trades.ts` refuse les ordres dépassant la liquidité (`insufficient-liquidity`) et consomme la profondeur **avec les mêmes garanties que commissions, précision et supply**. `getMaximumBuyQuantity` et les boutons de vente MAX tiennent compte du sens de la liquidité ; les tests qui autorisaient l'achat de toute la supply en un clic ont été révisés.
+- `src/trading/types.ts` et `src/trading/state.ts` : sauvegarde optionnelle des pools de liquidité et de la News préannoncée ; validation des bornes, supports d'import v7 précédents sans pool, sans inflation de ressources.
+- `src/components/PrestigeScreen.vue` : sélecteur de vitesse, activation Frénésie et indication de recharge. `NewsPreview.vue` : Vision anticipée. `TradingScreen.vue` : radar classé selon les échantillons de volatilité réels. `AssetDialog.vue` : liquidité achat/vente et messages d'erreur. `src/style.css` : responsive et accessibilité du nouveau panneau.
+- `src/ascension/market-effects.test.ts` et `src/components/market-upgrades-ui.test.ts` : nouveaux tests domaine/UI ; `src/trading/trades.test.ts` actualisé et scripts `npm test` / `npm run test:ui` étendus. **Exécution non attestée : ne pas déclarer la passe vérifiée tant qu'ils ne tournent pas.**
+
+**Suite :** valider une exécution réelle de `npm test` + `npm run build` avant tout déploiement de fichiers compilés à la racine ; vérifier en particulier rattrapage ×5 et anciennes sauvegardes v7, puis démarrer le Staking en passe 5.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -260,9 +289,9 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 | 1 — Architecture | ☑ Terminée | `ac0eb03` | P0 = 100 M$, contrats purs et tests ajoutés |
 | 2 — Moteur | ☑ Implémentée | commit de passe 2 | Moteur, v7, Fame et tests ; exécution de la suite non vérifiée |
 | 3 — UI Shop | ☑ Implémentée | commit de passe 3 | Page, achats PP, confirmation, tests ajoutés ; exécution non vérifiée |
-| 4 — Marché | ☐ À faire | — | Deux horloges |
+| 4 — Marché | ☑ Implémentée | commit de passe 4 | Horloge virtuelle, news, liquidité et UI ; suite non exécutée |
 | 5 — Staking | ☐ À faire | — | Tokens verrouillés |
 | 6 — Automates | ☐ À faire | — | Exécution sûre |
 | 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
 
-**Suite immédiate :** au prochain « next », vérifier la suite de tests et le build dès qu'un environnement npm est disponible, puis commencer **la passe 4 seulement** (accélérateur, news et liquidités).
+**Suite immédiate :** au prochain « next », exécuter et corriger la suite de tests/build dans un environnement npm, puis commencer **la passe 5 seulement** (staking crypto, rémunération réelle et retrait).

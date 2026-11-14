@@ -14,6 +14,7 @@ export function advanceDividendYield(
   current: MarketQuote,
   newsPressure: number,
   nextRandom: () => number,
+  pressureLimit = 1.25,
 ): { dividendYield: number | null; dividendMomentum?: number } {
   if (asset.kind !== 'stock') return { dividendYield: null }
   const before = current.dividendYield ?? asset.initialDividendYield ?? MIN_DIVIDEND_YIELD
@@ -22,7 +23,7 @@ export function advanceDividendYield(
   // la saturation, sans remettre le rendement à son ancien niveau après News.
   const tendency = ((asset.initialDividendYield ?? before) - before) * 0.00007
   const noise = (nextRandom() * 2 - 1) * 0.000025
-  const wanted = clamp(newsPressure, -1.25, 1.25) * 0.00015 + noise + tendency
+  const wanted = clamp(newsPressure, -pressureLimit, pressureLimit) * 0.00015 + noise + tendency
   const slope = clamp(momentum * 0.94 + wanted * 0.06, -MAX_YIELD_STEP, MAX_YIELD_STEP)
   const dividendYield = clamp(before + slope, MIN_DIVIDEND_YIELD, MAX_DIVIDEND_YIELD)
   // Éliminer l'inertie orientée hors des bornes, sans forcer un rebond.

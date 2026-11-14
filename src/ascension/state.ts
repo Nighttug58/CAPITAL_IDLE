@@ -97,12 +97,22 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
       levelFameMicros < progress.highestFameAwardedLevel * (progress.highestFameAwardedLevel + 1) / 2 * 1_000_000 ||
       !validHistory(progress.history, progress.prestigeCount, progress.lifetimePoints, progress.highestFameAwardedLevel, now)) return null
 
-  if (!keys(run, ['startedAtRealMs','marketClock','automation']) ||
+  if (!(keys(run, ['startedAtRealMs','marketClock','automation']) ||
+        keys(run, ['startedAtRealMs','marketClock','automation','frenzyEndsAtRealMs','frenzyReadyAtRealMs'])) ||
       !safe(run.startedAtRealMs) || run.startedAtRealMs > now + 5 * 60_000 ||
       !record(run.marketClock) || !keys(run.marketClock, ['simulatedAtMs','realAnchorMs','selectedSpeed']) ||
       !safe(run.marketClock.realAnchorMs) || run.marketClock.realAnchorMs > now + 5 * 60_000 ||
       !safe(run.marketClock.simulatedAtMs) || !speed(run.marketClock.selectedSpeed) ||
-      !validAutomation(run.automation)) return null
+      run.marketClock.simulatedAtMs < run.startedAtRealMs ||
+      run.marketClock.realAnchorMs < run.startedAtRealMs ||
+      ([1, 1.5, 2, 3, 4, 5] as const).indexOf(run.marketClock.selectedSpeed as AscensionSpeed) >
+        (progress.upgradeLevels as Record<string, number>)['time-accelerator']! ||
+      !validAutomation(run.automation) ||
+      (run.frenzyEndsAtRealMs !== undefined &&
+        (progress.upgradeLevels as Record<string, number>)['market-frenzy'] === 0) ||
+      (run.frenzyEndsAtRealMs !== undefined && (!safe(run.frenzyEndsAtRealMs) || !safe(run.frenzyReadyAtRealMs) ||
+        run.frenzyReadyAtRealMs < run.frenzyEndsAtRealMs)) ||
+      (run.frenzyEndsAtRealMs === undefined && run.frenzyReadyAtRealMs !== undefined)) return null
   const history = progress.history as AscensionCycleSummary[]
   if (history.length > 0 && run.startedAtRealMs < history[history.length - 1]!.completedAtRealMs) return null
   return {
@@ -116,6 +126,9 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
     },
     run: {
       startedAtRealMs: run.startedAtRealMs,
+      ...(run.frenzyEndsAtRealMs !== undefined
+        ? { frenzyEndsAtRealMs: run.frenzyEndsAtRealMs as number, frenzyReadyAtRealMs: run.frenzyReadyAtRealMs as number }
+        : {}),
       marketClock: { ...(run.marketClock as AscensionRunState['marketClock']) },
       automation: {
         ...(run.automation as AscensionAutomationSettings),

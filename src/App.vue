@@ -25,6 +25,7 @@ import CollectionScreen from './components/CollectionScreen.vue'
 import PrestigeScreen from './components/PrestigeScreen.vue'
 import { buyAscensionUpgrade, type AscensionPurchase } from './ascension/shop.ts'
 import { commitPrestige, type AscensionResult } from './ascension/engine.ts'
+import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
 import { getBonusMultiplier } from './prestige/bonuses.ts'
 import { FAME_MICROS } from './prestige/state.ts'
 import { buyFameUpgrade, type FameShopPurchase } from './prestige/shop.ts'
@@ -298,6 +299,18 @@ function executePrestigeCycle(): AscensionResult {
   if (!outcome.ok && outcome.error === 'pending-market-replay') marketRuntime?.wake()
   return outcome
 }
+function executeMarketSpeed(speed: number): MarketActionResult {
+  const result = selectMarketSpeed(capital.value, speed, Date.now())
+  if (!result.ok || result.state === capital.value) return result
+  return replaceWholeSave(result.state)
+    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+}
+function executeMarketFrenzy(): MarketActionResult {
+  const result = activateMarketFrenzy(capital.value, Date.now())
+  if (!result.ok) return result
+  return replaceWholeSave(result.state)
+    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+}
 
 function syncMarketVisibility() {
   if (document.hidden) {
@@ -470,6 +483,7 @@ onUnmounted(() => {
       @back="returnHomeFromFame" />
     <PrestigeScreen v-if="page === 'prestige'" :state="capital"
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
+      :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
       @back="returnHomeFromPrestige" />
     <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
