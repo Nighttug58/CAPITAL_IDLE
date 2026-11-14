@@ -61,15 +61,20 @@ export function scaleRewardUnits(base: bigint, bonusBps: number): bigint | null 
  * At Prestige multipliers the rate uses 1e-6 bp precision; only the tiny
  * remainder below the preexisting carry resolution is rounded.
  */
-export function scaleRewardCents(
-  baseCents: number, bonusBps: number, carryBps = 0,
+/**
+ * Multiply an integer-cent reward by a NONNEGATIVE total rate.
+ * 10 000 bp = 100%, 2 500 bp = 25%; supports slower XP accrual without
+ * touching the stored XP accumulated by older saves.
+ */
+export function scaleRewardCentsAtRate(
+  baseCents: number, totalRateBps: number, carryBps = 0,
 ): { readonly cents: number; readonly carryBps: number } | null {
   if (!Number.isSafeInteger(baseCents) || baseCents < 0 ||
-    !Number.isSafeInteger(carryBps) || carryBps < 0 || carryBps >= 10_000) return null
-  const rate = getRewardRateUnits(bonusBps)
-  if (rate === null) return null
-
-  const scaled = BigInt(baseCents) * rate + BigInt(carryBps) * PRECISION
+    !Number.isSafeInteger(carryBps) || carryBps < 0 || carryBps >= 10_000 ||
+    !Number.isFinite(totalRateBps) || totalRateBps < 0) return null
+  const roundedRate = Math.round(totalRateBps * BONUS_RATE_PRECISION)
+  if (!Number.isSafeInteger(roundedRate)) return null
+  const scaled = BigInt(baseCents) * BigInt(roundedRate) + BigInt(carryBps) * PRECISION
   const whole = scaled / RATE_DENOMINATOR
   const remainder = scaled % RATE_DENOMINATOR
   // Round only the sub-carry remainder. A carry rounding to one full cent
@@ -79,6 +84,14 @@ export function scaleRewardCents(
   const cents = whole + additionalCent
   if (cents > BigInt(Number.MAX_SAFE_INTEGER)) return null
   return { cents: Number(cents), carryBps: Number(additionalCent ? 0n : roundedCarry) }
+}
+
+/** The normal bonus path always starts from 100% of the base amount. */
+export function scaleRewardCents(
+  baseCents: number, bonusBps: number, carryBps = 0,
+): { readonly cents: number; readonly carryBps: number } | null {
+  if (!Number.isFinite(bonusBps) || bonusBps < 0) return null
+  return scaleRewardCentsAtRate(baseCents, 10_000 + bonusBps, carryBps)
 }
 
 /** New Fame events only. Calculations never reprice already-awarded Fame. */
