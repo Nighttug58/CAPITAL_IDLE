@@ -1,5 +1,6 @@
-import { INITIAL_GAME, migrateLegacyGame, migrateV2Game, restoreGame, type GameState } from './game.ts'
+import { INITIAL_GAME, LEVEL_THRESHOLD_FACTOR, migrateLegacyGame, migrateV2Game, restoreGame, type GameState } from './game.ts'
 import { createCapitalState, restoreCapitalState, type CapitalState } from './capital.ts'
+import { createInitialPrestigeState } from './prestige/state.ts'
 
 const STORAGE_KEY = 'capital-idle-save-v6'
 const V5_STORAGE_KEY = 'capital-idle-save-v5'
@@ -20,7 +21,11 @@ function readStorage(key: string): unknown {
 
 function readPreviousGame(): GameState {
   const v3 = readStorage(V3_STORAGE_KEY)
-  if (v3 !== undefined) return restoreGame(v3)
+  if (v3 !== undefined) {
+    const legacy = v3 as Partial<GameState>
+    const oldXp = typeof legacy?.lifetimeEarned === 'number' ? legacy.lifetimeEarned * LEVEL_THRESHOLD_FACTOR : undefined
+    return restoreGame(v3, { experiencePoints: oldXp })
+  }
 
   const v2 = readStorage(V2_STORAGE_KEY)
   if (v2 !== undefined) return migrateV2Game(v2)
@@ -58,7 +63,9 @@ export function loadCapitalState(now = Date.now()): CapitalState {
   }
 
   // Les sauvegardes clicker v1/v2/v3 n'avaient aucun état Trading.
-  const migrated = createCapitalState(readPreviousGame(), now)
+  const previousGame = readPreviousGame()
+  const base = createCapitalState(previousGame, now)
+  const migrated: CapitalState = { ...base, prestige: createInitialPrestigeState(previousGame.lifetimeEarned, true) }
   saveCapitalState(migrated)
   return migrated
 }
