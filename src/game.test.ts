@@ -17,6 +17,7 @@ import {
   MAX_CLICK_LEVEL,
   FIRST_CLICK_UPGRADE_PRICE,
   CLICK_UPGRADE_PRICE_STEP,
+  CLICK_PRICE_INCREMENT_GROWTH,
 } from './game.ts'
 
 test('50 niveaux lissés avec des seuils strictement croissants', () => {
@@ -65,27 +66,45 @@ test('impossible d acheter une amélioration avant son niveau ou sans fonds', ()
   assert.deepEqual(purchaseUpgrade(poor), poor)
 })
 
-test('999 améliorations jusqu’à 1 000 $/clic, prix à croissance strictement linéaire', () => {
+test('999 améliorations du clic : augmentation des écarts de prix de 0,05 % composée par palier', () => {
   assert.equal(MAX_CLICK_LEVEL, 1000)
   assert.equal(UPGRADES.length, MAX_CLICK_LEVEL - 1)
   assert.equal(FIRST_CLICK_UPGRADE_PRICE, 375)
   assert.equal(CLICK_UPGRADE_PRICE_STEP, 750)
+  assert.equal(CLICK_PRICE_INCREMENT_GROWTH, 0.0005)
+  let lastIncrease = 0
   UPGRADES.forEach((upgrade, index) => {
     const clickValue = index + 2
     const expectedGate = clickValue <= 50 ? clickValue : 50 + Math.ceil((clickValue - 50) / 20)
     assert.equal(upgrade.requiredLevel, expectedGate)
-    assert.equal(upgrade.price, FIRST_CLICK_UPGRADE_PRICE + index * CLICK_UPGRADE_PRICE_STEP)
     assert.equal(upgrade.clickValue, clickValue)
     assert.equal(upgrade.clickValue - getClickValue(index), 1)
-    if (index > 0) assert.equal(upgrade.price - UPGRADES[index - 1]!.price, 750)
+    if (index === 0) assert.equal(upgrade.price, 375)
+    else {
+      const increase = upgrade.price - UPGRADES[index - 1]!.price
+      assert.equal(
+        increase,
+        Math.round(CLICK_UPGRADE_PRICE_STEP * (1 + CLICK_PRICE_INCREMENT_GROWTH) ** (index - 1)),
+        'the INCREMENT compounds by only 0.05% per tier',
+      )
+      assert.ok(increase >= lastIncrease, 'price increments never shrink')
+      lastIncrease = increase
+    }
   })
   assert.equal(UPGRADES[48]!.clickValue, 50)
   assert.equal(UPGRADES[49]!.requiredLevel, 51)
   assert.equal(UPGRADES[68]!.requiredLevel, 51)
   assert.equal(UPGRADES[69]!.requiredLevel, 52)
   assert.equal(UPGRADES[998]!.requiredLevel, 98)
-  assert.equal(UPGRADES[998]!.price, 748_875)
-  assert.equal(UPGRADES.reduce((sum, upgrade) => sum + upgrade.price, 0), 374_250_375)
+  assert.equal(UPGRADES[1]!.price, 1_125)
+  assert.equal(UPGRADES[3]!.price, 2_626)
+  assert.equal(UPGRADES[99]!.price, 76_475)
+  assert.equal(UPGRADES[499]!.price, 425_336)
+  assert.equal(UPGRADES[998]!.price, 970_678)
+  assert.equal(UPGRADES.reduce((sum, upgrade) => sum + upgrade.price, 0), 444_951_055)
+  const oldLastPrice = FIRST_CLICK_UPGRADE_PRICE + 998 * CLICK_UPGRADE_PRICE_STEP
+  assert.ok(UPGRADES[998]!.price > oldLastPrice)
+  assert.ok(UPGRADES[998]!.price < oldLastPrice * 1.3, 'exponential bend must stay mild at max tier')
   assert.equal(getClickValue(999), 1000)
   assert.equal(getNextUpgrade({ ...INITIAL_GAME, purchasedUpgrades: 999 }), null)
 })
