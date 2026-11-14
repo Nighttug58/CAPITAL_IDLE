@@ -417,7 +417,7 @@ onUnmounted(() => {
       <section class="upgrade-card" aria-label="Amélioration du clic">
         <div class="upgrade-copy">
           <span class="eyebrow">PROCHAINE AMÉLIORATION</span>
-          <strong>{{ nextUpgrade ? '+1 $ / clic' : 'CLIC MAX' }}</strong>
+          <strong>{{ nextUpgrade ? '+' + numberFormatter.format(nextUpgrade.clickValue - getClickValue(game.purchasedUpgrades)) + ' $ / clic' : 'CLIC MAX' }}</strong>
           <span class="upgrade-tier">CLIC NIV. {{ game.purchasedUpgrades + 1 }} / {{ MAX_CLICK_LEVEL }}</span>
           <span class="upgrade-price">{{ nextUpgrade ? `Coût · ${formatMoney(nextUpgrade.price)}` : 'Tout est débloqué' }}</span>
         </div>
