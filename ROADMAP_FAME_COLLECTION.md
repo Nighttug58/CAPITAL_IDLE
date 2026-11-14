@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 7/8 passes livrées**  
+**Statut : terminée — 8/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -192,7 +192,7 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Sauvegarde :** état de déblocage **recalculé** après chaque achat de boost, attribution de Fame, import/export v6, restauration du stockage et réinitialisation. Aucun champ redondant dans le JSON, pas de changement de version ; migrations antérieures (v1–v5, y compris v5) et contrôles d'intégrité préservés, aucune Fame re-créditée à l'import.
 - **Tests et CI :** `src/prestige/absolute.test.ts` vérifie niveaux 119/120, seuils Fame **0, 99, 100, 500, 600, 1 000, 10 000**, factorisation des six boosts, non-multiplication des collections, six moteurs économiques, impôts, retour hors ligne, sauvegardes v5/v6, gains futurs, reset et cas extrêmes sans BigInt invalide. `prestige-ui.test.ts` teste l'état Shop/Stats verrouillé et déverrouillé, le facteur réel, les sources, le rechargement et RESET. **CI réussie** : [Build main/root site #43565795418](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43565795418), **202 tests métier + 36 tests UI = 238 tests réussis**, `vue-tsc --noEmit`, `vite build`, publication des assets dans `main/(root)` et demande de GitHub Pages effectués avec succès. Le premier test simulait un seul niveau gagné malgré le boost d'XP (deux niveaux gagnés en pratique), puis a été corrigé pour valider le comportement réel sans nerf.
 
-### [ ] Passe 8 — Équilibrage global, non-régression et publication
+### [x] Passe 8 — Équilibrage global, non-régression et publication
 
 - Simulations chiffrées **sans bonus Notoriété** : niveau 100 + 50 collections = 25 250 Fame ; 120 achats = 24 650 Fame ; reste **600**.
 - Simulations de parcours avec Notoriété acheté tôt/tard, progression >100, Prestige dynamique, cash insuffisant/solde fiscal négatif, Trading bénéficiaire ou perdant, très longue absence.
@@ -200,17 +200,21 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - Vérifier `npm test`, `npm run test:ui`, `npm run build`, interface PC/mobile, import/export JSON (v1–v6), reset, sauvegardes corrompues.
 - Actualiser README, puis publier via le **pipeline existant** GitHub Pages `main / (root)` : build de production, synchronisation racine si requise ; jamais remplacer directement l'HTML compilé par le HTML source.
 - Ne cocher cette passe qu'après les vérifications effectives et la disponibilité du site publié.
+- **Livraison finale (14/11/2026) :** `src/prestige/final-balance.test.ts` exécute les **simulations réalistes** : 50 objets achetés en Gold, progression niveau 168, Notoriété avant/après collection, 120 paliers, Prestige, maintien de la fortune comptable, solde négatif, rattrapage sur **365 jours** et absence de double crédit. `npm test` a **243 tests verts** (**207 métier + 36 Vue**) ; `npm run test:ui` est compris dans cette commande. `npm run build:root` exécute les types et Vite, puis synchronise `index.html` compilé et les assets dans `main/(root)`. [Workflow final réussi #43567938220](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43567938220). Le pipeline [GitHub Pages #43567984351](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43567984351) confirme le déploiement de cette version ; le `index.html`, `.nojekyll` et les assets référencés existent dans `main`.
+- **Bilan des valeurs immuables :** six améliorations ×20, **24 650 Fame** à dépenser, **25 250 Fame** théoriquement disponibles au niveau 100 après les 50 acquisitions, **600 Fame** restant sans bonus Notoriété. Prix total des 50 biens : **3 012 250 000 $**. Les entreprises (20) et les paliers 100+ ne sont pas bloqués ; le dernier objet coûte 450 M$.
+- **Nuance de conception documentée, non masquée :** l'objectif de 80 % de Fame issue des collections **n'est vrai que dans le scénario de référence au niveau 100**. Le financement réel des 50 biens par des gains éligibles à l'XP suffit à atteindre au moins le **niveau 168**. À ce niveau, dans l'ordre du catalogue, **Notoriété tardive** donne **22 725,14 Fame de collection**, environ **61,55 %** des gains cumulés, contre **42 925,14 Fame de collection** (**75,15 %**) avec les 20 niveaux de Notoriété achetés avant les objets. Cela génère de forts écarts de Prestige (environ **×3,37 vs ×25,13** à Shop complet). Les valeurs et règles approuvées restent inchangées ; tout rééquilibrage plus fort demande une nouvelle décision, pas une modification cachée en passe finale.
+- **Sauvegardes et publication :** migration automatique des stockages v1–v5 vers v6, fichiers JSON importables v4–v6, export et RESET préservés ; validation des balances et dépenses de Fame, aucun remboursement ni gain rétroactif. L'interface PC/mobile dispose de tests JSDOM pour structure responsive, navigation et achats, mais **pas d'inspection visuelle manuelle multi-appareils** dans cet environnement ; la disponibilité HTTP du site n'a pas été vérifiée par un navigateur autonome, le déploiement est confirmé par les workflows Pages. Document README actualisé (Stats, 5 onglets, balance réelle, limites chiffrées).
 
 ## 3. Définition de « terminé »
 
-- [ ] Deux revenus Fame seulement : niveaux et collections, avec aucun double crédit.
-- [ ] Niveau ≥100 sans rupture des achats/récompenses hérités du niveau 50.
-- [ ] **50 collections uniques**, cinq catégories et bonus de +0,1 % à +5 %.
-- [ ] **120 paliers** de +5 %, six boosts, +100 % chacun avant Prestige.
-- [ ] **80 % de Fame de base issue des collections au niveau 100** ; achat de **toute la boutique sans boost**, reste 600 Fame.
-- [ ] Prestige absolu gratuit après 120/120 ; facteur composé exact par 100 Fame possédées.
-- [ ] Un moteur commun de bonus ; XP distincte des revenus, fiscalité et trading corrects.
-- [ ] UI lisible et testée ; sauvegardes migrées, export/import/reset complets.
-- [ ] Tests et build verts ; `main / (root)` publié.
+- [x] Deux revenus Fame seulement : niveaux et collections, avec aucun double crédit.
+- [x] Niveau ≥100 sans rupture des achats/récompenses hérités du niveau 50.
+- [x] **50 collections uniques**, cinq catégories et bonus de +0,1 % à +5 %.
+- [x] **120 paliers** de +5 %, six boosts, +100 % chacun avant Prestige.
+- [x] **80 % de Fame de base issue des collections au niveau 100** ; achat de **toute la boutique sans boost**, reste 600 Fame.
+- [x] Prestige absolu gratuit après 120/120 ; facteur composé exact par 100 Fame possédées.
+- [x] Un moteur commun de bonus ; XP distincte des revenus, fiscalité et trading corrects.
+- [x] UI lisible et testée ; sauvegardes migrées, export/import/reset complets.
+- [x] Tests et build verts ; `main / (root)` publié.
 
-**Après validation de cette roadmap :** le prochain `next` commence par la **Passe 1**.
+**Roadmap clôturée.** Le prochain `next` peut ouvrir un **nouvel audit indépendant post-publication** et les priorités de stabilisation, sans recommencer les huit passes déjà terminées.
