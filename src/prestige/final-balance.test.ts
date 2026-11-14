@@ -58,14 +58,14 @@ test('base contractual budget: 80% collections at level 100 and 600 Fame left', 
 
 test('price audit: collection costs and level-100 ratio are theoretical, not a realistic co-occurrence', () => {
   assert.equal(TOTAL_COLLECTION_PRICE, 3_012_250_000)
-  assert.equal(getLevelStartThreshold(100), 4_384_391)
-  assert.equal(getLevel(3_012_250_000), 168)
-  const fameLevels168 = (168 * 169) / 2
-  assert.equal(fameLevels168, 14_196)
+  assert.equal(getLevelStartThreshold(100), 17_537_564)
+  assert.equal(getLevel(3_012_250_000), 154)
+  const fameLevels154 = (154 * 155) / 2
+  assert.equal(fameLevels154, 11_935)
   // If the user earned all required cash as XP-eligible income, collection Fame
   // would only be 58.7% of base Fame before acquisition boosters (not 80%).
-  const realisticBaseShare = COLLECTION_BASE_FAME / (COLLECTION_BASE_FAME + fameLevels168)
-  assert.ok(realisticBaseShare > .58 && realisticBaseShare < .59)
+  const realisticBaseShare = COLLECTION_BASE_FAME / (COLLECTION_BASE_FAME + fameLevels154)
+  assert.ok(realisticBaseShare > .62 && realisticBaseShare < .63)
   // This is a documented balance limitation. Never silently change the
   // locked Fame rewards or erase the level 100+ progression to mask it.
 })
@@ -73,7 +73,7 @@ test('price audit: collection costs and level-100 ratio are theoretical, not a r
 test('realistic late Notoriété path: all 50 cash purchases, Shop 120/120, no double asset counting', () => {
   const start = createCapitalState({ balance: 3_100_000_000, lifetimeEarned: 3_100_000_000, purchasedUpgrades: 0 }, NOW)
   const beforeWorth = getCapitalStatsOverview(start).netWorth
-  assert.equal(start.prestige.lastAwardedLevel, 168)
+  assert.equal(start.prestige.lastAwardedLevel, 154)
   const collected = acquireEverything(start)
   assert.equal(collected.prestige.ownedCollectionIds.length, 50)
   assert.equal(getCapitalStatsOverview(collected).collectionBookValue, TOTAL_COLLECTION_PRICE)
@@ -115,14 +115,14 @@ test('realistic early Notoriété path outperforms late purchasing without touch
   assert.ok(early.prestige.collectionFameMicros > late.prestige.collectionFameMicros)
   assert.ok(Math.abs(late.prestige.collectionFameMicros / FAME_MICROS - 22_725.14) < .000001)
   assert.ok(Math.abs(early.prestige.collectionFameMicros / FAME_MICROS - 42_925.14) < .000001)
-  const levelFame = 14_196
-  assert.ok(Math.abs(late.prestige.collectionFameMicros / (late.prestige.collectionFameMicros + levelFame * FAME_MICROS) - .6155) < .0001)
-  assert.ok(Math.abs(early.prestige.collectionFameMicros / (early.prestige.collectionFameMicros + levelFame * FAME_MICROS) - .7515) < .0001)
+  const levelFame = 11_935
+  assert.ok(Math.abs(late.prestige.collectionFameMicros / (late.prestige.collectionFameMicros + levelFame * FAME_MICROS) - .6556) < .0001)
+  assert.ok(Math.abs(early.prestige.collectionFameMicros / (early.prestige.collectionFameMicros + levelFame * FAME_MICROS) - .7825) < .0001)
   assert.ok(early.prestige.fameMicros > late.prestige.fameMicros)
-  assert.ok(Math.abs(late.prestige.fameMicros / FAME_MICROS - 12_271.14) < .000001)
-  assert.ok(Math.abs(early.prestige.fameMicros / FAME_MICROS - 32_471.14) < .000001)
-  assert.equal(getAbsolutePrestigeStatus(late).fameSteps, 122)
-  assert.equal(getAbsolutePrestigeStatus(early).fameSteps, 324)
+  assert.ok(Math.abs(late.prestige.fameMicros / FAME_MICROS - 10_010.14) < .000001)
+  assert.ok(Math.abs(early.prestige.fameMicros / FAME_MICROS - 30_210.14) < .000001)
+  assert.equal(getAbsolutePrestigeStatus(late).fameSteps, 100)
+  assert.equal(getAbsolutePrestigeStatus(early).fameSteps, 302)
   assert.ok(getAbsolutePrestigeStatus(early).factor >= getAbsolutePrestigeStatus(late).factor)
   assert.equal(getCapitalStatsOverview(early).netWorth, getCapitalStatsOverview(late).netWorth)
 })
