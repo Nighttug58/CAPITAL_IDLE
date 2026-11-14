@@ -6,6 +6,10 @@ import App from '../App.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
 import { getLevelStartThreshold } from '../game.ts'
 import { FAME_MICROS } from '../prestige/state.ts'
+import { COLLECTION_BASE_FAME, COLLECTION_SLOTS, FAME_BOOSTS, TOTAL_BASE_FAME_TO_LEVEL_100 } from '../prestige/catalog.ts'
+import { buyFameUpgrade } from '../prestige/shop.ts'
+import { getAbsolutePrestigeStatus } from '../prestige/absolute.ts'
+
 
 const mounted: VueWrapper[] = []
 beforeEach(() => localStorage.clear())
@@ -174,5 +178,101 @@ describe('Fame Shop & Collection — responsive UI', () => {
     expect(css).toContain('linear-gradient(to bottom,#ad72ee')
     expect(css).toContain('@media(max-width:380px)')
     expect(css).toContain('.bottom-nav .nav-home { min-width:0; flex:1 1 0;')
+  })
+})
+
+function completedPrestigeState(): CapitalState {
+  const threshold = getLevelStartThreshold(100)
+  const start = createCapitalState({
+    balance: threshold, lifetimeEarned: threshold, purchasedUpgrades: 0,
+  }, Date.now())
+  let state: CapitalState = {
+    ...start, prestige: {
+      ...start.prestige, ownedCollectionIds: COLLECTION_SLOTS.map(slot => slot.id),
+      collectionFameMicros: COLLECTION_BASE_FAME * FAME_MICROS,
+      fameMicros: TOTAL_BASE_FAME_TO_LEVEL_100 * FAME_MICROS,
+      lifetimeFameMicros: TOTAL_BASE_FAME_TO_LEVEL_100 * FAME_MICROS,
+    },
+  }
+  for (const boost of FAME_BOOSTS) for (let level = 0; level < 20; level++) {
+    const result = buyFameUpgrade(state, boost.id, level)
+    if (!result.ok) throw new Error('Prestige fixture invalid')
+    state = result.state
+  }
+  return state
+}
+
+describe('Prestige absolu — écran et sauvegarde', () => {
+  it('affiche le verrouillage avant 120/120 sur Shop et Stats', async () => {
+    const { wrapper } = mountSaved(0)
+    await wrapper.find('.fame-shop-launch').trigger('click')
+    const card = wrapper.find('.absolute-prestige-card')
+    expect(card.exists()).toBe(true)
+    expect(card.text()).toContain('VERROUILLÉ')
+    expect(card.text()).toContain('120')
+    expect(card.find('.absolute-prestige-factor').exists()).toBe(false)
+    expect(card.find('button').exists()).toBe(false) // Aucun achat séparé
+    await wrapper.find('.prestige-close').trigger('click')
+    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+    const stats = wrapper.find('.stats-prestige')
+    expect(stats.exists()).toBe(true)
+    expect(stats.find('.stats-absolute-panel').text()).toContain('VERROUILLÉ')
+    expect(stats.find('.stats-prestige-summary').text()).toContain('FAME DISPONIBLE')
+    expect(stats.findAll('.stats-prestige-boost')).toHaveLength(6)
+    expect(stats.find('.stats-prestige-boost[data-boost="click"] .stats-prestige-total').text()).toContain('0')
+  })
+
+  it('120/120 : Prestige est gratuit, facteur ×1,01⁶ et Fame ventilée avec bonus non multipliés', async () => {
+    const endgame = completedPrestigeState()
+    expect(getAbsolutePrestigeStatus(endgame).factor).toBe(1.01 ** 6)
+    localStorage.setItem('capital-idle-save-v6', JSON.stringify(endgame))
+    const wrapper = mount(App, { attachTo: document.body })
+    mounted.push(wrapper)
+    await wrapper.find('.fame-shop-launch').trigger('click')
+    const card = wrapper.find('.absolute-prestige-card')
+    expect(card.classes()).toContain('absolute-prestige-unlocked')
+    expect(card.text()).toContain('DÉBLOQUÉ')
+    expect(card.text()).toContain('6 tranches')
+    expect(card.text()).toContain('700 Fame')
+    expect(card.find('.absolute-prestige-factor').text()).toContain('1,06152')
+    expect(card.find('button').exists()).toBe(false)
+    expect(wrapper.findAll('.fame-boost-card')).toHaveLength(6)
+    expect(wrapper.findAll('.fame-boost-card .fame-buy-button:disabled')).toHaveLength(6)
+    expect(wrapper.find('.fame-boost-card[data-boost="click"]').text()).toContain('avec Prestige')
+    await wrapper.find('.prestige-close').trigger('click')
+    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+    const stats = wrapper.find('.stats-prestige')
+    expect(stats.find('.stats-absolute-panel').classes()).toContain('is-unlocked')
+    expect(stats.find('.stats-absolute-factor').text()).toContain('1,06152')
+    const summary = stats.find('.stats-prestige-summary').text()
+    expect(summary).toContain('600')
+    expect(summary).toContain('25\'250')
+    expect(summary).toContain('20\'200')
+    expect(summary).toContain('24\'650')
+    expect(summary).toContain('50 / 50')
+    expect(stats.findAll('.stats-prestige-boost')).toHaveLength(6)
+    expect(stats.find('.stats-prestige-boost[data-boost="click"]').text()).toContain('avec Prestige')
+    expect(stats.find('.stats-prestige-boost[data-boost="fame"]').text()).toContain('Collection')
+    expect(stats.text()).toContain('jamais aux collections')
+    expect(JSON.parse(localStorage.getItem('capital-idle-save-v6')!).prestige.fameMicros).toBe(600 * FAME_MICROS)
+  })
+
+  it('Prestige rechargé n’est ni remboursé ni obtenu une seconde fois, puis RESET le désactive', async () => {
+    const initial = completedPrestigeState()
+    localStorage.setItem('capital-idle-save-v6', JSON.stringify(initial))
+    const wrapper = mount(App, { attachTo: document.body })
+    mounted.push(wrapper)
+    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+    expect(wrapper.find('.stats-absolute-panel').text()).toContain('DÉBLOQUÉ')
+    await wrapper.find('.backup-reset').trigger('click')
+    await wrapper.find('#reset-code').setValue('RESET')
+    await wrapper.find('.backup-confirm-danger').trigger('click')
+    await nextTick()
+    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
+    expect(getAbsolutePrestigeStatus(stored).unlocked).toBe(false)
+    expect(stored.prestige.fameMicros).toBe(FAME_MICROS)
+    expect(stored.prestige.ownedCollectionIds).toHaveLength(0)
+    expect(stored.prestige.boosts.click).toBe(0)
+    expect(wrapper.find('.stats-absolute-panel').text()).toContain('VERROUILLÉ')
   })
 })
