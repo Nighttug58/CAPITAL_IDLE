@@ -1243,3 +1243,52 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
   .automation-switch>button { min-width:80px; }
   .automation-fields,.automation-order-fields { gap:7px; }
 }
+
+/* News : le cadre indique le sens de la pression réelle sur le cours.
+   Une rumeur démentie inverse son sens ; les News terminées gardent leur couleur historique. */
+.news-bullish {
+  --news-border: #48bf80;
+  --news-fill: rgba(32, 115, 71, .24);
+  --news-text: #a5edc0;
+}
+.news-bearish {
+  --news-border: #ed6e72;
+  --news-fill: rgba(130, 45, 51, .23);
+  --news-text: #ffb9b9;
+}
+.news-preview-row.news-bullish,
+.news-preview-row.news-bearish {
+  border-color: var(--news-border);
+  background: linear-gradient(115deg, var(--news-fill), #172022 80%);
+  box-shadow: inset 3px 0 0 var(--news-border);
+}
+button.news-preview-row.news-bullish:active,
+button.news-preview-row.news-bearish:active {
+  border-color: var(--news-border);
+  background: linear-gradient(115deg, var(--news-fill), #27251e 85%);
+}
+.news-preview-row.news-bearish .news-active { color: var(--news-text); }
+.news-preview-row.news-bullish:focus-visible,
+.news-preview-row.news-bearish:focus-visible {
+  outline: 2px solid var(--news-border);
+  outline-offset: 2px;
+}
+.news-future-preview.news-bullish,
+.news-future-preview.news-bearish {
+  border-color: var(--news-border);
+  background: linear-gradient(130deg, var(--news-fill), #2a2b29 90%);
+  box-shadow: inset 3px 0 0 var(--news-border);
+}
+.news-future-preview.news-bullish > span,
+.news-future-preview.news-bearish > span { color: var(--news-text); }
+.trading-modal.trading-news-modal.news-bullish,
+.trading-modal.trading-news-modal.news-bearish { border-color: var(--news-border); }
+.trading-news-modal.news-bullish .trading-modal-header,
+.trading-news-modal.news-bearish .trading-modal-header { border-bottom-color: var(--news-border); }
+.trading-news-modal.news-bullish .news-scenario,
+.trading-news-modal.news-bearish .news-scenario {
+  border-left-color: var(--news-border);
+  background: linear-gradient(105deg, var(--news-fill), #26312d 90%);
+}
+.trading-news-modal.news-bullish .news-detail-meta,
+.trading-news-modal.news-bearish .news-detail-meta { color: var(--news-text); }

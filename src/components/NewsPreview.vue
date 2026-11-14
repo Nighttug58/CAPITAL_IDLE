@@ -23,7 +23,8 @@ const entries = computed(() =>
       <span>{{ news.filter((event) => event.endsAt > now).length }} EN COURS</span>
     </div>
     <div class="market-list-scroll news-scroll">
-      <div v-if="upcoming" class="news-future-preview" aria-label="Vision anticipée">
+      <div v-if="upcoming" class="news-future-preview" :class="'news-' + upcoming.presentation.direction"
+        aria-label="Vision anticipée">
         <span>VISION ANTICIPÉE · DANS {{ upcoming.secondsRemaining }} s</span>
         <strong>{{ upcoming.presentation.headline }}</strong>
         <p>{{ upcoming.presentation.description }}</p>
@@ -35,7 +36,11 @@ const entries = computed(() =>
         <p>Un événement fictif apparaît toutes les 2 à 8 minutes.</p>
       </div>
       <button type="button" v-for="entry in entries" :key="entry.event.id" class="news-preview-row"
-        :aria-label="'Lire ' + entry.presentation!.headline" @click="$emit('open-news', entry.event.id)">
+        :class="'news-' + entry.presentation!.direction"
+        :aria-label="'Lire ' + entry.presentation!.headline + ' · ' +
+          (entry.presentation!.direction === 'bullish' ? 'news haussière' :
+            entry.presentation!.direction === 'bearish' ? 'news baissière' : 'news neutre')"
+        @click="$emit('open-news', entry.event.id)">
         <div class="news-preview-meta">
           <span>{{ entry.presentation!.category.toUpperCase() }}</span>
           <span :class="entry.event.endsAt > now ? 'news-active' : 'news-ended'">

@@ -13,7 +13,8 @@ const reliability = computed(() => props.event.phase === 'rumor' ? 'Rumeur non c
     props.event.phase === 'denied' ? 'Démenti dans la simulation' : 'Annonce simulée')
 </script>
 <template>
-  <section ref="root" class="trading-modal trading-news-modal" role="dialog" aria-modal="true" aria-label="Actualité détaillée" tabindex="-1">
+  <section ref="root" class="trading-modal trading-news-modal"
+    :class="detail ? 'news-' + detail.direction : undefined" role="dialog" aria-modal="true" aria-label="Actualité détaillée" tabindex="-1">
     <div class="trading-modal-header">
       <div class="modal-title-group">
         <span class="eyebrow">ACTUALITÉ · {{ detail?.category.toUpperCase() }}</span>

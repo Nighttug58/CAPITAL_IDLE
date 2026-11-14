@@ -87,6 +87,15 @@ export function getNewsRemainingMs(event: MarketNews, now: number): number {
   return Math.max(0, event.endsAt - now)
 }
 
+/** Match the actual price-pressure direction, including the reversal of denied rumors. */
+export type NewsDirection = 'bullish' | 'bearish' | 'neutral'
+export function getNewsDirection(event: MarketNews): NewsDirection {
+  const template = getNewsTemplate(event.templateId)
+  if (!template) return 'neutral'
+  const pressure = event.impact * template.priceWeight * (event.phase === 'denied' ? -0.65 : 1)
+  return pressure > 0 ? 'bullish' : pressure < 0 ? 'bearish' : 'neutral'
+}
+
 export function getNewsPresentation(event: MarketNews) {
   const template = getNewsTemplate(event.templateId)
   if (!template) return null
@@ -99,6 +108,7 @@ export function getNewsPresentation(event: MarketNews) {
     description: interpolate(template.description),
     scenario: interpolate(template.scenario),
     category: template.category,
+    direction: getNewsDirection(event),
     affectedAssets: event.affectedAssetIds.map(getAsset).filter((asset): asset is AssetDefinition => asset !== undefined),
   }
 }

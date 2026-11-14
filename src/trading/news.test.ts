@@ -4,7 +4,7 @@ import { ASSETS } from './catalog.ts'
 import { catchUpMarket, MAX_CATCH_UP_TICKS } from './clock.ts'
 import { advanceMarketTick, MARKET_TICK_MS } from './market.ts'
 import {
-  advanceNewsTick, EXPIRED_NEWS_HISTORY, getNewsEnvelope, getNewsPresentation,
+  advanceNewsTick, EXPIRED_NEWS_HISTORY, getNewsEnvelope, getNewsPresentation, getNewsDirection,
   getNewsPressure, getNewsRemainingMs, getNewsTemplate, MAX_NEWS_DURATION_MS,
   MAX_NEWS_INTERVAL_MS, MIN_NEWS_DURATION_MS, MIN_NEWS_INTERVAL_MS,
   NEWS_TEMPLATES, trimNews,
@@ -253,4 +253,24 @@ test('reprise après sauvegarde en milieu de rattrapage : aucune nouvelle en dou
   }
   assert.deepEqual(a, b)
   assert.equal(new Set(a.news.map((item) => item.id)).size, a.news.length)
+})
+
+test('cadres des News : tendance fidèle au prix, rumeur démentie inversée', () => {
+  const rise = event({ templateId: 'earnings-beat', impact: 0.75 })
+  const fall = event({ templateId: 'earnings-miss', impact: -0.75 })
+  assert.equal(getNewsDirection(rise), 'bullish')
+  assert.equal(getNewsPresentation(rise)?.direction, 'bullish')
+  assert.equal(getNewsDirection(fall), 'bearish')
+  assert.equal(getNewsPresentation(fall)?.direction, 'bearish')
+
+  const positiveRumor = event({ templateId: 'rumor-acquisition', impact: 0.8, phase: 'rumor' })
+  const deniedPositiveRumor = { ...positiveRumor, phase: 'denied' as const }
+  assert.equal(getNewsDirection(positiveRumor), 'bullish')
+  assert.equal(getNewsDirection(deniedPositiveRumor), 'bearish')
+  assert.equal(getNewsPresentation(deniedPositiveRumor)?.direction, 'bearish')
+
+  const negativeRumor = event({ templateId: 'rumor-crypto-ban', impact: -0.8, phase: 'rumor' })
+  assert.equal(getNewsDirection(negativeRumor), 'bearish')
+  assert.equal(getNewsDirection({ ...negativeRumor, phase: 'denied' }), 'bullish')
+  assert.equal(getNewsDirection(event({ templateId: 'unknown' })), 'neutral')
 })

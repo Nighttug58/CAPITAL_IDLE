@@ -4,6 +4,8 @@ import { nextTick } from 'vue'
 import App from '../App.vue'
 import { readFileSync } from 'node:fs'
 import TradingScreen from './TradingScreen.vue'
+import NewsPreview from './NewsPreview.vue'
+import { getNewsPresentation } from '../trading/news.ts'
 import { createCapitalState, type CapitalState } from '../capital.ts'
 import { createInitialQuotes } from '../trading/catalog.ts'
 import { buyAsset, sellAsset, type TradeResult, type TradeSide } from '../trading/trades.ts'
@@ -103,6 +105,44 @@ describe('Trading interface mobile',()=>{
     await wrapper.find('button.modal-close').trigger('click')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   })
+  it('colore les cadres News en vert/rouge selon l’impact et inverse un démenti', async () => {
+    const state = createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
+    state.trading.news = [
+      news,
+      { ...news, id:'news-bearish', templateId:'earnings-miss', impact:-0.8 },
+      { ...news, id:'news-denied', templateId:'rumor-acquisition', impact:0.8, phase:'denied' },
+    ]
+    const {wrapper} = setup(state)
+    await tab(wrapper,3)
+    const cards = wrapper.findAll('button.news-preview-row')
+    expect(cards).toHaveLength(3)
+    expect(cards[0]?.classes()).toContain('news-bearish')
+    expect(cards[1]?.classes()).toContain('news-bearish')
+    expect(cards[2]?.classes()).toContain('news-bullish')
+    expect(cards[0]?.attributes('aria-label')).toContain('baissière')
+    await cards[0]!.trigger('click')
+    expect(wrapper.find('.trading-news-modal').classes()).toContain('news-bearish')
+    await wrapper.find('.trading-news-modal .modal-close').trigger('click')
+    await cards[2]!.trigger('click')
+    expect(wrapper.find('.trading-news-modal').classes()).toContain('news-bullish')
+    const styles = readFileSync('src/style.css', 'utf8')
+    expect(styles).toContain('.news-preview-row.news-bullish')
+    expect(styles).toContain('.news-preview-row.news-bearish')
+    expect(styles).toContain('.trading-modal.trading-news-modal.news-bearish')
+  })
+
+  it('colore également la Vision anticipée avec le sens de l’annonce', () => {
+    const pending = { ...news, id:'news-future', templateId:'earnings-miss',
+      impact:-0.5, startedAt:NOW+20_000, endsAt:NOW+300_000 }
+    const presentation = getNewsPresentation(pending)
+    expect(presentation).not.toBeNull()
+    const wrapper = mount(NewsPreview,{props:{
+      news:[], now:NOW, upcoming:{event:pending,presentation: presentation!,secondsRemaining:20},
+    },attachTo:document.body})
+    mounted.push(wrapper)
+    expect(wrapper.find('.news-future-preview').classes()).toContain('news-bearish')
+  })
+
   it('affiche seulement les 10 dernières News sans masquer leur impact dans le moteur',async()=>{
     const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
     state.trading.news=Array.from({length:14},(_,index)=>({
