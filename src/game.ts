@@ -12,8 +12,9 @@ export interface Upgrade {
   readonly clickValue: number
 }
 
-// Progression régulière : 50 niveaux, chaque palier augmente de 10 %.
-// Le niveau dépend exclusivement des gains cumulés, jamais du solde.
+// Seuils de niveau conservés pour les sauvegardes existantes. Le rythme des
+// NOUVEAUX XP gagnés est ralenti dans le moteur prestige (0,25 XP/$).
+// Le niveau dépend de l'XP acquise, jamais du solde Gold.
 const LEVEL_COUNT = 50
 const FIRST_LEVEL_STEP = 35
 const STEP_GROWTH = 1.10
@@ -27,15 +28,33 @@ export const LEVEL_THRESHOLDS: readonly number[] = (() => {
   return thresholds
 })()
 
-export const UPGRADES: readonly Upgrade[] = LEVEL_THRESHOLDS.slice(1).map((threshold, index) => {
-  const level = index + 2
-  const step = threshold - LEVEL_THRESHOLDS[index]!
-  return {
-    requiredLevel: level,
-    price: Math.max(5, Math.round((step * 0.6) / 5) * 5),
-    clickValue: level,
-  }
-})
+/**
+ * Clicker balance v2:
+ * - Level 1 starts at $1/click, level 1000 pays $1000/click.
+ * - Every tier adds exactly $500 to its PRICE (arithmetic progression).
+ * - The first 49 level gates stay identical for existing players.
+ * - Beyond click level 50, one player level unlocks 20 more click tiers;
+ *   player level 1000 is not required to reach click level 1000.
+ * Existing purchases and cash amounts are never repriced retroactively.
+ */
+export const MAX_CLICK_LEVEL = 1000
+export const FIRST_CLICK_UPGRADE_PRICE = 250
+export const CLICK_UPGRADE_PRICE_STEP = 500
+export const EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL = 20
+
+export const UPGRADES: readonly Upgrade[] = Object.freeze(Array.from(
+  { length: MAX_CLICK_LEVEL - 1 },
+  (_, index): Upgrade => {
+    const clickValue = index + 2
+    return Object.freeze({
+      requiredLevel: clickValue <= 50
+        ? clickValue
+        : 50 + Math.ceil((clickValue - 50) / EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL),
+      price: FIRST_CLICK_UPGRADE_PRICE + index * CLICK_UPGRADE_PRICE_STEP,
+      clickValue,
+    })
+  },
+))
 
 export const INITIAL_GAME: Readonly<GameState> = {
   balance: 0,
