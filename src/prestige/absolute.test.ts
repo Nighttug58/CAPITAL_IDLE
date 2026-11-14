@@ -190,7 +190,7 @@ test('six live engines use Prestige: click, enterprise gross/tax, dividend, trad
 test('Prestige factor is recalculated on new Fame, with no new state/clock or refund', () => {
   const state = fullyPurchased()
   const before = getAbsolutePrestigeStatus(state)
-  const newXp = (getLevelStartThreshold(101) - getLevelStartThreshold(100)) * 400
+  const newXp = (getLevelStartThreshold(101) - getLevelStartThreshold(100)) * 100
   const gained = creditExperience(state, newXp)
   assert.ok(gained)
   // Prestige also doubles the XP Shop boost, so this single gain can skip 101.
