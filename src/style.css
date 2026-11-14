@@ -775,3 +775,68 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
 @media(prefers-reduced-motion:reduce) {
   .fame-shop-launch { transition:none; }
 }
+
+/* Prestige absolu — passe 7 : statut de fin de jeu visible sans modal étroite. */
+.absolute-prestige-card {
+  border:1px solid #796249; border-radius:13px; padding:15px;
+  background:linear-gradient(135deg,#2e2838,#231f2a 72%);
+  box-shadow:inset 0 1px #ffe2b71b; margin-top:3px;
+}
+.absolute-prestige-card.absolute-prestige-unlocked {
+  border-color:#e2bd7d;
+  background:linear-gradient(135deg,#493529,#302637 55%,#242335);
+}
+.absolute-prestige-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+.absolute-prestige-heading h3 { color:#ffe4b2; font-size:17px; margin:5px 0; }
+.absolute-prestige-state {
+  border:1px solid #6e6172; border-radius:8px; background:#282433;
+  color:#c0afc3; padding:6px 8px; font-size:10px; font-weight:800;
+}
+.absolute-prestige-unlocked .absolute-prestige-state { border-color:#9eac80; background:#33412f; color:#dbf3b9; }
+.absolute-prestige-card p { color:#c5bac6; margin:8px 0; font-size:11px; line-height:1.55; }
+.absolute-prestige-card p b { color:#f6d5a2; }
+.absolute-prestige-factor {
+  display:block; font-size:clamp(26px,8vw,35px); font-weight:850;
+  color:#ffe2a5; letter-spacing:-.03em; margin:9px 0;
+  font-variant-numeric:tabular-nums; overflow-wrap:anywhere;
+}
+.absolute-prestige-details { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 12px; color:#e9caa6; font-size:10px; }
+.absolute-prestige-card .absolute-prestige-footnote { font-size:10px; color:#b1a3b9; border-top:1px solid #6e5b603d; margin-top:13px; padding-top:10px; }
+
+.stats-prestige { border-color:#654f70; }
+.stats-prestige-summary {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;
+  margin-top:13px;
+}
+.stats-prestige-summary>div {
+  display:flex; flex-direction:column; gap:6px; min-width:0;
+  padding:10px; border:1px solid #4f4455; border-radius:9px;
+  background:linear-gradient(125deg,#292432,#1d2227);
+}
+.stats-prestige-summary span { color:#b2a2b8; font-size:9px; font-weight:750; letter-spacing:.045em; }
+.stats-prestige-summary strong { color:#f0d8ff; font-size:clamp(12px,3.9vw,15px); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.stats-absolute-panel {
+  padding:13px; border:1px solid #62566d; border-radius:11px;
+  background:linear-gradient(120deg,#29252e,#20232a); margin-top:12px;
+}
+.stats-absolute-panel.is-unlocked { border-color:#baa06e; background:linear-gradient(130deg,#40332a,#28212e); }
+.stats-absolute-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.stats-absolute-heading strong { color:#eecb9f; font-size:14px; }
+.stats-absolute-heading span { color:#c6b3cc; font-size:9px; font-weight:780; }
+.stats-absolute-panel.is-unlocked .stats-absolute-heading span { color:#b7e3ba; }
+.stats-absolute-panel p { font-size:10px; line-height:1.55; color:#c4b8bf; margin:9px 0 0; }
+.stats-absolute-factor { display:block; color:#fbe0a2; font-size:30px; font-variant-numeric:tabular-nums; margin-top:9px; overflow-wrap:anywhere; }
+.stats-prestige-boosts { margin-top:15px; }
+.stats-prestige-boosts>strong { font-size:12px; color:#f5e6f7; }
+.stats-prestige-boost { margin-top:8px; padding:10px; border:1px solid #424047; border-radius:9px; background:#1d2227; }
+.stats-prestige-boost>div { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.stats-prestige-boost>div strong { color:#e9e2ee; font-size:12px; }
+.stats-prestige-boost>div span { color:#b6a7c1; font-size:10px; }
+.stats-prestige-boost p { margin:6px 0; color:#b6b1b8; font-size:10px; line-height:1.5; }
+.stats-prestige-total { color:#c6e6ba; font-size:12px; }
+@media(max-width:360px) {
+  .stats-prestige-summary>div { padding:8px; }
+  .stats-prestige-summary strong { font-size:12px; }
+  .stats-absolute-panel { padding:10px; }
+  .absolute-prestige-card { padding:11px; }
+}
