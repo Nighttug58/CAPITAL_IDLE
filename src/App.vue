@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   getLevelStartThreshold,
   getClickValue,
@@ -19,7 +19,7 @@ import type { TradeResult, TradeSide } from './trading/trades.ts'
 import TradingScreen from './components/TradingScreen.vue'
 import EnterpriseScreen from './components/EnterpriseScreen.vue'
 import StatsScreen from './components/StatsScreen.vue'
-import FameShopModal from './components/FameShopModal.vue'
+import FameShopScreen from './components/FameShopScreen.vue'
 import CollectionScreen from './components/CollectionScreen.vue'
 import { getBonusMultiplier } from './prestige/bonuses.ts'
 import { FAME_MICROS } from './prestige/state.ts'
@@ -49,8 +49,7 @@ const nextLevel = computed(() => getNextLevelThreshold(capital.value.prestige.ex
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
-const page = ref<'home' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
-const showFameShop = ref(false)
+const page = ref<'home' | 'fame' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
@@ -73,11 +72,11 @@ const formatMoney = (value: number) => numberFormatter.format(value) + ' $'
 
 const fameBalance = computed(() => numberFormatter.format(capital.value.prestige.fameMicros / FAME_MICROS))
 function openFameShop() {
-  showFameShop.value = true
+  page.value = 'fame'
 }
-function closeFameShop() {
-  showFameShop.value = false
-  void Promise.resolve().then(() => fameLaunch.value?.focus())
+function returnHomeFromFame() {
+  page.value = 'home'
+  void nextTick(() => fameLaunch.value?.focus())
 }
 
 function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase {
@@ -233,7 +232,6 @@ function replaceWholeSave(next: CapitalState): boolean {
   try {
     capital.value = next
     floatingGains.value = []
-    showFameShop.value = false
     tapAnimationId.value = 0
     nextGainId = 0
   } finally { applyingMarket = false }
@@ -428,6 +426,8 @@ onUnmounted(() => {
       </section>
     </main>
 
+    <FameShopScreen v-if="page === 'fame'" :state="capital" :purchase-boost="executeFamePurchase"
+      @back="returnHomeFromFame" />
     <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
     <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
@@ -435,7 +435,7 @@ onUnmounted(() => {
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' }"
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' }"
         :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
@@ -474,6 +474,5 @@ onUnmounted(() => {
         <span>Stats</span>
       </button>
     </nav>
-    <FameShopModal v-if="showFameShop" :state="capital" :purchase-boost="executeFamePurchase" @close="closeFameShop" />
   </div>
 </template>
