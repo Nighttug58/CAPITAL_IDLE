@@ -13,6 +13,9 @@ import {
   purchaseUpgrade,
   restoreGame,
   UPGRADES,
+  MAX_CLICK_LEVEL,
+  FIRST_CLICK_UPGRADE_PRICE,
+  CLICK_UPGRADE_PRICE_STEP,
 } from './game.ts'
 
 test('50 niveaux lissés avec des seuils strictement croissants', () => {
@@ -39,17 +42,19 @@ test('le niveau dépend du total gagné, pas du solde', () => {
   assert.ok(getNextLevelThreshold(getLevelStartThreshold(101))! > getLevelStartThreshold(101))
 })
 
-test('clic puis achat : niveau et total gagné sont préservés', () => {
+test('clic puis achat : prix revalorisé, niveau et total gagné préservés', () => {
   let state = { balance: 34, lifetimeEarned: 34, purchasedUpgrades: 0 }
   state = earnClick(state)
   assert.equal(state.lifetimeEarned, 35)
   assert.equal(getLevel(state.lifetimeEarned), 2)
+  assert.strictEqual(purchaseUpgrade(state), state, '35 $ ne suffisent plus au premier achat')
+  state = { ...state, balance: 250, lifetimeEarned: 250 }
   state = purchaseUpgrade(state)
-  assert.deepEqual(state, { balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 })
+  assert.deepEqual(state, { balance: 0, lifetimeEarned: 250, purchasedUpgrades: 1 })
   assert.equal(getClickValue(state.purchasedUpgrades), 2)
   state = earnClick(state)
-  assert.equal(state.balance, 17)
-  assert.equal(state.lifetimeEarned, 37)
+  assert.equal(state.balance, 2)
+  assert.equal(state.lifetimeEarned, 252)
 })
 
 test('impossible d acheter une amélioration avant son niveau ou sans fonds', () => {
@@ -59,31 +64,45 @@ test('impossible d acheter une amélioration avant son niveau ou sans fonds', ()
   assert.deepEqual(purchaseUpgrade(poor), poor)
 })
 
-test('chaque achat apporte exactement +1 $/clic et les prix suivent les paliers', () => {
-  assert.equal(UPGRADES.length, 49)
+test('999 améliorations jusqu’à 1 000 $/clic, prix à croissance strictement linéaire', () => {
+  assert.equal(MAX_CLICK_LEVEL, 1000)
+  assert.equal(UPGRADES.length, MAX_CLICK_LEVEL - 1)
+  assert.equal(FIRST_CLICK_UPGRADE_PRICE, 250)
+  assert.equal(CLICK_UPGRADE_PRICE_STEP, 500)
   UPGRADES.forEach((upgrade, index) => {
-    const step = LEVEL_THRESHOLDS[index + 1]! - LEVEL_THRESHOLDS[index]!
-    assert.equal(upgrade.requiredLevel, index + 2)
-    assert.ok(upgrade.price > 0 && upgrade.price < step)
-    assert.equal(upgrade.clickValue, index + 2)
+    const clickValue = index + 2
+    const expectedGate = clickValue <= 50 ? clickValue : 50 + Math.ceil((clickValue - 50) / 20)
+    assert.equal(upgrade.requiredLevel, expectedGate)
+    assert.equal(upgrade.price, FIRST_CLICK_UPGRADE_PRICE + index * CLICK_UPGRADE_PRICE_STEP)
+    assert.equal(upgrade.clickValue, clickValue)
     assert.equal(upgrade.clickValue - getClickValue(index), 1)
-    if (index > 0) assert.ok(upgrade.price >= UPGRADES[index - 1]!.price)
+    if (index > 0) assert.equal(upgrade.price - UPGRADES[index - 1]!.price, 500)
   })
   assert.equal(UPGRADES[48]!.clickValue, 50)
+  assert.equal(UPGRADES[49]!.requiredLevel, 51)
+  assert.equal(UPGRADES[68]!.requiredLevel, 51)
+  assert.equal(UPGRADES[69]!.requiredLevel, 52)
+  assert.equal(UPGRADES[998]!.requiredLevel, 98)
+  assert.equal(UPGRADES[998]!.price, 499_250)
+  assert.equal(UPGRADES.reduce((sum, upgrade) => sum + upgrade.price, 0), 249_500_250)
+  assert.equal(getClickValue(999), 1000)
+  assert.equal(getNextUpgrade({ ...INITIAL_GAME, purchasedUpgrades: 999 }), null)
 })
 
-test('progression complète : on peut acheter tous les niveaux sans blocage', () => {
-  let state = { ...INITIAL_GAME }
-  let clicks = 0
-  while (state.purchasedUpgrades < UPGRADES.length && clicks < 100_000) {
-    const purchase = purchaseUpgrade(state)
-    if (purchase !== state) state = purchase
-    else { state = earnClick(state); clicks++ }
+test('on peut acheter les 999 améliorations, sans niveau joueur 1000 ni achat à crédit', () => {
+  const budget = UPGRADES.reduce((sum, upgrade) => sum + upgrade.price, 0)
+  let state = { balance: budget, lifetimeEarned: budget, purchasedUpgrades: 0 }
+  assert.ok(getLevel(state.lifetimeEarned) >= 98)
+  for (const upgrade of UPGRADES) {
+    const previous = state
+    state = purchaseUpgrade(state)
+    assert.equal(state.purchasedUpgrades, previous.purchasedUpgrades + 1)
+    assert.equal(previous.balance - state.balance, upgrade.price)
   }
-  assert.equal(state.purchasedUpgrades, UPGRADES.length)
-  assert.equal(getClickValue(state.purchasedUpgrades), 50)
-  assert.ok(clicks > 0 && clicks < 5_000)
-  assert.ok(state.balance >= 0)
+  assert.equal(state.purchasedUpgrades, 999)
+  assert.equal(state.balance, 0)
+  assert.equal(getClickValue(state.purchasedUpgrades), 1000)
+  assert.strictEqual(purchaseUpgrade(state), state)
 })
 
 test('les anciennes sauvegardes conservent le solde, le total et au moins les gains par clic', () => {
