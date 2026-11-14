@@ -6,6 +6,7 @@ import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
 import { availableMarketLiquidity, consumeMarketLiquidity } from './liquidity.ts'
+import { liquidCryptoQuantity, liquidRewardQuantity } from './staking.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
 // Le stockage reste exprimé en dollars (compatibilité v1-v4), avec des montants
@@ -16,7 +17,7 @@ const MAX_CENTS = Number.MAX_SAFE_INTEGER
 export type TradeSide = 'buy' | 'sell'
 export type TradeError = 'unknown-asset' | 'invalid-quantity' | 'invalid-price' |
   'insufficient-funds' | 'insufficient-supply' | 'insufficient-holdings' |
-  'amount-too-small' | 'money-overflow' | 'insufficient-liquidity'
+  'amount-too-small' | 'money-overflow' | 'insufficient-liquidity' | 'staked-holdings'
 export type TradeFraction = 0.25 | 0.5 | 1
 
 export interface TradeReceipt {
@@ -157,7 +158,7 @@ export function getQuickQuantity(
   if (!asset || ![0.25, 0.5, 1].includes(fraction)) return 0
   const max = side === 'buy'
     ? getMaximumBuyQuantity(state, assetId)
-    : Math.min(state.trading.positions[assetId]?.quantity ?? 0, availableMarketLiquidity(state, assetId, 'sell'))
+    : Math.min(liquidCryptoQuantity(state, assetId), availableMarketLiquidity(state, assetId, 'sell'))
   if (!Number.isFinite(max) || max <= 0) return 0
   return fraction === 1 ? max : floorWithPrecision(max * fraction, asset.quantityDecimals)
 }
@@ -221,6 +222,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   if (!isQuantity(quantity, asset)) return reject(state, 'invalid-quantity')
   const position = state.trading.positions[assetId]
   if (!position || quantity > position.quantity + 1e-9) return reject(state, 'insufficient-holdings')
+  if (quantity > liquidCryptoQuantity(state, assetId) + 1e-9) return reject(state, 'staked-holdings')
   if (quantity > availableMarketLiquidity(state, assetId, 'sell') + 1e-9) return reject(state, 'insufficient-liquidity')
 
   const price = validQuote(asset, state)
@@ -243,7 +245,15 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   // La dernière vente récupère TOUS les centimes du coût d'acquisition.
   // Une vente partielle répartit le coût moyen à l'arrondi le plus proche.
   const all = quantity >= position.quantity - 1e-9
-  const soldBasis = all ? basisCents : Math.round(basisCents * (quantity / position.quantity))
+  // Reward coins are sold first (FIFO reward lot): their acquisition cost is
+  // zero. Bought coins keep their original cost basis even when some coins
+  // are permanently locked or compounded. No tax or XP until a real sale.
+  const rewardBalance = state.trading.staking?.positions[assetId]?.rewardHeld ?? 0
+  const rewardedSold = Math.min(quantity, liquidRewardQuantity(state, assetId))
+  const purchasedHeld = Math.max(0, position.quantity - rewardBalance)
+  const purchasedSold = Math.max(0, quantity - rewardedSold)
+  const soldBasis = all ? basisCents : purchasedHeld < 1e-9
+    ? 0 : Math.min(basisCents, Math.round(basisCents * purchasedSold / purchasedHeld))
   const profit = order.proceedsCents - soldBasis
   // Trading bonus rewards a positive realized NET gain only. Recovered cost
   // basis and losses never receive a bonus, and the high-water XP guard stays.
@@ -273,6 +283,19 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
 
   const liquidity = consumeMarketLiquidity(state, assetId, 'sell', quantity)
   if (!liquidity) return reject(state, 'insufficient-liquidity')
+  const previousStake = state.trading.staking?.positions[assetId]
+  const staking = previousStake && rewardedSold > 0
+    ? {
+      ...state.trading.staking!,
+      positions: {
+        ...state.trading.staking!.positions,
+        [assetId]: {
+          ...previousStake,
+          rewardHeld: floorWithPrecision(previousStake.rewardHeld - rewardedSold, asset.quantityDecimals),
+        },
+      },
+    }
+    : state.trading.staking
   const nextState: CapitalState = {
     ...state,
     game: {
@@ -287,6 +310,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
       ...state.trading,
       positions,
       liquidity,
+      ...(staking ? { staking } : {}),
       realizedNetProfit: toMoney(newRealized),
       creditedTradingProfit: toMoney(newCredited),
     },

@@ -170,6 +170,20 @@ Le marché sépare maintenant la **vitesse virtuelle des cours** du temps réel.
 
 L'interface affiche la liquidité à l'achat et à la vente dans le détail d'un actif. Le code source de ces fonctions est dans `src/ascension/market-effects.ts`, `src/trading/{market,news,liquidity,trades,dividends}.ts`. La suite de tests a été étendue, **sans exécution npm ni build confirmés** pour cette passe. Les fichiers statiques GitHub Pages à la racine ne sont donc pas synchronisés à ce stade.
 
+
+### Passe 5 — Staking crypto (Prestige)
+
+L'amélioration Prestige **Staking crypto** (40 PP) débloque un onglet **Staking** dans Trading. **Neuf des quinze cryptomonnaies classiques** sont éligibles (ETH, BNB, TRX, SOL, ADA, LINK, AVAX, SUI, UNI). Bitcoin, les autres cryptos non retenues et les dix memecoins ne sont pas stakables. Les taux fictifs de base sont respectivement **0,02 / 0,04 / 0,06 % par heure réelle**, suivant l'actif ; l'amélioration **Rendement de staking** donne +10 % par niveau, jusqu'à ×2.
+
+- **Même portefeuille :** les coins placés restent dans `trading.positions` et sont valorisés une seule fois dans Stats et le patrimoine Prestige. Les quantités `locked`, `unlocking` et les récompenses réservées ne sont jamais vendables.
+- **Retrait différé :** demande d'unstake = retrait de la quantité du principal actif, puis blocage pendant **5 minutes réelles**, libération automatique ; les coins en déblocage ne rapportent plus.
+- **Récompenses :** émission de coins bornée par `totalSupply`, plafonnée à **24 heures réelles par reprise** ; reliquats infra-précision conservés, pas de double versement au replay. Récompenses dans le coin correspondant, sans cash/XP/taxe avant vente ; vente des unités récompensées en priorité, à base de coût nulle, soumise aux mêmes frais et taxes différées que le Trading.
+- **Capitalisation :** l'amélioration Prestige **Staking composé automatique** (35 PP) réserve les récompenses et les place automatiquement en staking sur des frontières de **10 minutes réelles**. L'accélérateur temporel de marché ne modifie jamais le taux ni la durée des retraits.
+- **Sauvegarde v7 :** sous-ledger `trading.staking` validé et migré automatiquement quand il manque aux anciennes v7. Les positions et revenus de staking disparaissent lors d'un Prestige, tout comme les autres investissements ; PP, Fame et améliorations restent.
+- **Runtime :** calcul O(positions × 144 tranches maxi) à chaque reprise, indépendant du replay du marché, sans nouveau timer périodique. Les opérations d'UI enregistrent la sauvegarde avant de confirmer le résultat.
+
+Les tests `src/trading/staking.test.ts` et `src/components/staking-ui.test.ts` ont été ajoutés aux scripts npm, mais **leur exécution et le build ne sont pas attestés** dans cette session. La version statique publiée à la racine GitHub Pages n'a pas été régénérée.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.

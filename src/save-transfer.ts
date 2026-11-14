@@ -3,6 +3,7 @@ import {
 } from './capital.ts'
 import { restoreGame } from './game.ts'
 import { restoreTradingState } from './trading/state.ts'
+import { createInitialStakingState } from './trading/staking.ts'
 
 /**
  * Export manuel indépendant du localStorage. Les horloges de simulation
@@ -56,6 +57,14 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
     // Pre-pass-4 saves did not persist order-book depth.
     // An empty book ledger means every asset starts at its base depth.
     if (!('liquidity' in trading)) trading.liquidity = {}
+    // Previous saves of the *same* v7 schema lacked a staking subledger.
+    // Migration adds an empty ledger, never creates coins or rewinds income.
+    if (!('staking' in trading)) {
+      const last = typeof trading.dividendLastPaidAt === 'number'
+        ? trading.dividendLastPaidAt
+        : trading.lastTickAt
+      trading.staking = createInitialStakingState(last as number)
+    }
     if (!('creditedTradingProfit' in trading)) trading.creditedTradingProfit = 0
     if (!('dividendPendingCents' in trading)) trading.dividendPendingCents = 0
     if (!('dividendLastPaidAt' in trading)) trading.dividendLastPaidAt = trading.lastTickAt
@@ -166,7 +175,13 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
     } else if (!sameValue(normalized, restored)) return { ok: false, error: 'invalid-save' }
   }
 
+  const staked = restored.trading.staking?.positions ?? {}
+  if (Object.keys(staked).length > 0 &&
+      restored.ascension.progress.upgradeLevels['crypto-staking'] < 1) return { ok: false, error: 'invalid-save' }
+  if (Object.values(staked).some(entry => entry.awaitingCompound > 0) &&
+      restored.ascension.progress.upgradeLevels['auto-compound'] < 1) return { ok: false, error: 'invalid-save' }
   const dates = [
+    restored.trading.staking?.lastAccruedAt ?? 0,
     restored.trading.lastTickAt, restored.trading.dividendLastPaidAt,
     restored.enterprises.lastAccruedAt, restored.fiscal.periodStartedAt,
     restored.stats.startedAt,

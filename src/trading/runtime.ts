@@ -2,6 +2,7 @@ import { catchUpCapital, MAX_CATCH_UP_SECONDS } from './clock.ts'
 import { DIVIDEND_SECOND_MS } from './dividends.ts'
 import type { CapitalState } from '../capital.ts'
 import { advanceFiscalEconomy } from '../economy/clock.ts'
+import { settleStaking } from './staking.ts'
 
 // Une seule minuterie récursive ; aucune boucle synchrone non bornée.
 // Les 256 secondes par tranche évitent de monopoliser le thread principal.
@@ -56,8 +57,11 @@ export function createMarketRuntime(options: MarketRuntimeOptions) {
       // d'absence ; les ticks Trading restent rejoués par lots indépendants.
       // lastAccruedAt empêche de créditer une deuxième fois au rejeu Trading.
       const withEnterpriseIncome = advanceFiscalEconomy(current, timestamp)
-      const result = catchUpCapital(withEnterpriseIncome, timestamp, MAX_CATCH_UP_SECONDS)
-      if (result.processedSeconds > 0 || withEnterpriseIncome !== current) {
+      // O(assets × 144) for a 24h absence, independent of the price replay.
+      // Rewards are paid in crypto units and never change cash/XP/tax here.
+      const withStaking = settleStaking(withEnterpriseIncome, timestamp)
+      const result = catchUpCapital(withStaking, timestamp, MAX_CATCH_UP_SECONDS)
+      if (result.processedSeconds > 0 || withStaking !== current) {
         options.setState(result.state)
         dirty = true
       }

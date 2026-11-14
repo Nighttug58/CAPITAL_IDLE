@@ -57,6 +57,24 @@ export interface Position {
   costBasis: number
 }
 
+/** Staking locks a subset of the existing Trading position, never a second wallet. */
+export interface StakingEntry {
+  locked: number
+  unlocking: number
+  unlockAt: number | null
+  awaitingCompound: number
+  /** Newly minted units still held (liquid + locked + unlocking). */
+  rewardHeld: number
+  rewardLocked: number
+  rewardUnlocking: number
+  carryUnits: number
+  lifetimeRewards: number
+}
+export interface StakingState {
+  lastAccruedAt: number
+  positions: Record<string, StakingEntry>
+}
+
 export type NewsPhase = 'rumor' | 'active' | 'confirmed' | 'denied'
 
 export interface MarketNews {
@@ -79,6 +97,7 @@ export interface TradingState {
   quotes: Record<string, MarketQuote>
   history: Record<string, PriceSample[]>
   positions: Record<string, Position>
+  staking?: StakingState
   news: MarketNews[]
   /** News already selected in the persisted PRNG stream, shown by Vision anticipée. */
   upcomingNews?: MarketNews

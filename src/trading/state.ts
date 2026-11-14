@@ -1,4 +1,5 @@
 import { validMarketLiquidity } from './liquidity.ts'
+import { createInitialStakingState, validStakingState } from './staking.ts'
 import type { MarketNews, MarketQuote, Position, PriceSample, TradingState } from './types.ts'
 
 const MAX_ASSETS = 45
@@ -86,6 +87,7 @@ export function createInitialTradingState(now = Date.now(), seed = Math.floor(Ma
     quotes: {},
     history: {},
     positions: {},
+    staking: createInitialStakingState(timestamp),
     news: [],
     liquidity: {},
     realizedNetProfit: 0,
@@ -106,6 +108,7 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     !isMap(raw.quotes, isQuote) || !isMap(raw.history, isHistory) || !isMap(raw.positions, isPosition) ||
     !Array.isArray(raw.news) || raw.news.length > MAX_NEWS_IN_SAVE || !raw.news.every(isNews) ||
     !validMarketLiquidity(raw.liquidity) ||
+    (raw.staking !== undefined && !validStakingState(raw.staking, raw.positions as Record<string, Position>)) ||
     !(raw.upcomingNews === undefined || (isNews(raw.upcomingNews) &&
       raw.nextNewsAt !== null && raw.upcomingNews.startedAt === raw.nextNewsAt)) ||
     typeof raw.realizedNetProfit !== 'number' || !Number.isFinite(raw.realizedNetProfit) ||
@@ -126,6 +129,9 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     quotes: raw.quotes,
     history: raw.history,
     positions: raw.positions,
+    staking: raw.staking ?? createInitialStakingState(
+      typeof raw.dividendLastPaidAt === 'number' ? raw.dividendLastPaidAt : raw.lastTickAt,
+    ),
     news: raw.news,
     ...(raw.upcomingNews !== undefined ? { upcomingNews: raw.upcomingNews } : {}),
     liquidity: raw.liquidity ?? {},

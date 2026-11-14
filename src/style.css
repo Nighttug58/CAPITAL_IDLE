@@ -1107,3 +1107,74 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
   .ascension-speed-row { gap:3px; }
   .trading-radar { gap:4px; padding:5px 8px; }
 }
+
+
+/* Prestige passe 5 : staking crypto dans Trading, scrolleur indépendant. */
+.staking-panel { width:100%; height:100%; min-width:0; min-height:0; display:flex;
+  flex-direction:column; overflow-y:auto; overflow-x:hidden; background:#1a2224;
+  color:#e9e7dc; scrollbar-width:thin; scrollbar-color:#526d72 #1a2224; }
+.staking-header { flex:0 0 auto; padding:13px 16px 10px; border-bottom:1px solid #3b5657;
+  background:linear-gradient(145deg,#1c3739,#24292b 75%); }
+.staking-header h2 { font-size:22px; color:#c5eee3; margin:5px 0 7px; }
+.staking-header p { margin:0 0 9px; color:#c0d0c9; font-size:11px; line-height:1.55; }
+.staking-facts { display:flex; flex-wrap:wrap; gap:6px; }
+.staking-facts span { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; font-size:10px;
+  color:#c1d2ce; background:#263a3a; border:1px solid #4c6e65; border-radius:7px; }
+.staking-facts strong { color:#d6f2e7; }
+.staking-header .staking-compound { margin:10px 0 0; color:#a2e5c4; font-weight:700; }
+.staking-content { display:flex; flex-direction:column; gap:13px; padding:12px 13px 23px; min-width:0; }
+.staking-assets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.staking-asset { display:flex; min-width:0; align-items:center; justify-content:space-between;
+  text-align:left; gap:5px; padding:8px; background:#283134; color:#e4e8e5;
+  border:1px solid #455b5d; border-radius:9px; }
+.staking-asset.is-selected { border-color:#87ccaf; background:#24423e; box-shadow:inset 0 0 0 1px #699a85; }
+.staking-asset-name,.staking-asset-info { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.staking-asset-name strong { font-size:12px; color:#ecf8f2; }
+.staking-asset-name small { font-size:9px; color:#a9bfba; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.staking-asset-info { text-align:right; flex:0 0 auto; }
+.staking-asset-info strong { font-size:10px; color:#a4e9c1; }
+.staking-asset-info small { font-size:9px; color:#b5c5c0; }
+.staking-detail { border:1px solid #506560; background:linear-gradient(135deg,#262f2e,#222a2b);
+  border-radius:11px; padding:15px; }
+.staking-detail-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
+.staking-detail-head h3 { margin:5px 0 0; color:#ddf3e5; font-size:17px; }
+.staking-yield { display:inline-flex; flex:0 0 auto; padding:7px 9px; border:1px solid #79b99e; border-radius:7px;
+  color:#a6e0bd; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.staking-numbers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-bottom:12px; }
+.staking-numbers>div { min-width:0; background:#1c2828; border:1px solid #364b48;
+  border-radius:7px; padding:9px 10px; display:flex; flex-direction:column; gap:6px; }
+.staking-numbers span { font-size:10px; color:#a6bcb8; }
+.staking-numbers strong { font-size:12px; color:#ecf2e9; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.staking-pending { font-size:11px; color:#f3d9a6; line-height:1.5; border:1px solid #887b4b;
+  border-radius:8px; padding:9px; background:#4b432a; }
+.staking-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin:12px 0; }
+.staking-actions button { min-height:37px; padding:8px; color:#d5e5e0; background:#333e3e;
+  border:1px solid #546d68; border-radius:7px; font-size:12px; font-weight:750; }
+.staking-actions button.is-selected { background:#347b65; color:#f0fff7; border-color:#84cbae; }
+.staking-detail label { display:block; margin:12px 0 6px; color:#c5d6cf; font-size:12px; }
+.staking-detail input { width:100%; min-height:40px; padding:9px 11px; color:#effaf4;
+  background:#132020; border:1px solid #537c71; border-radius:8px; font-size:15px; }
+.staking-fractions { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:8px 0 13px; }
+.staking-fractions button { min-height:31px; background:#263d38; border:1px solid #4b7d68; color:#d7eadd;
+  border-radius:7px; font-size:11px; font-weight:800; }
+.staking-fractions button:disabled { opacity:.4; }
+.staking-rules { font-size:10px; color:#b2c4bf; line-height:1.55; margin:0 0 11px; }
+.staking-message { padding:10px; margin:0 0 11px; background:#284a38; color:#caf2d9;
+  border:1px solid #569875; border-radius:8px; font-size:11px; line-height:1.4; }
+.staking-message.is-error { background:#49322d; color:#ffd1c2; border-color:#ab7367; }
+.staking-submit { width:100%; min-height:42px; background:linear-gradient(120deg,#5bc39a,#31826d); color:#0e2720;
+  border:1px solid #a3ead1; border-radius:8px; font-size:12px; font-weight:820; }
+.staking-submit:disabled { opacity:.42; cursor:not-allowed; filter:grayscale(.5); }
+.staking-panel button:focus-visible, .staking-panel input:focus-visible { outline:2px solid #9be2bc; outline-offset:2px; }
+@media(max-width:530px) {
+  .staking-assets { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .staking-content { padding:10px 9px 18px; }
+  .staking-detail { padding:11px; }
+  .staking-numbers strong { font-size:11px; }
+}
+@media(max-width:330px) {
+  .staking-asset-info small { display:none; }
+  .staking-asset-name small { font-size:8px; }
+  .staking-facts { gap:4px; }
+  .staking-facts span { padding:5px 6px; font-size:9px; }
+}

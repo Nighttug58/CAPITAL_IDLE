@@ -16,6 +16,7 @@ import { createSaveExport, exportFileName } from './save-transfer.ts'
 import type { CapitalState } from './capital.ts'
 import { createMarketRuntime } from './trading/runtime.ts'
 import { buyAsset, sellAsset } from './trading/trades.ts'
+import { changeStaking, type StakingResult } from './trading/staking.ts'
 import type { TradeResult, TradeSide } from './trading/trades.ts'
 import TradingScreen from './components/TradingScreen.vue'
 import EnterpriseScreen from './components/EnterpriseScreen.vue'
@@ -164,6 +165,16 @@ function executeTrade(side: TradeSide, assetId: string, quantity: number): Trade
     persist()
   }
   return result
+}
+
+/** Persist crypto locks before displaying a successful staking operation. */
+function executeStaking(action: 'deposit' | 'withdraw', id: string, quantity: number): StakingResult {
+  const proposed = changeStaking(capital.value, action, id, quantity, Date.now())
+  if (!proposed.ok) return proposed
+  if (!replaceWholeSave(proposed.state)) {
+    return { ok: false, state: capital.value, error: 'storage-error' }
+  }
+  return proposed
 }
 
 function executeEnterprise(action: EnterpriseAction, id: string): EnterpriseResult {
@@ -485,7 +496,8 @@ onUnmounted(() => {
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
       @back="returnHomeFromPrestige" />
-    <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
+    <TradingScreen v-show="page === 'trading'" :state="capital"
+      :execute-trade="executeTrade" :execute-staking="executeStaking" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
     <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
     <StatsScreen v-show="page === 'stats'" :state="capital" :pay-taxes="payTaxes"

@@ -5,6 +5,7 @@ import { getAsset, getAvailableSupply } from '../trading/catalog.ts'
 import { getNewsPresentation } from '../trading/news.ts'
 import { formatCash, formatChange, formatPerSecond, formatPrice, formatQuantity, formatRate, sparklinePoints } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
+import { liquidCryptoQuantity } from '../trading/staking.ts'
 import { availableMarketLiquidity } from '../trading/liquidity.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import type { PriceSample } from '../trading/types.ts'
@@ -24,6 +25,7 @@ const quote = computed(() => props.state.trading.quotes[props.assetId])
 const currentPrice = computed(() => quote.value?.price ?? asset.value.referencePrice)
 const position = computed(() => props.state.trading.positions[props.assetId])
 const owned = computed(() => position.value?.quantity ?? 0)
+const liquid = computed(() => liquidCryptoQuantity(props.state, props.assetId))
 const available = computed(() => getAvailableSupply(asset.value, owned.value))
 const liquidityBuy = computed(() => availableMarketLiquidity(props.state, props.assetId, 'buy'))
 const liquiditySell = computed(() => availableMarketLiquidity(props.state, props.assetId, 'sell'))
@@ -62,6 +64,7 @@ const errors: Record<string, string> = {
   'insufficient-supply': 'Quantité supérieure à l’offre restante.',
   'insufficient-liquidity': 'Liquidité insuffisante sur ce marché : attends sa régénération.',
   'insufficient-holdings': 'Vous ne détenez pas autant d’unités.',
+  'staked-holdings': 'Cette quantité est verrouillée en staking ou en retrait.',
   'amount-too-small': 'Ordre trop petit pour couvrir les arrondis et les frais.',
   'money-overflow': 'Montant trop élevé pour être calculé avec précision.',
 }
@@ -116,6 +119,7 @@ function submit() {
         <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
         <div><span>Disponibles</span><strong>{{ formatQuantity(available) }}</strong></div>
         <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
+        <div v-if="asset.kind === 'crypto'"><span>Liquidité personnelle hors staking</span><strong>{{ formatQuantity(liquid) }}</strong></div>
         <div><span>Liquidité à l’achat</span><strong>{{ formatQuantity(liquidityBuy) }}</strong></div>
         <div><span>Liquidité à la vente</span><strong>{{ formatQuantity(liquiditySell) }}</strong></div>
       </div>

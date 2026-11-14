@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { computed, ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import type { MarketNews } from '../trading/types.ts'
 import { getAsset } from '../trading/catalog.ts'
 import type { TradeResult, TradeSide } from '../trading/trades.ts'
+import type { StakingResult } from '../trading/staking.ts'
 import { formatCash } from '../trading/presentation.ts'
 import { peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
 import AssetList from './AssetList.vue'
@@ -11,23 +12,30 @@ import PortfolioPanel from './PortfolioPanel.vue'
 import NewsPreview from './NewsPreview.vue'
 import AssetDialog from './AssetDialog.vue'
 import NewsDialog from './NewsDialog.vue'
+import StakingPanel from './StakingPanel.vue'
 
 const props = defineProps<{
   state: CapitalState
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
+  executeStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: number) => StakingResult
 }>()
-type Tab = 'portfolio' | 'stocks' | 'crypto' | 'news'
+type Tab = 'portfolio' | 'stocks' | 'crypto' | 'news' | 'staking'
 const activeTab = ref<Tab>('portfolio')
 const selectedAssetId = ref<string | null>(null)
 const selectedNewsId = ref<string | null>(null)
 const selectedNewsSnapshot = ref<MarketNews | null>(null)
-const tabs: { key: Tab; label: string }[] = [
+const tabs = computed<{ key: Tab; label: string }[]>(() => [
   { key: 'portfolio', label: 'Portfolio' },
   { key: 'stocks', label: 'Actions' },
   { key: 'crypto', label: 'Crypto' },
   { key: 'news', label: 'News' },
-]
+  ...(props.executeStaking && props.state.ascension.progress.upgradeLevels['crypto-staking'] > 0
+    ? [{ key: 'staking' as const, label: 'Staking' }] : []),
+])
 const activeNews = computed(() => props.state.trading.news.find(e => e.id === selectedNewsId.value) ?? selectedNewsSnapshot.value)
+watch(() => props.state.ascension.progress.upgradeLevels['crypto-staking'], level => {
+  if (level === 0 && activeTab.value === 'staking') activeTab.value = 'portfolio'
+})
 const upcoming = computed(() => peekUpcomingNews(props.state, props.state.trading.dividendLastPaidAt))
 const radar = computed(() => volatilityRadar(props.state).slice(0, 3))
 const hasDialog = computed(() => selectedAssetId.value !== null || selectedNewsId.value !== null)
@@ -135,6 +143,8 @@ onUnmounted(() => {
       <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'stocks'" kind="stock" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'crypto'" kind="crypto" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
+      <StakingPanel v-else-if="activeTab === 'staking' && executeStaking"
+        :state="state" :execute-staking="executeStaking" />
       <NewsPreview v-else :news="state.trading.news" :now="state.trading.dividendLastPaidAt"
         :upcoming="upcoming" @open-news="openNews" />
     </section>

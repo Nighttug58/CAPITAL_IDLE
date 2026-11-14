@@ -1,6 +1,6 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : passe 4 implémentée (4/7), passe 5 à faire ; tests et build à exécuter.**  
+**État : passe 5 implémentée (5/7), passe 6 à faire ; tests et build à exécuter.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
 **Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
@@ -155,11 +155,11 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 ### Passe 5 — Staking crypto
 
-- [ ] Définir liste blanche des cryptos stakables, rendement par actif (trois plages), écrans de dépôt/retrait, quantité liquide / verrouillée.
-- [ ] Débloquer Staking avec les PP, rendement +10 % par niveau jusqu'à ×2, auto-compound toutes les 10 min.
-- [ ] Gains par horloge réelle, retrait différé 5 min, hors ligne plafonné à 24 h de récompenses, reliquat et précision des unités.
-- [ ] Valoriser et taxer sans doublon : récompense de coins, coût de revient, ventes ultérieures, XP uniquement au profit réalisé ; protéger le stock et la supply.
-- [ ] Tests fractionnaires, absence/reprise/import, retrait pendant News, changement de prix, impossibilité de vendre des coins verrouillés, suppression des stakes lors d'un Prestige, non-accélération par ×5.
+- [x] Définir liste blanche des cryptos stakables, rendement par actif (trois plages), écrans de dépôt/retrait, quantité liquide / verrouillée.
+- [x] Débloquer Staking avec les PP, rendement +10 % par niveau jusqu'à ×2, auto-compound toutes les 10 min.
+- [x] Gains par horloge réelle, retrait différé 5 min, hors ligne plafonné à 24 h de récompenses, reliquat et précision des unités.
+- [x] Valoriser et taxer sans doublon : récompense de coins, coût de revient, ventes ultérieures, XP uniquement au profit réalisé ; protéger le stock et la supply.
+- [x] Tests fractionnaires, absence/reprise/import, retrait pendant News, changement de prix, impossibilité de vendre des coins verrouillés, suppression des stakes lors d'un Prestige, non-accélération par ×5.
 - **Livrable :** staking réellement jouable, persistant, sans exploitable duplication des coins.
 
 ### Passe 6 — Bots, ordres et capacités actives
@@ -273,6 +273,33 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 **Suite :** valider une exécution réelle de `npm test` + `npm run build` avant tout déploiement de fichiers compilés à la racine ; vérifier en particulier rattrapage ×5 et anciennes sauvegardes v7, puis démarrer le Staking en passe 5.
 
+
+## 3sexies. Résultat de la passe 5 — moteur Staking et UI
+
+**Portée :** branche main, ajouts métier, sauvegarde v7 compatible, trading, interface et tests ; pas de compilation ni de publication GitHub Pages effectuée.
+
+### Contrats et économie
+
+- `src/trading/staking.ts` : whitelist de **9 cryptos** classiques (ETH/BNB/TRX 0,02 %/h ; SOL/ADA/LINK 0,04 %/h ; AVAX/SUI/UNI 0,06 %/h) ; minage et récompenses au temps **réel**. Les taux sont **fictifs**, exprimés en pourcentages par heure réelle et distincts des rendements financiers réels.
+- `src/trading/types.ts`, `src/trading/state.ts` : sous-ledger persistant `staking` par actif dans `TradingState` (jamais de portefeuille secondaire). Quantité bloquée, en déblocage, récompenses réservées à capitaliser, reliquats de sous-unités, récompenses tenues à coût nul, sous-lots de récompenses verrouillées/en déblocage, cumul d'émissions et horodatage réel. Validation des formats, quantités, précision, cohérence des coins détenus et champs de réservation.
+- Dépôt valide seulement les unités **non verrouillées** du portefeuille ; retrait demandé = principal sorti de la rémunération, en attente **5 minutes réelles**, libéré automatiquement. Une seule demande par actif à la fois. Ni le dépôt ni le retrait ne créent du cash ou de l'XP.
+- `settleStaking` règle au plus **24 heures réelles par reprise**, puis pose le curseur à l'heure présente ; opération idempotente, sans double-paiement. Les reliquats sous la précision du coin sont conservés. Le multiplicateur **Rendement de staking** (+10 %/niveau jusqu'à ×2) agit sur les rewards en coins ; le marché accéléré n'affecte jamais l'horloge staking.
+- Auto-compound : après achat de l'upgrade, les récompenses sont réservées puis intégrées aux coins stakés à chaque borne de **10 minutes réelles** ; aucune seconde minuterie. Les unités auto-capitalisées restent bloquées.
+- Chaque coin récompensé rejoint **une seule** entrée du portefeuille Trading `position.quantity`, sans créditer cash, XP, Fame ou fiscalité à ce stade. Sa quantité est bornée par `totalSupply`, et son coût d'acquisition supplémentaire est **zéro**. À la vente, les lots récompensés **liquides** passent en priorité avec base de coût nulle ; le coût de revient des coins achetés est préservé. Les mêmes frais, taxe différée et XP sur bénéfice réellement réalisé s'appliquent que pour les ventes normales. Les récompenses stakées ne sont jamais disponibles à la vente avant leur retrait.
+
+### Intégration et migration
+
+- `src/trading/runtime.ts` calcule la rémunération à **l'heure réelle** lors de chaque reprise et tick runtime, indépendamment des 256 secondes de replay des cours/dividendes, sans rallonger exponentiellement les absences.
+- `src/trading/trades.ts` limite les ventes et MAX aux seuls coins liquides ; les coins en staking comptent toujours pour le portefeuille et Stats, sans double comptage. Les récompenses vendues sont retirées du ledger et leurs bénéfices prennent la voie fiscale existante.
+- `src/save-transfer.ts` accepte les anciennes sauvegardes **v7 sans `staking`**, ajoute un ledger vide déterministe sans générer de coins, valide les droits Prestige et rejette les réservations incohérentes. Aucune version fiscale ou Fame n'est réinitialisée par le staking. Le Prestige existant réinitialise le Trading entier, donc toutes les positions, récompenses, stocks et locks staking disparaissent avec le run.
+- `src/components/StakingPanel.vue`, `src/components/TradingScreen.vue`, `src/components/AssetDialog.vue`, `src/App.vue`, `src/style.css` : onglet Staking visible uniquement après le déblocage de 40 PP, liste des cryptos éligibles, soldes détenus/disponibles/bloqués, rendements, récompenses, dépôt, retrait, délai et capitalisation, responsive PC/mobile. Chaque action doit passer par une sauvegarde atomique réussie avant confirmation UI.
+
+### Validation ajoutée / à confirmer
+
+- Tests Node **`src/trading/staking.test.ts`** : whitelist, paliers, absence de gain en cash/Fame sur versement, blocage des ventes, valorisation unique, récompenses et vente à coût nul + taxe/XP, retrait 5 min, plafond 24h, idempotence, multiplication Prestige, capitalisation 10 min, validations/imports, reset du cycle.
+- Tests Vue **`src/components/staking-ui.test.ts`** : absence de l'onglet avant achat, intégration au Trading, dépôt/retrait/solde, affichage mobile.
+- Mise à jour de `package.json` ; aucun workflow payant déclenché. **`npm test`, `npm run test:ui` et `npm run build` NON exécutés ici** : ce commit ne constitue pas une preuve de compilation ou d'équilibrage final. Vérifier la suite et la performance du replay avant déploiement.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -290,8 +317,8 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 | 2 — Moteur | ☑ Implémentée | commit de passe 2 | Moteur, v7, Fame et tests ; exécution de la suite non vérifiée |
 | 3 — UI Shop | ☑ Implémentée | commit de passe 3 | Page, achats PP, confirmation, tests ajoutés ; exécution non vérifiée |
 | 4 — Marché | ☑ Implémentée | commit de passe 4 | Horloge virtuelle, news, liquidité et UI ; suite non exécutée |
-| 5 — Staking | ☐ À faire | — | Tokens verrouillés |
+| 5 — Staking | ☑ Implémentée | commit de passe 5 | Staking réel, reward lots, retraits, auto-compound et UI ; tests non exécutés |
 | 6 — Automates | ☐ À faire | — | Exécution sûre |
 | 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
 
-**Suite immédiate :** au prochain « next », exécuter et corriger la suite de tests/build dans un environnement npm, puis commencer **la passe 5 seulement** (staking crypto, rémunération réelle et retrait).
+**Suite immédiate :** au prochain « next », tenter en priorité l'exécution de `npm test` et `npm run build` dans un environnement disposant des dépendances ; puis commencer **la passe 6 seulement** (Auto Click, bots et ordres automatiques).
