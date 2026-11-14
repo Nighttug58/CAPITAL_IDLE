@@ -4,7 +4,7 @@ import { CAPITAL_SAVE_VERSION, createCapitalState, restoreCapitalState } from '.
 import { getLevelStartThreshold } from '../game.ts'
 import { createSaveExport, prepareSaveImport } from '../save-transfer.ts'
 import { isEnterpriseUnlocked } from '../economy/catalog.ts'
-import { FAME_MICROS, creditExperience, restorePrestigeState } from './state.ts'
+import { BASE_XP_EARN_RATE_BPS, FAME_MICROS, creditExperience, restorePrestigeState } from './state.ts'
 
 const NOW = 1_800_000_000_000
 test('fresh Fame and level-up: level 1 grants 1, level 2 grants 2', () => {
@@ -15,7 +15,9 @@ test('fresh Fame and level-up: level 1 grants 1, level 2 grants 2', () => {
   assert.equal(fresh.prestige.lastAwardedLevel, 1)
   assert.deepEqual(fresh.prestige.ownedCollectionIds, [])
   assert.ok(Object.values(fresh.prestige.boosts).every(level => level === 0))
-  const second = creditExperience(fresh, 3500)
+  assert.equal(BASE_XP_EARN_RATE_BPS, 2500)
+  assert.equal(creditExperience(fresh, 3500)?.prestige.experienceCents, 875)
+  const second = creditExperience(fresh, 14_000)
   assert.ok(second)
   assert.equal(second.prestige.lastAwardedLevel, 2)
   assert.equal(second.prestige.fameMicros, 3 * FAME_MICROS)
@@ -28,7 +30,7 @@ test('multi-level gains and milestones 50/51, 99/100, 100/101', () => {
   for (const level of [50, 51, 99, 100, 101, 120]) {
     const initial = createCapitalState(undefined, NOW)
     const threshold = getLevelStartThreshold(level)
-    const achieved = creditExperience(initial, threshold * 100)
+    const achieved = creditExperience(initial, threshold * 400)
     assert.ok(achieved)
     assert.equal(achieved.prestige.lastAwardedLevel, level)
     assert.equal(achieved.prestige.fameMicros / FAME_MICROS, level * (level + 1) / 2)
