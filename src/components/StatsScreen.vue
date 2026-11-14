@@ -167,8 +167,8 @@ function pay() {
           <div :style="{ width: overview.levelProgressPercent + '%' }"></div>
         </div>
         <div class="stats-progress-description">
-          <span>{{ cash(overview.experience) }} XP</span>
-          <span>{{ overview.nextLevelAt === null ? 'Palier final atteint' : cash(overview.nextLevelAt) + ' XP requis' }}</span>
+          <span>{{ format.format(overview.experience) }} XP</span>
+          <span>{{ overview.nextLevelAt === null ? 'Palier final atteint' : format.format(overview.nextLevelAt) + ' XP requis' }}</span>
         </div>
         <div class="stats-mini-grid">
           <div><span>CLICS EFFECTUÉS</span><strong>{{ overview.clickCount.toLocaleString('fr-CH') }}</strong></div>
