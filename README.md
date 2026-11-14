@@ -7,8 +7,8 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 ## Accueil — le clicker
 
 - Départ à **0 $**, **1 $ par clic**.
-- **Niveaux joueur sans plafond à 100** : les seuils d'origine 1–50 restent inchangés, puis la courbe continue. L'**XP possède un compteur indépendant** des revenus monétaires, sans perte de niveau à la dépense.
-- **49 améliorations historiques du clic** à débloquer dans l'ordre (niveaux 2–50), augmentant chacune la rémunération de **+1 $ par clic**. Elles conservent leur plafond ; ce n'est pas le niveau maximum du joueur.
+- **Niveaux joueur sans plafond à 100** : chaque dollar de gain éligible rapporte toujours **1 XP de base**, mais tous les seuils demandent **4 fois plus d'XP** qu'avant (niveau 2 : 140 XP ; niveau 50 : 148 008 XP ; niveau 100 : 17 537 564 XP). La Fame et les niveaux déjà acquis sont conservés grâce à une migration unique de l'XP historique.
+- **999 améliorations du clic**, de **1 $/clic** jusqu'à **1 000 $/clic**, chacune ajoutant +1 $/clic. Prix en progression **linéaire** : **375 $** pour le premier achat, puis **+750 $ par palier** (dernier coût **748 875 $**, coût total **374 250 375 $**). Ces prix correspondent à un **surcoût de 50 % sur l'ancienne grille linéaire** (250 $ puis +500 $), et non à une multiplication composée de ×1,5 à chaque palier. Les clics 2–50 demandent les niveaux joueur 2–50, puis chaque niveau joueur débloque 20 achats de clic supplémentaires ; **niveau joueur 98** suffit donc à déverrouiller le palier clic 1 000.
 - **Un seul solde** finance les améliorations du clicker, les transactions Trading et les entreprises. Il peut devenir négatif après le prélèvement automatique ou manuel de taxes, mais **aucun achat à crédit** n'est permis.
 - Les niveaux bénéficient des clics, des dividendes encaissés, des revenus fixes des entreprises et des **profits nets réalisés** en Trading. Ni le capital récupéré lors d'une vente, ni les gains latents, ni les taxes payées ne donnent de l'expérience. Les dépenses et les impôts ne font pas redescendre le niveau.
 
@@ -86,6 +86,12 @@ La page **Stats** est l'onglet le plus à droite de la navigation principale. El
 
 Navigation **Accueil / Trading / Entreprises / Collection / Stats** (Stats toujours à droite), et **page Fame Shop accessible depuis Accueil sans nouvel onglet**, puis dans Trading : **Portfolio / Actions / Crypto / News**. Interface sombre à accents dorés, affichage adapté à la hauteur visible du smartphone, défilement limité aux listes et fenêtres internes, boutons de fermeture et prise en charge d'Échap et du retour navigateur pour les modales. Le mode plein écran natif est proposé quand le navigateur le permet.
 
+## Rééquilibrage des niveaux et du clic — 14/11/2026
+
+Les revenus donnent **1 XP par dollar éligible** (plus les bonus XP existants), mais le coût XP des niveaux joueur est multiplié par **4**. Les sauvegardes **v6 sans marqueur de courbe XP** sont converties une seule fois : l'XP historique est normalisée à la nouvelle échelle, sans modifier le Gold, les objets, la Fame ou les niveaux déjà atteints. Les anciennes sauvegardes v1–v5 suivent la même règle. Les fichiers v6 actuels portent `prestige.xpCurveVersion: 2` ; ils ne sont pas reconvertis au rechargement.
+
+Les améliorations du clic atteignent désormais **1 000 niveaux**, avec des prix plus élevés mais **rectilignes** : `prix(n) = 375 + 750 × (n − 1)` pour le n-ième achat, n de 1 à 999. La hausse de **+50 %** est appliquée à la grille précédente, pas en intérêt composé : le prix reste représentable et chaque niveau achetable. La progression Fame Shop/Collection et ses bonus n'a pas changé.
+
 ## Équilibrage Fame/Collection — vérification de la passe 8
 
 | Élément | Valeur de référence |
@@ -96,17 +102,17 @@ Navigation **Accueil / Trading / Entreprises / Collection / Stats** (Stats toujo
 | Coût des six améliorations, 120 paliers | 24 650 |
 | Fame restant dans ce scénario sans Notoriété | **600** |
 | Coût total en Gold des 50 collections | **3 012 250 000 $** |
-| XP nécessaires pour atteindre le niveau 100 | **4 384 391 XP** |
+| XP nécessaires pour atteindre le niveau 100 | **17 537 564 XP** |
 
-**Limite d'équilibrage connue :** la proportion de **80 % de Fame issue des collections** est vraie pour le **scénario de référence au niveau 100, sans bonus** ; elle n'est **pas garantie dans le parcours économique réel**. Si tous les Gold nécessaires aux 50 collections sont gagnés comme revenu éligible à l'XP, le joueur atteint déjà environ le **niveau 168** (au minimum), lequel distribue **14 196 Fame** de base : les 20 200 Fame de base des collections représentent alors **environ 58,7 %** de ce total. Les bonus Notoriété, l'ordre des achats et la progression ultérieure modifient encore ce ratio. La passe finale conserve délibérément les coûts et récompenses déjà validés ; rapprocher la proportion réelle de 75–80 % demanderait un **nouvel arbitrage de conception** (prix Gold, XP ou Fame après le niveau 100).
+**Limite d'équilibrage connue :** la proportion de **80 % de Fame issue des collections** est vraie pour le **scénario de référence au niveau 100, sans bonus** ; elle n'est **pas garantie dans le parcours économique réel**. Si tous les Gold nécessaires aux 50 collections sont gagnés comme revenu éligible à l'XP, le joueur atteint déjà environ le **niveau 153** (au minimum), lequel distribue **11 781 Fame** de base : les 20 200 Fame de base des collections représentent alors **environ 63,2 %** de ce total. Les bonus Notoriété, l'ordre des achats et la progression ultérieure modifient encore ce ratio. La passe finale conserve délibérément les coûts et récompenses déjà validés ; rapprocher la proportion réelle de 75–80 % demanderait un **nouvel arbitrage de conception** (prix Gold, XP ou Fame après le niveau 100).
 
-**Parcours simulés, niveau 168, 50 objets dans l'ordre du catalogue :** acheter les 20 niveaux de Notoriété **après** les collections rapporte environ **22 725,14 Fame de collection** (soit **61,55 %** de la Fame gagnée), contre **42 925,14 Fame de collection** (**75,15 %**) si les 20 niveaux sont achetés **avant** les collections. Après achat des 120 paliers, cela laisse respectivement environ **12 271,14 Fame** (Prestige ≈ ×3,37) et **32 471,14 Fame** (Prestige ≈ ×25,13). La forte différence entre stratégies est une propriété volontaire du bonus Notoriété, et un **risque d'emballement économique de fin de jeu** à surveiller lors des futures évolutions.
+**Parcours simulés, niveau 154, 50 objets dans l'ordre du catalogue :** acheter les 20 niveaux de Notoriété **après** les collections rapporte environ **22 725,14 Fame de collection** (soit **65,57 %** de la Fame gagnée), contre **42 925,14 Fame de collection** (**78,24 %**) si les 20 niveaux sont achetés **avant** les collections. Après achat des 120 paliers, cela laisse respectivement environ **10 010,14 Fame** (Prestige ≈ ×2,70) et **30 210,14 Fame** (Prestige ≈ ×20,19). La forte différence entre stratégies est une propriété volontaire du bonus Notoriété, et un **risque d'emballement économique de fin de jeu** à surveiller lors des futures évolutions.
 
 L'achat de Notoriété **avant** les collections augmente les Fame attribuées aux **futurs** objets, alors qu'un achat tardif ne les bonifie jamais rétroactivement. Un achat de collection échange de la liquidité contre un bien comptabilisé à son coût d'acquisition, sans revenu fictif ni revente. Prestige absolu ne s'active qu'à **120/120 paliers**, avec un facteur exponentiel sur **les seuls bonus du Shop** et des protections de calcul pour éviter des gains monétaires non représentables.
 
 **Vérifications automatisées de clôture :** `src/prestige/final-balance.test.ts` simule les 50 achats en argent réel du jeu, deux ordres de Notoriété, le Shop complet, la fiscalité, les achats interdits en solde négatif, une année d'absence et l'export/import v6. Les sauvegardes **v1–v5 migrent en localStorage**, et les **fichiers JSON v4/v5/v6** peuvent être importés avec validation et confirmation. La réinitialisation remet les boosts, Fame et collections à zéro. Les tests d'interface exécutés sous JSDOM vérifient les interactions et la structure responsive ; ils ne remplacent pas une inspection manuelle sur plusieurs appareils.
 
-**Validation CI :** [Build main/root site](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43567528666) : **207 tests métier + 36 tests Vue = 243 réussis**, contrôle TypeScript et build Vite réussis. La publication GitHub Pages de la version de base finale a réussi ; le `index.html` de la racine pointe vers les assets compilés existants.
+**Validation initiale des huit passes :** [Build main/root site](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43567528666) : **207 tests métier + 36 tests Vue = 243 réussis**, contrôle TypeScript et build Vite réussis. La publication GitHub Pages de la version de base finale a réussi ; le `index.html` de la racine pointe vers les assets compilés existants.
 
 ## Développement
 
