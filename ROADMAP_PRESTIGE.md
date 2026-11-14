@@ -347,6 +347,20 @@ Des tests Node supplémentaires décrivent le scénario anti-churn, la diversifi
 `npm install` → `npm test` → `npm run build` → test manuel dans navigateur et mobile → `npm run build:root` → commit des fichiers compilés. Aucun workflow GitHub Actions payant n'a été déclenché ; il n'y a pas de `package-lock.json` actuel pour supposer que `npm ci` fonctionne.
 
 
+## 3decies. Validation partielle de publication — suite QA
+
+### Validation du mécanisme GitHub Pages (sans dépendances Vue)
+
+Le chemin de publication `npm run build:root` passe désormais impérativement par `npm run verify:release` : suite complète Node et Vue/JSDOM, puis `vue-tsc --noEmit` et build Vite. Si une étape échoue, **aucun fichier de la racine Pages n'est remplacé**. Le script de synchronisation valide également l'existence du JavaScript et des feuilles CSS référencés par l'HTML généré avant d'effacer les anciens assets.
+
+**Validation réellement exécutée :** `node --test scripts/sync-pages-root.test.mjs` — **4 tests réussis / 4**, sur Node 22 : `dist/` manquant, CSS manquant, HTML TypeScript refusé, et remplacement correct à partir de faux assets compilés. Ces tests sont confinés à un dossier temporaire et ne modifient ni l'ancien site ni la sauvegarde utilisateur.
+
+**Non exécuté :** installation npm, tests métier / Vue du jeu, `vue-tsc` et compilation Vite, faute de connectivité au dépôt et aux dépendances dans le conteneur. Le test de synchronisation n'atteste donc **pas** le build de CAPITAL_IDLE et ne permet pas de publier la racine.
+
+
+
+**Étapes suivantes obligatoires :** sur un clone local avec accès npm, exécuter `npm install`, `npm run verify:release`, puis `npm run build:root` seulement après la réussite des tests. Vérifier visuellement le jeu compilé et commiter les artefacts statiques séparément. Ne pas déclarer cette roadmap clôturée sans ces preuves.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.

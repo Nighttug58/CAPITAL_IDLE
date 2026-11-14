@@ -199,6 +199,14 @@ Quatre améliorations de la boutique Prestige contrôlent des bots qui n'ajouten
 Fichiers principaux : `src/ascension/automation-{runtime,orders,validation}.ts`, `src/components/AutomationPanel.vue`, `src/trading/runtime.ts`. Tests métier `src/ascension/automation.test.ts` et Vue `src/components/automation-ui.test.ts` ajoutés à `package.json`. **Tests et compilation non exécutés dans cet environnement** (pas d'accès au clone/dépendances npm). GitHub Actions payants non déclenchés et site compilé à la racine non modifié.
 
 
+### Validation du mécanisme GitHub Pages (sans dépendances Vue)
+
+Le chemin de publication `npm run build:root` passe désormais impérativement par `npm run verify:release` : suite complète Node et Vue/JSDOM, puis `vue-tsc --noEmit` et build Vite. Si une étape échoue, **aucun fichier de la racine Pages n'est remplacé**. Le script de synchronisation valide également l'existence du JavaScript et des feuilles CSS référencés par l'HTML généré avant d'effacer les anciens assets.
+
+**Validation réellement exécutée :** `node --test scripts/sync-pages-root.test.mjs` — **4 tests réussis / 4**, sur Node 22 : `dist/` manquant, CSS manquant, HTML TypeScript refusé, et remplacement correct à partir de faux assets compilés. Ces tests sont confinés à un dossier temporaire et ne modifient ni l'ancien site ni la sauvegarde utilisateur.
+
+**Non exécuté :** installation npm, tests métier / Vue du jeu, `vue-tsc` et compilation Vite, faute de connectivité au dépôt et aux dépendances dans le conteneur. Le test de synchronisation n'atteste donc **pas** le build de CAPITAL_IDLE et ne permet pas de publier la racine.
+
 ### Passe 7 — Bilan d'audit, correctifs et conditions de livraison
 
 **Statut : audit et corrections de code effectués ; validation de la release encore bloquée.** Le dépôt GitHub est accessible via l'intégration, mais son clone npm et les dépendances Vue/Vite ne sont pas disponibles dans cet environnement ; aucune suite `npm test` / `npm run test:ui` / `npm run build` n'a donc été exécutée. Le site statique GitHub Pages à la racine n'a pas été recompilé ni publié.
