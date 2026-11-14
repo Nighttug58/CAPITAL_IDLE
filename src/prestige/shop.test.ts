@@ -238,7 +238,7 @@ test('strict v6 import refuses forged free upgrades or minted Fame after purchas
   }
 })
 
-test('localStorage v6 reload keeps Fame fractions and purchased boosts without double debit', () => {
+test('localStorage v7 reload keeps Fame fractions and purchased boosts without double debit', () => {
   const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
   const saved = new Map<string, string>()
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
@@ -253,7 +253,7 @@ test('localStorage v6 reload keeps Fame fractions and purchased boosts without d
     const bought = buyFameUpgrade(original, 'click', 0)
     assert.ok(bought.ok)
     saveCapitalState(bought.state)
-    assert.ok(saved.has('capital-idle-save-v6'))
+    assert.ok(saved.has('capital-idle-save-v7'))
     const loaded = loadCapitalState(NOW)
     assert.deepEqual(loaded, bought.state)
     const restored = loadCapitalState(NOW)

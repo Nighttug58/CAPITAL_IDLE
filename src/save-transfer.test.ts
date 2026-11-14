@@ -120,6 +120,7 @@ test('ancienne v5 sans suivi détaillé ni reliquat : migration unique de l hist
   const raw = JSON.parse(JSON.stringify(original))
   raw.version = 5
   delete raw.prestige
+  delete raw.ascension
   delete raw.stats.sourceTrackingVersion
   delete raw.fiscal.enterpriseTaxRemainderBps
   raw.game.lifetimeEarned += 30

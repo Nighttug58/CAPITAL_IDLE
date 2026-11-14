@@ -142,7 +142,10 @@ test('trading only boosts positive NET sale profit; tax and cash include gain, b
 
 test('v6 import accepts missing early carry fields but rejects negative ones', () => {
   const state = fresh()
-  const legacy = JSON.parse(createSaveExport(state, NOW))
+  // This test targets the historical v6 import contract, not v7's strict ledger.
+  const { ascension: _v7Prestige, ...v6 } = state
+  void _v7Prestige
+  const legacy = JSON.parse(createSaveExport({ ...v6, version: 6 } as typeof state, NOW))
   delete legacy.state.prestige.clickCarryBps
   delete legacy.state.prestige.tradingCarryBps
   delete legacy.state.prestige.experienceCarryBps
