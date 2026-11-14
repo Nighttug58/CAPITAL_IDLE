@@ -2,10 +2,12 @@ import { getLevel } from '../game.ts'
 import { exactMoneyCents } from '../money.ts'
 import { COLLECTION_SLOTS, FAME_BOOST_IDS, MAX_FAME_BOOST_LEVEL, getPurchasedFameBoostCost, type FameBoostId } from './catalog.ts'
 import type { CapitalState } from '../capital.ts'
-import { getTotalBonusBps, scaleNewFameMicros, scaleRewardCents } from './bonuses.ts'
+import { getTotalBonusBps, scaleNewFameMicros, scaleRewardCentsAtRate } from './bonuses.ts'
 
 // A million subunits per Fame preserve fractional rewards from later boosts.
 export const FAME_MICROS = 1_000_000
+/** Chaque nouveau $ éligible rapporte 0,25 XP (anciennement 1 XP). L'XP historique reste intacte. */
+export const BASE_XP_EARN_RATE_BPS = 2_500
 export type FameBoostLevels = Record<FameBoostId, number>
 export interface PrestigeState {
   readonly experienceCents: number
@@ -75,7 +77,7 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
     !Array.isArray(saved.ownedCollectionIds)) return fallback
 
   const earnedCents = exactMoneyCents(lifetimeEarned)
-  if (earnedCents === null || saved.experienceCents < earnedCents ||
+  if (earnedCents === null || saved.experienceCents < Math.floor(earnedCents / 4) ||
     saved.lastAwardedLevel !== getLevel(saved.experienceCents / 100) ||
     saved.levelFameMicros < levelsTotal(saved.lastAwardedLevel) * FAME_MICROS ||
     saved.lifetimeFameMicros !== saved.levelFameMicros + saved.collectionFameMicros ||
@@ -128,7 +130,8 @@ export function creditExperience(state: CapitalState, earnedCents: number): Capi
   if (earnedCents === 0) return state
 
   const previous = state.prestige
-  const scaledXp = scaleRewardCents(earnedCents, getTotalBonusBps(state, 'xp'), previous.experienceCarryBps)
+  const xpRateBps = BASE_XP_EARN_RATE_BPS * (1 + getTotalBonusBps(state, 'xp') / 10_000)
+  const scaledXp = scaleRewardCentsAtRate(earnedCents, xpRateBps, previous.experienceCarryBps)
   if (!scaledXp) return null
   const experienceCents = previous.experienceCents + scaledXp.cents
   if (!Number.isSafeInteger(experienceCents)) return null
