@@ -4,7 +4,7 @@ import { nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
 import App from '../App.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
-import { getLevelStartThreshold } from '../game.ts'
+import { getClickValue, getLevelStartThreshold } from '../game.ts'
 import { FAME_MICROS } from '../prestige/state.ts'
 import { COLLECTION_BASE_FAME, COLLECTION_SLOTS, FAME_BOOSTS, TOTAL_BASE_FAME_TO_LEVEL_100 } from '../prestige/catalog.ts'
 import { buyFameUpgrade } from '../prestige/shop.ts'
@@ -25,6 +25,34 @@ function mountSaved(balance: number, earned: number = balance) {
   const current = () => JSON.parse(localStorage.getItem('capital-idle-save-v6')!) as CapitalState
   return { wrapper, current, initial: state }
 }
+
+describe('Click rewards — tranches de 50 niveaux', () => {
+  for (const [upgrades, expectedNext, expectedIncome] of [
+    [48, '+1 $ / clic', 49],
+    [49, '+2 $ / clic', 50],
+    [50, '+2 $ / clic', 52],
+    [99, '+3 $ / clic', 150],
+    [999, 'CLIC MAX', 10_500],
+  ] as const) {
+    it('affiche le bon gain par achat avec ' + upgrades + ' améliorations', () => {
+      // The save stores only the purchased tier count, not an old income value.
+      const earned = Math.max(getLevelStartThreshold(100), 1_000_000_000)
+      const state = createCapitalState({
+        balance: earned, lifetimeEarned: earned, purchasedUpgrades: upgrades,
+      }, Date.now())
+      localStorage.setItem('capital-idle-save-v6', JSON.stringify(state))
+      const wrapper = mount(App, { attachTo: document.body })
+      mounted.push(wrapper)
+      const upgradeCard = wrapper.find('.upgrade-card')
+      expect(upgradeCard.exists()).toBe(true)
+      expect(upgradeCard.text()).toContain(expectedNext)
+      expect(wrapper.find('.tap-reward').text()).toContain(
+        new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 }).format(expectedIncome),
+      )
+      expect(getClickValue(state.game.purchasedUpgrades)).toBe(expectedIncome)
+    })
+  }
+})
 
 describe('Fame Shop & Collection — responsive UI', () => {
   it('ouvre une page Fame Shop depuis l’accueil et restaure le focus au retour', async () => {
