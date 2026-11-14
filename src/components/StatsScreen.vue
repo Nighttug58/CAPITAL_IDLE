@@ -4,6 +4,7 @@ import type { CapitalState } from '../capital.ts'
 import type { EarlyTaxPaymentResult } from '../economy/fiscal.ts'
 import { FISCAL_PERIOD_MS, FISCAL_TAX_RATE } from '../economy/state.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
+import { getFameStatsOverview } from '../prestige/overview.ts'
 import {
   MAX_IMPORT_FILE_BYTES, prepareSaveImport, type SaveImportPreview,
 } from '../save-transfer.ts'
@@ -17,11 +18,15 @@ const props = defineProps<{
 }>()
 
 const overview = computed(() => getCapitalStatsOverview(props.state))
+const fameOverview = computed(() => getFameStatsOverview(props.state))
 const format = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const precise = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 })
 const money = (cents: number) => format.format(cents / 100) + ' $'
 const cash = (value: number) => format.format(value) + ' $'
 const rate = (value: number) => precise.format(value) + ' $/s'
+const fameCount = (value: number) => precise.format(value)
+const percent = (bps: number) => precise.format(bps / 100) + ' %'
+const prestigeFactor = (value: number) => Number.isFinite(value) ? '×' + precise.format(value) : 'Hors limites'
 const hours = (ms: number) => {
   const totalMinutes = Math.floor(ms / 60_000)
   const d = Math.floor(totalMinutes / 1440)
@@ -219,6 +224,45 @@ function pay() {
           <div class="stats-balance-result"><span>Fortune nette</span><strong :class="{ 'tax-debt': overview.netWorth < 0 }">{{ cash(overview.netWorth) }}</strong></div>
         </div>
         <p class="stats-footnote">Plus-value latente du portefeuille : {{ cash(overview.unrealizedTradingProfit) }} (déjà intégrée à la valeur de marché, pas ajoutée une seconde fois). Les taxes payées sont déjà déduites du solde.</p>
+      </section>
+
+      <section class="stats-section stats-prestige" aria-label="Fame, collections et Prestige absolu">
+        <div class="stats-section-heading"><h2>Fame & Prestige</h2>
+          <span>{{ fameOverview.absolute.purchasedLevels }} / 120 PALIERS</span>
+        </div>
+        <div class="stats-prestige-summary">
+          <div><span>FAME DISPONIBLE</span><strong>✦ {{ fameCount(fameOverview.available) }}</strong></div>
+          <div><span>FAME TOTALE OBTENUE</span><strong>{{ fameCount(fameOverview.earned) }}</strong></div>
+          <div><span>GAGNÉE PAR NIVEAUX</span><strong>{{ fameCount(fameOverview.fromLevels) }}</strong></div>
+          <div><span>GAGNÉE PAR COLLECTIONS</span><strong>{{ fameCount(fameOverview.fromCollections) }}</strong></div>
+          <div><span>DÉPENSÉE EN BOOSTS</span><strong>{{ fameCount(fameOverview.spent) }}</strong></div>
+          <div><span>OBJETS ACQUIS</span><strong>{{ fameOverview.ownedCollections }} / {{ fameOverview.totalCollections }}</strong></div>
+        </div>
+        <div class="stats-absolute-panel" :class="{ 'is-unlocked': fameOverview.absolute.unlocked }">
+          <div class="stats-absolute-heading">
+            <strong>Prestige absolu</strong>
+            <span>{{ fameOverview.absolute.unlocked ? 'DÉBLOQUÉ' : 'VERROUILLÉ' }}</span>
+          </div>
+          <template v-if="fameOverview.absolute.unlocked">
+            <strong class="stats-absolute-factor">{{ prestigeFactor(fameOverview.absolute.factor) }}</strong>
+            <p>{{ fameOverview.absolute.fameSteps }} tranches de 100 Fame disponibles · prochaine tranche à
+              {{ fameCount(fameOverview.absolute.nextStepAtFame) }} Fame.</p>
+          </template>
+          <p v-else>Débloqué gratuitement à 120/120 paliers. Encore
+            {{ fameOverview.absolute.requiredLevels - fameOverview.absolute.purchasedLevels }} niveaux à acheter.</p>
+          <p>Multiplicateur appliqué aux seuls bonus du Fame Shop, jamais aux collections.</p>
+        </div>
+        <div class="stats-prestige-boosts">
+          <strong>Vos six bonus permanents</strong>
+          <div v-for="boost in fameOverview.boosts" :key="boost.id" class="stats-prestige-boost" :data-boost="boost.id">
+            <div><strong>{{ boost.name }}</strong><span>Niveau {{ boost.level }}/20</span></div>
+            <p>Shop : +{{ percent(boost.rawShopBps) }}
+              <span v-if="fameOverview.absolute.unlocked"> · avec Prestige : +{{ percent(boost.prestigeShopBps) }}</span>
+              · Collection : +{{ percent(boost.collectionBps) }}</p>
+            <strong class="stats-prestige-total">Total : +{{ percent(boost.totalBps) }}</strong>
+          </div>
+        </div>
+        <p class="stats-footnote">Les bonus s'ajoutent aux sources éligibles et ne recalculent jamais les gains antérieurs. Les objets de collection restent valorisés au prix d'achat dans le patrimoine.</p>
       </section>
 
       <section class="stats-tax-panel" aria-label="Fiscalité">
