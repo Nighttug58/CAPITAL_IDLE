@@ -1,4 +1,4 @@
-import { getLevel } from '../game.ts'
+import { getLevel, upgradeLegacyExperienceCents } from '../game.ts'
 import { exactMoneyCents } from '../money.ts'
 import { COLLECTION_SLOTS, FAME_BOOST_IDS, MAX_FAME_BOOST_LEVEL, getPurchasedFameBoostCost, type FameBoostId } from './catalog.ts'
 import type { CapitalState } from '../capital.ts'
@@ -6,11 +6,13 @@ import { getTotalBonusBps, scaleNewFameMicros, scaleRewardCentsAtRate } from './
 
 // A million subunits per Fame preserve fractional rewards from later boosts.
 export const FAME_MICROS = 1_000_000
-/** Chaque nouveau $ éligible rapporte 0,25 XP (anciennement 1 XP). L'XP historique reste intacte. */
-export const BASE_XP_EARN_RATE_BPS = 2_500
+/** 1 XP par nouveau dollar éligible ; seuls les seuils de niveau ont augmenté. */
+export const BASE_XP_EARN_RATE_BPS = 10_000
+export const XP_CURVE_VERSION = 2 as const
 export type FameBoostLevels = Record<FameBoostId, number>
 export interface PrestigeState {
   readonly experienceCents: number
+  readonly xpCurveVersion: typeof XP_CURVE_VERSION
   readonly experienceCarryBps: number // sub-cent XP remainder
   readonly clickCarryBps: number // sub-cent cash click remainder
   readonly tradingCarryBps: number // sub-cent positive trading bonus remainder
@@ -32,13 +34,15 @@ function levelsTotal(level: number): number {
 }
 
 /** First creation and one-off v1–v5 migrations credit every achieved level once. */
-export function createInitialPrestigeState(lifetimeEarned: number): PrestigeState {
+export function createInitialPrestigeState(lifetimeEarned: number, legacyCurve = false): PrestigeState {
   const cents = exactMoneyCents(lifetimeEarned)
-  const experienceCents = cents !== null && cents >= 0 ? cents : 0
+  const rawCents = cents !== null && cents >= 0 ? cents : 0
+  const experienceCents = legacyCurve ? (upgradeLegacyExperienceCents(rawCents) ?? rawCents) : rawCents
   const lastAwardedLevel = getLevel(experienceCents / 100)
   const levelFameMicros = levelsTotal(lastAwardedLevel) * FAME_MICROS
   return {
-    experienceCents, experienceCarryBps: 0, clickCarryBps: 0, tradingCarryBps: 0, lastAwardedLevel,
+    experienceCents, xpCurveVersion: XP_CURVE_VERSION,
+    experienceCarryBps: 0, clickCarryBps: 0, tradingCarryBps: 0, lastAwardedLevel,
     fameMicros: levelFameMicros,
     lifetimeFameMicros: levelFameMicros,
     levelFameMicros,
@@ -58,7 +62,8 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
   const fallback = createInitialPrestigeState(lifetimeEarned)
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return fallback
   const saved = raw as Partial<PrestigeState>
-  // Fields introduced after early v6 saves are optional and default to zero.
+  // Old v6 saves have no curve marker and are normalized once at load.
+  // Their existing level, Fame and purchased boosts are kept intact.
   const experienceCarryBps = saved.experienceCarryBps ?? 0
   const clickCarryBps = saved.clickCarryBps ?? 0
   const tradingCarryBps = saved.tradingCarryBps ?? 0
@@ -77,8 +82,14 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
     !Array.isArray(saved.ownedCollectionIds)) return fallback
 
   const earnedCents = exactMoneyCents(lifetimeEarned)
-  if (earnedCents === null || saved.experienceCents < Math.floor(earnedCents / 4) ||
-    saved.lastAwardedLevel !== getLevel(saved.experienceCents / 100) ||
+  const isHistoricalCurve = saved.xpCurveVersion === undefined
+  if (saved.xpCurveVersion !== undefined && saved.xpCurveVersion !== XP_CURVE_VERSION) return fallback
+  const experienceCents = isHistoricalCurve
+    ? upgradeLegacyExperienceCents(saved.experienceCents)
+    : saved.experienceCents
+  if (experienceCents === null || earnedCents === null ||
+    saved.experienceCents < Math.floor(earnedCents / 4) ||
+    saved.lastAwardedLevel !== getLevel(experienceCents / 100) ||
     saved.levelFameMicros < levelsTotal(saved.lastAwardedLevel) * FAME_MICROS ||
     saved.lifetimeFameMicros !== saved.levelFameMicros + saved.collectionFameMicros ||
     saved.fameMicros > saved.lifetimeFameMicros) return fallback
@@ -112,7 +123,7 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
     (owned.length === 0 && saved.collectionFameMicros !== 0)) return fallback
 
   return {
-    experienceCents: saved.experienceCents,
+    experienceCents, xpCurveVersion: XP_CURVE_VERSION,
     experienceCarryBps, clickCarryBps, tradingCarryBps,
     lastAwardedLevel: saved.lastAwardedLevel,
     fameMicros: saved.fameMicros,
