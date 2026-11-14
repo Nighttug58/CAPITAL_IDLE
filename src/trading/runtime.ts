@@ -13,7 +13,7 @@ const REPLAY_PAUSE_MS = 16
 export interface MarketRuntimeOptions {
   getState: () => CapitalState
   setState: (state: CapitalState) => void
-  persist: () => void
+  persist: () => boolean | void
   now?: () => number
   schedule?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>
   cancel?: (handle: ReturnType<typeof setTimeout>) => void
@@ -42,7 +42,10 @@ export function createMarketRuntime(options: MarketRuntimeOptions) {
     if (!dirty) return
     const timestamp = now()
     if (!force && timestamp - lastPersistedAt < SAVE_INTERVAL_MS) return
-    options.persist()
+    // A quota/security error must leave the dirty bit intact for retry.
+    try {
+      if (options.persist() === false) return
+    } catch { return }
     lastPersistedAt = timestamp
     dirty = false
   }

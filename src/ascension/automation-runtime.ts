@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { getAsset } from '../trading/catalog.ts'
+import { exactMoneyCents } from '../money.ts'
 import { buyAsset, sellAsset, getMaximumBuyQuantity, getQuickQuantity, feeRate } from '../trading/trades.ts'
 import { buyEnterprise, upgradeEnterprise } from '../economy/enterprises.ts'
 import { ENTERPRISES, getEnterpriseUpgradeCostCents } from '../economy/catalog.ts'
@@ -12,8 +13,9 @@ function priceOf(state: CapitalState, id: string): number {
   return state.trading.quotes[id]?.price ?? asset?.referencePrice ?? 0
 }
 function safeCents(dollars: number): number {
-  const n = Math.round(dollars * 100)
-  return Number.isSafeInteger(n) ? n : -1
+  // Use the same exact-cent authority as manual trades; never round an
+  // invalid fractional-cent cash balance into spendable funds.
+  return exactMoneyCents(dollars) ?? -1
 }
 function floorQuantity(quantity: number, decimals: number): number {
   const mult = 10 ** decimals
@@ -66,8 +68,8 @@ function sellWithinBudget(state: CapitalState, id: string, budgetCents: number):
 }
 
 /** One pending order at most per strategy step, ordered by monotonic ID. */
-function performPendingOrder(state: CapitalState): CapitalState {
-  if (!state.ascension.progress.upgradeLevels['automatic-orders']) return state
+function performPendingOrder(state: CapitalState): { state: CapitalState; actedOn?: string } {
+  if (!state.ascension.progress.upgradeLevels['automatic-orders']) return { state }
   for (const order of [...(state.ascension.run.marketOrders ?? [])].sort((a,b) => a.id-b.id)) {
     if (!isMarketOrderTriggered(order, priceOf(state, order.assetId))) continue
     const performed = order.side === 'buy'
@@ -76,24 +78,25 @@ function performPendingOrder(state: CapitalState): CapitalState {
     if (!performed.ok ||
         (order.side === 'buy' &&
          safeCents(performed.state.game.balance) < state.ascension.run.automation.cashReserveCents)) continue
-    return {
+    return { actedOn: order.assetId, state: {
       ...performed.state,
       ascension: { ...performed.state.ascension, run: {
         ...performed.state.ascension.run,
         marketOrders: (performed.state.ascension.run.marketOrders ?? []).filter(item => item.id !== order.id),
       }},
-    }
+    }}
   }
-  return state
+  return { state }
 }
 
-function performAutoTrader(state: CapitalState): CapitalState {
+function performAutoTrader(state: CapitalState, skip: ReadonlySet<string>): { state: CapitalState; actedOn?: string } {
   const config = state.ascension.run.automation
   if (!config.traderEnabled || !state.ascension.progress.upgradeLevels['auto-trader'] ||
-      config.maxOrderCents <= 0) return state
+      config.maxOrderCents <= 0) return { state }
   const target = config.takeProfitBps ?? AUTO_TAKE_PROFIT_BPS
   const stop = config.stopLossBps ?? AUTO_STOP_LOSS_BPS
   for (const id of [...config.allowedAssetIds].sort()) {
+    if (skip.has(id)) continue
     const asset = getAsset(id)
     const pos = state.trading.positions[id]
     const price = priceOf(state,id)
@@ -103,17 +106,25 @@ function performAutoTrader(state: CapitalState): CapitalState {
     const gainBps = basis > 0 ? (netPrice / basis - 1) * 10_000 : 10_000
     if (gainBps < target && gainBps > -stop) continue
     const after = sellWithinBudget(state, id, config.maxOrderCents)
-    if (after !== state) return after
+    if (after !== state) return { state: after, actedOn: id }
   }
-  return state
+  return { state }
 }
 
-function performAutoInvestor(state: CapitalState): CapitalState {
+function performAutoInvestor(state: CapitalState, skip: ReadonlySet<string>, at: number): CapitalState {
   const config = state.ascension.run.automation
   if (!config.investorEnabled || !state.ascension.progress.upgradeLevels['auto-investor'] ||
       config.maxOrderCents <= 0) return state
   const allowed = [...config.allowedAssetIds].sort()
-  for (const id of allowed) {
+  if (allowed.length === 0) return state
+  // Rotate across the selected assets instead of permanently favouring the
+  // first alphabetically sorted symbol. The real-time slot is deterministic
+  // across reloads and does not require another persistent cursor.
+  const slot = Math.floor(Math.max(0, at - state.ascension.run.startedAtRealMs) /
+    AUTOMATION_BOT_INTERVAL_MS) % allowed.length
+  for (let offset = 0; offset < allowed.length; offset++) {
+    const id = allowed[(slot + offset) % allowed.length]!
+    if (skip.has(id)) continue
     const after = buyWithinBudget(state, id, config.maxOrderCents)
     if (after !== state) return after
   }
@@ -188,9 +199,16 @@ export function runAutomationFrame(state: CapitalState, at: number, foreground: 
 
   const lastStrategy = state.ascension.run.lastStrategyAtRealMs ?? at - AUTOMATION_BOT_INTERVAL_MS
   if (activeBots && at - lastStrategy >= AUTOMATION_BOT_INTERVAL_MS) {
-    updated = performPendingOrder(updated)
-    updated = performAutoTrader(updated)
-    updated = performAutoInvestor(updated)
+    // An asset acted on by a higher-priority bot cannot be traded again
+    // by another bot in this frame (prevents instant buy-sell fee churn).
+    const touched = new Set<string>()
+    const order = performPendingOrder(updated)
+    updated = order.state
+    if (order.actedOn) touched.add(order.actedOn)
+    const trader = performAutoTrader(updated, touched)
+    updated = trader.state
+    if (trader.actedOn) touched.add(trader.actedOn)
+    updated = performAutoInvestor(updated, touched, at)
     updated = performAutoEnterprise(updated, at)
     updated = { ...updated, ascension: { ...updated.ascension, run: {
       ...updated.ascension.run, lastStrategyAtRealMs: at,

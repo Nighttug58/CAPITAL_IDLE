@@ -1,6 +1,6 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : passe 6 implémentée (6/7), passe 7 à faire ; tests et build à exécuter.**  
+**État : passes 1–6 implémentées ; passe 7 audit/correctifs commité, mais tests, compilation et publication toujours à valider.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
 **Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
@@ -175,13 +175,13 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 ### Passe 7 — Équilibrage, audit et livraison
 
-- [ ] Simuler 20–30 cycles, progression typique et extrême, comptabilité PP (1637), achats précoces, midgame, maximisation ; ajuster P0 et paramètres si nécessaire, documenter les écarts.
+- [ ] Modèle PP de 20–30 cycles calculé et documenté ; **simulation de 20–30 parties avec progression réelle encore à exécuter**.
 - [ ] Tester toutes les combinaisons Fame + Prestige absolu existant + news extrêmes + vitesse ×5 + Auto Click + staking + entreprises.
 - [ ] Tests de résistance longues absences, PRNG, fonds/positions/staking, taxe 72 h, saturations en cents, liquidités, performance mobile, sauvegardes import/export/RESET.
-- [ ] Spécifier puis décider l'**upgrade final après boutique complète** (hors 18 upgrades), avec coût, plafond et absence de boucle exponentielle incontrôlée ; n'implémenter qu'après validation des simulations.
-- [ ] Mettre à jour README, documentation d'économie et cette roadmap ; exécuter npm test et npm run build, et vérifier pages/main/root si publication concernée.
-- [ ] Conclure avec un bilan mesuré, les arbitrages et les limites non testées sur appareil physique.
-- **Livrable :** Prestige stabilisé, équilibré, documenté et publiable.
+- [ ] Boost final décrit à titre provisoire avec cap et coût fixe, **validation utilisateur et simulation encore nécessaires** ; aucun upgrade final activé.
+- [ ] README, roadmap et tests nouveaux ajoutés ; **exécution npm et publication root toujours en attente**.
+- [x] Bilan PP analytique, correctifs identifiés et limites d'appareil physique consignés.
+- **Livrable :** audit/correctifs documentés ; **Prestige publiable seulement après tests/build/recette réussis**.
 
 
 ## 3bis. Résultat de la passe 1 — audit, seuil et contrat
@@ -314,6 +314,39 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 **Note de validation :** ces scénarios sont écrits mais leur réussite n'a pas été démontrée. La **passe 7 devra d'abord trouver et corriger** toute erreur de compilation/tests avant de pouvoir considérer CAPITAL_IDLE comme prêt à déployer. La passe 6 n'a pas modifié l'artefact compilé GitHub Pages.
 
+## 3nonies. Passe 7 — audit final et QA encore ouverte
+
+
+### Passe 7 — Bilan d'audit, correctifs et conditions de livraison
+
+**Statut : audit et corrections de code effectués ; validation de la release encore bloquée.** Le dépôt GitHub est accessible via l'intégration, mais son clone npm et les dépendances Vue/Vite ne sont pas disponibles dans cet environnement ; aucune suite `npm test` / `npm run test:ui` / `npm run build` n'a donc été exécutée. Le site statique GitHub Pages à la racine n'a pas été recompilé ni publié.
+
+Les corrections finales portent sur (1) l'interdiction de deux transactions automatiques sur **le même actif pendant un même cycle de 5 secondes** pour éviter un va-et-vient vendeur/acheteur et des commissions inutiles ; (2) la **rotation déterministe** des actifs autorisés à Auto Investisseur afin de répartir les achats au lieu de favoriser continuellement le premier symbole ; (3) le recours à l'autorité commune des **centimes exacts** dans le bot ; (4) les autosauvegardes : une erreur d'écriture n'efface plus l'état « non sauvegardé » du runtime, permettant une nouvelle tentative. Les achats de PP et cycles Prestige conservent leur transaction d'écriture atomique.
+
+Des tests Node supplémentaires décrivent le scénario anti-churn, la diversification, la reprise de sauvegarde après refus localStorage, le catalogue de 18 upgrades / 87 niveaux / **1 637 PP**, la formule PP par patrimoine ainsi que l'interaction du Prestige absolu Fame avec les boosts achetés et sa protection face à un facteur non fini. Ces tests sont écrits, **pas déclarés réussis**.
+
+**Équilibrage analytique — niveau 100 obligatoire, même patrimoine par cycle :**
+
+| Patrimoine éligible | PP/cycle | Cycles pour 1 637 PP |
+| ---: | ---: | ---: |
+| 100 M$ | 20 | 82 |
+| 250 M$ | 31 | 53 |
+| 500 M$ | 44 | 38 |
+| 1 Md$ | 63 | 26 |
+| 2 Md$ | 89 | 19 |
+| 5 Md$ | 141 | 12 |
+| 10 Md$ | 200 | 9 |
+
+**Interprétation :** une boutique complète en ~26 Prestige est possible à 1 Md$ de patrimoine éligible par cycle. Ce tableau est un **modèle PP**, pas une simulation de 20–30 parties réelles ; le temps pour atteindre le niveau 100, les frais, la fiscalité, les effets Fame et les marchés restent à mesurer.
+
+**Boost final après catalogue complet :** option **non implémentée**, car elle n'est pas encore validée. Proposition non contraignante : achat unique pour 200 PP, après les 87 niveaux, donnant un bonus utilitaire de régénération de liquidité de +25 % au plus, additif et jamais exponentiel. Revoir son intérêt après tests d'équilibrage pour éviter de dupliquer le bonus Fame.
+
+**Blocages de livraison :** tests et compilation npm non exécutés ; aucun test mobile/PC, ni long rattrapage de plusieurs jours/semaines ; coût du replay `256 secondes / batch` potentiellement élevé et à profiler ; pas de recette des imports v4–v7 avec sauvegardes réelles. Tant qu'ils ne sont pas levés, **ne pas déclarer Prestige prêt à déployer**.
+
+**Ordre de validation sur une machine disposant du dépôt et de npm :**
+`npm install` → `npm test` → `npm run build` → test manuel dans navigateur et mobile → `npm run build:root` → commit des fichiers compilés. Aucun workflow GitHub Actions payant n'a été déclenché ; il n'y a pas de `package-lock.json` actuel pour supposer que `npm ci` fonctionne.
+
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -333,6 +366,6 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 | 4 — Marché | ☑ Implémentée | commit de passe 4 | Horloge virtuelle, news, liquidité et UI ; suite non exécutée |
 | 5 — Staking | ☑ Implémentée | commit de passe 5 | Staking réel, reward lots, retraits, auto-compound et UI ; tests non exécutés |
 | 6 — Automates | ☑ Implémentée | commit de passe 6 | Clics/bots/ordres, contrôle UI et validation v7 ; exécution des tests non attestée |
-| 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
+| 7 — Finalisation | ◐ Audit et correctifs, QA bloquée | commit passe 7 | Test/build réels et publication encore à effectuer |
 
-**Suite immédiate :** au prochain « next », attaquer **la passe 7 seulement** : audit de cohérence, dette technique et tests, correction des anomalies, équilibrage, build et déploiement statique si l'environnement le permet. Les suites npm restent non exécutées pour les passes 2–6.
+**Suite immédiate :** terminer la validation de la passe 7 avec `npm install`, `npm test`, `npm run build`, recette navigateur/mobile, puis `npm run build:root` seulement après correction des échecs. Ne pas cocher une DoD sans résultat exécuté.

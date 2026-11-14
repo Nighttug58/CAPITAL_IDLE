@@ -198,6 +198,36 @@ Quatre améliorations de la boutique Prestige contrôlent des bots qui n'ajouten
 
 Fichiers principaux : `src/ascension/automation-{runtime,orders,validation}.ts`, `src/components/AutomationPanel.vue`, `src/trading/runtime.ts`. Tests métier `src/ascension/automation.test.ts` et Vue `src/components/automation-ui.test.ts` ajoutés à `package.json`. **Tests et compilation non exécutés dans cet environnement** (pas d'accès au clone/dépendances npm). GitHub Actions payants non déclenchés et site compilé à la racine non modifié.
 
+
+### Passe 7 — Bilan d'audit, correctifs et conditions de livraison
+
+**Statut : audit et corrections de code effectués ; validation de la release encore bloquée.** Le dépôt GitHub est accessible via l'intégration, mais son clone npm et les dépendances Vue/Vite ne sont pas disponibles dans cet environnement ; aucune suite `npm test` / `npm run test:ui` / `npm run build` n'a donc été exécutée. Le site statique GitHub Pages à la racine n'a pas été recompilé ni publié.
+
+Les corrections finales portent sur (1) l'interdiction de deux transactions automatiques sur **le même actif pendant un même cycle de 5 secondes** pour éviter un va-et-vient vendeur/acheteur et des commissions inutiles ; (2) la **rotation déterministe** des actifs autorisés à Auto Investisseur afin de répartir les achats au lieu de favoriser continuellement le premier symbole ; (3) le recours à l'autorité commune des **centimes exacts** dans le bot ; (4) les autosauvegardes : une erreur d'écriture n'efface plus l'état « non sauvegardé » du runtime, permettant une nouvelle tentative. Les achats de PP et cycles Prestige conservent leur transaction d'écriture atomique.
+
+Des tests Node supplémentaires décrivent le scénario anti-churn, la diversification, la reprise de sauvegarde après refus localStorage, le catalogue de 18 upgrades / 87 niveaux / **1 637 PP**, la formule PP par patrimoine ainsi que l'interaction du Prestige absolu Fame avec les boosts achetés et sa protection face à un facteur non fini. Ces tests sont écrits, **pas déclarés réussis**.
+
+**Équilibrage analytique — niveau 100 obligatoire, même patrimoine par cycle :**
+
+| Patrimoine éligible | PP/cycle | Cycles pour 1 637 PP |
+| ---: | ---: | ---: |
+| 100 M$ | 20 | 82 |
+| 250 M$ | 31 | 53 |
+| 500 M$ | 44 | 38 |
+| 1 Md$ | 63 | 26 |
+| 2 Md$ | 89 | 19 |
+| 5 Md$ | 141 | 12 |
+| 10 Md$ | 200 | 9 |
+
+**Interprétation :** une boutique complète en ~26 Prestige est possible à 1 Md$ de patrimoine éligible par cycle. Ce tableau est un **modèle PP**, pas une simulation de 20–30 parties réelles ; le temps pour atteindre le niveau 100, les frais, la fiscalité, les effets Fame et les marchés restent à mesurer.
+
+**Boost final après catalogue complet :** option **non implémentée**, car elle n'est pas encore validée. Proposition non contraignante : achat unique pour 200 PP, après les 87 niveaux, donnant un bonus utilitaire de régénération de liquidité de +25 % au plus, additif et jamais exponentiel. Revoir son intérêt après tests d'équilibrage pour éviter de dupliquer le bonus Fame.
+
+**Blocages de livraison :** tests et compilation npm non exécutés ; aucun test mobile/PC, ni long rattrapage de plusieurs jours/semaines ; coût du replay `256 secondes / batch` potentiellement élevé et à profiler ; pas de recette des imports v4–v7 avec sauvegardes réelles. Tant qu'ils ne sont pas levés, **ne pas déclarer Prestige prêt à déployer**.
+
+**Ordre de validation sur une machine disposant du dépôt et de npm :**
+`npm install` → `npm test` → `npm run build` → test manuel dans navigateur et mobile → `npm run build:root` → commit des fichiers compilés. Aucun workflow GitHub Actions payant n'a été déclenché ; il n'y a pas de `package-lock.json` actuel pour supposer que `npm ci` fonctionne.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.

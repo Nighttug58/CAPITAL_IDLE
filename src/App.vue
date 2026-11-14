@@ -208,7 +208,7 @@ function persist() {
       try { capital.value = withSession } finally { applyingMarket = false }
     }
   }
-  saveCapitalState(capital.value)
+  return saveCapitalState(capital.value)
 }
 
 function settleEconomyNow() {

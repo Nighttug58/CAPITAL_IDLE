@@ -128,6 +128,20 @@ test('Auto Investor respecte réserve, budget, spread et une décision par 5s', 
   assert.equal(replay.game.balance, first.game.balance, 'cash reserve prevents further purchases')
 })
 
+test('Auto Investisseur diversifie les actifs cochés par rotation déterministe', () => {
+  let state = funded(['auto-investor'])
+  state = set(state, {
+    investorEnabled: true, allowedAssetIds: ['nvideo', 'ethereum'],
+    maxOrderCents: 50_000, cashReserveCents: 0,
+  })
+  const first = run(state, 5)
+  assert.equal(Object.keys(first.trading.positions).length, 1)
+  const second = run(first, 5)
+  assert.ok(second.trading.positions.ethereum?.quantity, 'ETH est acheté dans les deux premiers cycles')
+  assert.ok(second.trading.positions.nvideo?.quantity, 'NVDO est acheté dans les deux premiers cycles')
+  assert.equal(second.ascension.run.lastStrategyAtRealMs, NOW + 10_000)
+})
+
 test('Ordres limites : priorité ID, pas de double ordre, conservation des frais et annulation', () => {
   let original = funded(['automatic-orders'])
   const asset = getAsset('nvideo')!
@@ -188,6 +202,35 @@ test('Auto Trader : vente déclenchée passe par taxe, XP et frais réels, avec 
   assert.ok(sold.fiscal.taxesDueCents > beforeTaxes)
   assert.ok(sold.prestige.experienceCents > beforeLevel)
   assert.strictEqual(runAutomationFrame(sold, NOW+5_000, true), sold)
+})
+
+test('Priorité anti-churn : un actif vendu par Auto Trader n’est pas racheté par Auto Investisseur dans le même cycle', () => {
+  let base = funded(['auto-trader', 'auto-investor'])
+  const purchase = buyAsset(base, 'ethereum', 3)
+  assert.ok(purchase.ok)
+  base = set(purchase.state, {
+    traderEnabled: true, investorEnabled: true, allowedAssetIds: ['ethereum'],
+    maxOrderCents: 2_000_000, cashReserveCents: 0,
+    takeProfitBps: 500, stopLossBps: 500,
+  })
+  const advanced = advance(base, 5)
+  const asset = getAsset('ethereum')!
+  const shocked = {
+    ...advanced, trading: {
+      ...advanced.trading, quotes: {
+        ...advanced.trading.quotes,
+        ethereum: {
+          ...advanced.trading.quotes.ethereum!,
+          price: Math.max(asset.minPrice, asset.referencePrice * 0.75),
+          updatedAt: NOW + 5_000,
+        },
+      },
+    },
+  }
+  const once = runAutomationFrame(shocked, NOW + 5_000, true)
+  assert.equal(once.trading.positions.ethereum, undefined, 'la vente ne doit pas être suivie d’un achat immédiat')
+  assert.ok(once.game.balance > shocked.game.balance)
+  assert.strictEqual(runAutomationFrame(once, NOW + 5_000, true), once)
 })
 
 test('Auto Entreprise respecte le niveau, la réserve et les coûts de progression', () => {

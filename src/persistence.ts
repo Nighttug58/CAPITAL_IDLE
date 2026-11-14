@@ -58,9 +58,13 @@ export function loadCapitalState(now = Date.now()): CapitalState {
   return migrated
 }
 
-export function saveCapitalState(state: CapitalState): void {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) }
-  catch { /* noncritical autosave failure */ }
+/** Autosave failures are observable; never report that volatile gains were written. */
+export function saveCapitalState(state: CapitalState): boolean {
+  try {
+    const text = JSON.stringify(state)
+    localStorage.setItem(STORAGE_KEY, text)
+    return localStorage.getItem(STORAGE_KEY) === text
+  } catch { return false }
 }
 
 /** Import, full reset and cycle transitions must never partially replace state. */
