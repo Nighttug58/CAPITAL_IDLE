@@ -116,12 +116,12 @@ Une seule passe par **next**. Les cases ci-dessous sont **toutes non cochées au
 
 ### Passe 1 — Architecture, contrats et calibrage
 
-- [ ] Revalider HEAD, AGENTS.md éventuels, fichiers réels, chemins de revenu et dépendances après cette documentation.
-- [ ] Fixer P0 à partir d'une simulation reproduisant niveau 100, cash, holdings, entreprises et collections, en visant le budget PP proposé.
-- [ ] Préparer les contrats de données dédiés au Prestige : currency PP, cumul gagné, cycles, niveaux, high-water Fame mondial, historiques de cycles, paramètres des automates, horloges réelles/virtuelles.
-- [ ] Définir les dépendances et responsabilités par module ; ne pas déplacer le Fame historique ni renommer silencieusement CapitalState.prestige.
-- [ ] Choisir le plan de migration v6 → v7 (ou extension v6 versionnée explicitement), validations de la sauvegarde et de l'import/export, anti-rollback, règles fiscales et collections.
-- [ ] Fixer les protocoles de test et références de comparaison avant implémentation ; garder le périmètre contenu.
+- [x] Revalider HEAD, AGENTS.md éventuels, fichiers réels, chemins de revenu et dépendances après cette documentation.
+- [x] Fixer P0 à partir d'une simulation reproduisant niveau 100, cash, holdings, entreprises et collections, en visant le budget PP proposé.
+- [x] Préparer les contrats de données dédiés au Prestige : currency PP, cumul gagné, cycles, niveaux, high-water Fame mondial, historiques de cycles, paramètres des automates, horloges réelles/virtuelles.
+- [x] Définir les dépendances et responsabilités par module ; ne pas déplacer le Fame historique ni renommer silencieusement CapitalState.prestige.
+- [x] Choisir le plan de migration v6 → v7 (ou extension v6 versionnée explicitement), validations de la sauvegarde et de l'import/export, anti-rollback, règles fiscales et collections.
+- [x] Fixer les protocoles de test et références de comparaison avant implémentation ; garder le périmètre contenu.
 - **Livrable :** architecture contractuelle et seuil P0 documenté/justifié, tests de forme si du code est ajouté. Pas de Prestige jouable encore.
 
 ### Passe 2 — Moteur de Prestige, économie et sauvegarde
@@ -183,6 +183,32 @@ Une seule passe par **next**. Les cases ci-dessous sont **toutes non cochées au
 - [ ] Conclure avec un bilan mesuré, les arbitrages et les limites non testées sur appareil physique.
 - **Livrable :** Prestige stabilisé, équilibré, documenté et publiable.
 
+
+## 3bis. Résultat de la passe 1 — audit, seuil et contrat
+
+**Statut : terminée sur main le 14/11/2026.** Seuls un contrat TS pur, ses tests, le lanceur de tests et cette roadmap changent. **Aucun reset, PP crédité, nouvelle page ou nouvel automate n'est activé à cette passe.**
+
+### Source et calibrage traçable
+
+- Référence auditée : HEAD avant passe 1 = `4e680fa76871158940cd518daea88c8ecb0b0970` ; arborescence complète sans AGENTS.md. Le code constaté reste l'autorité pour le développement.
+- Source XP : `getLevelStartThreshold(100) = 17 537 564` dollars d'XP de base (pas 100 M$ de niveau). Le joueur peut être niveau 100 avant d'être prêt à devenir Prestige : c'est voulu.
+- Source entreprises : kiosque **75 000 $**, entrepôt **80 M$**, usine **220 M$**, centre commercial **500 M$**, laboratoire **1,2 Md$**. Le palier **100 M$** situe le premier Prestige dans l'économie industrielle, sans rendre obligatoires les groupes de 20–300 Md$.
+- **P0 retenu pour les premiers cycles : 100 000 000 USD fictifs de patrimoine éligible**. C'est une valeur versionnée, révisable seulement par une décision explicite et des simulations en passe 7.
+- **Snapshots économiques déterministes** dans `src/ascension/contracts.test.ts` : état de niveau 100 avec cash de 17 537 564 $ (non éligible), puis états à 110 M$, 1 Md$ et 1,6 Md$ de revenus déjà acquis, possédant actions Nvideo, entreprises selon leur catalogue et un objet de collection. Les achats passent par les **vraies fonctions métier** ; le patrimoine passe par le **vrai calcul Stats**, dont on retranche le livre des collections ; aucun héritage de collection ne produit des PP. Les rendements de référence obtenus restent autour de **20 / 63 / 79–80 PP**. Un achat d'action absorbe des commissions, de sorte que l'assiette finale n'est pas un chiffre inventé égal aux revenus initiaux.
+- Ces snapshots **ne sont pas une partie chronométrée de zéro à 100 M$** et ne prouvent pas 20–30 cycles ; seuls les scénarios de prix, d'XP et de détention sont vérifiés ici. Le temps moyen par cycle, les bots et les multiplicateurs cumulés seront simulés en passe 7.
+
+### Contrat technique retenu
+
+- Nouveau domaine **`src/ascension/`**, distinct du Fame historique dans `src/prestige/`. Le nouveau `CapitalState.ascension` (passage **v7** en passe 2) contiendra `progress` (permanent) et `run` (temporaire).
+- `progress` : PP disponibles et gagnés à vie, compteur de Prestiges, niveaux des 18 upgrades, **record mondial des niveaux déjà payés en Fame**, journal historique de cycles. `run` : bots, horloge marché virtuelle et date réelle de départ ; positions, ordres et staking seront rattachés au Trading de ce cycle avec une seule autorité chacun.
+- **Migration v6 → v7** : `prestige` v6 est conservé comme état Fame, `ascension` reçoit un état vierge, `highestFameAwardedLevel` s'initialise à `prestige.lastAwardedLevel`, aucune Fame/PP rétroactive. Le validateur Fame doit accepter une XP de run revenue à 0 avec le record global conservé, sans attribuer deux fois les niveaux 1–100.
+- **Anciennes versions** : migration locale v1–v6 ; import JSON toujours validé (v4/v5/v6 et v7), conteneur export versionné, validation stricte `lifetimePoints - availablePoints === coût total des achats PP calculé du catalogue`, niveaux et identifiants exacts, pas de nombres non sûrs, timestamps civils cohérents.
+- **Protection import/reset** : une ancienne sauvegarde importée ne « fusionne » pas la monnaie PP avec une partie récente ; le joueur confirme le remplacement complet. Le reset complet supprime aussi PP/Fame. Aucune création de PP ou de Fame à l'import, et aucune restauration fantôme d'une ancienne clé locale après reset.
+- **Règle fiscale** : un Prestige valide exige `taxesDueCents = 0` après rattrapage. Il ne relance jamais le calendrier réel des **72 h**. Les actifs du run ne sont ni vendus fictivement ni remboursés une deuxième fois ; aucun titre ou collection permanente ne se transforme en argent lors du reset.
+- **Horloges** : `realAnchorMs` pour fiscalité/entreprises/staking/dividendes/News/cooldowns, `simulatedAtMs` pour cotations. L'accélérateur ne doit pas amplifier involontairement le drift ou l'intégrale de pression d'une news en rejouant cinq ticks pour une seconde réelle.
+- **Testabilité** : code de calcul isolé, contrats immuables, `src/ascension/contracts.test.ts` branché dans `npm test` ; chaque futur step garde des tests purs Node, UI Vitest, migrations, fiscalité, replay, `npm run build` et limites de débit. La suite ne peut conclure « tests réussis » sans avoir réellement exécuté les commandes.
+- **État des validations de cette passe** : vérification du contenu et des prix par lecture du dépôt ; calcul indépendant de la formule réalisé. **Suite complète `npm test` et `npm run build` non exécutée dans cette session** (GitHub accessible par connecteur, mais clonage/npm distant non accessibles). Aucun workflow GitHub Actions déclenché.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -196,7 +222,7 @@ Une seule passe par **next**. Les cases ci-dessous sont **toutes non cochées au
 
 | Passe | Statut | Commit | Notes |
 | --- | --- | --- | --- |
-| 1 — Architecture | ☐ À faire | — | Calibrage P0 requis |
+| 1 — Architecture | ☑ Terminée | ce commit | P0 = 100 M$, contrats purs et tests ajoutés |
 | 2 — Moteur | ☐ À faire | — | Migration / Fame / fiscalité |
 | 3 — UI Shop | ☐ À faire | — | 18 upgrades |
 | 4 — Marché | ☐ À faire | — | Deux horloges |
@@ -204,4 +230,4 @@ Une seule passe par **next**. Les cases ci-dessous sont **toutes non cochées au
 | 6 — Automates | ☐ À faire | — | Exécution sûre |
 | 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
 
-**Suite immédiate :** au prochain « next », commencer **la passe 1 seulement**, après avoir relu ce document et vérifié le HEAD de main.
+**Suite immédiate :** au prochain « next », commencer **la passe 2 seulement** (moteur Prestige, persistance v7, anti-double Fame et fiscalité).
