@@ -2,7 +2,7 @@ import type { CapitalState } from '../capital.ts'
 import { exactMoneyCents } from '../money.ts'
 import { getLevel } from '../game.ts'
 import { creditExperience } from '../prestige/state.ts'
-import { getTotalBonusBps } from '../prestige/bonuses.ts'
+import { getTotalBonusBps, scaleRewardUnits } from '../prestige/bonuses.ts'
 import {
   ENTERPRISES,
   getEnterprise, getEnterpriseIncomeMicrosPerSecond, getEnterpriseUpgradeCostCents,
@@ -86,8 +86,8 @@ export function advanceEnterpriseIncome(state: CapitalState, now: number): Capit
   const bonusBps = getTotalBonusBps(state, 'enterprise')
   // Keep the existing nanodollar carry: no per-second rounding or new offline
   // timer. Accumulate the boosted gross before tax and XP are recorded.
-  const boostedNanodollars = BigInt(incomeMicros) * BigInt(interval) *
-    BigInt(10_000 + bonusBps) / 10_000n
+  const boostedNanodollars = scaleRewardUnits(BigInt(incomeMicros) * BigInt(interval), bonusBps)
+  if (boostedNanodollars === null) return state // Overflowing Prestige rate: never credit invalid income.
   const earnedNanodollars = boostedNanodollars + carryNanodollars
   const payable = earnedNanodollars / NANODOLLARS_PER_CENT
   const remainder = earnedNanodollars % NANODOLLARS_PER_CENT
