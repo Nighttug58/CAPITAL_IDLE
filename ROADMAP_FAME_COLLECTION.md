@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 6/8 passes livrées**  
+**Statut : en cours — 7/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -178,7 +178,7 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Patrimoine visible :** le bilan Stats affiche désormais la ligne **Collections · valeur comptable** en plus des autres actifs, sans compter deux fois la dépense Gold ; les détails de progression Fame/Prestige restent réservés à la passe 7.
 - **Tests et CI :** `src/components/prestige-ui.test.ts` couvre modale Fame, clavier, prix, achats, persistance, Fonds insuffisants, cinq onglets, fiche d'objet, confirmation des achats coûteux, possession et Styles mobiles. Les tests existants `stats-ui.test.ts` et `enterprise-ui.test.ts` ont été mis à jour pour la navigation à cinq boutons. **GitHub Actions [run 43531073674](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43531073674) : SUCCESS**, **194 tests métier + 33 tests UI = 227/227 réussis**, `vue-tsc --noEmit`, Vite et build du site `main/(root)` réussis ; génération et demande de publication GitHub Pages réussies. Un premier incident d'injection de source dans App.vue a été réparé, puis les seules assertions UI restantes ont été corrigées pour respecter la notation suisse des milliers (`1'500`).
 
-### [ ] Passe 7 — Prestige absolu, Stats et sauvegardes complètes
+### [x] Passe 7 — Prestige absolu, Stats et sauvegardes complètes
 
 - Débloquer **automatiquement et gratuitement** Prestige absolu si et seulement si **120/120** paliers sont détenus ; formule exacte `1.01 ^ floor(fameAvailable / 100)`.
 - Ajouter l'effet aux six bonus **du Shop seulement** ; montrer facteur actuel, tranches et verrouillage/déblocage, sans nouvelle source de Fame.
@@ -186,6 +186,11 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - Contrôles save v6, export/import, RESET, même session puis relance, migration à partir v5 : pas de corruption, double Fame, gains rétroactifs ni disparition de Prestige.
 - Tests numériques de Prestige à Fame 0/99/100/500/600/1 000/10 000 et cas extrêmes, achat complété, état sauvé/restauré.
 - Livrable : Endgame fiable et observable dans l'UI.
+- **Livraison du 14/11/2026 :** `src/prestige/absolute.ts` calcule sans état supplémentaire le déblocage **gratuit** lorsque et seulement lorsque les six arbres sont **20/20 (120/120)**. Le facteur est **`1.01 ^ floor(FameDisponible / 100)`** ; 600 Fame disponibles donnent `1.01^6 ≈ 1.061520150601`. Une variation du solde Fame modifie automatiquement ce multiplicateur sans possibilité de vente, remboursement, ni octroi rétroactif de gains.
+- **Intégration économique :** `src/prestige/bonuses.ts` multiplie **uniquement les 6 bonus du Fame Shop** par le facteur, puis additionne les bonus permanents des collections **sans les multiplier**. Les quatre crédits de revenus (clic, entreprises avec rattrapage hors ligne + fiscalité, dividendes, profit positif réalisé en Trading) et l'XP/Fame bénéficient de la règle commune. Les calculs monétaires à taux fractionnaire utilisent désormais un ratio fixe précis au millionième de point de base et `BigInt`, avec reliquats subcentimaux conservés et protection contre les débordements/Infinity. L'ancienne économie et ses prix ne changent pas avant 120/120.
+- **UI de fin de jeu :** `FameShopModal.vue` inclut un panneau Prestige absolu verrouillé/déverrouillé (120 paliers nécessaires, facteur courant, nombre de tranches, prochain seuil). `StatsScreen.vue` affiche **Fame disponible, Fame cumulée, Fame obtenue par niveaux / collections, Fame dépensée, objets acquis**, les six bonus ventilés `Shop brut + Prestige du Shop + Collection = Total`, et l'état du Prestige. Le bilan de patrimoine (collection au coût comptable), les taxes et la sauvegarde restent à leur place ; aucune nouvelle horloge et aucun nouvel achat.
+- **Sauvegarde :** état de déblocage **recalculé** après chaque achat de boost, attribution de Fame, import/export v6, restauration du stockage et réinitialisation. Aucun champ redondant dans le JSON, pas de changement de version ; migrations antérieures (v1–v5, y compris v5) et contrôles d'intégrité préservés, aucune Fame re-créditée à l'import.
+- **Tests et CI :** `src/prestige/absolute.test.ts` vérifie niveaux 119/120, seuils Fame **0, 99, 100, 500, 600, 1 000, 10 000**, factorisation des six boosts, non-multiplication des collections, six moteurs économiques, impôts, retour hors ligne, sauvegardes v5/v6, gains futurs, reset et cas extrêmes sans BigInt invalide. `prestige-ui.test.ts` teste l'état Shop/Stats verrouillé et déverrouillé, le facteur réel, les sources, le rechargement et RESET. **CI réussie** : [Build main/root site #43565795418](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43565795418), **202 tests métier + 36 tests UI = 238 tests réussis**, `vue-tsc --noEmit`, `vite build`, publication des assets dans `main/(root)` et demande de GitHub Pages effectués avec succès. Le premier test simulait un seul niveau gagné malgré le boost d'XP (deux niveaux gagnés en pratique), puis a été corrigé pour valider le comportement réel sans nerf.
 
 ### [ ] Passe 8 — Équilibrage global, non-régression et publication
 
