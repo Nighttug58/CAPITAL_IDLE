@@ -1,6 +1,6 @@
 # ROADMAP — CAPITAL_IDLE / Fame, Collection & Prestige absolu
 
-**Statut : en cours — 5/8 passes livrées**  
+**Statut : en cours — 6/8 passes livrées**  
 **Branche cible : `main`**  
 **Date de définition : 13 novembre 2026**  
 **Périmètre :** nouvelle monnaie Fame, 6 boosts achetables, 50 objets de luxe, bonus partagés, Prestige absolu, progression au-delà du niveau 100 et sauvegarde.
@@ -164,7 +164,7 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - **Équilibrage :** 50 acquisitions garantissent **20 200 Fame de base**, soit **80 % de l'offre sans bonus au niveau 100**. Comme certains objets améliorent eux-mêmes les **futurs** gains de Fame, le total réellement reçu peut dépasser 20 200 Fame selon l'ordre d'achat ; ce surplus n'est ni passif ni rétroactif. Les coûts Fame Shop (24 650) et la garantie de financement au niveau 100 ne changent pas.
 - **Validation CI réelle :** GitHub Actions [run 43529609083](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43529609083) **success**, **194 tests métier + 26 UI = 220 tests réussis**, `vue-tsc --noEmit`, Vite et build des assets dans `main/(root)` exécutés. Les nouveaux tests `src/prestige/collections.test.ts` couvrent 50 fiches/achats, 5 catégories, chaque bonus, fonds manquants, cash négatif, refus de second achat, attribution Fame avec et sans Notoriété, export/import v6 et patrimoine inchangé. Un premier test supposait à tort que les objets ne bonifiaient pas la Fame d'autres achats ; l'assertion a été corrigée pour vérifier le minimum de 20 200 **et** les récompenses effectivement reçues. La page/modale UI restent réservées à la passe 6.
 
-### [ ] Passe 6 — Interface Fame Shop & page Collection
+### [x] Passe 6 — Interface Fame Shop & page Collection
 
 - Accueil : bouton **Fame [solde] ✦ Shop** aligné **à droite du Gold** ; dégradé violet vertical, animation légère au survol/clic, icône étoile à quatre branches.
 - Fame Shop : modale scrollable, **six lignes/cartes** (bonus actuel, niveau 0/20, coût prochain palier, achat, MAX), état de solde, lisibilité PC/mobile, accessibilité.
@@ -172,6 +172,11 @@ Les contributions des boosts **s'additionnent** aux contributions collection de 
 - Corriger les contraintes de hauteur/largeur responsives : éviter les modales **étroites/verticales illisibles**, respecter `overflow-y`, fermeture/Échap/retour navigateur, positionnement stable.
 - Tests UI Vue et parcours : bouton, achat, insufficient funds, scroll, onglets, modale, responsive.
 - Livrable : boucle de jeu Fame/Collection utilisable de bout en bout.
+- **Livraison du 14/11/2026 :** `src/App.vue` affiche sur **Accueil**, à droite du Gold, une commande compacte **FAME [solde] ✦ SHOP** à dégradé violet vertical. Elle ouvre `src/components/FameShopModal.vue`, une modale à **six cartes/paliers 0–20**, coût du prochain achat, bonus Shop et Collection, solde de Fame, niveau MAX et messages de confirmation/refus, indépendante du scroll de l'accueil.
+- **Collection** : `src/components/CollectionScreen.vue` ajoute la navigation **Accueil / Trading / Entreprises / Collection / Stats**, avec **Stats toujours le dernier onglet**. Cinq onglets (Montres / Autos / Peintures / Antiquités / Joaillerie), dix cartes par catégorie, fiches avec nom, description, Gold, Fame attribuable et bonus permanent ; objets possédés visibles et non rachetables, confirmation explicite pour gros achats (≥ 1 M$). Les achats utilisent les fonctions métier existantes `buyCollectionItem` et `buyFameUpgrade` et déclenchent **une seule écriture v6**, sans dupliquer la simulation, les ticks ni les règles de fiscalité.
+- **Responsive et accessibilité :** `src/style.css` ajoute les modales **larges** (max 510px, largeur 100 % disponible), hauteur plafonnée à ~91dvh et **scroll interne** pour éviter les anciennes modales compressées ; grille deux colonnes et onglets défilants sur petit écran ; navigation fixe à cinq boutons. Clavier : fermeture Échap, focus conservé dans les fenêtres, focus restauré après fermeture, navigation par flèches gauche/droite entre les cinq catégories ; rôles `dialog`, `tablist`, `tabpanel` et indicateurs d'état lisibles. Affichage du multiplicateur clic dans le clicker sans altérer le gain effectif.
+- **Patrimoine visible :** le bilan Stats affiche désormais la ligne **Collections · valeur comptable** en plus des autres actifs, sans compter deux fois la dépense Gold ; les détails de progression Fame/Prestige restent réservés à la passe 7.
+- **Tests et CI :** `src/components/prestige-ui.test.ts` couvre modale Fame, clavier, prix, achats, persistance, Fonds insuffisants, cinq onglets, fiche d'objet, confirmation des achats coûteux, possession et Styles mobiles. Les tests existants `stats-ui.test.ts` et `enterprise-ui.test.ts` ont été mis à jour pour la navigation à cinq boutons. **GitHub Actions [run 43531073674](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/43531073674) : SUCCESS**, **194 tests métier + 33 tests UI = 227/227 réussis**, `vue-tsc --noEmit`, Vite et build du site `main/(root)` réussis ; génération et demande de publication GitHub Pages réussies. Un premier incident d'injection de source dans App.vue a été réparé, puis les seules assertions UI restantes ont été corrigées pour respecter la notation suisse des milliers (`1'500`).
 
 ### [ ] Passe 7 — Prestige absolu, Stats et sauvegardes complètes
 
