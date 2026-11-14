@@ -10,7 +10,7 @@ import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
 import type { AscensionAutomationSettings, AscensionMarketOrder } from '../ascension/contracts.ts'
 import type { AutomationActionResult } from '../ascension/automation-orders.ts'
 import AutomationPanel from './AutomationPanel.vue'
-import { MARKET_SPEEDS, marketSpeed, frenzyActive, FRENZY_COOLDOWN_MS, type MarketActionResult } from '../ascension/market-effects.ts'
+import { MARKET_SPEEDS, marketSpeed, frenzyActive, type MarketActionResult } from '../ascension/market-effects.ts'
 
 const props = defineProps<{
   state: CapitalState

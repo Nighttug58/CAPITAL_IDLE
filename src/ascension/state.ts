@@ -107,7 +107,7 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
       !validAutomation(run.automation) ||
       (record(run.automation) &&
         (['autoClickEnabled','investorEnabled','traderEnabled','enterpriseEnabled'] as const)
-          .some((flag, index) => run.automation[flag] === true &&
+          .some((flag, index) => (run.automation as Record<string, unknown>)[flag] === true &&
             (progress.upgradeLevels as Record<string,number>)[
               ['auto-click','auto-investor','auto-trader','auto-enterprise'][index]!
             ] === 0)) ||
@@ -146,7 +146,7 @@ export function restoreAscensionState(raw: unknown, now: number, lastAwardedLeve
       ...(run.frenzyEndsAtRealMs !== undefined
         ? { frenzyEndsAtRealMs: run.frenzyEndsAtRealMs as number, frenzyReadyAtRealMs: run.frenzyReadyAtRealMs as number }
         : {}),
-      marketClock: { ...(run.marketClock as AscensionRunState['marketClock']) },
+      marketClock: { ...(run.marketClock as unknown as AscensionRunState['marketClock']) },
       automation: {
         ...(run.automation as AscensionAutomationSettings),
         allowedAssetIds: [...(run.automation as AscensionAutomationSettings).allowedAssetIds],
