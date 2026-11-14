@@ -22,40 +22,40 @@ import {
 test('50 niveaux lissés avec des seuils strictement croissants', () => {
   assert.equal(LEVEL_THRESHOLDS.length, 50)
   assert.equal(LEVEL_THRESHOLDS[0], 0)
-  assert.equal(LEVEL_THRESHOLDS[1], 35)
-  assert.equal(LEVEL_THRESHOLDS[2], 74)
-  assert.equal(LEVEL_THRESHOLDS[9], 475)
-  assert.equal(LEVEL_THRESHOLDS[29], 5_203)
-  assert.equal(LEVEL_THRESHOLDS[49], 37_002)
+  assert.equal(LEVEL_THRESHOLDS[1], 140)
+  assert.equal(LEVEL_THRESHOLDS[2], 296)
+  assert.equal(LEVEL_THRESHOLDS[9], 1_900)
+  assert.equal(LEVEL_THRESHOLDS[29], 20_812)
+  assert.equal(LEVEL_THRESHOLDS[49], 148_008)
   assert.ok(LEVEL_THRESHOLDS.every((value, index) => index === 0 || value > LEVEL_THRESHOLDS[index - 1]!))
 })
 
 test('le niveau dépend du total gagné, pas du solde', () => {
   assert.equal(getLevel(0), 1)
-  assert.equal(getLevel(34), 1)
-  assert.equal(getLevel(35), 2)
-  assert.equal(getLevel(74), 3)
-  assert.equal(getNextLevelThreshold(35), 74)
-  assert.equal(getLevel(37_002), 50)
-  assert.ok(getNextLevelThreshold(37_002)! > 37_002)
+  assert.equal(getLevel(139), 1)
+  assert.equal(getLevel(140), 2)
+  assert.equal(getLevel(296), 3)
+  assert.equal(getNextLevelThreshold(140), 296)
+  assert.equal(getLevel(148_008), 50)
+  assert.ok(getNextLevelThreshold(148_008)! > 148_008)
   assert.equal(getLevel(getLevelStartThreshold(100)), 100)
   assert.equal(getLevel(getLevelStartThreshold(101)), 101)
   assert.ok(getNextLevelThreshold(getLevelStartThreshold(101))! > getLevelStartThreshold(101))
 })
 
 test('clic puis achat : prix revalorisé, niveau et total gagné préservés', () => {
-  let state = { balance: 34, lifetimeEarned: 34, purchasedUpgrades: 0 }
+  let state = { balance: 139, lifetimeEarned: 139, purchasedUpgrades: 0 }
   state = earnClick(state)
-  assert.equal(state.lifetimeEarned, 35)
+  assert.equal(state.lifetimeEarned, 140)
   assert.equal(getLevel(state.lifetimeEarned), 2)
-  assert.strictEqual(purchaseUpgrade(state), state, '35 $ ne suffisent plus au premier achat')
-  state = { ...state, balance: 250, lifetimeEarned: 250 }
+  assert.strictEqual(purchaseUpgrade(state), state, '140 $ ne suffisent pas au premier achat')
+  state = { ...state, balance: 375, lifetimeEarned: 375 }
   state = purchaseUpgrade(state)
-  assert.deepEqual(state, { balance: 0, lifetimeEarned: 250, purchasedUpgrades: 1 })
+  assert.deepEqual(state, { balance: 0, lifetimeEarned: 375, purchasedUpgrades: 1 })
   assert.equal(getClickValue(state.purchasedUpgrades), 2)
   state = earnClick(state)
   assert.equal(state.balance, 2)
-  assert.equal(state.lifetimeEarned, 252)
+  assert.equal(state.lifetimeEarned, 377)
 })
 
 test('impossible d acheter une amélioration avant son niveau ou sans fonds', () => {
@@ -68,8 +68,8 @@ test('impossible d acheter une amélioration avant son niveau ou sans fonds', ()
 test('999 améliorations jusqu’à 1 000 $/clic, prix à croissance strictement linéaire', () => {
   assert.equal(MAX_CLICK_LEVEL, 1000)
   assert.equal(UPGRADES.length, MAX_CLICK_LEVEL - 1)
-  assert.equal(FIRST_CLICK_UPGRADE_PRICE, 250)
-  assert.equal(CLICK_UPGRADE_PRICE_STEP, 500)
+  assert.equal(FIRST_CLICK_UPGRADE_PRICE, 375)
+  assert.equal(CLICK_UPGRADE_PRICE_STEP, 750)
   UPGRADES.forEach((upgrade, index) => {
     const clickValue = index + 2
     const expectedGate = clickValue <= 50 ? clickValue : 50 + Math.ceil((clickValue - 50) / 20)
@@ -77,15 +77,15 @@ test('999 améliorations jusqu’à 1 000 $/clic, prix à croissance strictement
     assert.equal(upgrade.price, FIRST_CLICK_UPGRADE_PRICE + index * CLICK_UPGRADE_PRICE_STEP)
     assert.equal(upgrade.clickValue, clickValue)
     assert.equal(upgrade.clickValue - getClickValue(index), 1)
-    if (index > 0) assert.equal(upgrade.price - UPGRADES[index - 1]!.price, 500)
+    if (index > 0) assert.equal(upgrade.price - UPGRADES[index - 1]!.price, 750)
   })
   assert.equal(UPGRADES[48]!.clickValue, 50)
   assert.equal(UPGRADES[49]!.requiredLevel, 51)
   assert.equal(UPGRADES[68]!.requiredLevel, 51)
   assert.equal(UPGRADES[69]!.requiredLevel, 52)
   assert.equal(UPGRADES[998]!.requiredLevel, 98)
-  assert.equal(UPGRADES[998]!.price, 499_250)
-  assert.equal(UPGRADES.reduce((sum, upgrade) => sum + upgrade.price, 0), 249_500_250)
+  assert.equal(UPGRADES[998]!.price, 748_875)
+  assert.equal(UPGRADES.reduce((sum, upgrade) => sum + upgrade.price, 0), 374_250_375)
   assert.equal(getClickValue(999), 1000)
   assert.equal(getNextUpgrade({ ...INITIAL_GAME, purchasedUpgrades: 999 }), null)
 })
@@ -123,7 +123,7 @@ test('refus des sauvegardes invalides, corrompues ou impossibles', () => {
   assert.deepEqual(restoreGame({ balance: 10, lifetimeEarned: 5, purchasedUpgrades: 0 }), INITIAL_GAME)
   assert.deepEqual(restoreGame({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 49 }), INITIAL_GAME)
   assert.deepEqual(migrateLegacyGame({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 5 }), INITIAL_GAME)
-  assert.deepEqual(restoreGame({ balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 }), { balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 })
+  assert.deepEqual(restoreGame({ balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 }, { experiencePoints: 140 }), { balance: 15, lifetimeEarned: 35, purchasedUpgrades: 1 })
 })
 
 test('migration v2 : chaque ancien boost conserve exactement le revenu par clic', () => {
@@ -146,7 +146,7 @@ test('migration v2 : les données impossibles sont refusées', () => {
 test('le solde négatif est refusé par défaut et accepté uniquement pour la v5 fiscale', () => {
   const raw = { balance: -12.34, lifetimeEarned: 100, purchasedUpgrades: 1 }
   assert.deepEqual(restoreGame(raw), INITIAL_GAME)
-  assert.deepEqual(restoreGame(raw, { allowNegativeBalance: true }), raw)
+  assert.deepEqual(restoreGame(raw, { allowNegativeBalance: true, experiencePoints: 400 }), raw)
   assert.deepEqual(restoreGame({ ...raw, balance: Number.NaN }, { allowNegativeBalance: true }), INITIAL_GAME)
   assert.deepEqual(restoreGame({ ...raw, balance: Number.NEGATIVE_INFINITY }, { allowNegativeBalance: true }), INITIAL_GAME)
   assert.deepEqual(restoreGame({ ...raw, balance: -0.001 }, { allowNegativeBalance: true }), INITIAL_GAME)
@@ -154,7 +154,7 @@ test('le solde négatif est refusé par défaut et accepté uniquement pour la v
 })
 
 test('un joueur endetté gagne normalement des clics sans pouvoir acheter à crédit', () => {
-  const negative = restoreGame({ balance: -5, lifetimeEarned: 100, purchasedUpgrades: 1 }, { allowNegativeBalance: true })
+  const negative = restoreGame({ balance: -5, lifetimeEarned: 100, purchasedUpgrades: 1 }, { allowNegativeBalance: true, experiencePoints: 400 })
   assert.deepEqual(purchaseUpgrade(negative), negative)
   const credited = earnClick(negative)
   assert.equal(credited.balance, -3)
