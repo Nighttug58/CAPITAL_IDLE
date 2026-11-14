@@ -222,12 +222,12 @@ test('migrations v4 sans horloge dividend : aucun revenu rétroactif avant la mi
 })
 
 test('les dividendes peuvent créditer le niveau 2 indépendamment du cours', () => {
-  const initial=createCapitalState({balance:35,lifetimeEarned:34,purchasedUpgrades:0},START)
+  const initial=createCapitalState({balance:140,lifetimeEarned:139,purchasedUpgrades:0},START)
   // Ce cas ne doit pas être sauvegardé tel quel, il illustre le passage
-  // du seuil de 35 $ grâce aux versements, sans commande d'achat.
+  // du nouveau seuil de 140 XP grâce aux versements, sans commande d'achat.
   initial.trading.positions.nvideo={quantity:1000,costBasis:100}
   assert.equal(getLevel(initial.game.lifetimeEarned),1)
   const first=replay(initial,30)
-  assert.ok(first.game.lifetimeEarned>=35)
+  assert.ok(first.game.lifetimeEarned>=140)
   assert.equal(getLevel(first.game.lifetimeEarned),2)
 })
