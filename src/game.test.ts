@@ -8,6 +8,7 @@ import {
   getLevel,
   getLevelStartThreshold,
   getNextLevelThreshold,
+  getNextUpgrade,
   migrateLegacyGame,
   migrateV2Game,
   purchaseUpgrade,
