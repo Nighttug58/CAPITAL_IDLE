@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createCapitalState, restoreCapitalState } from '../capital.ts'
 import { advanceCapitalSecond } from '../trading/dividends.ts'
 import { catchUpCapital } from '../trading/clock.ts'
-import { getLevel } from '../game.ts'
+import { getLevel, getLevelStartThreshold } from '../game.ts'
 import {
   ENTERPRISES, getEnterpriseIncomeMicrosPerSecond,
   getEnterpriseUpgradeCostCents,
@@ -27,8 +27,8 @@ function purchased(id = 'kiosque', amount = 10_000_000) {
 test('achat : niveau et fonds vérifiés, achat unique, cash commun débité et aucun XP d achat', () => {
   const locked = createCapitalState({ balance: 1_000, lifetimeEarned: 0, purchasedUpgrades: 0 }, START)
   assert.deepEqual(buyEnterprise(locked, 'kiosque', START), { ok: false, state: locked, error: 'level-locked' })
-  const poor = createCapitalState({ balance: 1, lifetimeEarned: 100, purchasedUpgrades: 0 }, START)
-  assert.equal(getLevel(poor.game.lifetimeEarned) >= 3, true)
+  const poor = createCapitalState({ balance: 1, lifetimeEarned: getLevelStartThreshold(3), purchasedUpgrades: 0 }, START)
+  assert.equal(getLevel(poor.prestige.experienceCents / 100) >= 3, true)
   assert.deepEqual(buyEnterprise(poor, 'kiosque', START), { ok: false, state: poor, error: 'insufficient-funds' })
   const initial = funded()
   const receipt = buyEnterprise(initial, 'kiosque', START)
