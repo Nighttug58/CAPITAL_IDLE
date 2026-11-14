@@ -96,7 +96,12 @@ describe('Prestige économique — page et boutique', () => {
     const { wrapper, saved } = mountState(start)
     await wrapper.find('.prestige-launch').trigger('click')
     expect(wrapper.findAll('.ascension-buy:disabled')).toHaveLength(18)
-    expect(saved()).toEqual(start)
+    // The live runtime legitimately advances enterprise/market real clocks.
+    // A rejected PP purchase must preserve the actual economic balances and
+    // permanent progression, not freeze all clock timestamps in the browser.
+    expect(saved().game).toEqual(start.game)
+    expect(saved().prestige).toEqual(start.prestige)
+    expect(saved().ascension.progress).toEqual(start.ascension.progress)
     expect(wrapper.find('.ascension-upgrade[data-upgrade="auto-trader"] .ascension-buy').attributes('disabled')).toBeDefined()
   })
 

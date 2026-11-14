@@ -76,7 +76,7 @@ describe('Trading interface mobile',()=>{
   it('gère les fractions BTC et les erreurs de solde',async()=>{
     const {wrapper,getState}=setup()
     await openNvideo(wrapper)
-    await wrapper.find('#order-quantity').setValue('9999999')
+    await wrapper.find('#order-quantity').setValue('100')
     expect(wrapper.find('button.order-submit').attributes('disabled')).toBeDefined()
     expect(wrapper.find('.order-error').text()).toContain('Solde insuffisant')
     await wrapper.find('button.modal-close').trigger('click')
