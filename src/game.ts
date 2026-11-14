@@ -12,17 +12,18 @@ export interface Upgrade {
   readonly clickValue: number
 }
 
-// Seuils de niveau conservés pour les sauvegardes existantes. Le rythme des
-// NOUVEAUX XP gagnés est ralenti dans le moteur prestige (0,25 XP/$).
-// Le niveau dépend de l'XP acquise, jamais du solde Gold.
+// Progression : 1 XP gagné par dollar éligible, mais les seuils sont
+// désormais 4x plus exigeants. Les anciennes XP sont converties une seule fois
+// pour préserver le niveau acquis dans les sauvegardes historiques.
 const LEVEL_COUNT = 50
 const FIRST_LEVEL_STEP = 35
 const STEP_GROWTH = 1.10
+export const LEVEL_THRESHOLD_FACTOR = 4
 
 export const LEVEL_THRESHOLDS: readonly number[] = (() => {
   const thresholds = [0]
   for (let level = 2; level <= LEVEL_COUNT; level++) {
-    const increment = Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (level - 2))
+    const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (level - 2))
     thresholds.push(thresholds[thresholds.length - 1]! + increment)
   }
   return thresholds
@@ -31,15 +32,20 @@ export const LEVEL_THRESHOLDS: readonly number[] = (() => {
 /**
  * Clicker balance v2:
  * - Level 1 starts at $1/click, level 1000 pays $1000/click.
- * - Every tier adds exactly $500 to its PRICE (arithmetic progression).
- * - The first 49 level gates stay identical for existing players.
+ * - Every tier has a +50% premium over the previous linear PRICE grid.
+ *   This is still arithmetic growth (not 1.5^tier, which would overflow).
+ * - First 49 player-level gates preserve their historical rank, even though
+ *   level thresholds are now four times higher.
  * - Beyond click level 50, one player level unlocks 20 more click tiers;
  *   player level 1000 is not required to reach click level 1000.
  * Existing purchases and cash amounts are never repriced retroactively.
  */
 export const MAX_CLICK_LEVEL = 1000
-export const FIRST_CLICK_UPGRADE_PRICE = 250
-export const CLICK_UPGRADE_PRICE_STEP = 500
+export const ORIGINAL_FIRST_CLICK_UPGRADE_PRICE = 250
+export const ORIGINAL_CLICK_UPGRADE_PRICE_STEP = 500
+export const CLICK_PRICE_PREMIUM_BPS = 15_000
+export const FIRST_CLICK_UPGRADE_PRICE = ORIGINAL_FIRST_CLICK_UPGRADE_PRICE * CLICK_PRICE_PREMIUM_BPS / 10_000
+export const CLICK_UPGRADE_PRICE_STEP = ORIGINAL_CLICK_UPGRADE_PRICE_STEP * CLICK_PRICE_PREMIUM_BPS / 10_000
 export const EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL = 20
 
 export const UPGRADES: readonly Upgrade[] = Object.freeze(Array.from(
@@ -75,16 +81,16 @@ const isValidMoney = (value: unknown): value is number => {
 }
 
 /**
- * The first 50 thresholds and 49 original click upgrades are frozen for
- * backward compatibility. Levels 51+ use the same progression dynamically;
- * no arbitrary level-100 cap and no unbounded threshold array.
+ * All future level thresholds are 4x their historical value. Legacy saves
+ * normalize their stored XP exactly once, so purchased clicks and Fame are
+ * preserved while future 1 XP/$ earnings face the higher thresholds.
  */
 export function getLevelStartThreshold(level: number): number {
   if (!Number.isSafeInteger(level) || level < 1) return 0
   if (level <= LEVEL_THRESHOLDS.length) return LEVEL_THRESHOLDS[level - 1]!
   let threshold = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
   for (let nextLevel = LEVEL_THRESHOLDS.length + 1; nextLevel <= level; nextLevel++) {
-    const increment = Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
+    const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
     if (!Number.isSafeInteger(increment) || !Number.isSafeInteger(threshold + increment)) return Number.POSITIVE_INFINITY
     threshold += increment
   }
@@ -100,7 +106,7 @@ export function getLevel(experiencePoints: number): number {
   }
   let threshold = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
   for (let nextLevel = LEVEL_THRESHOLDS.length + 1; nextLevel < Number.MAX_SAFE_INTEGER; nextLevel++) {
-    const increment = Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
+    const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
     if (!Number.isSafeInteger(increment) || !Number.isSafeInteger(threshold + increment)) break
     const nextThreshold = threshold + increment
     if (earned < nextThreshold) break
@@ -108,6 +114,13 @@ export function getLevel(experiencePoints: number): number {
     level = nextLevel
   }
   return level
+}
+
+/** Convert historical XP to the new 4x threshold scale once on migration. */
+export function upgradeLegacyExperienceCents(experienceCents: number): number | null {
+  if (!Number.isSafeInteger(experienceCents) || experienceCents < 0) return null
+  const converted = experienceCents * LEVEL_THRESHOLD_FACTOR
+  return Number.isSafeInteger(converted) ? converted : null
 }
 
 export function getNextLevelThreshold(experiencePoints: number): number | null {
