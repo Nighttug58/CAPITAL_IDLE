@@ -15,8 +15,8 @@ test('fresh Fame and level-up: level 1 grants 1, level 2 grants 2', () => {
   assert.equal(fresh.prestige.lastAwardedLevel, 1)
   assert.deepEqual(fresh.prestige.ownedCollectionIds, [])
   assert.ok(Object.values(fresh.prestige.boosts).every(level => level === 0))
-  assert.equal(BASE_XP_EARN_RATE_BPS, 2500)
-  assert.equal(creditExperience(fresh, 3500)?.prestige.experienceCents, 875)
+  assert.equal(BASE_XP_EARN_RATE_BPS, 10000)
+  assert.equal(creditExperience(fresh, 3500)?.prestige.experienceCents, 3500)
   const second = creditExperience(fresh, 14_000)
   assert.ok(second)
   assert.equal(second.prestige.lastAwardedLevel, 2)
@@ -30,7 +30,7 @@ test('multi-level gains and milestones 50/51, 99/100, 100/101', () => {
   for (const level of [50, 51, 99, 100, 101, 120]) {
     const initial = createCapitalState(undefined, NOW)
     const threshold = getLevelStartThreshold(level)
-    const achieved = creditExperience(initial, threshold * 400)
+    const achieved = creditExperience(initial, threshold * 100)
     assert.ok(achieved)
     assert.equal(achieved.prestige.lastAwardedLevel, level)
     assert.equal(achieved.prestige.fameMicros / FAME_MICROS, level * (level + 1) / 2)
@@ -45,7 +45,7 @@ test('multi-level gains and milestones 50/51, 99/100, 100/101', () => {
 
 test('v5 migration allocates Fame once and preserves economic history', () => {
   const current = createCapitalState({
-    balance: 1200, lifetimeEarned: getLevelStartThreshold(50), purchasedUpgrades: 3,
+    balance: 1200, lifetimeEarned: getLevelStartThreshold(50) / 4, purchasedUpgrades: 3,
   }, NOW)
   const { prestige: _old, ...other } = current
   void _old
