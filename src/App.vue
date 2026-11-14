@@ -22,6 +22,9 @@ import EnterpriseScreen from './components/EnterpriseScreen.vue'
 import StatsScreen from './components/StatsScreen.vue'
 import FameShopScreen from './components/FameShopScreen.vue'
 import CollectionScreen from './components/CollectionScreen.vue'
+import PrestigeScreen from './components/PrestigeScreen.vue'
+import { buyAscensionUpgrade, type AscensionPurchase } from './ascension/shop.ts'
+import { commitPrestige, type AscensionResult } from './ascension/engine.ts'
 import { getBonusMultiplier } from './prestige/bonuses.ts'
 import { FAME_MICROS } from './prestige/state.ts'
 import { buyFameUpgrade, type FameShopPurchase } from './prestige/shop.ts'
@@ -50,8 +53,9 @@ const nextLevel = computed(() => getNextLevelThreshold(capital.value.prestige.ex
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
-const page = ref<'home' | 'fame' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
+const page = ref<'home' | 'fame' | 'prestige' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
+const prestigeLaunch = ref<HTMLButtonElement | null>(null)
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
@@ -78,6 +82,13 @@ function openFameShop() {
 function returnHomeFromFame() {
   page.value = 'home'
   void nextTick(() => fameLaunch.value?.focus())
+}
+function openPrestige() {
+  page.value = 'prestige'
+}
+function returnHomeFromPrestige() {
+  page.value = 'home'
+  void nextTick(() => prestigeLaunch.value?.focus())
 }
 
 function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase {
@@ -207,7 +218,7 @@ function payTaxes(): EarlyTaxPaymentResult {
 /**
  * Le runtime est stoppé avant une importation ou un reset. Son éventuelle
  * dernière sauvegarde concerne encore l'ancienne partie ; l'écriture
- * atomique v6 est donc faite seulement APRÈS cet arrêt.
+ * atomique v7 est donc faite seulement APRÈS cet arrêt.
  */
 function startMarketRuntime() {
   marketRuntime = createMarketRuntime({
@@ -268,6 +279,24 @@ function importSave(next: CapitalState): boolean {
 }
 function resetSave(): boolean {
   return replaceWholeSave(createCapitalState(undefined, Date.now()))
+}
+
+/** PP purchases use the same atomic replacement path as import/RESET. */
+function executePrestigePurchase(id: string, expectedLevel: number): AscensionPurchase {
+  const purchase = buyAscensionUpgrade(capital.value, id, expectedLevel)
+  if (!purchase.ok) return purchase
+  if (!replaceWholeSave(purchase.state)) {
+    return { ok: false, state: capital.value, error: 'storage-error' }
+  }
+  return purchase
+}
+
+/** A cycle reset is calculated from the latest state; the runtime stops
+ *  before writing and restarts only after successful replacement. */
+function executePrestigeCycle(): AscensionResult {
+  const outcome = commitPrestige(capital.value, Date.now(), replaceWholeSave)
+  if (!outcome.ok && outcome.error === 'pending-market-replay') marketRuntime?.wake()
+  return outcome
 }
 
 function syncMarketVisibility() {
@@ -341,6 +370,14 @@ onUnmounted(() => {
         <span class="brand-mark" aria-hidden="true">C</span>
         <span class="brand-name">CAPITAL<span>IDLE</span></span>
       </div>
+      <div class="topbar-actions">
+        <button v-if="page === 'home'" ref="prestigeLaunch" class="prestige-launch" type="button"
+          aria-label="Ouvrir le Prestige" @click="openPrestige">
+          <span class="prestige-launch-symbol" aria-hidden="true">◆</span>
+          <span class="prestige-launch-info"><strong>PRESTIGE</strong>
+            <small>{{ numberFormatter.format(capital.ascension.progress.availablePoints) }} PP</small>
+          </span>
+        </button>
       <button
         v-if="supportsFullscreen"
         class="fullscreen-button"
@@ -356,6 +393,7 @@ onUnmounted(() => {
           <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5" />
         </svg>
       </button>
+      </div>
     </header>
 
     <main v-show="page === 'home'" id="accueil" class="home-screen">
@@ -430,6 +468,9 @@ onUnmounted(() => {
 
     <FameShopScreen v-if="page === 'fame'" :state="capital" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
+    <PrestigeScreen v-if="page === 'prestige'" :state="capital"
+      :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
+      @back="returnHomeFromPrestige" />
     <TradingScreen v-show="page === 'trading'" :state="capital" :execute-trade="executeTrade" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
     <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
@@ -437,7 +478,7 @@ onUnmounted(() => {
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' }"
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' }"
         :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />

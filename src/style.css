@@ -898,3 +898,174 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
   .fame-shop-screen .fame-shop-summary { padding-block:9px; }
   .fame-shop-page-footer { padding-block:7px; }
 }
+
+
+/* CAPITAL_IDLE — Prestige économique (distinct du Prestige absolu / Fame). */
+.prestige-launch {
+  flex:0 0 auto; width:100%; min-height:45px; padding:7px 12px;
+  display:flex; align-items:center; gap:11px; min-width:0;
+  text-align:left; border:1px solid #b38b503d; border-radius:12px;
+  color:#eed7b2; background:linear-gradient(100deg,#30281f,#1f2327 70%);
+  box-shadow:inset 0 1px #fff7e809;
+}
+.prestige-launch-symbol { display:grid; place-items:center; flex:0 0 29px; width:29px; height:29px;
+  border-radius:8px; background:#6f5636; color:#f9dda3; font-size:17px; }
+.prestige-launch-info { flex:1 1 0; display:flex; flex-direction:column; min-width:0; gap:1px; }
+.prestige-launch-info strong { font-size:12px; letter-spacing:.11em; }
+.prestige-launch-info small { color:#a9a29b; font-size:10px; }
+.prestige-launch-action { flex:0 0 auto; color:#e9c88f; font-size:10px; font-weight:780; letter-spacing:.04em; }
+.prestige-launch:hover { border-color:#d9ae69; }
+.prestige-launch:focus-visible { outline:2px solid #fad89a; outline-offset:2px; }
+
+.ascension-screen {
+  min-height:0; min-width:0; overflow:hidden; display:flex; flex-direction:column;
+  color:#eee6d6; background:linear-gradient(165deg,#28231e,#13191c 65%);
+  border-top:1px solid #614d32;
+}
+.ascension-page-header {
+  flex:0 0 auto; display:flex; flex-direction:column; gap:10px;
+  padding:13px 18px; border-bottom:1px solid #53422d;
+  background:linear-gradient(145deg,#30271e,#252328 75%);
+}
+.ascension-return {
+  display:inline-flex; align-self:flex-start; align-items:center; gap:6px;
+  min-height:34px; padding:6px 11px; border-radius:9px;
+  border:1px solid #846b46; background:#41352a; color:#ffe9bd;
+  font-size:12px; font-weight:750;
+}
+.ascension-page-header h1 { margin:4px 0 2px; font-size:clamp(24px,6vw,31px); color:#ffe3a9; letter-spacing:-.03em; }
+.ascension-page-header p { margin:0; font-size:11px; color:#b9b0a4; line-height:1.5; }
+.ascension-eyebrow { color:#caa56c; font-size:9px; font-weight:800; letter-spacing:.1em; }
+.ascension-summary {
+  flex:0 0 auto; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:1px; background:#66523852; border-bottom:1px solid #5b4834;
+}
+.ascension-summary>div { padding:10px 6px; min-width:0; text-align:center; background:#29251f; }
+.ascension-summary span { display:block; font-size:9px; letter-spacing:.025em; color:#b5aa93; }
+.ascension-summary strong { display:block; margin-top:5px; color:#ffe0a0; font-size:clamp(13px,3.5vw,20px); overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.ascension-summary small { font-size:11px; }
+.ascension-scroll {
+  flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden;
+  padding:14px 15px 24px; overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch; scrollbar-width:thin; scrollbar-color:#876739 #191d21;
+}
+.ascension-prestige-panel {
+  padding:15px; border:1px solid #89683f; border-radius:13px;
+  background:linear-gradient(150deg,#3c3024,#232729 88%); box-shadow:0 7px 21px #0004;
+}
+.ascension-panel-title { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.ascension-panel-title h2 { font-size:17px; margin:4px 0 12px; color:#ffe0a7; }
+.ascension-panel-title>strong { flex:0 0 auto; padding:7px 9px; background:#62492d; border-radius:8px; font-size:16px; color:#fff0c8; font-variant-numeric:tabular-nums; }
+.ascension-checks { display:grid; gap:7px; margin-bottom:11px; }
+.ascension-checks>div { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; border-bottom:1px solid #a78a5d22; padding-bottom:6px; }
+.ascension-checks span { font-size:11px; color:#c5b9a3; }
+.ascension-checks strong { font-size:11px; text-align:right; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.ascension-checks .ascension-good { color:#a8ddb4; }
+.ascension-worth-track, .ascension-upgrade-track {
+  display:block; height:8px; overflow:hidden; background:#11171b;
+  border-radius:6px; border:1px solid #785b3666;
+}
+.ascension-worth-track>span, .ascension-upgrade-track>span {
+  display:block; height:100%; border-radius:inherit;
+  background:linear-gradient(to right,#af7c38,#f5cc74);
+}
+.ascension-help { margin:9px 0 12px; color:#c0b09a; font-size:10px; line-height:1.5; }
+.ascension-reset-launch {
+  width:100%; min-height:43px; border:1px solid #b18d55; border-radius:9px;
+  background:linear-gradient(160deg,#b48d50,#6b4c28); color:#201911;
+  font-size:12px; font-weight:850; letter-spacing:.04em;
+}
+.ascension-reset-launch:disabled { opacity:.54; cursor:not-allowed; filter:grayscale(.5); }
+.ascension-shop-heading { display:flex; justify-content:space-between; align-items:end; gap:9px; margin:22px 0 12px; }
+.ascension-shop-heading h2 { margin:4px 0 0; color:#f6e7c7; font-size:19px; }
+.ascension-shop-heading>span { color:#a8a09b; font-size:10px; white-space:nowrap; }
+.ascension-category { margin-bottom:18px; }
+.ascension-category>h3 { margin:0 0 8px; font-size:12px; letter-spacing:.06em; color:#e8c38b; }
+.ascension-upgrade {
+  min-width:0; padding:12px 13px; margin-bottom:10px;
+  border:1px solid #514638; border-radius:11px; background:linear-gradient(125deg,#242626,#1c2024);
+}
+.ascension-upgrade-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; min-width:0; }
+.ascension-upgrade-top>div { flex:1 1 0; min-width:0; }
+.ascension-upgrade-top strong { color:#eee9df; font-size:12px; }
+.ascension-upgrade-top p { color:#b2aba2; margin:5px 0 9px; font-size:11px; line-height:1.4; }
+.ascension-upgrade-level { flex:0 0 auto; padding:4px 6px; font-size:10px; font-weight:730; color:#edcc8a; background:#58452b; border-radius:6px; }
+.ascension-upgrade-track { height:7px; }
+.ascension-upgrade-effect { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 9px; margin:10px 0; color:#c4bcaf; font-size:10px; }
+.ascension-upgrade-effect strong { color:#ead6a9; }
+.ascension-phase { color:#a39d9a; font-style:italic; }
+.ascension-upgrade-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ascension-upgrade-cost { color:#e4c38b; font-size:12px; font-weight:780; font-variant-numeric:tabular-nums; }
+.ascension-buy { flex:0 0 auto; min-width:92px; min-height:36px; border-radius:8px;
+  border:1px solid #b18e53; background:#775a34; color:#fff1d0; font-size:11px; font-weight:780; }
+.ascension-buy:disabled { opacity:.55; cursor:not-allowed; background:#383833; }
+.ascension-endnote { font-size:11px; color:#b2a598; line-height:1.55; }
+.ascension-footer { flex:0 0 auto; padding:11px 15px; border-top:1px solid #54442d; background:#25231f; }
+.ascension-footer p { margin:0; color:#c6b69f; line-height:1.5; font-size:10px; }
+.ascension-footer .ascension-notice { color:#c5e0bf; font-weight:650; }
+.ascension-footer .ascension-notice.is-error { color:#f8bbb0; }
+.ascension-confirm-overlay {
+  position:fixed; z-index:85; inset:0; display:flex; justify-content:center; align-items:center;
+  padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px));
+  background:#050609db; backdrop-filter:blur(4px);
+}
+.ascension-confirm {
+  width:min(100%,500px); max-height:90dvh; min-height:0; overflow:hidden;
+  display:flex; flex-direction:column; border:1px solid #b78d58;
+  border-radius:14px; background:#252321; box-shadow:0 18px 65px #0009;
+}
+.ascension-confirm-body { min-height:0; overflow-y:auto; padding:18px; }
+.ascension-confirm h2 { margin:7px 0 10px; color:#ffe2a4; font-size:22px; }
+.ascension-confirm p { font-size:12px; line-height:1.55; color:#ded2c2; }
+.ascension-confirm-reward { display:flex; gap:7px; justify-content:space-between; margin:13px 0; padding:12px; color:#e5d0a4; background:#443525; border-radius:8px; font-size:12px; }
+.ascension-confirm-reward strong { white-space:nowrap; color:#ffe2a1; }
+.ascension-confirm label { display:block; margin-bottom:6px; color:#f3dec5; font-size:12px; }
+.ascension-confirm input { width:100%; min-height:42px; padding:9px 12px; background:#171c1d; color:#fff0d8; border:1px solid #ad8556; border-radius:8px; font-size:15px; }
+.ascension-confirm-actions { display:flex; justify-content:flex-end; gap:8px; padding:12px 17px; background:#211e1b; border-top:1px solid #64503a; }
+.ascension-confirm-actions button { min-height:40px; padding:9px 12px; border-radius:8px; font-size:11px; font-weight:760; }
+.ascension-cancel { color:#e2d3bc; background:#41403a; border:1px solid #777066; }
+.ascension-confirm-submit { color:#281e11; background:#e5ba6b; border:1px solid #f0ce89; }
+.ascension-confirm-submit:disabled { opacity:.44; cursor:not-allowed; }
+.ascension-return:focus-visible,.ascension-buy:focus-visible,.ascension-reset-launch:focus-visible,
+.ascension-confirm-actions button:focus-visible,.ascension-confirm input:focus-visible {
+  outline:2px solid #ffe2a1; outline-offset:2px;
+}
+@media(max-width:380px) {
+  .ascension-page-header { padding:10px 12px; }
+  .ascension-scroll { padding:10px 10px 16px; }
+  .ascension-summary>div { padding:9px 3px; }
+  .ascension-summary span { font-size:8px; }
+  .ascension-upgrade { padding:11px; }
+  .ascension-upgrade-top { gap:5px; }
+  .ascension-upgrade-level { font-size:9px; }
+}
+@media(max-height:740px) {
+  .prestige-launch { min-height:36px; padding:4px 9px; }
+  .prestige-launch-symbol { flex-basis:24px; width:24px; height:24px; }
+  .prestige-launch-info small { font-size:9px; }
+  .ascension-page-header { padding-block:9px; gap:6px; }
+  .ascension-page-header h1 { font-size:23px; margin-top:2px; }
+  .ascension-summary>div { padding-block:7px; }
+  .ascension-footer { padding-block:7px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .ascension-worth-track>span,.ascension-upgrade-track>span { transition:none; }
+}
+
+.ascension-modal-error { padding:10px; background:#51312a; color:#ffd6cb !important; border:1px solid #a85b4a; border-radius:8px; }
+
+/* Prestige access sits in the existing topbar, preserving click-area height. */
+.topbar-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; min-width:0; }
+.topbar .prestige-launch { width:auto; flex:0 0 auto; min-width:110px; min-height:38px; padding:5px 8px; gap:6px; }
+.topbar .prestige-launch-symbol { width:24px; height:24px; flex-basis:24px; }
+.topbar .prestige-launch-info strong { font-size:10px; }
+.topbar .prestige-launch-info small { font-size:9px; }
+@media(max-width:400px) {
+  .topbar { padding-inline:12px; }
+  .brand { gap:5px; }
+  .brand-name { font-size:11px; letter-spacing:.055em; }
+  .topbar .prestige-launch { min-width:74px; padding:5px 6px; }
+  .topbar .prestige-launch-symbol { display:none; }
+  .topbar-actions { gap:5px; }
+  .fullscreen-button { width:34px; height:36px; }
+}

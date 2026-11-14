@@ -1,6 +1,6 @@
 # CAPITAL_IDLE — Roadmap Prestige (7 passes)
 
-**État : passe 2 implémentée (2/7), passe 3 à faire ; tests et build à exécuter.**  
+**État : passe 3 implémentée (3/7), passe 4 à faire ; tests et build à exécuter.**  
 **Dépôt : Nighttug58/CAPITAL_IDLE — branche main**  
 **Date : 14/11/2026**  
 **Historique :** le commit initial de roadmap (`4e680fa`) est documentaire ; la passe 1 ajoute les contrats purs et tests (`ac0eb03`), sans modifier le moteur de jeu, la sauvegarde active ni l'interface.
@@ -136,12 +136,12 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 
 ### Passe 3 — Boutique et écran Prestige
 
-- [ ] Ajouter un écran dédié **Prestige** et un point d'accès clair depuis l'Accueil, sans déplacer Stats de l'extrémité droite de la barre principale.
-- [ ] Catalogue fixe des **18 upgrades**, 87 niveaux, coûts du tableau, achats PP validés par moteur métier, blocage des niveaux max.
-- [ ] Afficher PP, cycles, patrimoine éligible, seuil et projection de gain PP, améliorations acquises et restant à acheter.
-- [ ] Modale de confirmation de Prestige : pertes du run, gains PP, maintien Fame/collections, état des dettes.
-- [ ] UI responsive smartphone/desktop, navigation retour/Escape, aucune régression Fame Shop/Collection/Stats.
-- [ ] Tests UI achats, max, solde, confirmation, refus, restauration.
+- [x] Ajouter un écran dédié **Prestige** et un point d'accès clair depuis l'Accueil, sans déplacer Stats de l'extrémité droite de la barre principale.
+- [x] Catalogue fixe des **18 upgrades**, 87 niveaux, coûts du tableau, achats PP validés par moteur métier, blocage des niveaux max.
+- [x] Afficher PP, cycles, patrimoine éligible, seuil et projection de gain PP, améliorations acquises et restant à acheter.
+- [x] Modale de confirmation de Prestige : pertes du run, gains PP, maintien Fame/collections, état des dettes.
+- [x] UI responsive smartphone/desktop, navigation retour/Escape, aucune régression Fame Shop/Collection/Stats.
+- [x] Tests UI achats, max, solde, confirmation, refus, restauration.
 - **Livrable :** parcours Prestige et boutique jouables ; effets des nouveaux bonus métier encore dépendants des passes suivantes.
 
 ### Passe 4 — Accélérateur, News et liquidités
@@ -229,6 +229,21 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 - Avant la passe 3, exécuter `npm test` puis `npm run build` sur un environnement avec dépendances et résoudre tout échec avant d'activer la boutique. Les tests nouvellement écrits ne sont **pas** des résultats d'exécution.
 - Pas de bouton Prestige, pas d'auto-click, pas de vitesse de marché ni staking à cette étape. L'interface publique compilée à la racine n'a pas changé.
 
+
+## 3quater. Résultat de la passe 3 — boutique Prestige dédiée
+
+**Statut : code et tests écrits, commités sur main.** Vérification de l'arborescence au HEAD précédent `96116aa` et absence de `AGENTS.md`. Le build du site statique à la racine n'a pas été publié.
+
+- `src/ascension/shop.ts` : achat métier pur avec vérification des 18 identifiants, niveau attendu, max, solde PP, coût arithmétique, absence de mutation en cas de refus. Ledger `pointsGagnés − pointsDisponibles = coûtCatalogue(desNiveauxAchetés)` vérifié avant achat. Aucun Fame, cash ou XP modifié par un achat PP.
+- `src/ascension/presentation.ts` : texte et catégories UI distincts de l'autorité des prix (`catalog.ts`), 18 fiches réparties en 5 rubriques avec les passes d'activation des effets (4, 5, 6).
+- `src/components/PrestigeScreen.vue` : page complète à défilement indépendant, solde PP, cycles, progression du catalogue, seuil de patrimoine, niveau requis, taxes dues et confirmation `PRESTIGE`. Retour avec focus, touche Escape, modal responsive, notifications d'achat/erreur. Les effets non encore implémentés sont clairement indiqués.
+- `src/App.vue` : bouton d'accès depuis Accueil, navigation principale inchangée (Stats à droite), purchases exécutés par la logique métier et enregistrés via `replaceWholeSave` (arrêt du runtime + remplacement atomique). Prestige déclenché via `commitPrestige`, même writer atomique ; en cas de backlog, réveil du runtime et message explicite ; en cas d'échec de stockage, ni PP ni nouveau cycle en mémoire.
+- `src/style.css` : styles propres au Prestige, page scrollable smartphone/desktop, confirmations lisibles et responsive faible hauteur.
+- `src/ascension/shop.test.ts` et `src/components/ascension-ui.test.ts` : couverture du catalogue, achats et prix, niveaux obsolètes, soldes insuffisants, import/export v7, confirmation, reset, conservation Fame, focus, navigation et styles. `npm test` / `npm run test:ui` sont mis à jour.
+- `src/components/StatsScreen.vue` : message d'import compatible avec v7.
+
+**Limite de validation :** tests Node/Vitest et `npm run build` non exécutés dans cet environnement sans copie clonable du dépôt et sans accès npm réseau. Il est interdit de déclarer le déploiement ou la réussite des tests sans exécution réelle. Les effets de jeu des 18 upgrades sont hors périmètre et ne sont pas activés tant que les passes suivantes ne les implémentent pas.
+
 ## 4. Definition of Done (obligatoire à chaque passe)
 
 1. Fichiers et règles réellement audités au HEAD du moment ; ne pas modifier hors périmètre sans raison.
@@ -244,10 +259,10 @@ Une seule passe par **next**. **Passe 1 cochée après implémentation des contr
 | --- | --- | --- | --- |
 | 1 — Architecture | ☑ Terminée | `ac0eb03` | P0 = 100 M$, contrats purs et tests ajoutés |
 | 2 — Moteur | ☑ Implémentée | commit de passe 2 | Moteur, v7, Fame et tests ; exécution de la suite non vérifiée |
-| 3 — UI Shop | ☐ À faire | — | 18 upgrades |
+| 3 — UI Shop | ☑ Implémentée | commit de passe 3 | Page, achats PP, confirmation, tests ajoutés ; exécution non vérifiée |
 | 4 — Marché | ☐ À faire | — | Deux horloges |
 | 5 — Staking | ☐ À faire | — | Tokens verrouillés |
 | 6 — Automates | ☐ À faire | — | Exécution sûre |
 | 7 — Finalisation | ☐ À faire | — | Tests / bilan / boost ultime |
 
-**Suite immédiate :** au prochain « next », vérifier en premier la suite de tests et le build, puis commencer **la passe 3 seulement** (boutique et UI Prestige).
+**Suite immédiate :** au prochain « next », vérifier la suite de tests et le build dès qu'un environnement npm est disponible, puis commencer **la passe 4 seulement** (accélérateur, news et liquidités).

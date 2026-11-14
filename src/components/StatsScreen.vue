@@ -67,7 +67,7 @@ const importing = ref(false)
 const importErrors: Record<'file-too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-save', string> = {
   'file-too-large': 'Fichier trop volumineux (16 Mo maximum).',
   'invalid-json': 'Ce fichier n’est pas un JSON valide.',
-  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 / v6).',
+  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 / v6 / v7).',
   'invalid-save': 'Sauvegarde corrompue ou incohérente : aucune donnée n’a été remplacée.',
 }
 function openImportChooser() {

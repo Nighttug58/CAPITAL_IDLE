@@ -158,6 +158,11 @@ Les **Points de Prestige (PP)** ne sont pas la Fame : le domaine `src/ascension/
 
 Voir [ROADMAP_PRESTIGE.md](ROADMAP_PRESTIGE.md) pour la progression et les limites de validation.
 
+
+### Passe 3 — Boutique et page Prestige
+
+Une page **Prestige** distincte du Fame Shop est accessible depuis l'accueil, sans déplacer **Stats** de l'extrémité droite de la navigation à cinq onglets. Elle affiche les PP, le nombre de cycles, le seuil de 100 M$ hors collections, les conditions de fiscalité, et le catalogue de **18 upgrades / 87 niveaux / 1 637 PP** regroupés en cinq familles. Chaque achat vérifie le niveau attendu, les coûts du catalogue et le ledger PP, puis écrit la sauvegarde v7 avant d'afficher le succès. Les achats sont irréversibles. Une confirmation manuelle **PRESTIGE** est nécessaire pour détruire le run ; la Fame, ses bonus, les collections et la progression PP sont conservés. La page avertit que les effets de news, staking et bots ne deviendront actifs qu'aux passes 4 à 6 ; l'achat à ce stade ne simule pas de faux revenus. Tests domaine et tests Vue dédiés ajoutés.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.
