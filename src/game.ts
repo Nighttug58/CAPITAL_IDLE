@@ -31,7 +31,9 @@ export const LEVEL_THRESHOLDS: readonly number[] = (() => {
 
 /**
  * Clicker pricing:
- * - Level 1 starts at $1/click, level 1000 pays $1000/click.
+ * - Level 1 starts at $1/click. Each bought tier adds +$1 up to
+ *   click level 50, +$2 for click levels 51-100, ... +$20 for 951-1000.
+ *   Level 1000 therefore pays $10,500 per click, before Fame bonuses.
  * - The first tier costs $375, then successive PRICE INCREASES grow by
  *   just +0.05% per tier: round(750 * 1.0005 ** (tierIndex - 1)).
  *   This adds a gentle exponential bend to the previously linear +$750
@@ -41,6 +43,14 @@ export const LEVEL_THRESHOLDS: readonly number[] = (() => {
  * - Existing purchased tiers and wallet values are never repriced retroactively.
  */
 export const MAX_CLICK_LEVEL = 1000
+/** The next click tier pays 1 more Gold per 50-level band of its resulting level. */
+export const CLICK_INCOME_TIER_SIZE = 50
+
+export function getClickUpgradeIncrement(nextClickLevel: number): number {
+  if (!Number.isSafeInteger(nextClickLevel) ||
+      nextClickLevel < 2 || nextClickLevel > MAX_CLICK_LEVEL) return 0
+  return Math.ceil(nextClickLevel / CLICK_INCOME_TIER_SIZE)
+}
 export const ORIGINAL_FIRST_CLICK_UPGRADE_PRICE = 250
 export const ORIGINAL_CLICK_UPGRADE_PRICE_STEP = 500
 export const CLICK_PRICE_PREMIUM_BPS = 15_000
@@ -53,6 +63,7 @@ export const EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL = 20
 export const UPGRADES: readonly Upgrade[] = Object.freeze((() => {
   const upgrades: Upgrade[] = []
   let price = FIRST_CLICK_UPGRADE_PRICE
+  let clickValue = 1
   for (let index = 0; index < MAX_CLICK_LEVEL - 1; index++) {
     if (index > 0) {
       const increment = Math.round(
@@ -60,11 +71,12 @@ export const UPGRADES: readonly Upgrade[] = Object.freeze((() => {
       )
       price += increment
     }
-    const clickValue = index + 2
+    const nextClickLevel = index + 2
+    clickValue += getClickUpgradeIncrement(nextClickLevel)
     upgrades.push(Object.freeze({
-      requiredLevel: clickValue <= 50
-        ? clickValue
-        : 50 + Math.ceil((clickValue - 50) / EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL),
+      requiredLevel: nextClickLevel <= 50
+        ? nextClickLevel
+        : 50 + Math.ceil((nextClickLevel - 50) / EXTENDED_CLICK_TIERS_PER_PLAYER_LEVEL),
       price,
       clickValue,
     }))
