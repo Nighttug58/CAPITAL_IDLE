@@ -1,4 +1,4 @@
-import { INITIAL_GAME, restoreGame, upgradeLegacyExperienceCents, type GameState } from './game.ts'
+import { INITIAL_GAME, getLevel, restoreGame, upgradeLegacyExperienceCents, UPGRADES, type GameState } from './game.ts'
 import {
   createInitialEnterpriseState, createInitialFiscalState, createInitialStatsState,
   restoreEnterpriseState, restoreFiscalState, restoreStatsState,
@@ -25,6 +25,12 @@ export interface CapitalState {
 }
 
 export function createCapitalState(game: GameState = { ...INITIAL_GAME }, now = Date.now()): CapitalState {
+  // Supplied game-only snapshots can originate from an old clicker save.
+  // Preserve purchased click upgrades that were earned before the level curve
+  // became 4x more demanding. Fresh players never use this migration.
+  const clickRequirement = game.purchasedUpgrades > 0
+    ? (UPGRADES[game.purchasedUpgrades - 1]?.requiredLevel ?? 1) : 1
+  const olderClickProgress = getLevel(game.lifetimeEarned) < clickRequirement
   return {
     version: CAPITAL_SAVE_VERSION,
     game: { ...game },
@@ -32,7 +38,7 @@ export function createCapitalState(game: GameState = { ...INITIAL_GAME }, now = 
     enterprises: createInitialEnterpriseState(now),
     fiscal: createInitialFiscalState(now),
     stats: createInitialStatsState(now, game.lifetimeEarned),
-    prestige: createInitialPrestigeState(game.lifetimeEarned),
+    prestige: createInitialPrestigeState(game.lifetimeEarned, olderClickProgress),
   }
 }
 
