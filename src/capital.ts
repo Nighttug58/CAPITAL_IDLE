@@ -32,7 +32,7 @@ export function createCapitalState(game: GameState = { ...INITIAL_GAME }, now = 
     enterprises: createInitialEnterpriseState(now),
     fiscal: createInitialFiscalState(now),
     stats: createInitialStatsState(now, game.lifetimeEarned),
-    prestige: createInitialPrestigeState(game.lifetimeEarned, true),
+    prestige: createInitialPrestigeState(game.lifetimeEarned),
   }
 }
 
@@ -59,7 +59,7 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
       enterprises: createInitialEnterpriseState(now),
       fiscal: createInitialFiscalState(now),
       stats: createInitialStatsState(now, game.lifetimeEarned),
-      prestige: createInitialPrestigeState(game.lifetimeEarned),
+      prestige: createInitialPrestigeState(game.lifetimeEarned, true),
     }
   }
 
@@ -71,10 +71,11 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
   const legacyEarnedCents = isRecord(raw.game) && typeof raw.game.lifetimeEarned === 'number'
     ? raw.game.lifetimeEarned * 100 : null
   const v5Experience = legacyEarnedCents === null ? null : upgradeLegacyExperienceCents(legacyEarnedCents)
+  const restoredExperience = raw.version === 6 ? candidateExperience : v5Experience
   const game = restoreGame(raw.game, {
     allowNegativeBalance: true,
-    experiencePoints: (raw.version === 6 ? candidateExperience : v5Experience) === null
-      ? undefined : (raw.version === 6 ? candidateExperience : v5Experience)! / 100,
+    experiencePoints: restoredExperience === null || restoredExperience === undefined
+      ? undefined : restoredExperience / 100,
   })
   const prestige = raw.version === 6
     ? restorePrestigeState(raw.prestige, game.lifetimeEarned)
