@@ -862,7 +862,7 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
 }
 .fame-shop-return:active { background:#553969; }
 .fame-shop-page-heading { width:100%; }
-.fame-shop-page-heading h2 {
+.fame-shop-page-heading h1 {
   font-size:clamp(24px,6.8vw,32px); margin:7px 0 5px;
   color:#fff2ff; letter-spacing:-.035em;
 }
@@ -894,7 +894,7 @@ button.news-preview-row { width:100%; color:inherit; text-align:left; cursor:poi
 }
 @media (max-height:610px) {
   .fame-shop-page-header { padding-block:8px; gap:7px; }
-  .fame-shop-page-heading h2 { margin:3px 0; font-size:22px; }
+  .fame-shop-page-heading h1 { margin:3px 0; font-size:22px; }
   .fame-shop-screen .fame-shop-summary { padding-block:9px; }
   .fame-shop-page-footer { padding-block:7px; }
 }
