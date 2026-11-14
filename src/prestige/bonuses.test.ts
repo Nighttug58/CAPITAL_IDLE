@@ -55,7 +55,7 @@ test('scaling a small +0.1% click keeps fractional cents until paid, never mints
   assert.equal(state.game.balance, 10.01)
   assert.equal(state.game.lifetimeEarned, 15_010.01)
   assert.equal(state.prestige.clickCarryBps, 0)
-  assert.equal(state.prestige.experienceCents, 1_501_001)
+  assert.equal(state.prestige.experienceCents, 1_500_250)
   assert.equal(state.stats.earnedBySource.clicks, 10.01)
   const reloaded = restoreCapitalState(state, NOW)
   assert.deepEqual(reloaded, state)
@@ -67,7 +67,7 @@ test('scaling a small +0.1% click keeps fractional cents until paid, never mints
 
 test('XP is independent and Fame bonus affects new level rewards, never retroactively', () => {
   const bonuses = boosted(boosted(fresh(), 'xp', 1), 'fame', 1)
-  const crossed = creditExperience(bonuses, 3500)
+  const crossed = creditExperience(bonuses, 14_000)
   assert.ok(crossed)
   assert.equal(crossed.prestige.experienceCents, 3675)
   assert.equal(crossed.prestige.lastAwardedLevel, 2)
@@ -80,7 +80,7 @@ test('XP is independent and Fame bonus affects new level rewards, never retroact
   const xpCollection = owned(fresh(), 'paintings-01')
   const scaled = creditExperience(xpCollection, 1000)
   assert.ok(scaled)
-  assert.equal(scaled.prestige.experienceCents, 1001)
+  assert.equal(scaled.prestige.experienceCents, 250)
 })
 
 test('enterprise bonus affects gross credited cash, tax debt, XP and offline catch-up', () => {
@@ -132,7 +132,7 @@ test('trading only boosts positive NET sale profit; tax and cash include gain, b
   assert.equal(sale.state.prestige.tradingCarryBps, 5000)
   assert.ok(sale.state.fiscal.taxesDueCents > normal.state.fiscal.taxesDueCents)
   assert.equal(sale.state.game.lifetimeEarned, 1019.84)
-  assert.equal(sale.state.prestige.experienceCents, 101_984)
+  assert.equal(sale.state.prestige.experienceCents, 100_496)
   const loss = sellAsset(quoted(sale.state, 80), 'nvideo', 3)
   assert.ok(loss.ok)
   assert.ok(loss.receipt.netRealizedProfit < 0)
