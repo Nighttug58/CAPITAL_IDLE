@@ -79,6 +79,12 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
       for (const field of ['experienceCarryBps', 'clickCarryBps', 'tradingCarryBps'] as const) {
         if (!(field in prestige)) prestige[field] = 0
       }
+      // One-time migration of older v6 files to the stricter XP thresholds.
+      // The actual Gold, Fame, levels and purchases remain identical.
+      if (!('xpCurveVersion' in prestige)) {
+        prestige.experienceCents = restored.prestige.experienceCents
+        prestige.xpCurveVersion = restored.prestige.xpCurveVersion
+      }
     }
   }
   return input
@@ -123,7 +129,10 @@ export function prepareSaveImport(text: string, now = Date.now()): SaveImportRes
   // cohérentes pour être importées ; les nouveaux compteurs commencent à zéro.
   if (version === 4) {
     if (!isRecord(saved.game) || !isRecord(saved.trading) ||
-        !sameValue(saved.game, restoreGame(saved.game))) {
+        !sameValue(saved.game, restoreGame(saved.game, {
+          experiencePoints: isRecord(saved.game) && typeof saved.game.lifetimeEarned === 'number'
+            ? saved.game.lifetimeEarned * 4 : undefined,
+        }))) {
       return { ok: false, error: 'invalid-save' }
     }
     const canonicalTrading = restoreTradingState(saved.trading, now)
