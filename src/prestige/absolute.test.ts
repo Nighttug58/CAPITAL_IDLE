@@ -193,7 +193,8 @@ test('Prestige factor is recalculated on new Fame, with no new state/clock or re
   const newXp = (getLevelStartThreshold(101) - getLevelStartThreshold(100)) * 100
   const gained = creditExperience(state, newXp)
   assert.ok(gained)
-  assert.equal(gained.prestige.lastAwardedLevel, 101)
+  // Prestige also doubles the XP Shop boost, so this single gain can skip 101.
+  assert.ok(gained.prestige.lastAwardedLevel >= 101)
   assert.ok(gained.prestige.fameMicros > state.prestige.fameMicros)
   assert.ok(getAbsolutePrestigeStatus(gained).fameSteps > before.fameSteps)
   assert.equal(gained.game.balance, state.game.balance)
