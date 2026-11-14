@@ -159,7 +159,7 @@ test('Fame fractions survive purchases and Notoriété never credits Fame retroa
   assert.ok(notoriety.ok)
   assert.equal(notoriety.state.prestige.fameMicros, 140 * FAME_MICROS)
   assert.equal(notoriety.state.prestige.lifetimeFameMicros, 210 * FAME_MICROS)
-  const nextXp = (getLevelStartThreshold(21) - getLevelStartThreshold(20)) * 400
+  const nextXp = (getLevelStartThreshold(21) - getLevelStartThreshold(20)) * 100
   const rewarded = creditExperience(notoriety.state, nextXp)
   assert.ok(rewarded)
   assert.equal(rewarded.prestige.lastAwardedLevel, 21)
