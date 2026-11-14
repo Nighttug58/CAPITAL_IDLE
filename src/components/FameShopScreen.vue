@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { FAME_BOOSTS } from '../prestige/catalog.ts'
 import { getBonusBreakdown } from '../prestige/bonuses.ts'
@@ -12,6 +12,7 @@ const props = defineProps<{
   purchaseBoost: (id: string, currentLevel: number) => FameShopPurchase
 }>()
 const emit = defineEmits<{ back: [] }>()
+const returnButton = ref<HTMLButtonElement | null>(null)
 const notice = ref('')
 const noticeError = ref(false)
 const numeric = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
@@ -45,12 +46,13 @@ function purchase(id: string, currentLevel: number) {
 }
 
 function returnHome() { emit('back') }
+onMounted(() => { void nextTick(() => returnButton.value?.focus()) })
 </script>
 
 <template>
   <main id="fame-shop" class="fame-shop-screen" aria-label="Boutique Fame">
       <header class="fame-shop-page-header">
-        <button type="button" class="fame-shop-return" aria-label="Retour à l'accueil" @click="returnHome">
+        <button ref="returnButton" type="button" class="fame-shop-return" aria-label="Retour à l'accueil" @click="returnHome">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M19 12H5m7 7-7-7 7-7"/>
@@ -59,7 +61,7 @@ function returnHome() { emit('back') }
         </button>
         <div class="prestige-dialog-heading fame-shop-page-heading">
           <span class="prestige-eyebrow"><span aria-hidden="true">✦</span> MONNAIE DE PRESTIGE</span>
-          <h2 id="fame-shop-title">Fame Shop</h2>
+          <h1 id="fame-shop-title">Fame Shop</h1>
           <p>Améliorations permanentes · 20 niveaux par bonus</p>
         </div>
       </header>
