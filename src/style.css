@@ -1292,3 +1292,39 @@ button.news-preview-row.news-bearish:active {
 }
 .trading-news-modal.news-bullish .news-detail-meta,
 .trading-news-modal.news-bearish .news-detail-meta { color: var(--news-text); }
+
+/* Whole pages scroll above the bottom navigation. */
+.app-shell{grid-template-rows:minmax(0,1fr) auto;font-variant-numeric:tabular-nums}
+.app-shell>main{overflow-y:auto;overflow-x:hidden;display:block;padding:16px 16px 28px;scrollbar-width:thin}
+.app-shell>main>:not(:first-child){margin-top:12px}
+.app-shell :is(.trading-stage,.market-list-scroll,.enterprise-list-scroll,.stats-scroll,.collection-list-scroll,.ascension-scroll,.fame-shop-page-scroll,.staking-panel){overflow:visible;max-height:none;height:auto;flex:auto}
+.app-shell .trading-modal,.app-shell .prestige-dialog,.app-shell .ascension-confirm{display:block;overflow-y:auto;overscroll-behavior:contain}
+.app-shell .trading-modal-scroll,.app-shell .prestige-dialog-scroll,.app-shell .ascension-confirm-body{overflow:visible;flex:none}
+.news-layer{width:min(100%,530px);max-height:100%;display:flex;justify-content:center}
+.news-layer.news-overlay{width:auto;max-height:none;background:#050b0dd6;z-index:41}
+body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
+.app-shell :is(.trading-hero,.enterprise-hero,.collection-hero,.stats-heading){border:0;border-bottom:1px solid #37413f;border-radius:0;background:none;box-shadow:none;padding:4px 0 12px}
+.app-shell :is(.trading-hero>div:first-child>strong,.enterprise-hero h1,.collection-hero h1,.stats-heading h1){font-size:24px;letter-spacing:-.035em;color:#f4efe2;margin:3px 0}
+.app-shell :is(.trading-tab,.collection-tab)[aria-pressed=true],.app-shell .collection-tab[aria-selected=true]{background:#224239;color:#baf0da;border-color:#55796a}
+.home-actions,.gain-row,.home-screen .level-panel{display:flex;align-items:center;gap:8px}
+.home-actions .fame-shop-launch,.home-actions .prestige-launch{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1;min-width:0;height:44px;min-height:44px;box-shadow:none;padding:4px 8px;border:1px solid #685c44;border-radius:10px;background:#23241f;color:#edcf8c;text-align:center}
+.home-actions .fame-shop-launch :is(b,strong,span){font-size:13px;line-height:1;color:inherit;position:static}
+.home-actions .fullscreen-button{width:44px;height:44px}
+.home-screen .balance-value{text-align:center;color:#f4efe2;margin:22px 0 10px}
+.home-screen .level-panel{padding:10px 12px;background:#1c2223;border:1px solid #383e39;border-radius:10px}
+.level-panel .level-heading{margin:0;white-space:nowrap}.level-panel .progress-frame{position:relative;flex:1;height:25px}
+.xp-count,.xp-unit{position:absolute;z-index:1;top:50%;transform:translateY(-50%);font-size:11px;color:white;text-shadow:0 1px 3px #000,0 0 3px #000}
+.xp-count{left:0;right:0;text-align:center}.xp-unit{left:7px;font-size:9px}
+.home-screen .tap-zone{height:clamp(160px,26vh,240px);background:radial-gradient(ellipse at center,#26373566,transparent 62%);border:0;box-shadow:none}
+.tap-zone::before{display:none}.home-screen .banknotes{display:block;position:relative;width:192px;height:144px;background-image:url('./assets/lira-frames.webp');background-size:800% 600%;image-rendering:pixelated;filter:none;animation:none}
+.banknotes:after{content:'';position:absolute;bottom:3px;left:28%;width:44%;height:8px;border-radius:50%;background:#0007;filter:blur(3px)}
+.banknotes-popping:after{animation:shadow-pulse 180ms ease-out}@keyframes shadow-pulse{from{transform:scale(.8);opacity:.55}}
+.gain-row{justify-content:center}.gain-row .tap-reward{font-size:22px;color:#f4efe2}.gain-row small{font-size:12px;color:#a9bbb3}
+.gain-row button,.boost-dialog button{background:#243630;border:1px solid #425b50;border-radius:8px;color:#c5e9d9;padding:7px 12px;cursor:pointer}
+.boost-dialog{color:#f4efe2;background:#192221;border:1px solid #486256;border-radius:14px;width:min(90vw,350px);max-height:85dvh;overflow:auto}
+.boost-dialog::backdrop{background:#050909bc}.boost-dialog dl{display:grid;grid-template-columns:1fr auto;gap:8px}.boost-dialog dd{text-align:right}
+.upgrade-copy em{color:#9edbc4;font-style:normal}.upgrade-copy small{color:#d5c59c}.upgrade-card{gap:10px}.upgrade-button{white-space:normal}
+@media(prefers-reduced-motion:reduce){.banknotes-popping:after{animation:none}}
+.app-shell :is(.market-asset-row,.enterprise-card,.collection-card,.stats-overview>div){border:1px solid #35413e;border-radius:12px;background:linear-gradient(145deg,#1d2625,#151b1d)}
+.app-shell>main>:is(.trading-modal-backdrop,.ascension-confirm-overlay,.prestige-overlay,dialog){margin-top:0}
+.home-screen .boost-dialog{margin:auto}

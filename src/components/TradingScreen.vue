@@ -40,6 +40,7 @@ const upcoming = computed(() => peekUpcomingNews(props.state, props.state.tradin
 const radar = computed(() => volatilityRadar(props.state).slice(0, 3))
 const hasDialog = computed(() => selectedAssetId.value !== null || selectedNewsId.value !== null)
 let historyEntry = false
+let overlayOrigin: Element | null = null
 let returnFocus: HTMLElement | null = null
 function captureFocus() {
   if (!hasDialog.value && document.activeElement instanceof HTMLElement) returnFocus = document.activeElement
@@ -67,11 +68,35 @@ function openNews(id: string) {
   if (!chosen) return
   captureFocus()
   ensureHistoryEntry()
-  selectedAssetId.value = null
+  if (selectedAssetId.value) {
+    overlayOrigin = document.activeElement
+    window.history.pushState({ ...window.history.state, assetNews: true }, '')
+  }
   selectedNewsSnapshot.value = chosen
   selectedNewsId.value = id
 }
+let pendingAsset: string | null = null
+function followNewsAsset(id: string) {
+  if (!selectedAssetId.value) { openAsset(id); return }
+  pendingAsset = id
+  closeDialog()
+}
+function dismissOverlay() {
+  const id = selectedNewsId.value
+  selectedNewsId.value = null
+  selectedNewsSnapshot.value = null
+  void nextTick(() => {
+    if (pendingAsset) { openAsset(pendingAsset); pendingAsset = null; return }
+    const pin = Array.from(document.querySelectorAll<SVGElement>('.news-pin')).find(el => el.dataset.newsId === id)
+    const target = pin ?? overlayOrigin
+    if (target instanceof HTMLElement || target instanceof SVGElement) target.focus({preventScroll:true})
+  })
+}
 function closeDialog() {
+  if (selectedAssetId.value && selectedNewsId.value) {
+    window.history.back()
+    return
+  }
   selectedAssetId.value = null
   selectedNewsId.value = null
   selectedNewsSnapshot.value = null
@@ -82,6 +107,7 @@ function closeDialog() {
   }
 }
 function onPopState() {
+  if (selectedAssetId.value && selectedNewsId.value) { dismissOverlay(); return }
   selectedAssetId.value = null
   selectedNewsId.value = null
   selectedNewsSnapshot.value = null
@@ -96,7 +122,7 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   if (event.key !== 'Tab') return
-  const root = document.querySelector<HTMLElement>('.trading-modal[role="dialog"]')
+  const root = document.querySelector<HTMLElement>(selectedNewsId.value ? '.trading-news-modal' : '.trading-asset-modal')
   if (!root) return
   const buttons = Array.from(root.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])'))
   if (!buttons.length) return
@@ -153,13 +179,14 @@ onUnmounted(() => {
     </p>
     <div v-if="hasDialog" class="trading-modal-backdrop" @click.self="closeDialog">
       <AssetDialog
-        v-if="selectedAssetId" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
+        v-if="selectedAssetId" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
         :execute-trade="executeTrade" @close="closeDialog" @open-news="openNews"
       />
+      <div v-if="activeNews" :class="{'trading-modal-backdrop news-overlay': selectedAssetId}" class="news-layer" @click.self="closeDialog">
       <NewsDialog
-        v-else-if="activeNews" :key="activeNews.id" :event="activeNews" :now="state.trading.dividendLastPaidAt"
-        @close="closeDialog" @open-asset="openAsset"
-      />
+        v-if="activeNews" :key="activeNews.id" :event="activeNews" :now="state.trading.dividendLastPaidAt"
+        @close="closeDialog" @open-asset="followNewsAsset"
+      /></div>
     </div>
   </main>
 </template>

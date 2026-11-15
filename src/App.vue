@@ -31,7 +31,7 @@ import {
   configureAutomation, createMarketOrder, cancelMarketOrder, type AutomationActionResult,
 } from './ascension/automation-orders.ts'
 import type { AscensionAutomationSettings, AscensionMarketOrder } from './ascension/contracts.ts'
-import { getBonusMultiplier } from './prestige/bonuses.ts'
+import { getBonusBreakdown, getBonusMultiplier } from './prestige/bonuses.ts'
 import { FAME_MICROS } from './prestige/state.ts'
 import { buyFameUpgrade, type FameShopPurchase } from './prestige/shop.ts'
 import { buyCollectionItem, type CollectionPurchase } from './prestige/collections.ts'
@@ -65,6 +65,9 @@ const prestigeLaunch = ref<HTMLButtonElement | null>(null)
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
+const boostDialog = ref<HTMLDialogElement | null>(null)
+const clickBoosts = computed(() => getBonusBreakdown(capital.value, 'click'))
+const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * getBonusMultiplier(capital.value, 'click'))
 const tapAnimationId = ref(0)
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
@@ -419,12 +422,11 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="brand" aria-label="CAPITAL_IDLE">
-        <span class="brand-mark" aria-hidden="true">C</span>
-        <span class="brand-name">CAPITAL<span>IDLE</span></span>
-      </div>
-      <div class="topbar-actions">
+    <main v-show="page === 'home'" id="accueil" class="home-screen">
+      <div class="home-actions">
+        <button ref="fameLaunch" class="fame-shop-launch" type="button" @click="openFameShop" :aria-label="'Ouvrir le Fame Shop, ' + fameBalance + ' Fame disponibles'">
+          <b aria-hidden="true">✦</b><span>Fame Shop</span><strong>{{ fameBalance }}</strong>
+        </button>
         <button v-if="page === 'home'" ref="prestigeLaunch" class="prestige-launch" type="button"
           aria-label="Ouvrir le Prestige" @click="openPrestige">
           <span class="prestige-launch-symbol" aria-hidden="true">◆</span>
@@ -448,28 +450,10 @@ onUnmounted(() => {
         </svg>
       </button>
       </div>
-    </header>
-
-    <main v-show="page === 'home'" id="accueil" class="home-screen">
-      <section class="wallet" aria-label="Votre argent et votre Fame">
-        <div class="wallet-primary">
-          <div class="wallet-cash">
-            <div class="eyebrow wallet-label"><span class="gold-dot" aria-hidden="true"></span> SOLDE DISPONIBLE</div>
-            <div class="balance-value">{{ numberFormatter.format(game.balance) }} <span>$</span></div>
-          </div>
-          <button ref="fameLaunch" class="fame-shop-launch" type="button"
-            :aria-label="'Ouvrir le Fame Shop, ' + fameBalance + ' Fame disponibles'"
-            @click="openFameShop">
-            <span>FAME</span><strong>{{ fameBalance }} <span aria-hidden="true">✦</span></strong><span>SHOP</span>
-          </button>
-        </div>
-        <div class="lifetime-value">Total gagné <span>{{ formatMoney(game.lifetimeEarned) }}</span></div>
-      </section>
-
+      <div class="balance-value" aria-label="Solde">{{formatMoney(game.balance)}}</div>
       <section class="level-panel" aria-label="Progression du niveau">
         <div class="level-heading">
           <span class="level-label">NIVEAU <strong>{{ level }}</strong></span>
-          <span class="level-goal">{{ nextLevel === null ? 'NIVEAU MAX' : `SUIVANT · ${numberFormatter.format(nextLevel)} XP` }}</span>
         </div>
         <div
           class="progress-frame"
@@ -479,6 +463,7 @@ onUnmounted(() => {
           aria-valuemin="0"
           aria-valuemax="100"
         >
+          <small class="xp-unit">XP</small><strong class="xp-count">{{nextLevel === null ? 'Niveau max' : numberFormatter.format(capital.prestige.experienceCents / 100 - progressStart) + ' / ' + numberFormatter.format(nextLevel - progressStart)}}</strong>
           <div class="progress-track">
             <div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div>
           </div>
@@ -492,9 +477,7 @@ onUnmounted(() => {
         @click="click"
       >
         <span class="tap-content">
-          <span :key="tapAnimationId" class="banknotes" :class="{ 'banknotes-popping': tapAnimationId > 0 }" aria-hidden="true">💵</span>
-          <span class="tap-action">TOUCHER POUR GAGNER</span>
-          <span class="tap-reward">+ {{ formatMoney(clickValue) }} <span>/ CLIC</span></span>
+          <span :key="tapAnimationId" class="banknotes" :class="{ 'banknotes-popping': tapAnimationId > 0 }" :style="{backgroundPosition: ((tapAnimationId % 8) / 7 * 100) + '% ' + (Math.floor(tapAnimationId % 48 / 8) / 5 * 100) + '%'}" aria-hidden="true"></span>
         </span>
         <span
           v-for="gain in floatingGains"
@@ -506,15 +489,28 @@ onUnmounted(() => {
         >+{{ formatMoney(gain.amount) }}</span>
       </button>
 
+      <div class="gain-row"><span class="tap-reward">{{formatMoney(clickValue)}} <small>par clic</small></span>
+        <button type="button" @click="boostDialog?.showModal()">Boosts</button>
+      </div>
+      <dialog ref="boostDialog" class="boost-dialog" aria-label="Sources du gain par clic">
+        <h2>Gain par clic</h2><dl>
+          <dt>Base au niveau actuel</dt><dd>{{formatMoney(getClickValue(game.purchasedUpgrades))}}</dd>
+          <dt>Fame Shop</dt><dd>+{{numberFormatter.format(clickBoosts.shopBps / 100)}} %</dd>
+          <dt>Collection</dt><dd>+{{numberFormatter.format(clickBoosts.collectionBps / 100)}} %</dd>
+          <dt>Prestige absolu</dt><dd>+{{numberFormatter.format((clickBoosts.totalBps-clickBoosts.shopBps-clickBoosts.collectionBps)/100)}} %</dd>
+          <dt>Total par clic</dt><dd>{{formatMoney(clickValue)}}</dd>
+        </dl><button @click="boostDialog?.close()">Fermer</button>
+      </dialog>
       <section class="upgrade-card" aria-label="Amélioration du clic">
         <div class="upgrade-copy">
           <span class="eyebrow">PROCHAINE AMÉLIORATION</span>
-          <strong>{{ nextUpgrade ? '+' + numberFormatter.format(nextUpgrade.clickValue - getClickValue(game.purchasedUpgrades)) + ' $ / clic' : 'CLIC MAX' }}</strong>
-          <span class="upgrade-tier">CLIC NIV. {{ game.purchasedUpgrades + 1 }} / {{ MAX_CLICK_LEVEL }}</span>
-          <span class="upgrade-price">{{ nextUpgrade ? `Coût · ${formatMoney(nextUpgrade.price)}` : 'Tout est débloqué' }}</span>
+          <strong v-if="nextUpgrade">{{formatMoney(clickValue)}} → <em>{{formatMoney(nextGain)}}</em> par clic</strong>
+          <strong v-else>Niveau maximal</strong>
+          <span class="upgrade-tier">Niv. {{game.purchasedUpgrades}} / {{MAX_CLICK_LEVEL}}</span>
+          <small v-if="nextUpgrade && game.balance < nextUpgrade.price">Il manque {{formatMoney(nextUpgrade.price-game.balance)}}</small>
         </div>
         <button class="upgrade-button" type="button" :disabled="!upgradeAffordable" @click="buy">
-          {{ !nextUpgrade ? 'MAX' : !upgradeUnlocked ? `NIV. ${nextUpgrade.requiredLevel}` : 'ACHETER' }}
+          {{ !nextUpgrade ? 'MAX' : !upgradeUnlocked ? 'Niv. '+nextUpgrade.requiredLevel+' · '+formatMoney(nextUpgrade.price) : 'Améliorer · '+formatMoney(nextUpgrade.price) }}
           <svg v-if="upgradeAffordable" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
         </button>
       </section>

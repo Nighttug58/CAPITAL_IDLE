@@ -4,12 +4,11 @@ import { computed, ref, watch, onMounted } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { getAsset, getAvailableSupply } from '../trading/catalog.ts'
 import { getNewsPresentation } from '../trading/news.ts'
-import { formatCash, formatChange, formatPerSecond, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
+import { formatCash, formatChange, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import { liquidCryptoQuantity } from '../trading/staking.ts'
 import { availableMarketLiquidity } from '../trading/liquidity.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
-import type { PriceSample } from '../trading/types.ts'
 import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
 
 const props = defineProps<{
@@ -33,17 +32,11 @@ const liquiditySell = computed(() => availableMarketLiquidity(props.state, props
 const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
-const yieldDialog = ref<HTMLDialogElement>()
 const news = computed(() => props.state.trading.news.filter(n => n.affectedAssetIds.includes(props.assetId)))
 const average = computed(() => position.value && owned.value > 0 ? position.value.costBasis / owned.value : undefined)
-const yieldSamples = computed<PriceSample[]>(() => samples.value
-  .filter(s => s.dividendYield != null).map(s => ({ at: s.at, price: s.dividendYield! })))
 const rate = computed(() => quote.value?.dividendYield ?? asset.value.initialDividendYield)
-const rateDirection = computed(() => Math.abs(quote.value?.dividendMomentum ?? 0) < 1e-9
-  ? 'stable' : (quote.value!.dividendMomentum! > 0 ? 'hausse' : 'baisse'))
 const relatedNews = computed(() => props.state.trading.news.filter(event => event.affectedAssetIds.includes(props.assetId)).slice(-4).reverse())
 const balance = computed(() => props.state.game.balance)
-const perSecond = computed(() => (owned.value * asset.value.referencePrice * (rate.value ?? 0)) / 86400)
 const activeSide = ref<TradeSide>('buy')
 const quantityText = ref('')
 const status = ref<{ message: string; success: boolean } | null>(null)
@@ -109,12 +102,7 @@ function submit() {
         <span :class="change === null ? 'market-direction-flat' : change >= 0 ? 'market-direction-up' : 'market-direction-down'">{{ formatChange(change) }} · 1 h</span>
       </div>
       <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}
-        <button type="button" @click="yieldDialog?.showModal()">Voir l’évolution</button>
-        <dialog ref="yieldDialog" aria-label="Évolution du dividende" @keydown.stop>
-          <div class="trading-modal-header"><strong>Dividende · {{ asset.symbol }}</strong><button type="button" aria-label="Fermer le rendement" @click="yieldDialog?.close()">×</button></div>
-          <MarketChart :samples="yieldSamples" :news="news" yield-mode @open-news="emit('open-news',$event)" />
-          <small>{{formatRate(rate ?? 0)}} · {{rateDirection}} · Avec vos titres : {{formatPerSecond(perSecond)}}</small>
-        </dialog>
+
       </div>
       <MarketChart :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
       <div class="asset-order">
@@ -180,8 +168,5 @@ function submit() {
 .trading-asset-modal{height:auto;max-height:min(690px,100%)}
 .trading-asset-modal .trading-modal-scroll{flex:1 1 auto;padding:10px}
 .asset-detail-quote{margin-bottom:3px}.yield-summary{margin-bottom:5px}
-.yield-summary,summary{font-size:12px}.yield-summary button,summary{cursor:pointer}
-.yield-summary button{font:inherit;color:#a6e4c4;background:transparent;border:0;text-decoration:underline}
-dialog{background:#192124;color:#e2eae5;border:1px solid #485b54;border-radius:12px;width:min(94vw,580px);padding:12px;box-sizing:border-box}
-dialog::backdrop{background:#0009}
+.yield-summary,summary{font-size:12px}summary{cursor:pointer}
 </style>

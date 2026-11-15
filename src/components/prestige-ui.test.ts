@@ -28,11 +28,11 @@ function mountSaved(balance: number, earned: number = balance) {
 
 describe('Click rewards — tranches de 50 niveaux', () => {
   for (const [upgrades, expectedNext, expectedIncome] of [
-    [48, '+1 $ / clic', 49],
-    [49, '+2 $ / clic', 50],
-    [50, '+2 $ / clic', 52],
-    [99, '+3 $ / clic', 150],
-    [999, 'CLIC MAX', 10_500],
+    [48, '50 $', 49],
+    [49, '52 $', 50],
+    [50, '54 $', 52],
+    [99, '153 $', 150],
+    [999, 'Niveau maximal', 10_500],
   ] as const) {
     it('affiche le bon gain par achat avec ' + upgrades + ' améliorations', () => {
       // The save stores only the purchased tier count, not an old income value.
@@ -57,13 +57,13 @@ describe('Click rewards — tranches de 50 niveaux', () => {
 describe('Fame Shop & Collection — responsive UI', () => {
   it('ouvre une page Fame Shop depuis l’accueil et restaure le focus au retour', async () => {
     const { wrapper, initial } = mountSaved(5000)
-    const wallet = wrapper.find('.wallet-primary')
+    const wallet = wrapper.find('.home-actions')
     expect(wallet.exists()).toBe(true)
-    expect(wallet.find('.wallet-cash .balance-value').exists()).toBe(true)
+    expect(wrapper.find('.home-screen .balance-value').exists()).toBe(true)
     const launch = wallet.find('button.fame-shop-launch')
     expect(launch.exists()).toBe(true)
-    expect(launch.text()).toContain('FAME')
-    expect(launch.text()).toContain('SHOP')
+    expect(launch.text()).toContain('Fame')
+    expect(launch.text()).toContain('Shop')
     expect(launch.text()).toContain('✦')
     expect(launch.text()).toContain(String(initial.prestige.fameMicros / FAME_MICROS))
     await launch.trigger('click')
