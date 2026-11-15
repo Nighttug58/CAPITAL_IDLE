@@ -12,6 +12,8 @@ import {
 } from './game.ts'
 import { loadCapitalState, replaceCapitalSave, saveCapitalState } from './persistence.ts'
 import { createCapitalState } from './capital.ts'
+import { claimAchievement, getClaimableAchievementCount, type AchievementClaimResult } from './achievements.ts'
+import AchievementsScreen from './components/AchievementsScreen.vue'
 import { createSaveExport, exportFileName } from './save-transfer.ts'
 import type { CapitalState } from './capital.ts'
 import { createMarketRuntime } from './trading/runtime.ts'
@@ -59,9 +61,11 @@ const nextLevel = computed(() => getNextLevelThreshold(capital.value.prestige.ex
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
-const page = ref<'home' | 'fame' | 'prestige' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
+const page = ref<'home' | 'fame' | 'prestige' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
+const achievementsLaunch = ref<HTMLButtonElement | null>(null)
+const claimableAchievements = computed(() => getClaimableAchievementCount(capital.value))
 const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
@@ -124,6 +128,17 @@ function openFameShop() {
 function returnHomeFromFame() {
   page.value = 'home'
   void nextTick(() => fameLaunch.value?.focus())
+}
+function openAchievements() { page.value = 'achievements' }
+function returnHomeFromAchievements() {
+  page.value = 'home'
+  void nextTick(() => achievementsLaunch.value?.focus())
+}
+function claimAchievementReward(id: string): AchievementClaimResult {
+  const proposed = claimAchievement(capital.value, id)
+  if (!proposed.ok) return proposed
+  return replaceWholeSave(proposed.state) ? proposed
+    : { ok: false, state: capital.value, error: 'storage-error' }
 }
 function openPrestige() {
   page.value = 'prestige'
@@ -472,6 +487,18 @@ onUnmounted(() => {
             <small>{{ numberFormatter.format(capital.ascension.progress.availablePoints) }} PP</small>
           </span>
         </button>
+        <button ref="achievementsLaunch" class="achievements-launch" type="button"
+          title="Achievements · Cadeaux en cash"
+          :aria-label="'Ouvrir les Achievements' + (claimableAchievements ? ' · ' + claimableAchievements + ' cadeaux disponibles' : '')"
+          @click="openAchievements">
+          <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="5" />
+            <path d="m8.3 11.3-1.1 9 4.8-2.9 4.8 2.9-1.1-9" />
+            <path d="m10.2 8 1.1 1.1 2.5-2.5" />
+          </svg>
+          <span v-if="claimableAchievements" class="achievements-pending" aria-hidden="true">{{ claimableAchievements }}</span>
+        </button>
       <button
         v-if="supportsFullscreen"
         class="fullscreen-button"
@@ -553,6 +580,8 @@ onUnmounted(() => {
 
     </main>
 
+    <AchievementsScreen v-if="page === 'achievements'" :state="capital"
+      :claim-reward="claimAchievementReward" @back="returnHomeFromAchievements" />
     <FameShopScreen v-if="page === 'fame'" :state="capital" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
     <PrestigeScreen v-if="page === 'prestige'" :state="capital"
@@ -569,7 +598,7 @@ onUnmounted(() => {
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' }"
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' || page === 'achievements' }"
         :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />

@@ -1,4 +1,5 @@
 import { INITIAL_GAME, getLevel, restoreGame, upgradeLegacyExperienceCents, UPGRADES, type GameState } from './game.ts'
+import { createInitialAchievementsState, restoreAchievementsState, type AchievementsState } from './achievements.ts'
 import {
   createInitialEnterpriseState, createInitialFiscalState, createInitialStatsState,
   restoreEnterpriseState, restoreFiscalState, restoreStatsState,
@@ -24,6 +25,7 @@ export interface CapitalState {
   stats: StatsState
   prestige: PrestigeState
   ascension: AscensionSaveSection
+  achievements: AchievementsState
 }
 
 export function createCapitalState(game: GameState = { ...INITIAL_GAME }, now = Date.now()): CapitalState {
@@ -40,6 +42,7 @@ export function createCapitalState(game: GameState = { ...INITIAL_GAME }, now = 
     stats: createInitialStatsState(now, game.lifetimeEarned),
     prestige,
     ascension: createInitialAscensionState(now, prestige.lastAwardedLevel),
+    achievements: createInitialAchievementsState(),
   }
 }
 
@@ -67,6 +70,7 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
       fiscal: createInitialFiscalState(now),
       stats: createInitialStatsState(now, game.lifetimeEarned),
       prestige, ascension: createInitialAscensionState(now, prestige.lastAwardedLevel),
+      achievements: createInitialAchievementsState(),
     }
   }
 
@@ -98,5 +102,6 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
     fiscal: restoreFiscalState(raw.fiscal, now),
     stats: restoreStatsState(raw.stats, now, game.lifetimeEarned),
     prestige, ascension,
+    achievements: restoreAchievementsState(raw.achievements),
   }
 }

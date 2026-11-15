@@ -1408,3 +1408,49 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 }
 @media(max-width:340px){.trading-news-modal .news-impact-grid{grid-template-columns:1fr}}
 @media(max-height:570px){.app-shell .trading-modal.trading-news-modal{height:100%}}
+
+/* Achievements : point d'entrée ruban compact sur Accueil, page des cadeaux. */
+.app-shell .home-actions .achievements-launch{
+  position:relative;flex:0 0 43px;width:43px;height:44px;min-height:44px;padding:0;
+  display:grid;place-items:center;border:1px solid #806d49;border-radius:10px;
+  background:#27251e;color:#f2d28e;box-shadow:none
+}
+.achievements-pending{position:absolute;top:-6px;right:-5px;min-width:19px;height:19px;
+  display:grid;place-items:center;padding:1px 3px;border-radius:99px;background:#a94939;
+  color:white;font-size:10px;font-weight:850;border:2px solid #151b1c}
+.achievements-screen{display:flex;flex-direction:column;min-height:0;overflow:hidden;background:linear-gradient(155deg,#1b2220,#101617)}
+.achievements-header{padding:14px 16px 12px;border-bottom:1px solid #4a4537;background:#20261f;flex:0 0 auto}
+.achievements-back{padding:7px 11px;border:1px solid #71623e;border-radius:8px;background:#323329;color:#f5dc9b;font-size:12px;font-weight:750}
+.achievements-heading{display:flex;align-items:center;gap:11px;margin-top:12px;color:#e9bf6f}
+.achievements-heading h1{margin:1px 0 0;font-size:24px;color:#ffdf9c}
+.achievements-header>p{margin:9px 0 0;color:#bdc9bb;font-size:11px;line-height:1.45}
+.achievements-summary{display:flex;justify-content:space-between;gap:10px;margin-top:12px;font-size:11px;color:#b9c6b8}
+.achievements-summary strong{color:#f6dfae;font-size:14px}
+.achievements-ready strong{color:#a3ecc1}
+.achievements-header .achievements-notice{padding:9px;border:1px solid #45845f;background:#233d2b;color:#b9f4cd;border-radius:8px}
+.achievements-header .achievements-notice.is-error{border-color:#a76157;background:#4a2c2a;color:#ffd1c7}
+.app-shell .achievements-content{overflow-y:auto;flex:1 1 auto;min-height:0;padding:12px 14px 24px;overscroll-behavior:contain;scrollbar-width:thin}
+.achievements-group{border:1px solid #3a4a40;border-radius:12px;background:#1a2320;padding:11px;margin-bottom:12px}
+.achievements-group-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:9px}
+.achievements-group-head h2{font-size:14px;margin:0 0 4px;color:#f5dfaf}
+.achievements-group-head p{font-size:10px;color:#a0aea5;margin:0;line-height:1.45}
+.achievements-group-head>strong{white-space:nowrap;color:#e3ca97;font-size:11px}
+.achievements-tiers{display:grid;gap:6px}
+.achievement-tier{display:flex;align-items:center;gap:9px;justify-content:space-between;padding:9px 10px;border-radius:9px;border:1px solid #35453b;background:#222c27}
+.achievement-tier.is-ready{border-color:#b8985b;background:#353124}
+.achievement-tier.is-claimed{opacity:.73}
+.achievement-tier-info{flex:1;min-width:0;display:grid;grid-template-columns:1fr auto;gap:5px 8px;align-items:baseline}
+.achievement-target{font-size:11px;color:#c6d2c5}
+.achievement-tier-info>strong{font-size:12px;color:#edcf90}
+.achievement-track{grid-column:1/-1;height:4px;border-radius:5px;overflow:hidden;background:#36453b}
+.achievement-track>span{height:100%;display:block;background:#bc9550}
+.achievement-claim{flex:0 0 auto;padding:8px 10px;border:1px solid #e0c785;border-radius:8px;background:#a78342;color:#191b17;font-size:11px;font-weight:850}
+.achievement-state{flex:0 0 78px;text-align:right;font-size:10px;color:#9dac9e}
+.achievement-state.is-complete{color:#b8e6bd}
+.achievements-footnote{color:#9bac9f;font-size:10px;line-height:1.5;margin:15px 2px}
+@media(max-width:380px){
+  .app-shell .home-actions .achievements-launch{flex-basis:38px;width:38px}
+  .achievements-header{padding:10px}
+  .app-shell .achievements-content{padding:10px}
+  .achievement-tier{padding:8px}
+}
