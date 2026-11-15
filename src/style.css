@@ -1454,3 +1454,8 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
   .app-shell .achievements-content{padding:10px}
   .achievement-tier{padding:8px}
 }
+
+/* Préserve le scroll propre à la page malgré la règle générique des <main>. */
+.app-shell>main.achievements-screen{display:flex;flex-direction:column;overflow:hidden;padding:0}
+.app-shell>main.achievements-screen>.achievements-content{margin-top:0}
+.app-shell>main.achievements-screen>.achievements-header{margin-top:0}
