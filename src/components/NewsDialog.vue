@@ -53,7 +53,7 @@ const sign = (value: number) => value > 0 ? 'news-index-positive' : value < 0 ? 
       </div>
       <button type="button" class="modal-close" aria-label="Fermer l’actualité" @click="emit('close')">×</button>
     </div>
-    <div v-if="detail && template" class="trading-modal-scroll news-detail-content">
+    <div v-if="detail && template" class="trading-modal-scroll news-detail-content" role="region" aria-label="Contenu de l’actualité" tabindex="0">
       <div class="news-detail-meta">
         <span>{{ reliability }}</span>
         <span>{{ event.endsAt > now ? 'Encore ' + formatRemaining(event.endsAt, now) : 'Impact terminé' }}</span>
@@ -109,9 +109,19 @@ const sign = (value: number) => value > 0 ? 'news-index-positive' : value < 0 ? 
       </section>
       <div class="asset-news-related">
         <span class="eyebrow">ACTIFS CONCERNÉS · {{ detail.affectedAssets.length }}</span>
-        <button v-for="asset in detail.affectedAssets" :key="asset.id" type="button" @click="emit('open-asset', asset.id)">
-          {{ asset.name }} <span>{{ asset.symbol }} ›</span>
-        </button>
+        <div class="news-related-grid">
+          <button v-for="asset in detail.affectedAssets.slice(0, 4)" :key="asset.id" type="button" @click="emit('open-asset', asset.id)">
+            {{ asset.name }} <span>{{ asset.symbol }} ›</span>
+          </button>
+        </div>
+        <details v-if="detail.affectedAssets.length > 4" class="news-aggregate-more news-related-more">
+          <summary>Afficher les {{ detail.affectedAssets.length - 4 }} autres actifs</summary>
+          <div class="news-related-grid news-related-extra">
+            <button v-for="asset in detail.affectedAssets.slice(4)" :key="asset.id" type="button" @click="emit('open-asset', asset.id)">
+              {{ asset.name }} <span>{{ asset.symbol }} ›</span>
+            </button>
+          </div>
+        </details>
       </div>
       <p class="news-simulated-note">Événement inventé, spécifique à cette partie. Les cours et les impacts ne reflètent pas les marchés réels.</p>
     </div>

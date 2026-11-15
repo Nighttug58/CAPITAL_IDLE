@@ -1372,3 +1372,39 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .news-aggregate-more summary{padding:10px 3px;cursor:pointer;color:#e7c98b;font-size:11px;font-weight:760}
 .news-aggregate-extra{max-height:230px;overflow-y:auto;scrollbar-width:thin}
 @media(max-width:380px){.news-impact-stat{padding:8px}.news-impact-stat>strong{font-size:12px}.news-aggregate-row{gap:4px;font-size:10px}.news-aggregate-row>strong{font-size:10px}}
+
+/* News : en-tête fixe, seule la zone intérieure défile, et métriques condensées.
+   Ces règles sont plus spécifiques que l'ancien mode plein-page des modales. */
+.news-layer{height:100%;align-items:center;min-height:0}
+.app-shell .trading-modal.trading-news-modal{display:flex;flex-direction:column;height:min(660px,100%);max-height:100%;min-height:0;overflow:hidden}
+.app-shell .trading-news-modal>.trading-modal-header{flex:0 0 auto;padding:11px 14px;position:relative;z-index:1;background:#202625}
+.app-shell .trading-news-modal>.trading-modal-scroll{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:12px 14px}
+.trading-news-modal .modal-title-group h2{font-size:19px}
+.trading-news-modal .news-detail-content h3{margin:9px 0 7px;font-size:19px;line-height:1.25}
+.trading-news-modal .news-detail-content>p{font-size:12px;line-height:1.45;margin:8px 0}
+.trading-news-modal .news-detail-meta{font-size:10px;gap:5px}
+.trading-news-modal .news-impact-panel,.trading-news-modal .news-aggregate{padding:9px;margin:10px 0;border-radius:10px}
+.trading-news-modal .news-impact-panel-head,.trading-news-modal .news-aggregate-head{margin-bottom:6px}
+.trading-news-modal .news-impact-grid{gap:5px 7px}
+.trading-news-modal .news-impact-stat{flex-direction:row;justify-content:space-between;align-items:center;gap:5px;min-height:33px;padding:6px 8px;border-radius:7px}
+.trading-news-modal .news-impact-stat>span{font-size:10px;line-height:1.2}
+.trading-news-modal .news-impact-stat>strong{flex:0 0 auto;font-size:12px;white-space:nowrap}
+.trading-news-modal .news-impact-note{font-size:10px;line-height:1.35;margin-top:6px}
+.trading-news-modal .news-scenario{padding:9px 11px;border-radius:8px}
+.trading-news-modal .news-scenario p{margin:4px 0 0;font-size:11px;line-height:1.45}
+.trading-news-modal .news-aggregate-row{padding:5px 4px}
+.trading-news-modal .asset-news-related{margin:10px 0;gap:5px}
+.trading-news-modal .news-related-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.trading-news-modal .news-related-grid>button{display:flex;min-width:0;min-height:32px;align-items:center;justify-content:space-between;gap:4px;padding:6px 8px;color:#e7e2d2;font-size:11px;text-align:left;border:1px solid #3a403c;border-radius:7px;background:#1d2828;overflow-wrap:anywhere}
+.trading-news-modal .news-related-grid>button span{color:#dfc07d;flex:0 0 auto;font-size:10px}
+.trading-news-modal .news-related-more summary{padding:6px 2px}
+.trading-news-modal .news-related-extra{max-height:190px;overflow-y:auto}
+@media(max-width:400px){
+  .app-shell .trading-news-modal>.trading-modal-header{padding:8px 11px}
+  .app-shell .trading-news-modal>.trading-modal-scroll{padding:9px 10px}
+  .trading-news-modal .news-impact-stat{padding:5px 6px;gap:4px}
+  .trading-news-modal .news-impact-stat>span{font-size:9px}
+  .trading-news-modal .news-impact-stat>strong{font-size:11px}
+}
+@media(max-width:340px){.trading-news-modal .news-impact-grid{grid-template-columns:1fr}}
+@media(max-height:570px){.app-shell .trading-modal.trading-news-modal{height:100%}}

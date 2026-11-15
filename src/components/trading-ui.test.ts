@@ -267,6 +267,35 @@ describe('Trading interface mobile',()=>{
     expect(wrapper.findAll('.floating-gain')).toHaveLength(1)
     expect(wrapper.find('.floating-gain').text()).toBe('+1 $')
   })
+  it('garde la fenêtre News compacte avec entête fixe et scroll strictement interne', async () => {
+    const css=readFileSync('src/style.css','utf8')
+    expect(css).toContain('.app-shell .trading-modal.trading-news-modal{display:flex;flex-direction:column;height:min(660px,100%);max-height:100%;min-height:0;overflow:hidden}')
+    expect(css).toContain('.app-shell .trading-news-modal>.trading-modal-scroll{flex:1 1 0;min-height:0;overflow-y:auto;')
+    expect(css).toContain('.trading-news-modal .news-impact-stat{flex-direction:row;')
+    const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
+    state.trading.news=[news]
+    const {wrapper}=setup(state)
+    await tab(wrapper,3)
+    await wrapper.find('button.news-preview-row').trigger('click')
+    const dialog=wrapper.find('.trading-news-modal')
+     expect(dialog.find('.trading-modal-header .modal-close').exists()).toBe(true)
+    expect(dialog.find('.news-detail-content').attributes('role')).toBe('region')
+    expect(dialog.find('.news-detail-content').attributes('tabindex')).toBe('0')
+    expect(dialog.findAll('.news-impact-stat').length).toBeGreaterThanOrEqual(7)
+  })
+  it('replie le surplus d’actifs sans les rendre inaccessibles', async () => {
+    const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
+    state.trading.news=[{...news,id:'global-news',templateId:'macro-recovery',
+      affectedAssetIds:Object.keys(state.trading.quotes),impact:0.8}]
+    const {wrapper}=setup(state)
+    await tab(wrapper,3)
+    await wrapper.find('button.news-preview-row').trigger('click')
+    const dialog=wrapper.find('.trading-news-modal')
+    expect(dialog.findAll('.news-related-grid:not(.news-related-extra) button')).toHaveLength(4)
+    expect(dialog.find('.news-related-more summary').text()).toContain('41 autres actifs')
+    expect(dialog.findAll('.news-related-extra button')).toHaveLength(41)
+    expect(dialog.find('.news-aggregate-more').exists()).toBe(true)
+  })
   it('garantit les contrats de hauteur et de scroll des modales Actions/Crypto/News sur petits écrans',async()=>{
     const css=readFileSync('src/style.css','utf8')
     // Invariants statiques : jsdom ne calcule pas une vraie boîte en pixels.
