@@ -96,7 +96,7 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
     !Array.isArray(saved.ownedCollectionIds)) return fallback
 
   const earnedCents = exactMoneyCents(lifetimeEarned)
-  const marker = saved.xpCurveVersion
+  const marker: unknown = saved.xpCurveVersion
   if (marker !== undefined && marker !== 2 && marker !== XP_CURVE_VERSION) return fallback
   const isLegacyV1 = marker === undefined
   const oldExperienceCents = isLegacyV1
