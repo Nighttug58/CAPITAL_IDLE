@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import MarketChart from './MarketChart.vue'
 import { computed, ref, watch, onMounted } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { getAsset, getAvailableSupply } from '../trading/catalog.ts'
 import { getNewsPresentation } from '../trading/news.ts'
-import { formatCash, formatChange, formatPerSecond, formatPrice, formatQuantity, formatRate, sparklinePoints } from '../trading/presentation.ts'
+import { formatCash, formatChange, formatPerSecond, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import { liquidCryptoQuantity } from '../trading/staking.ts'
 import { availableMarketLiquidity } from '../trading/liquidity.ts'
@@ -32,10 +33,11 @@ const liquiditySell = computed(() => availableMarketLiquidity(props.state, props
 const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
-const historyPoints = computed(() => sparklinePoints(samples.value, 320, 126, 160))
+const yieldDialog = ref<HTMLDialogElement>()
+const news = computed(() => props.state.trading.news.filter(n => n.affectedAssetIds.includes(props.assetId)))
+const average = computed(() => position.value && owned.value > 0 ? position.value.costBasis / owned.value : undefined)
 const yieldSamples = computed<PriceSample[]>(() => samples.value
   .filter(s => s.dividendYield != null).map(s => ({ at: s.at, price: s.dividendYield! })))
-const yieldPoints = computed(() => sparklinePoints(yieldSamples.value, 320, 65, 120))
 const rate = computed(() => quote.value?.dividendYield ?? asset.value.initialDividendYield)
 const rateDirection = computed(() => Math.abs(quote.value?.dividendMomentum ?? 0) < 1e-9
   ? 'stable' : (quote.value!.dividendMomentum! > 0 ? 'hausse' : 'baisse'))
@@ -106,40 +108,15 @@ function submit() {
         <strong>{{ formatPrice(currentPrice) }}</strong>
         <span :class="change === null ? 'market-direction-flat' : change >= 0 ? 'market-direction-up' : 'market-direction-down'">{{ formatChange(change) }} · 1 h</span>
       </div>
-      <div class="detail-chart">
-        <div class="detail-chart-head"><span>Évolution du cours</span><span>DERNIÈRE HEURE</span></div>
-        <svg viewBox="0 0 320 126" role="img" :aria-label="'Graphique de cours ' + asset.name" preserveAspectRatio="none">
-          <line x1="0" y1="63" x2="320" y2="63" class="detail-chart-grid" />
-          <polyline v-if="historyPoints" :points="historyPoints" :class="change !== null && change < 0 ? 'negative' : 'positive'" />
-          <text v-else x="160" y="67" text-anchor="middle" class="detail-chart-empty">Historique en préparation</text>
-        </svg>
+      <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}
+        <button type="button" @click="yieldDialog?.showModal()">Voir l’évolution</button>
+        <dialog ref="yieldDialog" aria-label="Évolution du dividende" @keydown.stop>
+          <div class="trading-modal-header"><strong>Dividende · {{ asset.symbol }}</strong><button type="button" aria-label="Fermer le rendement" @click="yieldDialog?.close()">×</button></div>
+          <MarketChart :samples="yieldSamples" :news="news" yield-mode @open-news="emit('open-news',$event)" />
+          <small>{{formatRate(rate ?? 0)}} · {{rateDirection}} · Avec vos titres : {{formatPerSecond(perSecond)}}</small>
+        </dialog>
       </div>
-      <div class="asset-detail-grid">
-        <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
-        <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
-        <div><span>Disponibles</span><strong>{{ formatQuantity(available) }}</strong></div>
-        <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
-        <div v-if="asset.kind === 'crypto'"><span>Liquidité personnelle hors staking</span><strong>{{ formatQuantity(liquid) }}</strong></div>
-        <div><span>Liquidité à l’achat</span><strong>{{ formatQuantity(liquidityBuy) }}</strong></div>
-        <div><span>Liquidité à la vente</span><strong>{{ formatQuantity(liquiditySell) }}</strong></div>
-      </div>
-      <div v-if="asset.kind === 'stock'" class="dividend-detail">
-        <div class="dividend-detail-head">
-          <div><span>Rendement annuel variable</span><strong>{{ formatRate(rate ?? 0) }}</strong></div>
-          <span>{{ rateDirection === 'hausse' ? '↗ En hausse' : rateDirection === 'baisse' ? '↘ En baisse' : '→ Stable' }}</span>
-        </div>
-        <svg viewBox="0 0 320 65" role="img" :aria-label="'Évolution du rendement ' + asset.name" preserveAspectRatio="none">
-          <polyline v-if="yieldPoints" :points="yieldPoints" />
-          <text v-else x="160" y="34" text-anchor="middle">Historique en préparation</text>
-        </svg>
-        <div class="dividend-detail-bottom"><span>Avec vos titres : {{ formatPerSecond(perSecond) }}</span><span>Bornes : 1–30 %</span></div>
-      </div>
-      <div v-if="relatedNews.length" class="asset-news-related">
-        <span class="eyebrow">NEWS ASSOCIÉES</span>
-        <button v-for="entry in relatedNews" :key="entry.id" type="button" @click="emit('open-news', entry.id)">
-          {{ getNewsPresentation(entry)?.headline ?? 'Actualité du marché' }} <span>›</span>
-        </button>
-      </div>
+      <MarketChart :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
       <div class="asset-order">
         <div class="order-side">
           <button type="button" :class="{ 'is-buy': activeSide === 'buy' }" :aria-pressed="activeSide === 'buy'" @click="activeSide = 'buy'">Acheter</button>
@@ -178,6 +155,33 @@ function submit() {
           {{ activeSide === 'buy' ? 'Confirmer l’achat' : 'Confirmer la vente' }}
         </button>
       </div>
+      <details><summary>Détails du marché et actualités</summary>
+      <div class="asset-detail-grid">
+        <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
+        <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
+        <div><span>Disponibles</span><strong>{{ formatQuantity(available) }}</strong></div>
+        <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
+        <div v-if="asset.kind === 'crypto'"><span>Liquidité personnelle hors staking</span><strong>{{ formatQuantity(liquid) }}</strong></div>
+        <div><span>Liquidité à l’achat</span><strong>{{ formatQuantity(liquidityBuy) }}</strong></div>
+        <div><span>Liquidité à la vente</span><strong>{{ formatQuantity(liquiditySell) }}</strong></div>
+      </div>
+      <div v-if="relatedNews.length" class="asset-news-related">
+        <span class="eyebrow">NEWS ASSOCIÉES</span>
+        <button v-for="entry in relatedNews" :key="entry.id" type="button" @click="emit('open-news', entry.id)">
+          {{ getNewsPresentation(entry)?.headline ?? 'Actualité du marché' }} <span>›</span>
+        </button>
+      </div>
+      </details>
     </div>
   </section>
 </template>
+
+<style scoped>
+.trading-asset-modal{height:auto;max-height:min(690px,100%)}
+.trading-asset-modal .trading-modal-scroll{flex:1 1 auto;padding:10px}
+.asset-detail-quote{margin-bottom:3px}.yield-summary{margin-bottom:5px}
+.yield-summary,summary{font-size:12px}.yield-summary button,summary{cursor:pointer}
+.yield-summary button{font:inherit;color:#a6e4c4;background:transparent;border:0;text-decoration:underline}
+dialog{background:#192124;color:#e2eae5;border:1px solid #485b54;border-radius:12px;width:min(94vw,580px);padding:12px;box-sizing:border-box}
+dialog::backdrop{background:#0009}
+</style>
