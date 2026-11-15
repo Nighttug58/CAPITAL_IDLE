@@ -69,6 +69,16 @@ const boostDialog = ref<HTMLDialogElement | null>(null)
 const clickBoosts = computed(() => getBonusBreakdown(capital.value, 'click'))
 const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * getBonusMultiplier(capital.value, 'click'))
 const tapAnimationId = ref(0)
+const spinFrame = ref(0)
+let spinPhase = 0
+let spinStreak = 0
+let lastPaidTap = -Infinity
+function advanceBundle(now: number) {
+  spinStreak = now - lastPaidTap > 1000 ? 1 : Math.min(100, spinStreak + 1)
+  lastPaidTap = now
+  spinPhase = (spinPhase + 1 + 4 * (spinStreak - 1) / 99) % 48
+  spinFrame.value = Math.floor(spinPhase)
+}
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
 let applyingMarket = false
@@ -146,6 +156,7 @@ function click(event: MouseEvent) {
     { id: ++nextGainId, amount: gained, x, y },
   ]
   // Relance le rebond visuel après chaque clic, même si le doigt est déjà relevé.
+  advanceBundle(performance.now())
   tapAnimationId.value++
 }
 
@@ -264,6 +275,8 @@ function replaceWholeSave(next: CapitalState): boolean {
   try {
     capital.value = next
     floatingGains.value = []
+    spinFrame.value = spinPhase = spinStreak = 0
+    lastPaidTap = -Infinity
     tapAnimationId.value = 0
     nextGainId = 0
   } finally { applyingMarket = false }
@@ -470,25 +483,6 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <button
-        class="tap-zone"
-        type="button"
-        :aria-label="`Gagner ${formatMoney(clickValue)} en cliquant`"
-        @click="click"
-      >
-        <span class="tap-content">
-          <span :key="tapAnimationId" class="banknotes" :class="{ 'banknotes-popping': tapAnimationId > 0 }" :style="{backgroundPosition: ((tapAnimationId % 8) / 7 * 100) + '% ' + (Math.floor(tapAnimationId % 48 / 8) / 5 * 100) + '%'}" aria-hidden="true"></span>
-        </span>
-        <span
-          v-for="gain in floatingGains"
-          :key="gain.id"
-          class="floating-gain"
-          :style="{ left: `${gain.x}%`, top: `${gain.y}%` }"
-          aria-hidden="true"
-          @animationend="removeFloatingGain(gain.id)"
-        >+{{ formatMoney(gain.amount) }}</span>
-      </button>
-
       <div class="gain-row"><span class="tap-reward">{{formatMoney(clickValue)}} <small>par clic</small></span>
         <button type="button" @click="boostDialog?.showModal()">Boosts</button>
       </div>
@@ -514,6 +508,25 @@ onUnmounted(() => {
           <svg v-if="upgradeAffordable" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
         </button>
       </section>
+      <button
+        class="tap-zone"
+        type="button"
+        :aria-label="`Gagner ${formatMoney(clickValue)} en cliquant`"
+        @click="click"
+      >
+        <span class="tap-content">
+          <span :key="tapAnimationId" class="banknotes" :class="{ 'banknotes-popping': tapAnimationId > 0 }" :style="{backgroundPosition: ((spinFrame % 8) / 7 * 100) + '% ' + (Math.floor(spinFrame / 8) / 5 * 100) + '%'}" aria-hidden="true"></span>
+        </span>
+        <span
+          v-for="gain in floatingGains"
+          :key="gain.id"
+          class="floating-gain"
+          :style="{ left: `${gain.x}%`, top: `${gain.y}%` }"
+          aria-hidden="true"
+          @animationend="removeFloatingGain(gain.id)"
+        >+{{ formatMoney(gain.amount) }}</span>
+      </button>
+
     </main>
 
     <FameShopScreen v-if="page === 'fame'" :state="capital" :purchase-boost="executeFamePurchase"

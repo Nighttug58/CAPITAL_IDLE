@@ -1328,3 +1328,15 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .app-shell :is(.market-asset-row,.enterprise-card,.collection-card,.stats-overview>div){border:1px solid #35413e;border-radius:12px;background:linear-gradient(145deg,#1d2625,#151b1d)}
 .app-shell>main>:is(.trading-modal-backdrop,.ascension-confirm-overlay,.prestige-overlay,dialog){margin-top:0}
 .home-screen .boost-dialog{margin:auto}
+
+/* The shell reserves the exact height of the navigation, including the safe area. */
+.app-shell{--nav-height:calc(68px + env(safe-area-inset-bottom,0px));--tabs-height:50px;position:relative;grid-template-rows:minmax(0,1fr) var(--nav-height)}
+.app-shell>.bottom-nav{height:var(--nav-height);min-height:0;box-sizing:border-box}
+.app-shell :is(.trading-tabs,.collection-tabs){position:absolute;z-index:5;inset:auto 0 var(--nav-height);height:var(--tabs-height);box-sizing:border-box;display:flex;align-items:center;gap:5px;margin:0;padding:5px 10px;background:#141c1d;border-top:1px solid #36423e;border-radius:0;overflow-x:auto;scrollbar-width:none}
+.app-shell .trading-tabs>.trading-tab{flex:1;min-width:0}
+.app-shell :is(.trading-screen,.collection-screen){margin-bottom:var(--tabs-height)}
+.app-shell>.home-screen{display:flex;flex-direction:column;gap:8px;padding:12px 16px 10px}
+.app-shell>.home-screen>:not(dialog){margin:0;flex-shrink:0}
+.home-screen .balance-value{font-size:clamp(36px,9vw,52px)}
+.app-shell>.home-screen>.tap-zone{flex:1 0 158px;height:auto;min-height:158px;padding:0;place-items:center}
+.home-screen .tap-zone:active .banknotes,.home-screen .tap-zone .banknotes{transform:none;transition:none;animation:none}
