@@ -73,11 +73,34 @@ const spinFrame = ref(0)
 let spinPhase = 0
 let spinStreak = 0
 let lastPaidTap = -Infinity
+let spinRequest = 0
+let spinFrom = 0
+let spinTarget = 0
+let spinStarted = 0
+let spinDuration = 0
+
+function paintBundle(now: number) {
+  const progress = Math.max(0, Math.min(1, (now - spinStarted) / spinDuration))
+  spinPhase = spinFrom + (spinTarget - spinFrom) * progress
+  spinFrame.value = Math.floor(spinPhase) % 48
+  return progress
+}
+function animateBundle(now: number) {
+  spinRequest = paintBundle(now) < 1 ? requestAnimationFrame(animateBundle) : 0
+}
 function advanceBundle(now: number) {
-  spinStreak = now - lastPaidTap > 1000 ? 1 : Math.min(100, spinStreak + 1)
+  const interval = now - lastPaidTap
+  spinStreak = interval > 1000 ? 1 : Math.min(100, spinStreak + 1)
   lastPaidTap = now
-  spinPhase = (spinPhase + 1 + 4 * (spinStreak - 1) / 99) % 48
-  spinFrame.value = Math.floor(spinPhase)
+  if (spinRequest) {
+    cancelAnimationFrame(spinRequest)
+    paintBundle(now)
+  }
+  spinTarget += 1 + 4 * (spinStreak - 1) / 99
+  spinFrom = Math.min(spinTarget, spinPhase + 1)
+  spinStarted = now
+  spinDuration = Math.min(120, Math.max(48, interval))
+  animateBundle(now)
 }
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
@@ -275,7 +298,8 @@ function replaceWholeSave(next: CapitalState): boolean {
   try {
     capital.value = next
     floatingGains.value = []
-    spinFrame.value = spinPhase = spinStreak = 0
+    cancelAnimationFrame(spinRequest)
+    spinFrame.value = spinPhase = spinTarget = spinStreak = spinRequest = 0
     lastPaidTap = -Infinity
     tapAnimationId.value = 0
     nextGainId = 0
@@ -422,6 +446,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  cancelAnimationFrame(spinRequest)
   document.removeEventListener('fullscreenchange', syncFullscreen)
   document.removeEventListener('visibilitychange', syncMarketVisibility)
   window.removeEventListener('pagehide', syncMarketPageHide)
@@ -464,7 +489,8 @@ onUnmounted(() => {
       </button>
       </div>
       <div class="balance-value" aria-label="Solde">{{formatMoney(game.balance)}}</div>
-      <section class="level-panel" aria-label="Progression du niveau">
+      <section class="home-progression" aria-label="Progression et améliorations">
+      <div class="level-panel" aria-label="Progression du niveau">
         <div class="level-heading">
           <span class="level-label">NIVEAU <strong>{{ level }}</strong></span>
         </div>
@@ -481,10 +507,7 @@ onUnmounted(() => {
             <div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div>
           </div>
         </div>
-      </section>
-
-      <div class="gain-row"><span class="tap-reward">{{formatMoney(clickValue)}} <small>par clic</small></span>
-        <button type="button" @click="boostDialog?.showModal()">Boosts</button>
+        <button class="boost-trigger" type="button" @click="boostDialog?.showModal()">Boosts</button>
       </div>
       <dialog ref="boostDialog" class="boost-dialog" aria-label="Sources du gain par clic">
         <h2>Gain par clic</h2><dl>
@@ -498,8 +521,8 @@ onUnmounted(() => {
       <section class="upgrade-card" aria-label="Amélioration du clic">
         <div class="upgrade-copy">
           <span class="eyebrow">PROCHAINE AMÉLIORATION</span>
-          <strong v-if="nextUpgrade">{{formatMoney(clickValue)}} → <em>{{formatMoney(nextGain)}}</em> par clic</strong>
-          <strong v-else>Niveau maximal</strong>
+          <strong><span class="tap-reward">{{formatMoney(clickValue)}}</span><template v-if="nextUpgrade"> → <em>{{formatMoney(nextGain)}}</em></template> par clic</strong>
+          <small v-if="!nextUpgrade">Niveau maximal</small>
           <span class="upgrade-tier">Niv. {{game.purchasedUpgrades}} / {{MAX_CLICK_LEVEL}}</span>
           <small v-if="nextUpgrade && game.balance < nextUpgrade.price">Il manque {{formatMoney(nextUpgrade.price-game.balance)}}</small>
         </div>
@@ -508,6 +531,7 @@ onUnmounted(() => {
           <svg v-if="upgradeAffordable" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
         </button>
       </section>
+      </section>
       <button
         class="tap-zone"
         type="button"
@@ -515,7 +539,7 @@ onUnmounted(() => {
         @click="click"
       >
         <span class="tap-content">
-          <span :key="tapAnimationId" class="banknotes" :class="{ 'banknotes-popping': tapAnimationId > 0 }" :style="{backgroundPosition: ((spinFrame % 8) / 7 * 100) + '% ' + (Math.floor(spinFrame / 8) / 5 * 100) + '%'}" aria-hidden="true"></span>
+          <span class="banknotes" :style="{backgroundPosition: ((spinFrame % 8) / 7 * 100) + '% ' + (Math.floor(spinFrame / 8) / 5 * 100) + '%'}" aria-hidden="true"><i :key="tapAnimationId" class="bundle-shadow" :class="{pulsing:tapAnimationId>0}"></i></span>
         </span>
         <span
           v-for="gain in floatingGains"

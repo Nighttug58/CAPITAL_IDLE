@@ -1340,3 +1340,12 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .home-screen .balance-value{font-size:clamp(36px,9vw,52px)}
 .app-shell>.home-screen>.tap-zone{flex:1 0 158px;height:auto;min-height:158px;padding:0;place-items:center}
 .home-screen .tap-zone:active .banknotes,.home-screen .tap-zone .banknotes{transform:none;transition:none;animation:none}
+
+.home-progression{border:1px solid #39433e;border-radius:12px;background:#192120}
+.home-progression .level-panel,.home-progression .upgrade-card{border:0;background:none;box-shadow:none;margin:0}
+.home-progression .level-panel{border-radius:0;border-bottom:1px solid #354039;gap:6px}
+.home-progression .boost-trigger{background:#243630;border:1px solid #486453;border-radius:7px;color:#c5e9d9;padding:6px 9px;cursor:pointer}
+.home-progression .tap-reward{font:inherit;color:inherit;letter-spacing:inherit}
+.banknotes:after{display:none}
+.bundle-shadow{position:absolute;bottom:3px;left:28%;width:44%;height:8px;border-radius:50%;background:#0007;filter:blur(3px)}
+@media(prefers-reduced-motion:no-preference){.bundle-shadow.pulsing{animation:shadow-pulse 180ms ease-out}}
