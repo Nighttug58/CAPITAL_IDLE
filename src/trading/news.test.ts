@@ -310,12 +310,16 @@ test('presentation : titres contextualisés et liens vers actifs impactés', () 
 test('une News influe sur les prix, et la réaction des dividendes reste douce', () => {
   const baseline = createInitialTradingState(START, 1093)
   baseline.nextNewsAt = START + HOUR
+  // Le marché témoin possède déjà une News directionnelle : sans cela,
+  // le nouveau filet de sécurité en tirerait une supplémentaire au hasard.
+  // Les deux scénarios consomment ainsi exactement le même flux PRNG.
+  baseline.news = [event({ id: 'news-control' })]
   const macro = event({
     id: 'news-broad', templateId: 'macro-recovery',
     startedAt: START - 120_000, endsAt: START + 480_000,
     affectedAssetIds: ASSETS.map((asset) => asset.id), impact: 1,
   })
-  const affected = { ...baseline, news: [macro] }
+  const affected = { ...baseline, news: [...baseline.news, macro] }
   const quiet = advanceMarketTick(baseline)
   const loud = advanceMarketTick(affected)
   let higher = 0
