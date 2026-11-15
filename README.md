@@ -12,6 +12,10 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 - **Un seul solde** finance les améliorations du clicker, les transactions Trading et les entreprises. Il peut devenir négatif après le prélèvement automatique ou manuel de taxes, mais **aucun achat à crédit** n'est permis.
 - Les niveaux bénéficient des clics, des dividendes encaissés, des revenus fixes des entreprises et des **profits nets réalisés** en Trading. Ni le capital récupéré lors d'une vente, ni les gains latents, ni les taxes payées ne donnent de l'expérience. Les dépenses et les impôts ne font pas redescendre le niveau.
 
+## Prestige absolu : protection des sauvegardes à Fame extrême
+- Le multiplicateur effectif suit la règle historique ×1,01 par tranche de 100 Fame disponibles jusqu'à **×100 maximum**. Toute la Fame accumulée reste dans les sauvegardes et l'interface indique le plafond. Même avec 1,8 milliard de Fame, les gains cash/XP/Fame restent finis au lieu de bloquer sur `Infinity`. Le bouton Fame compacte les très grands nombres sans perdre la valeur exacte accessible.
+- Aucune suppression ni modification des Fame déjà gagnées ; l'écrêtage concerne uniquement les bonus calculés, pas la progression enregistrée.
+
 ## Achievements — récompenses de progression
 - Bouton ruban sur Accueil, ouvrant une page de **26 cadeaux en cash** répartis entre niveaux, clics, revenus, entreprises, collections et Prestige. Les paliers atteints dans les anciennes sauvegardes sont reconnus au chargement : le joueur choisit quand les réclamer.
 - Chaque cadeau est **unique et persisté** dans `achievements.claimedIds`, y compris lors des Prestiges ; les cadeaux n'ajoutent ni XP ni Fame et ne créent pas de taxe. Reset intégral = remise à zéro des succès. Les anciens fichiers v4–v7 restent importables, les v7 antérieures sans compteur sont migrées sans cadeau automatique.

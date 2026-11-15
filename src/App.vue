@@ -121,7 +121,12 @@ const progressPercent = computed(() => {
 const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const formatMoney = (value: number) => numberFormatter.format(value) + ' $'
 
-const fameBalance = computed(() => numberFormatter.format(capital.value.prestige.fameMicros / FAME_MICROS))
+const fameBalance = computed(() => {
+  const amount = capital.value.prestige.fameMicros / FAME_MICROS
+  return amount >= 1_000_000
+    ? new Intl.NumberFormat('fr-CH', { notation: 'compact', maximumFractionDigits: 2 }).format(amount)
+    : numberFormatter.format(amount)
+})
 function openFameShop() {
   page.value = 'fame'
 }
@@ -477,7 +482,9 @@ onUnmounted(() => {
   <div class="app-shell">
     <main v-show="page === 'home'" id="accueil" class="home-screen">
       <div class="home-actions">
-        <button ref="fameLaunch" class="fame-shop-launch" type="button" @click="openFameShop" :aria-label="'Ouvrir le Fame Shop, ' + fameBalance + ' Fame disponibles'">
+        <button ref="fameLaunch" class="fame-shop-launch" type="button" @click="openFameShop"
+          :title="'Fame disponibles : ' + numberFormatter.format(capital.prestige.fameMicros / FAME_MICROS)"
+          :aria-label="'Ouvrir le Fame Shop, ' + numberFormatter.format(capital.prestige.fameMicros / FAME_MICROS) + ' Fame disponibles'">
           <b aria-hidden="true">✦</b><span>Fame Shop</span><strong>{{ fameBalance }}</strong>
         </button>
         <button v-if="page === 'home'" ref="prestigeLaunch" class="prestige-launch" type="button"

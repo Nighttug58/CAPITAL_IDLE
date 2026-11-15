@@ -24,9 +24,9 @@ const rows = computed(() => FAME_BOOSTS.map((boost, index) => ({
 })))
 const purchasedLevels = computed(() => offers.value.reduce((total, offer) => total + offer.currentLevel, 0))
 const absolute = computed(() => getAbsolutePrestigeStatus(props.state))
-const factorText = computed(() => absolute.value.overflowed
-  ? 'HORS LIMITE'
-  : '×' + new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 }).format(absolute.value.factor))
+const factorText = computed(() =>
+  '×' + new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 }).format(absolute.value.factor) +
+    (absolute.value.capped ? ' · MAX' : ''))
 const remainingSteps = computed(() => Math.max(0, absolute.value.requiredLevels - absolute.value.purchasedLevels))
 
 const errors: Record<FameShopError, string> = {
@@ -124,14 +124,12 @@ onMounted(() => { void nextTick(() => returnButton.value?.focus()) })
           </p>
           <template v-else>
             <strong class="absolute-prestige-factor">{{ factorText }}</strong>
-            <p>Chaque tranche entière de 100 Fame <b>disponibles</b> multiplie uniquement les bonus du Fame Shop par ×1,01.</p>
+            <p>Chaque tranche entière de 100 Fame <b>disponibles</b> multiplie uniquement les bonus du Fame Shop par ×1,01, jusqu’au plafond de sécurité ×100.</p>
             <div class="absolute-prestige-details">
-              <span>{{ absolute.fameSteps }} tranches actives</span>
-              <span>Prochaine tranche : {{ absolute.nextStepAtFame }} Fame</span>
+              <span>{{ numeric.format(absolute.fameSteps) }} tranches actives</span>
+              <span v-if="!absolute.capped">Prochaine tranche : {{ numeric.format(absolute.nextStepAtFame) }} Fame</span>
+              <span v-else>Plafond de sécurité atteint · Fame conservée</span>
             </div>
-            <p v-if="absolute.overflowed" class="prestige-notice prestige-notice-error">
-              Facteur trop élevé pour être représenté : les gains dépassant les limites monétaires sont refusés.
-            </p>
           </template>
           <p class="absolute-prestige-footnote">Les bonus de collection ne sont jamais multipliés. Aucun achat supplémentaire.</p>
         </article>

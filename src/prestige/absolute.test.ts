@@ -9,7 +9,7 @@ import { buyAsset, sellAsset } from '../trading/trades.ts'
 import { createSaveExport, prepareSaveImport } from '../save-transfer.ts'
 import { COLLECTION_BASE_FAME, COLLECTION_SLOTS, FAME_BOOST_IDS, FAME_BOOSTS, TOTAL_BASE_FAME_TO_LEVEL_100 } from './catalog.ts'
 import { FAME_MICROS, creditExperience } from './state.ts'
-import { getAbsolutePrestigeStatus } from './absolute.ts'
+import { ABSOLUTE_PRESTIGE_MAX_FACTOR, getAbsolutePrestigeStatus } from './absolute.ts'
 import { getBonusBreakdown, getBonusMultiplier, getTotalBonusBps, scaleNewFameMicros, scaleRewardCents } from './bonuses.ts'
 import { getFameStatsOverview } from './overview.ts'
 import { buyFameUpgrade, hasValidFameShopLedger } from './shop.ts'
@@ -54,7 +54,7 @@ test('Prestige absolu is free, automatically locked until exactly 120/120 and no
   const fresh = createCapitalState(undefined, NOW)
   assert.deepEqual(getAbsolutePrestigeStatus(fresh), {
     unlocked: false, purchasedLevels: 0, requiredLevels: 120,
-    fameSteps: 0, nextStepAtFame: 100, factor: 1, overflowed: false,
+    fameSteps: 0, nextStepAtFame: 100, factor: 1, capped: false,
   })
   for (const id of FAME_BOOST_IDS) {
     const almost = { ...fresh, prestige: { ...fresh.prestige, boosts: { ...levelsAtMax(), [id]: 19 }, fameMicros: 1000 * FAME_MICROS } }
@@ -70,7 +70,7 @@ test('Prestige absolu is free, automatically locked until exactly 120/120 and no
   assert.equal(status.fameSteps, 6)
   assert.equal(status.nextStepAtFame, 700)
   assert.equal(status.factor, 1.01 ** 6)
-  assert.equal(status.overflowed, false)
+  assert.equal(status.capped, false)
   assert.equal((bought.prestige as unknown as Record<string,unknown>).absolutePrestige, undefined)
 })
 
@@ -81,7 +81,7 @@ test('exact 1.01^floor(available Fame / 100) at 0, 99, 100, 500, 600, 1000 and 1
     assert.equal(status.fameSteps, steps)
     assert.equal(status.factor, 1.01 ** steps)
     assert.equal(status.nextStepAtFame, (steps + 1) * 100)
-    assert.equal(status.overflowed, false)
+    assert.equal(status.capped, false)
   }
   assert.equal(getAbsolutePrestigeStatus(prestigeAt(100, false)).factor, 1)
   assert.equal(getAbsolutePrestigeStatus(prestigeAt(10_000, false)).factor, 1)
@@ -224,21 +224,50 @@ test('same-session, reload, strict v6 export/import, v5 migration and reset alwa
   assert.equal(prepareSaveImport(createSaveExport(state, NOW), NOW).ok, true)
 })
 
-test('extreme Fame never produces NaN cash, XP or Fame or crashes BigInt conversion', () => {
-  const unsafe = prestigeAt(9_000_000_000)
-  const status = getAbsolutePrestigeStatus(unsafe)
-  assert.equal(status.unlocked, true)
-  assert.equal(status.overflowed, true)
-  assert.equal(status.factor, Infinity)
-  assert.equal(getBonusMultiplier(unsafe, 'click'), Infinity)
-  assert.equal(scaleRewardCents(100, getTotalBonusBps(unsafe, 'click')), null)
-  assert.equal(scaleNewFameMicros(unsafe, FAME_MICROS), null)
-  assert.strictEqual(earnCapitalClick(unsafe), unsafe)
-  const dividendState = { ...unsafe, trading: { ...unsafe.trading,
-    positions: { ...unsafe.trading.positions, nvideo: { quantity:100, costBasis:100 } },
-  } }
-  assert.strictEqual(advanceCapitalSecond(dividendState), dividendState)
-  const smaller = prestigeAt(10_000)
-  assert.ok(Number.isFinite(getTotalBonusBps(smaller, 'click')))
-  assert.ok(scaleRewardCents(100, getTotalBonusBps(smaller, 'click')))
+test('Prestige absolu: le plafond stabilise les six moteurs sans supprimer la Fame', () => {
+  for (const fame of [46_200, 46_300, 1_800_000_000, 9_000_000_000]) {
+    const state = prestigeAt(fame)
+    const status = getAbsolutePrestigeStatus(state)
+    const expected = Math.min(ABSOLUTE_PRESTIGE_MAX_FACTOR, 1.01 ** Math.min(status.fameSteps, 463))
+    assert.equal(status.factor, expected)
+    assert.equal(status.capped, fame >= 46_300)
+    assert.ok(Number.isFinite(status.factor))
+    const effective = getBonusMultiplier(state, 'click')
+    assert.ok(Number.isFinite(effective) && effective <= 101)
+    const reward = scaleRewardCents(100, getTotalBonusBps(state, 'click'))
+    assert.ok(reward && reward.cents > 0)
+    const fameReward = scaleNewFameMicros(state, FAME_MICROS)
+    assert.ok(fameReward !== null && fameReward > 0)
+    assert.ok(earnCapitalClick(state).game.balance > state.game.balance)
+  }
+  const normal = prestigeAt(10_000)
+  assert.equal(getAbsolutePrestigeStatus(normal).factor, 1.01 ** 100)
+  assert.equal(getAbsolutePrestigeStatus(normal).capped, false)
+})
+
+test('sauvegarde valide à 1,8 milliard de Fame : import, rechargement et clic restent utilisables', () => {
+  const baseline = fullyPurchased()
+  const target = 1_800_000_000 * FAME_MICROS
+  const delta = target - baseline.prestige.fameMicros
+  const boosted: CapitalState = {
+    ...baseline,
+    prestige: {
+      ...baseline.prestige,
+      fameMicros: target,
+      lifetimeFameMicros: baseline.prestige.lifetimeFameMicros + delta,
+      levelFameMicros: baseline.prestige.levelFameMicros + delta,
+    },
+  }
+  const roundTrip = restoreCapitalState(JSON.parse(JSON.stringify(boosted)), NOW)
+  assert.deepEqual(roundTrip, boosted, 'aucun reset des boosts, Fame ou patrimoine')
+  const exported = prepareSaveImport(createSaveExport(boosted, NOW), NOW)
+  assert.ok(exported.ok)
+  if (!exported.ok) return
+  assert.deepEqual(exported.preview.state, boosted)
+  assert.equal(getAbsolutePrestigeStatus(exported.preview.state).factor, ABSOLUTE_PRESTIGE_MAX_FACTOR)
+  const earned = earnCapitalClick(exported.preview.state)
+  assert.notStrictEqual(earned, boosted)
+  assert.ok(earned.game.balance > boosted.game.balance)
+  assert.ok(Number.isSafeInteger(earned.prestige.fameMicros))
+  assert.deepEqual(restoreCapitalState(JSON.parse(JSON.stringify(earned)), NOW), earned)
 })
