@@ -75,7 +75,9 @@ test('première News : attente de 1–5 minutes sans génération instantanée',
   assert.equal(getNewsRemainingMs(due.news[0]!, due.news[0]!.startedAt), MIN_NEWS_DURATION_MS)
 })
 
-test('les échéances tirées couvrent les bornes 1–5 min et 20–60 min', () => {
+test('les échéances tirées couvrent les bornes 1–5 min et 5–30 min', () => {
+  assert.equal(MIN_NEWS_DURATION_MS, 5 * 60_000)
+  assert.equal(MAX_NEWS_DURATION_MS, 30 * 60_000)
   const high = advanceNewsTick([], null, START, START + TICK, () => 0.999999)
   assert.equal(high.nextNewsAt, START + MAX_NEWS_INTERVAL_MS)
   const due = advanceNewsTick([], START + TICK, START, START + TICK, () => 0.999999)

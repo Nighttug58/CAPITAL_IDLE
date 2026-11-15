@@ -92,8 +92,8 @@ test('News : ×2 durée et puissance symétrique sur prix/dividendes', () => {
   const after = seconds(state, 5)
   const upcoming = after.trading.upcomingNews
   assert.ok(upcoming)
-  assert.ok(upcoming.endsAt - upcoming.startedAt >= 2_400_000)
-  assert.ok(upcoming.endsAt - upcoming.startedAt <= 7_200_000)
+  assert.ok(upcoming.endsAt - upcoming.startedAt >= 600_000)
+  assert.ok(upcoming.endsAt - upcoming.startedAt <= 3_600_000)
   const now = NOW + 120_000
   const make = (templateId: string, impact: number): MarketNews => ({
     id: 'news-test-' + templateId,

@@ -45,7 +45,7 @@ Les versements sont calculés **chaque seconde réelle** et crédités au solde 
 ### News fictives
 
 - Un événement apparaît **toutes les 1 à 5 minutes** (tirage indépendant).
-- Son influence dure **20 à 60 minutes hors bonus Prestige**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.
+- Son influence dure **5 à 30 minutes hors bonus Prestige**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.
 - Catalogue de **300 actualités fictives distinctes**, incluant innovations, finance, scandales, macroéconomie, adoption/régulation des cryptos, hacks, tendances de memecoins et rumeurs.
 - L'onglet News affiche les **10 dernières annonces** ; toute annonce plus ancienne encore active reste également visible.
 - Les fiches News indiquent le contexte, un scénario possible, le statut et les actifs ciblés. Les rumeurs peuvent être confirmées ou démenties, mais elles ne garantissent pas un mouvement de cours.
@@ -167,9 +167,9 @@ Une page **Prestige** distincte du Fame Shop est accessible depuis l'accueil, sa
 
 ### Passe 4 — Marchés Prestige, temps et liquidités
 
-Le marché sépare maintenant la **vitesse virtuelle des cours** du temps réel. Dans la page Prestige, l'accélérateur de marché permet de sélectionner ×1, ×1,5, ×2, ×3, ×4 ou ×5 selon le niveau acheté ; les dividendes, taxes (72 h), entreprises et cooldowns ne sont pas accélérés. Les News conservent une durée réelle tout en bénéficiant des améliorations de durée ×2, puissance bilatérale ×2, fréquence +50 %, vision anticipée, propagation sur une deuxième cible et Frénésie activable. Le Radar de volatilité est visible dans Trading une fois débloqué. Les actions/cryptos sont soumises à une profondeur d'ordre indépendante de leur supply, régénérée selon le temps réel, améliorée par les bonus ×3 et ×2,5. Les achats et ventes insuffisamment liquides sont refusés, sans slippage supplémentaire dans cette passe.
+Le marché sépare maintenant la **vitesse virtuelle des cours** du temps réel. Dans la page Prestige, l'accélérateur de marché permet de sélectionner ×1, ×1,5, ×2, ×3, ×4 ou ×5 selon le niveau acheté ; les dividendes, taxes (72 h), entreprises et cooldowns ne sont pas accélérés. Les News conservent une durée réelle tout en bénéficiant des améliorations de durée ×2, puissance bilatérale ×2, fréquence +50 %, vision anticipée, propagation sur une deuxième cible et Frénésie activable. Le Radar de volatilité est visible dans Trading une fois débloqué. Les News ont désormais une durée de base de 5 à 30 minutes réelles (de 10 à 60 minutes au maximum avec l'amélioration de durée Prestige). Les anciens plafonds de liquidité à l'achat et à la vente ont été supprimés : les ordres restent contrôlés par le cash, les frais, l'offre totale, les unités détenues et le staking.
 
-L'interface affiche la liquidité à l'achat et à la vente dans le détail d'un actif. Le code source de ces fonctions est dans `src/ascension/market-effects.ts`, `src/trading/{market,news,liquidity,trades,dividends}.ts`. La suite de tests a été étendue, **sans exécution npm ni build confirmés** pour cette passe. Les fichiers statiques GitHub Pages à la racine ne sont donc pas synchronisés à ce stade.
+Le moteur est dans `src/ascension/market-effects.ts` et `src/trading/{market,news,trades,dividends}.ts` ; les validations sont couvertes par les tests de domaine et d'interface.
 
 
 ### Passe 5 — Staking crypto (Prestige)

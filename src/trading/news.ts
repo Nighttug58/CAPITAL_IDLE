@@ -13,8 +13,8 @@ import { RUMOR_STORIES } from './news-library/rumors.ts'
 const TICK_MS = 5_000
 export const MIN_NEWS_INTERVAL_MS = 60_000
 export const MAX_NEWS_INTERVAL_MS = 300_000
-export const MIN_NEWS_DURATION_MS = 1_200_000
-export const MAX_NEWS_DURATION_MS = 3_600_000
+export const MIN_NEWS_DURATION_MS = 300_000
+export const MAX_NEWS_DURATION_MS = 1_800_000
 export const EXPIRED_NEWS_HISTORY = 10
 
 export type NewsCategory = 'innovation' | 'results' | 'finance' | 'scandal' | 'macro' | 'adoption' | 'regulation' | 'hack' | 'social' | 'rumor'
