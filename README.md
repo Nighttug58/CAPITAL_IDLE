@@ -47,6 +47,7 @@ quantité détenue × prix de référence fixe × rendement annuel courant / 86 
 Les versements sont calculés **chaque seconde réelle** et crédités au solde et au total gagné. Les fractions de centime sont conservées pour les versements suivants. Le prix de référence fixe évite qu'un pic instantané du cours multiplie mécaniquement le dividende. Il n'y a aucun dividende pour les cryptos ou memecoins.
 
 ### News fictives
+- **Présence permanente d'au moins une News haussière (verte) ou baissière (rouge)** : si aucune annonce directionnelle n'est active, le moteur en lance une immédiatement au tick suivant (y compris à l'ouverture et après expiration). Ce filet de sécurité ne remet pas à zéro les 5–10 minutes d'apparition normale ni la prévision Prestige ; les nouvelles annonces se cumulent avec celles déjà actives.
 
 - Un événement apparaît **toutes les 5 à 10 minutes** (tirage indépendant, hors bonus de fréquence Prestige).
 - Son influence dure **5 à 30 minutes hors bonus Prestige**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.

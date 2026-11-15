@@ -75,7 +75,10 @@ test('seules les News globales haussières peuvent être tirées, les anciennes 
   assert.equal(isGlobalBearishNews(legacy), true)
   assert.deepEqual(getNewsPressure([legacy], START), { price: {}, dividend: {} })
   const purged = advanceNewsTick([legacy], START + HOUR, START - TICK, START, () => 0.5)
-  assert.deepEqual(purged.news, [])
+  assert.equal(purged.news.length, 1, 'l annonce retirée est remplacée immédiatement')
+  assert.ok(purged.news.every(item => !isGlobalBearishNews(item)))
+  assert.ok(purged.news.some(item => item.startedAt === START && item.endsAt > START &&
+    getNewsDirection(item) !== 'neutral'))
   const previewed = advanceNewsTick([], START + TICK, START, START, () => 0.5, {
     eager: true, upcomingNews: { ...legacy, startedAt: START + TICK },
   })
@@ -84,8 +87,9 @@ test('seules les News globales haussières peuvent être tirées, les anciennes 
   const issued = advanceNewsTick(previewed.news, previewed.nextNewsAt, START, START + TICK, () => 0.5, {
     eager: true, upcomingNews: previewed.upcomingNews,
   })
-  assert.equal(issued.news.length, 1)
-  assert.equal(isGlobalBearishNews(issued.news[0]!), false)
+  assert.equal(issued.news.length, 2, 'annonce de secours + événement normalement prévu')
+  assert.deepEqual(issued.news.find(item => item.id === previewed.upcomingNews!.id), previewed.upcomingNews)
+  assert.ok(issued.news.every(item => !isGlobalBearishNews(item)))
   // Every selectable template remains reachable, none creates a market-wide decline.
   for (let i = 0; i < DRAWABLE_NEWS_TEMPLATES.length; i++) {
     const fraction = (i + 0.5) / DRAWABLE_NEWS_TEMPLATES.length
@@ -94,19 +98,23 @@ test('seules les News globales haussières peuvent être tirées, les anciennes 
   }
 })
 
-test('première News : attente de 5–10 minutes sans génération instantanée', () => {
-  const scheduled = advanceNewsTick([], null, START, START + TICK, () => 0)
-  assert.equal(scheduled.nextNewsAt, START + MIN_NEWS_INTERVAL_MS)
-  assert.equal(scheduled.news.length, 0)
-  const notYet = advanceNewsTick(scheduled.news, scheduled.nextNewsAt, START + TICK, START + MIN_NEWS_INTERVAL_MS - TICK, () => 0.5)
-  assert.equal(notYet.news.length, 0)
-  const due = advanceNewsTick(notYet.news, notYet.nextNewsAt, START + MIN_NEWS_INTERVAL_MS - TICK, START + MIN_NEWS_INTERVAL_MS, () => 0)
-  assert.equal(due.news.length, 1)
-  assert.equal(due.news[0]?.startedAt, START + MIN_NEWS_INTERVAL_MS)
-  assert.equal(due.news[0]?.endsAt, START + MIN_NEWS_INTERVAL_MS + MIN_NEWS_DURATION_MS)
+test('première News : démarrage immédiat, puis la cadence normale reste de 5–10 minutes', () => {
+  const first = advanceNewsTick([], null, START, START + TICK, () => 0)
+  assert.equal(first.nextNewsAt, START + MIN_NEWS_INTERVAL_MS)
+  assert.equal(first.news.length, 1)
+  assert.equal(first.news[0]?.startedAt, START + TICK)
+  assert.equal(first.news[0]?.endsAt, START + TICK + MIN_NEWS_DURATION_MS)
+  assert.notEqual(getNewsDirection(first.news[0]!), 'neutral')
+  const before = advanceNewsTick(first.news, first.nextNewsAt, START + TICK, START + MIN_NEWS_INTERVAL_MS - TICK, () => 0.5)
+  assert.equal(before.news.length, 1, 'aucune apparition forcée si une News reste active')
+  const due = advanceNewsTick(before.news, before.nextNewsAt, START + MIN_NEWS_INTERVAL_MS - TICK, START + MIN_NEWS_INTERVAL_MS, () => 0)
+  assert.equal(due.news.length, 2, 'la News planifiée peut se cumuler avec l annonce active')
+  const scheduledEvent = due.news.find(item => item.startedAt === START + MIN_NEWS_INTERVAL_MS)!
+  assert.ok(scheduledEvent)
+  assert.equal(scheduledEvent.endsAt - scheduledEvent.startedAt, MIN_NEWS_DURATION_MS)
   assert.equal(due.nextNewsAt, START + MIN_NEWS_INTERVAL_MS * 2)
-  assert.equal(getNewsRemainingMs(due.news[0]!, due.news[0]!.endsAt), 0)
-  assert.equal(getNewsRemainingMs(due.news[0]!, due.news[0]!.startedAt), MIN_NEWS_DURATION_MS)
+  assert.equal(getNewsRemainingMs(scheduledEvent, scheduledEvent.endsAt), 0)
+  assert.equal(getNewsRemainingMs(scheduledEvent, scheduledEvent.startedAt), MIN_NEWS_DURATION_MS)
 })
 
 test('les échéances tirées couvrent les bornes 5–10 min et les durées 5–30 min', () => {
@@ -125,11 +133,14 @@ test('les échéances tirées couvrent les bornes 5–10 min et les durées 5–
   assert.equal(boosted.nextNewsAt, START + 200_000, 'le bonus Prestige de fréquence reste actif')
 })
 
-test('événements tirés par le moteur : cadence indépendante et durée fixe', () => {
+test('sur 5 h : toujours une News colorée active, cadence planifiée et secours sans doublons', () => {
   let state = createInitialTradingState(START, 225)
   const generated: MarketNews[] = []
   for (let index = 0; index < 3_600; index++) {
     state = advanceMarketTick(state)
+    assert.ok(state.news.some(item => item.startedAt <= state.lastTickAt &&
+      item.endsAt > state.lastTickAt && getNewsDirection(item) !== 'neutral'),
+    'un tick ne peut pas se terminer sans annonce haussière ou baissière : ' + index)
     const fresh = state.news.find((item) => item.startedAt === state.lastTickAt)
     if (fresh) generated.push(fresh)
   }
@@ -143,11 +154,65 @@ test('événements tirés par le moteur : cadence indépendante et durée fixe',
     assert.ok(item.affectedAssetIds.length > 0)
     assert.ok(item.affectedAssetIds.every((id) => ASSETS.some((asset) => asset.id === id)))
     assert.ok(item.impact >= -1 && item.impact <= 1)
+    assert.notEqual(getNewsDirection(item), 'neutral')
     if (index > 0) {
       const interval = item.startedAt - generated[index - 1]!.startedAt
-      assert.ok(interval >= MIN_NEWS_INTERVAL_MS && interval <= MAX_NEWS_INTERVAL_MS)
+      // Le filet de sécurité peut insérer une News avant la prochaine échéance
+      // mais n'interrompt pas la programmation normale.
+      assert.ok(interval > 0 && interval <= MAX_NEWS_INTERVAL_MS)
     }
   }
+})
+
+test('secours immédiat à expiration : pas de reset du calendrier ni de doublon', () => {
+  const old = event({
+    startedAt: START - MIN_NEWS_DURATION_MS,
+    endsAt: START,
+  })
+  const scheduled = START + 150_000
+  const earlier = advanceNewsTick([old], scheduled, START - TICK, START - TICK, () => 0.5)
+  assert.equal(earlier.news.length, 1, 'la News reste active juste avant expiration')
+  const atEnd = advanceNewsTick(earlier.news, earlier.nextNewsAt, START - TICK, START, () => 0.5)
+  assert.equal(atEnd.nextNewsAt, scheduled)
+  assert.equal(atEnd.news.length, 2, 'la News terminée reste dans l historique')
+  const replacement = atEnd.news.find(item => item.startedAt === START)!
+  assert.ok(replacement)
+  assert.ok(replacement.endsAt > START)
+  assert.notEqual(getNewsDirection(replacement), 'neutral')
+  const next = advanceNewsTick(atEnd.news, atEnd.nextNewsAt, START, START + TICK, () => 0.5)
+  assert.deepEqual(next.news, atEnd.news, 'aucun événement supplémentaire tant que la News de secours reste active')
+  assert.equal(next.nextNewsAt, scheduled)
+  const due = advanceNewsTick(next.news, next.nextNewsAt, START + TICK, scheduled, () => 0.5)
+  assert.equal(due.news.filter(item => item.startedAt === scheduled).length, 1)
+  assert.equal(new Set(due.news.map(item => item.id)).size, due.news.length)
+})
+
+test('News neutre ou obsolète : seule une rouge/verte valable empêche la régénération', () => {
+  const neutral = event({ id: 'invalid', templateId: 'unknown', startedAt: START - TICK })
+  const globalBear = event({ id: 'old-bear', templateId: 'macro-liquidity', impact: -1,
+    affectedAssetIds: ASSETS.map(item => item.id) })
+  const result = advanceNewsTick([neutral, globalBear], START + HOUR, START - TICK, START, () => 0.5)
+  assert.ok(result.news.some(item => item.id === 'invalid'), 'historique conservé')
+  assert.ok(!result.news.some(item => item.id === 'old-bear'), 'ancienne News globale purgée')
+  assert.equal(result.news.filter(item => item.startedAt === START).length, 1)
+  assert.notEqual(getNewsDirection(result.news.at(-1)!), 'neutral')
+})
+
+test('la News anticipée Prestige reste identique en cas de génération de secours', () => {
+  const now = START + TICK
+  const nextScheduled = START + 90_000
+  const options = { eager: true, propagateSingle: true, frequencyMultiplier: 1.5 }
+  const initial = advanceNewsTick([], nextScheduled, START, now, () => 0.35, options)
+  assert.ok(initial.upcomingNews)
+  assert.equal(initial.upcomingNews.startedAt, nextScheduled)
+  assert.equal(initial.news.length, 1)
+  assert.equal(initial.news[0]!.startedAt, now)
+  assert.equal(initial.nextNewsAt, nextScheduled)
+  const due = advanceNewsTick(initial.news, initial.nextNewsAt, now, nextScheduled,
+    () => 0.6, { ...options, upcomingNews: initial.upcomingNews })
+  assert.deepEqual(due.news.find(item => item.id === initial.upcomingNews!.id), initial.upcomingNews)
+  assert.equal(due.news.filter(item => item.startedAt === nextScheduled).length, 1)
+  assert.equal(due.nextNewsAt > nextScheduled, true)
 })
 
 test('expiration : les 10 dernières News expirées restent, et toutes les actives', () => {

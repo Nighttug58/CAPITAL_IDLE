@@ -143,7 +143,9 @@ test('Fréquence News, propagation des News single et prévision déterministe',
   const confirmed = advanceNewsTick(scheduled.news, scheduled.nextNewsAt, NOW, NOW + 5_000, () => 0.5, {
     eager: true, upcomingNews: scheduled.upcomingNews,
   })
-  assert.deepEqual(confirmed.news[0], scheduled.upcomingNews)
+  assert.deepEqual(confirmed.news.find(item => item.id === scheduled.upcomingNews!.id),
+    scheduled.upcomingNews)
+  assert.equal(confirmed.news.length, 2, 'la prévision et la News de secours se chevauchent sans doublon')
 })
 
 test('Frénésie : activation persistante et cooldown 30 min du temps réel', () => {

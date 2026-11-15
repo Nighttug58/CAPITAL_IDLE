@@ -216,6 +216,12 @@ export function advanceNewsTick(
       ? newsInterval(random, options.frequencyMultiplier)
       : newsInterval(random))
     upcoming = eager ? createEvent(scheduledAt, random, events, options) : undefined
+  } else if (!events.some((event) =>
+    event.startedAt <= at && event.endsAt > at && getNewsDirection(event) !== 'neutral')) {
+    // Filet de sécurité : ne jamais laisser le fil sans une News rouge/verte.
+    // L'annonce de secours démarre immédiatement, sans attendre 5–10 min.
+    // L'échéance normale et la prévision Prestige restent inchangées.
+    events.push(createEvent(at, random, events, options))
   }
   return {
     news: trimNews(events, at), nextNewsAt: scheduledAt,
