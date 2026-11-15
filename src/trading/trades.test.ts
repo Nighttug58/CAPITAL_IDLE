@@ -189,6 +189,22 @@ test('MAX peut épuiser l’offre et racheter les unités revendues sans attendr
   assert.ok(buyAsset(sale.state, 'bitcoin', 210).ok)
 })
 
+test('aucun plafond de carnet ne bloque les gros ordres au comptant', () => {
+  const start = funded(100_000_000)
+  const quantity = 1_000 // > ancien carnet BTC de base (210 unités)
+  const bought = buyAsset(start, 'bitcoin', quantity)
+  assert.ok(bought.ok)
+  if (!bought.ok) return
+  assert.equal(bought.state.trading.positions.bitcoin?.quantity, quantity)
+  const tooMany = sellAsset(bought.state, 'bitcoin', quantity + 1)
+  assert.equal(tooMany.ok, false)
+  if (!tooMany.ok) assert.equal(tooMany.error, 'insufficient-holdings')
+  const sold = sellAsset(bought.state, 'bitcoin', quantity)
+  assert.ok(sold.ok)
+  if (!sold.ok) return
+  assert.equal(sold.state.trading.positions.bitcoin, undefined)
+})
+
 test('portfolio : valeur, P&L latent net de vente, bénéfice réalisé, dividende estimé', () => {
   let state = funded(1000)
   state = quoted(state, 'nvideo', 100)

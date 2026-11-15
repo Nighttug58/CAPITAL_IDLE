@@ -198,8 +198,14 @@ test('Radar : classe les marchés avec les vrais échantillons historiques', () 
 })
 
 test('Une poche historique épuisée permet un achat et une revente immédiate de toute la position', () => {
-  const start = createCapitalState({ balance: 100_000_000, lifetimeEarned: 100_000_000, purchasedUpgrades: 0 }, NOW)
-  start.trading.liquidity = { bitcoin: { buyUnits: 0, sellUnits: 0, updatedAt: NOW } }
+  const old = createCapitalState({ balance: 100_000_000, lifetimeEarned: 100_000_000, purchasedUpgrades: 0 }, NOW)
+  const raw = JSON.parse(JSON.stringify(old))
+  raw.trading.liquidity = { bitcoin: { buyUnits: 0, sellUnits: 0, updatedAt: NOW } }
+  const migrated = prepareSaveImport(JSON.stringify(raw), NOW)
+  assert.ok(migrated.ok)
+  if (!migrated.ok) return
+  const start = migrated.preview.state
+  assert.equal('liquidity' in start.trading, false)
   const max = getMaximumBuyQuantity(start, 'bitcoin')
   assert.ok(max > 210)
   const bought = buyAsset(start, 'bitcoin', max)
@@ -211,12 +217,19 @@ test('Une poche historique épuisée permet un achat et une revente immédiate d
   assert.deepEqual(imported.preview.state, sold.state)
 })
 
-test('v7 historique avant passe 4 : pools absents acceptés avec migration non destructrice', () => {
+test('v7 historique : anciennes liquidités présentes ou absentes migrées sans perte', () => {
   const old = createCapitalState(undefined, NOW)
   const raw = JSON.parse(JSON.stringify(old))
-  delete raw.trading.liquidity
+  raw.trading.liquidity = { bitcoin: { buyUnits: 0, sellUnits: 0, updatedAt: NOW } }
   const imported = prepareSaveImport(JSON.stringify(raw), NOW)
   assert.ok(imported.ok)
-  assert.deepEqual(imported.preview.state.trading.liquidity, {})
+  if (!imported.ok) return
+  assert.deepEqual(imported.preview.state.trading, old.trading)
+  assert.equal('liquidity' in imported.preview.state.trading, false)
   assert.equal(imported.preview.state.game.balance, old.game.balance)
+  delete raw.trading.liquidity
+  const withoutPool = prepareSaveImport(JSON.stringify(raw), NOW)
+  assert.ok(withoutPool.ok)
+  if (!withoutPool.ok) return
+  assert.deepEqual(withoutPool.preview.state.trading, old.trading)
 })

@@ -59,6 +59,8 @@ describe('Trading interface mobile',()=>{
     const {wrapper,getState}=setup()
     await openNvideo(wrapper)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(wrapper.find('.trading-asset-modal').text()).not.toContain('Unités disponibles à l’achat')
+    expect(wrapper.find('.trading-asset-modal').text()).not.toContain('Unités disponibles à la vente')
     await wrapper.find('#order-quantity').setValue('1')
     expect(wrapper.find('button.order-submit').attributes('disabled')).toBeUndefined()
     await wrapper.find('button.order-submit').trigger('click')
@@ -84,6 +86,7 @@ describe('Trading interface mobile',()=>{
     await wrapper.find('button.modal-close').trigger('click')
     await tab(wrapper,2)
     await wrapper.find('button.market-asset-row').trigger('click')
+    expect(wrapper.find('.trading-asset-modal').text()).not.toContain('Unités disponibles à la vente')
     await wrapper.findAll('.order-fractions button')[0]!.trigger('click')
     const input=wrapper.find('#order-quantity').element as HTMLInputElement
     expect(input.value).toMatch(/^0\.\d+$/)

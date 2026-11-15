@@ -37,7 +37,7 @@ export const ASCENSION_CATEGORIES: readonly { id: AscensionCategory; label: stri
   { id: 'automatisation', label: 'Automatisation' },
   { id: 'news', label: 'Actualités de marché' },
   { id: 'trading', label: 'Outils de trading' },
-  { id: 'marches', label: 'Temps et liquidités' },
+  { id: 'marches', label: 'Temps et marchés' },
   { id: 'staking', label: 'Staking crypto' },
 ])
 const infoById = new Map(ASCENSION_PRESENTATION.map(row => [row.id, row]))

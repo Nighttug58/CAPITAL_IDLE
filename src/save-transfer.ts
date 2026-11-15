@@ -54,9 +54,9 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
   const input = JSON.parse(JSON.stringify(raw)) as Record<string, unknown>
   const trading = input.trading
   if (isRecord(trading)) {
-    // Pre-pass-4 saves did not persist order-book depth.
-    // An empty book ledger means every asset starts at its base depth.
-    if (!('liquidity' in trading)) trading.liquidity = {}
+    // Les anciens carnets de liquidité sont obsolètes : ignorer le champ
+    // sans remettre à zéro les positions, le cash ou les autres données.
+    delete trading.liquidity
     // Previous saves of the *same* v7 schema lacked a staking subledger.
     // Migration adds an empty ledger, never creates coins or rewinds income.
     if (!('staking' in trading)) {

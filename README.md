@@ -20,11 +20,12 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 | Cryptomonnaies | 15 | 1 % | 1 % | Non |
 | Memecoins | 10 | 1,5 % | 1,5 % | Non |
 
-Les cours initiaux sont des **repères de gameplay figés au 13 novembre 2026**, pas des cotations actuelles. Tous les cours, variations, liquidités, News et dividendes sont simulés **sur l'appareil du joueur**, et n'ont aucun lien avec les marchés réels.
+Les cours initiaux sont des **repères de gameplay figés au 13 novembre 2026**, pas des cotations actuelles. Tous les cours, variations, News et dividendes sont simulés **sur l'appareil du joueur**, et n'ont aucun lien avec les marchés réels.
 
 - Les **45 actifs évoluent toutes les 5 secondes**, chacun avec son momentum, ses régimes, des chocs aléatoires et des bornes de prix.
 - Toutes les positions Trading sont **au comptant**, sans levier ni achat à découvert. La fiscalité peut entraîner un **solde global négatif** : cela n'autorise aucun achat de titres. L'offre de chaque actif est plafonnée. Les cryptos autorisent des fractions.
-- Ouvrir un actif donne accès à son cours, au graphique, aux bornes, aux quantités détenues et disponibles, ainsi qu'au formulaire **Acheter / Vendre**.
+- Ouvrir un actif donne accès à son cours, au graphique, aux bornes, aux quantités détenues et au formulaire **Acheter / Vendre**.
+- **Aucun plafond de liquidité par ordre ni délai de régénération** : les achats dépendent seulement du solde, des frais et de l'offre totale de l'actif ; les ventes dépendent des unités réellement détenues et non verrouillées en staking.
 - Les raccourcis **25 % / 50 % / MAX** prennent en compte le budget, les frais, la précision des quantités et les titres possédés. Les ventes affichent les montants nets.
 - Le **Portfolio** présente le solde, les positions, les coûts moyens, les résultats latents nets des frais théoriques de revente et les profits nets déjà réalisés. Le **patrimoine net incluant la fiscalité et les entreprises** est détaillé dans Stats.
 - Les graphiques conservent **jusqu'à une heure** d'évolution (au maximum 720 échantillons par instrument, à raison de 5 secondes).
