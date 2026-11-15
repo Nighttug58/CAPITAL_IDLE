@@ -223,6 +223,50 @@ test('portfolio : valeur, P&L latent net de vente, bénéfice réalisé, dividen
   assert.equal(getPortfolio(funded()).marketValue, 0)
 })
 
+test('TURBO 0,2604 : une vente sous le centime liquide les unités sans créer de cash, taxe ou XP', () => {
+  const initial = funded(10)
+  const bought = buyAsset(initial, 'turbo', 100)
+  assert.equal(bought.ok, true)
+  if (!bought.ok) return
+  const partial = sellAsset(bought.state, 'turbo', 99.7396)
+  assert.equal(partial.ok, true)
+  if (!partial.ok) return
+  assert.equal(partial.state.trading.positions.turbo?.quantity, 0.2604)
+  assert.equal(getQuickQuantity(partial.state, 'turbo', 'sell', 1), 0.2604)
+  const before = partial.state
+  const dust = sellAsset(before, 'turbo', 0.2604)
+  assert.equal(dust.ok, true)
+  if (!dust.ok) return
+  assert.equal(dust.receipt.gross, 0)
+  assert.equal(dust.receipt.fee, 0)
+  assert.equal(dust.receipt.cashChange, 0)
+  assert.equal(dust.receipt.levelEarnings, 0)
+  assert.equal(dust.receipt.taxAccrued, 0)
+  assert.equal(dust.state.game.balance, before.game.balance)
+  assert.equal(dust.state.game.lifetimeEarned, before.game.lifetimeEarned)
+  assert.equal(dust.state.trading.positions.turbo, undefined)
+  assert.deepEqual(restoreCapitalState(JSON.parse(JSON.stringify(dust.state)), NOW), dust.state)
+})
+
+test('une vente brute de 1 centime peut être liquidée sans dette de frais', () => {
+  const state = quoted(funded(1), 'turbo', 0.000684)
+  const legacy = {
+    ...state,
+    trading: { ...state.trading, positions: { turbo: { quantity: 15, costBasis: 0.02 } } },
+  }
+  const result = sellAsset(legacy, 'turbo', 15)
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.receipt.gross, 0.01)
+  assert.equal(result.receipt.fee, 0.01)
+  assert.equal(result.receipt.cashChange, 0)
+  assert.equal(result.receipt.netRealizedProfit, -0.02)
+  assert.equal(result.state.trading.positions.turbo, undefined)
+  assert.equal(result.state.game.balance, 1)
+  assert.equal(result.state.game.lifetimeEarned, 1)
+  assert.equal(result.state.stats.realizedLossesBySource.memecoins, 0.02)
+})
+
 test('validation : erreurs de fonds, quantité, stock, cours et actif sans mutation', () => {
   const start = funded(10)
   assert.equal(buyAsset(start, 'missing', 1).ok, false)

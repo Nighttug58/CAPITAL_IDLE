@@ -104,10 +104,11 @@ function sellMoney(asset: AssetDefinition, price: number, quantity: number): {
 } | null {
   const gross = price * quantity * CENTS
   if (!Number.isFinite(gross) || gross <= 0 || gross > MAX_CENTS / 2) return null
-  // La vente ne crée jamais artificiellement un centime inexistant.
+  // Les reliquats dont le prix est inférieur au centime restent vendables :
+  // produit net nul (jamais un centime fictif). Les frais ne peuvent pas
+  // créer de dette ou rendre la vente négative.
   const grossCents = Math.floor(gross + 1e-8)
-  const feeCents = Math.max(1, Math.ceil(gross * feeRate(asset.kind) - 1e-8))
-  if (grossCents <= feeCents) return null
+  const feeCents = Math.min(grossCents, Math.max(1, Math.ceil(gross * feeRate(asset.kind) - 1e-8)))
   return { grossCents, feeCents, proceedsCents: grossCents - feeCents }
 }
 
@@ -172,9 +173,10 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
   if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return reject(state, 'invalid-quantity')
   if (quantity > getAvailableSupply(asset, owned) + 1e-9) return reject(state, 'insufficient-supply')
-  // Éviter les achats de poussière qui seraient invendables sans aucun produit
-  // de vente après arrondi et commissions, même sans mouvement de marché.
-  if (!sellMoney(asset, price, quantity)) return reject(state, 'amount-too-small')
+  // Empêcher les micro-achats qui ne pourraient produire aucun centime
+  // en revente immédiate ; autoriser toutefois la liquidation des reliquats
+  // anciens, même si leur produit net est désormais nul.
+  if (!sellMoney(asset, price, quantity)?.proceedsCents) return reject(state, 'amount-too-small')
   const order = buyMoney(asset, price, quantity)
   if (!order) return reject(state, 'money-overflow')
 

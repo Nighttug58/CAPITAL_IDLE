@@ -15,6 +15,23 @@ test('quantité éditable : 8 décimales BTC jamais converties en notation e', (
   }
 })
 
+test('MAX TURBO 0,2604 : quantité éditable et liquidation possible', () => {
+  const initial = createCapitalState({ balance: 10, lifetimeEarned: 10, purchasedUpgrades: 0 }, 1_800_000_000_000)
+  const bought = buyAsset(initial, 'turbo', 100)
+  assert.equal(bought.ok, true)
+  if (!bought.ok) return
+  const partial = sellAsset(bought.state, 'turbo', 99.7396)
+  assert.equal(partial.ok, true)
+  if (!partial.ok) return
+  const selected = getQuickQuantity(partial.state, 'turbo', 'sell', 1)
+  assert.equal(formatEditableQuantity(selected, 4), '0.2604')
+  const sold = sellAsset(partial.state, 'turbo', parseTradeQuantity('0,2604'))
+  assert.equal(sold.ok, true)
+  if (!sold.ok) return
+  assert.equal(sold.receipt.cashChange, 0)
+  assert.equal(sold.state.trading.positions.turbo, undefined)
+})
+
 test('25 %, 50 %, MAX et vente intégrale au travers des contrats UI', () => {
   const initial = createCapitalState({ balance: 1000, lifetimeEarned: 1000, purchasedUpgrades: 0 }, 1_800_000_000_000)
   const max = getQuickQuantity(initial, 'bitcoin', 'buy', 1)

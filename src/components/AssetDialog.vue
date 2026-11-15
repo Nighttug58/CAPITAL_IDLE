@@ -53,7 +53,7 @@ const errors: Record<string, string> = {
   'insufficient-supply': 'Quantité supérieure à l’offre restante.',
   'insufficient-holdings': 'Vous ne détenez pas autant d’unités.',
   'staked-holdings': 'Cette quantité est verrouillée en staking ou en retrait.',
-  'amount-too-small': 'Ordre trop petit pour couvrir les arrondis et les frais.',
+  'amount-too-small': 'Achat trop petit : une revente immédiate ne rapporterait aucun centime.',
   'money-overflow': 'Montant trop élevé pour être calculé avec précision.',
 }
 function chooseFraction(fraction: TradeFraction) {
@@ -74,7 +74,7 @@ function submit() {
   }
   status.value = {
     success: true,
-    message: `${activeSide.value === 'buy' ? 'Achat confirmé' : 'Vente confirmée'} · ${formatQuantity(response.receipt.quantity)} ${asset.value.symbol} · frais ${formatCash(response.receipt.fee)}${response.receipt.taxAccrued > 0 ? ` · taxe différée ${formatCash(response.receipt.taxAccrued)}` : ''}`,
+    message: `${activeSide.value === 'buy' ? 'Achat confirmé' : 'Vente confirmée'} · ${formatQuantity(response.receipt.quantity)} ${asset.value.symbol} · frais ${formatCash(response.receipt.fee)}${activeSide.value === 'sell' && response.receipt.cashChange === 0 ? ' · produit net nul (moins de 0,01 $)' : ''}${response.receipt.taxAccrued > 0 ? ` · taxe différée ${formatCash(response.receipt.taxAccrued)}` : ''}`,
   }
   quantityText.value = ''
 }
@@ -128,6 +128,9 @@ function submit() {
             <span>Taxe différée (due sous 72 h max.)</span><strong>{{ formatCash(estimate.taxAccrued) }}</strong>
           </template>
         </div>
+        <p v-if="activeSide === 'sell' && estimate && estimate.cashChange === 0" class="order-precision">
+          Cette vente rapporte 0,00 $ après arrondis et frais : les unités seront retirées sans crédit de dollars.
+        </p>
         <p v-if="quantityText.trim() && !ready && !status && !preview.ok"
           class="order-error" role="alert">{{ errors[preview.error] ?? 'Ordre invalide.' }}</p>
         <p v-if="status" :class="status.success ? 'order-success' : 'order-error'" role="status">{{ status.message }}</p>

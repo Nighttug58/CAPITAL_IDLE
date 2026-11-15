@@ -25,7 +25,7 @@ Les cours initiaux sont des **repères de gameplay figés au 13 novembre 2026**,
 - Les **45 actifs évoluent toutes les 5 secondes**, chacun avec son momentum, ses régimes, des chocs aléatoires et des bornes de prix.
 - Toutes les positions Trading sont **au comptant**, sans levier ni achat à découvert. La fiscalité peut entraîner un **solde global négatif** : cela n'autorise aucun achat de titres. L'offre de chaque actif est plafonnée. Les cryptos autorisent des fractions.
 - Ouvrir un actif donne accès à son cours, au graphique, aux bornes, aux quantités détenues et au formulaire **Acheter / Vendre**.
-- **Aucun plafond de liquidité par ordre ni délai de régénération** : les achats dépendent seulement du solde, des frais et de l'offre totale de l'actif ; les ventes dépendent des unités réellement détenues et non verrouillées en staking.
+- **Aucun plafond de liquidité par ordre ni délai de régénération** : les achats dépendent seulement du solde, des frais et de l'offre totale de l'actif ; les ventes dépendent des unités réellement détenues et non verrouillées en staking. Les reliquats de coins trop petits pour rapporter un centime peuvent être vendus avec un crédit de **0,00 $**, sans création de monnaie ; les micro-achats invendables immédiatement restent refusés.
 - Les raccourcis **25 % / 50 % / MAX** prennent en compte le budget, les frais, la précision des quantités et les titres possédés. Les ventes affichent les montants nets.
 - Le **Portfolio** présente le solde, les positions, les coûts moyens, les résultats latents nets des frais théoriques de revente et les profits nets déjà réalisés. Le **patrimoine net incluant la fiscalité et les entreprises** est détaillé dans Stats.
 - Les graphiques conservent **jusqu'à une heure** d'évolution (au maximum 720 échantillons par instrument, à raison de 5 secondes).
@@ -44,7 +44,7 @@ Les versements sont calculés **chaque seconde réelle** et crédités au solde 
 
 ### News fictives
 
-- Un événement apparaît **toutes les 1 à 5 minutes** (tirage indépendant).
+- Un événement apparaît **toutes les 5 à 10 minutes** (tirage indépendant, hors bonus de fréquence Prestige).
 - Son influence dure **5 à 30 minutes hors bonus Prestige**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.
 - **279 News pouvant apparaître** (sur 300 fiches historiques) : les 21 annonces baissières touchant tout le marché sont exclues du tirage et n'influencent plus les cours. Les News globales haussières, ainsi que les News baissières limitées à une entreprise, un secteur ou une classe d'actifs, restent possibles. Les anciennes fiches sont conservées pour compatibilité avec les sauvegardes.
 - L'onglet News affiche les **10 dernières annonces** ; toute annonce plus ancienne encore active reste également visible.

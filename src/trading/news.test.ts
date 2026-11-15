@@ -94,7 +94,7 @@ test('seules les News globales haussières peuvent être tirées, les anciennes 
   }
 })
 
-test('première News : attente de 1–5 minutes sans génération instantanée', () => {
+test('première News : attente de 5–10 minutes sans génération instantanée', () => {
   const scheduled = advanceNewsTick([], null, START, START + TICK, () => 0)
   assert.equal(scheduled.nextNewsAt, START + MIN_NEWS_INTERVAL_MS)
   assert.equal(scheduled.news.length, 0)
@@ -109,7 +109,9 @@ test('première News : attente de 1–5 minutes sans génération instantanée',
   assert.equal(getNewsRemainingMs(due.news[0]!, due.news[0]!.startedAt), MIN_NEWS_DURATION_MS)
 })
 
-test('les échéances tirées couvrent les bornes 1–5 min et 5–30 min', () => {
+test('les échéances tirées couvrent les bornes 5–10 min et les durées 5–30 min', () => {
+  assert.equal(MIN_NEWS_INTERVAL_MS, 5 * 60_000)
+  assert.equal(MAX_NEWS_INTERVAL_MS, 10 * 60_000)
   assert.equal(MIN_NEWS_DURATION_MS, 5 * 60_000)
   assert.equal(MAX_NEWS_DURATION_MS, 30 * 60_000)
   const high = advanceNewsTick([], null, START, START + TICK, () => 0.999999)
@@ -117,6 +119,10 @@ test('les échéances tirées couvrent les bornes 1–5 min et 5–30 min', () =
   const due = advanceNewsTick([], START + TICK, START, START + TICK, () => 0.999999)
   assert.equal(due.news[0]?.endsAt - due.news[0]!.startedAt, MAX_NEWS_DURATION_MS)
   assert.equal(due.nextNewsAt, START + TICK + MAX_NEWS_INTERVAL_MS)
+  const boosted = advanceNewsTick([], null, START, START + TICK, () => 0, {
+    eager: true, frequencyMultiplier: 1.5,
+  })
+  assert.equal(boosted.nextNewsAt, START + 200_000, 'le bonus Prestige de fréquence reste actif')
 })
 
 test('événements tirés par le moteur : cadence indépendante et durée fixe', () => {
