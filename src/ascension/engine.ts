@@ -87,6 +87,9 @@ export function performPrestige(state: CapitalState, at: number): AscensionResul
       // No tax debt exists when this branch is reached.
       prestige: {
         ...settled.prestige,
+        // A new run has its own XP history; the previous curve migration
+        // evidence cannot be reused to bypass the normal earnings guard.
+        xpRebase: undefined,
         experienceCents: 0, experienceCarryBps: 0,
         clickCarryBps: 0, tradingCarryBps: 0,
         lastAwardedLevel: 1,

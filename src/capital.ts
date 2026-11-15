@@ -1,4 +1,7 @@
-import { INITIAL_GAME, getLevel, restoreGame, upgradeLegacyExperienceCents, UPGRADES, type GameState } from './game.ts'
+import {
+  INITIAL_GAME, getLevel, migrateExperienceCentsToTieredCurve, restoreGame,
+  upgradeLegacyExperienceCents, UPGRADES, type GameState,
+} from './game.ts'
 import { createInitialAchievementsState, restoreAchievementsState, type AchievementsState } from './achievements.ts'
 import {
   createInitialEnterpriseState, createInitialFiscalState, createInitialStatsState,
@@ -76,9 +79,14 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
 
   const historicalExperience = isRecord(raw.prestige) && typeof raw.prestige.experienceCents === 'number'
     ? raw.prestige.experienceCents : undefined
+  const marker = isRecord(raw.prestige) ? raw.prestige.xpCurveVersion : undefined
   const candidateExperience = historicalExperience === undefined ? undefined
-    : (raw.version === 6 || raw.version === 7) && isRecord(raw.prestige) && raw.prestige.xpCurveVersion === 2
-      ? historicalExperience : upgradeLegacyExperienceCents(historicalExperience)
+    : marker === 3 ? historicalExperience
+      : marker === 2 ? migrateExperienceCentsToTieredCurve(historicalExperience)
+        : (() => {
+          const scaled = upgradeLegacyExperienceCents(historicalExperience)
+          return scaled === null ? null : migrateExperienceCentsToTieredCurve(scaled)
+        })()
   const legacyEarnedCents = isRecord(raw.game) && typeof raw.game.lifetimeEarned === 'number'
     ? raw.game.lifetimeEarned * 100 : null
   const v5Experience = legacyEarnedCents === null ? null : upgradeLegacyExperienceCents(legacyEarnedCents)

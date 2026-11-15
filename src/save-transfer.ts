@@ -62,6 +62,17 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
     input.achievements.cycleGiftCents = restored.achievements.cycleGiftCents
   }
   if (input.version === 5 || input.version === 6) delete input.achievements
+  // The same v7 file format existed before XP curve v3. Migrate only
+  // the known v2 marker, copying a deterministic XP projection; never
+  // touch Fame, the highest level, upgrades or the rest of the save.
+  const prestige = input.prestige
+  if (isRecord(prestige) && (input.version === 7 || input.version === 6) &&
+      (prestige.xpCurveVersion === 2 ||
+        (input.version === 6 && prestige.xpCurveVersion === undefined))) {
+    prestige.experienceCents = restored.prestige.experienceCents
+    prestige.xpCurveVersion = restored.prestige.xpCurveVersion
+    if (restored.prestige.xpRebase) prestige.xpRebase = restored.prestige.xpRebase
+  }
   const trading = input.trading
   if (isRecord(trading)) {
     // Les anciens carnets de liquidité sont obsolètes : ignorer le champ

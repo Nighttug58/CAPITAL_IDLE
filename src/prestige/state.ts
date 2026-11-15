@@ -1,4 +1,7 @@
-import { getLevel, upgradeLegacyExperienceCents } from '../game.ts'
+import {
+  getLevel, getLegacyLevel, migrateExperienceCentsToTieredCurve,
+  upgradeLegacyExperienceCents,
+} from '../game.ts'
 import { exactMoneyCents } from '../money.ts'
 import { COLLECTION_SLOTS, FAME_BOOST_IDS, MAX_FAME_BOOST_LEVEL, getPurchasedFameBoostCost, type FameBoostId } from './catalog.ts'
 import type { CapitalState } from '../capital.ts'
@@ -8,11 +11,17 @@ import { getTotalBonusBps, scaleNewFameMicros, scaleRewardCentsAtRate } from './
 export const FAME_MICROS = 1_000_000
 /** 1 XP par nouveau dollar éligible ; seuls les seuils de niveau ont augmenté. */
 export const BASE_XP_EARN_RATE_BPS = 10_000
-export const XP_CURVE_VERSION = 2 as const
+export const XP_CURVE_VERSION = 3 as const
+export interface XPRebase {
+  readonly fromCents: number
+  readonly toCents: number
+}
 export type FameBoostLevels = Record<FameBoostId, number>
 export interface PrestigeState {
   readonly experienceCents: number
   readonly xpCurveVersion: typeof XP_CURVE_VERSION
+  /** Evidence of the one-time v2 -> v3 rebasing, retained until the next Prestige. */
+  readonly xpRebase?: XPRebase
   readonly experienceCarryBps: number // sub-cent XP remainder
   readonly clickCarryBps: number // sub-cent cash click remainder
   readonly tradingCarryBps: number // sub-cent positive trading bonus remainder
@@ -37,11 +46,16 @@ function levelsTotal(level: number): number {
 export function createInitialPrestigeState(lifetimeEarned: number, legacyCurve = false): PrestigeState {
   const cents = exactMoneyCents(lifetimeEarned)
   const rawCents = cents !== null && cents >= 0 ? cents : 0
-  const experienceCents = legacyCurve ? (upgradeLegacyExperienceCents(rawCents) ?? rawCents) : rawCents
+  const oldCents = legacyCurve ? upgradeLegacyExperienceCents(rawCents) : null
+  const experienceCents = oldCents === null ? rawCents
+    : migrateExperienceCentsToTieredCurve(oldCents) ?? rawCents
+  const xpRebase = oldCents !== null && oldCents !== experienceCents
+    ? { fromCents: oldCents, toCents: experienceCents } : undefined
   const lastAwardedLevel = getLevel(experienceCents / 100)
   const levelFameMicros = levelsTotal(lastAwardedLevel) * FAME_MICROS
   return {
     experienceCents, xpCurveVersion: XP_CURVE_VERSION,
+    ...(xpRebase ? { xpRebase } : {}),
     experienceCarryBps: 0, clickCarryBps: 0, tradingCarryBps: 0, lastAwardedLevel,
     fameMicros: levelFameMicros,
     lifetimeFameMicros: levelFameMicros,
@@ -82,13 +96,37 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
     !Array.isArray(saved.ownedCollectionIds)) return fallback
 
   const earnedCents = exactMoneyCents(lifetimeEarned)
-  const isHistoricalCurve = saved.xpCurveVersion === undefined
-  if (saved.xpCurveVersion !== undefined && saved.xpCurveVersion !== XP_CURVE_VERSION) return fallback
-  const experienceCents = isHistoricalCurve
-    ? upgradeLegacyExperienceCents(saved.experienceCents)
-    : saved.experienceCents
-  if (experienceCents === null || earnedCents === null ||
-    saved.experienceCents < Math.floor(earnedCents / 4) ||
+  const marker = saved.xpCurveVersion
+  if (marker !== undefined && marker !== 2 && marker !== XP_CURVE_VERSION) return fallback
+  const isLegacyV1 = marker === undefined
+  const oldExperienceCents = isLegacyV1
+    ? upgradeLegacyExperienceCents(saved.experienceCents) : saved.experienceCents
+  if (oldExperienceCents === null || earnedCents === null) return fallback
+  let experienceCents = oldExperienceCents
+  let xpRebase: XPRebase | undefined
+  if (marker === XP_CURVE_VERSION) {
+    if (saved.xpRebase !== undefined) {
+      const evidence = saved.xpRebase
+      if (!evidence || !nonNegativeSafe(evidence.fromCents) ||
+          !nonNegativeSafe(evidence.toCents) ||
+          migrateExperienceCentsToTieredCurve(evidence.fromCents) !== evidence.toCents ||
+          evidence.fromCents <= evidence.toCents ||
+          saved.experienceCents < evidence.toCents) return fallback
+      xpRebase = { fromCents: evidence.fromCents, toCents: evidence.toCents }
+    }
+  } else {
+    // Verify level/Fame on the OLD curve before any conversion.
+    if (saved.lastAwardedLevel !== getLegacyLevel(oldExperienceCents / 100) ||
+        saved.experienceCents < Math.floor(earnedCents / 4)) return fallback
+    const converted = migrateExperienceCentsToTieredCurve(oldExperienceCents)
+    if (converted === null) return fallback
+    experienceCents = converted
+    if (oldExperienceCents !== converted) {
+      xpRebase = { fromCents: oldExperienceCents, toCents: converted }
+    }
+  }
+  const reduction = xpRebase ? xpRebase.fromCents - xpRebase.toCents : 0
+  if (experienceCents < Math.floor(earnedCents / 4) - reduction ||
     saved.lastAwardedLevel !== getLevel(experienceCents / 100) ||
     saved.levelFameMicros < levelsTotal(saved.lastAwardedLevel) * FAME_MICROS ||
     saved.lifetimeFameMicros !== saved.levelFameMicros + saved.collectionFameMicros ||
@@ -124,6 +162,7 @@ export function restorePrestigeState(raw: unknown, lifetimeEarned: number): Pres
 
   return {
     experienceCents, xpCurveVersion: XP_CURVE_VERSION,
+    ...(xpRebase ? { xpRebase } : {}),
     experienceCarryBps, clickCarryBps, tradingCarryBps,
     lastAwardedLevel: saved.lastAwardedLevel,
     fameMicros: saved.fameMicros,

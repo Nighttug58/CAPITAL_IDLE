@@ -19,11 +19,30 @@ const LEVEL_COUNT = 50
 const FIRST_LEVEL_STEP = 35
 const STEP_GROWTH = 1.10
 export const LEVEL_THRESHOLD_FACTOR = 4
+/** New tiered growth. Existing level 1–50 thresholds remain byte-for-byte identical. */
+export const LEVEL_GROWTH_BANDS = [
+  { through: 50, growth: 1.10 },
+  { through: 100, growth: 1.05 },
+  { through: 200, growth: 1.02 },
+  { through: Number.POSITIVE_INFINITY, growth: 1.01 },
+] as const
+
+/** n is the level being ENTERED: 51 uses 5%, 101 uses 2%, 201 uses 1%. */
+function nextLevelIncrement(nextLevel: number, legacy = false): number {
+  if (!Number.isSafeInteger(nextLevel) || nextLevel < 2) return Number.POSITIVE_INFINITY
+  const product = legacy ? STEP_GROWTH ** (nextLevel - 2)
+    : STEP_GROWTH ** Math.min(nextLevel - 2, 48) *
+      1.05 ** Math.max(0, Math.min(nextLevel - 50, 50)) *
+      1.02 ** Math.max(0, Math.min(nextLevel - 100, 100)) *
+      1.01 ** Math.max(0, nextLevel - 200)
+  const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * product)
+  return Number.isSafeInteger(increment) && increment > 0 ? increment : Number.POSITIVE_INFINITY
+}
 
 export const LEVEL_THRESHOLDS: readonly number[] = (() => {
   const thresholds = [0]
   for (let level = 2; level <= LEVEL_COUNT; level++) {
-    const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (level - 2))
+    const increment = nextLevelIncrement(level)
     thresholds.push(thresholds[thresholds.length - 1]! + increment)
   }
   return thresholds
@@ -103,23 +122,32 @@ const isValidMoney = (value: unknown): value is number => {
 }
 
 /**
- * All future level thresholds are 4x their historical value. Legacy saves
- * normalize their stored XP exactly once, so purchased clicks and Fame are
- * preserved while future 1 XP/$ earnings face the higher thresholds.
+ * Tiered leveling XP threshold. 1–50: +10%; 51–100: +5%;
+ * 101–200: +2%; 201+: +1%. XP remains 1 per eligible dollar,
+ * with the independently purchased Fame boosts applied to awards.
  */
-export function getLevelStartThreshold(level: number): number {
+function levelThreshold(level: number, legacy: boolean): number {
   if (!Number.isSafeInteger(level) || level < 1) return 0
   if (level <= LEVEL_THRESHOLDS.length) return LEVEL_THRESHOLDS[level - 1]!
   let threshold = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
   for (let nextLevel = LEVEL_THRESHOLDS.length + 1; nextLevel <= level; nextLevel++) {
-    const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
-    if (!Number.isSafeInteger(increment) || !Number.isSafeInteger(threshold + increment)) return Number.POSITIVE_INFINITY
+    const increment = nextLevelIncrement(nextLevel, legacy)
+    if (!Number.isSafeInteger(threshold + increment)) return Number.POSITIVE_INFINITY
     threshold += increment
   }
   return threshold
 }
 
-export function getLevel(experiencePoints: number): number {
+export function getLevelStartThreshold(level: number): number {
+  return levelThreshold(level, false)
+}
+
+/** Exact historical curve, ONLY for deterministic migration of old saves. */
+export function getLegacyLevelStartThreshold(level: number): number {
+  return levelThreshold(level, true)
+}
+
+function levelFromExperience(experiencePoints: number, legacy: boolean): number {
   const earned = Number.isFinite(experiencePoints) ? Math.max(0, experiencePoints) : 0
   let level = 1
   for (let index = 1; index < LEVEL_THRESHOLDS.length; index++) {
@@ -128,14 +156,40 @@ export function getLevel(experiencePoints: number): number {
   }
   let threshold = LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1]!
   for (let nextLevel = LEVEL_THRESHOLDS.length + 1; nextLevel < Number.MAX_SAFE_INTEGER; nextLevel++) {
-    const increment = LEVEL_THRESHOLD_FACTOR * Math.round(FIRST_LEVEL_STEP * STEP_GROWTH ** (nextLevel - 2))
-    if (!Number.isSafeInteger(increment) || !Number.isSafeInteger(threshold + increment)) break
+    const increment = nextLevelIncrement(nextLevel, legacy)
+    if (!Number.isSafeInteger(threshold + increment)) break
     const nextThreshold = threshold + increment
     if (earned < nextThreshold) break
     threshold = nextThreshold
     level = nextLevel
   }
   return level
+}
+
+export function getLevel(experiencePoints: number): number {
+  return levelFromExperience(experiencePoints, false)
+}
+export function getLegacyLevel(experiencePoints: number): number {
+  return levelFromExperience(experiencePoints, true)
+}
+
+/**
+ * Position in the old XP curve -> same level and fraction in the new one.
+ * Always use integer cents, clamp to the level boundary, never grant Fame.
+ */
+export function migrateExperienceCentsToTieredCurve(legacyCents: number): number | null {
+  if (!Number.isSafeInteger(legacyCents) || legacyCents < 0) return null
+  const level = getLegacyLevel(legacyCents / 100)
+  const oldStart = getLegacyLevelStartThreshold(level) * 100
+  const oldNext = getLegacyLevelStartThreshold(level + 1) * 100
+  const newStart = getLevelStartThreshold(level) * 100
+  const newNext = getLevelStartThreshold(level + 1) * 100
+  if (![oldStart, oldNext, newStart, newNext].every(Number.isSafeInteger) ||
+      oldNext <= oldStart || newNext <= newStart) return null
+  const fraction = Math.min(1, Math.max(0, (legacyCents - oldStart) / (oldNext - oldStart)))
+  const result = Math.max(newStart, Math.min(newNext - 1,
+    newStart + Math.round((newNext - newStart) * fraction)))
+  return Number.isSafeInteger(result) && getLevel(result / 100) === level ? result : null
 }
 
 /** Convert historical XP to the new 4x threshold scale once on migration. */

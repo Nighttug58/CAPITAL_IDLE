@@ -12,6 +12,10 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 - **Un seul solde** finance les améliorations du clicker, les transactions Trading et les entreprises. Il peut devenir négatif après le prélèvement automatique ou manuel de taxes, mais **aucun achat à crédit** n'est permis.
 - Les niveaux bénéficient des clics, des dividendes encaissés, des revenus fixes des entreprises et des **profits nets réalisés** en Trading. Ni le capital récupéré lors d'une vente, ni les gains latents, ni les taxes payées ne donnent de l'expérience. Les dépenses et les impôts ne font pas redescendre le niveau.
 
+## XP par niveau : croissance dégressive et migration
+- Les seuils augmentent de **10 % jusqu'au niveau 50**, **5 % pour les niveaux 51–100**, **2 % pour les niveaux 101–200**, puis **1 % à partir de 201**. Les seuils des 50 premiers niveaux sont inchangés ; le taux de gain de base reste **1 XP par dollar éligible**, avant bonus Fame.
+- Les sauvegardes sur l'ancienne courbe (version interne `xpCurveVersion:2`) migrent **une seule fois** vers `3`. Le niveau affiché et la fraction de progression du niveau sont conservés par interpolation en centimes d'XP. La Fame gagnée, les records de niveau, le solde, les collections, les améliorations et le Prestige restent identiques. Un témoin `xpRebase` vérifiable justifie la réduction d'XP après migration et est effacé lors du prochain Prestige. Imports JSON v6/v7 anciens conservés.
+
 ## Prestige absolu : protection des sauvegardes à Fame extrême
 - Le multiplicateur effectif suit la règle historique ×1,01 par tranche de 100 Fame disponibles jusqu'à **×100 maximum**. Toute la Fame accumulée reste dans les sauvegardes et l'interface indique le plafond. Même avec 1,8 milliard de Fame, les gains cash/XP/Fame restent finis au lieu de bloquer sur `Infinity`. Le bouton Fame compacte les très grands nombres sans perdre la valeur exacte accessible.
 - Aucune suppression ni modification des Fame déjà gagnées ; l'écrêtage concerne uniquement les bonus calculés, pas la progression enregistrée.
