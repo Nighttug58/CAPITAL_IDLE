@@ -7,7 +7,7 @@ import {
   advanceNewsTick, EXPIRED_NEWS_HISTORY, getNewsEnvelope, getNewsPresentation, getNewsDirection,
   getNewsPressure, getNewsRemainingMs, getNewsTemplate, MAX_NEWS_DURATION_MS,
   MAX_NEWS_INTERVAL_MS, MIN_NEWS_DURATION_MS, MIN_NEWS_INTERVAL_MS,
-  NEWS_TEMPLATES, trimNews,
+  NEWS_TEMPLATES, DRAWABLE_NEWS_TEMPLATES, isGlobalBearishNews, trimNews,
 } from './news.ts'
 import { createInitialTradingState, restoreTradingState } from './state.ts'
 import type { MarketNews, TradingState } from './types.ts'
@@ -58,6 +58,40 @@ test('les 274 nouvelles fiches sont distinctes et classées par thème', () => {
   assert.equal(new Set(added.map(item => item.headline)).size, added.length)
   assert.equal(new Set(added.map(item => item.description)).size, added.length)
   assert.equal(new Set(added.map(item => item.scenario)).size, added.length)
+})
+
+test('seules les News globales haussières peuvent être tirées, les anciennes baissières ne font plus pression', () => {
+  const retired = NEWS_TEMPLATES.filter(story => story.target === 'global' && story.direction === -1)
+  assert.equal(retired.length, 21)
+  assert.equal(DRAWABLE_NEWS_TEMPLATES.length, 279)
+  assert.ok(DRAWABLE_NEWS_TEMPLATES.some(story => story.target === 'global' && story.direction === 1))
+  assert.ok(DRAWABLE_NEWS_TEMPLATES.every(story => story.target !== 'global' || story.direction === 1))
+  assert.ok(DRAWABLE_NEWS_TEMPLATES.some(story => story.direction === -1 && story.target !== 'global'),
+    'les baisses sectorielles et individuelles restent possibles')
+  assert.ok(getNewsTemplate('macro-liquidity'), 'la fiche historique reste lisible')
+  const legacy = event({
+    templateId: 'macro-liquidity', impact: -1, affectedAssetIds: ASSETS.map(asset => asset.id),
+  })
+  assert.equal(isGlobalBearishNews(legacy), true)
+  assert.deepEqual(getNewsPressure([legacy], START), { price: {}, dividend: {} })
+  const purged = advanceNewsTick([legacy], START + HOUR, START - TICK, START, () => 0.5)
+  assert.deepEqual(purged.news, [])
+  const previewed = advanceNewsTick([], START + TICK, START, START, () => 0.5, {
+    eager: true, upcomingNews: { ...legacy, startedAt: START + TICK },
+  })
+  assert.ok(previewed.upcomingNews)
+  assert.equal(isGlobalBearishNews(previewed.upcomingNews!), false)
+  const issued = advanceNewsTick(previewed.news, previewed.nextNewsAt, START, START + TICK, () => 0.5, {
+    eager: true, upcomingNews: previewed.upcomingNews,
+  })
+  assert.equal(issued.news.length, 1)
+  assert.equal(isGlobalBearishNews(issued.news[0]!), false)
+  // Every selectable template remains reachable, none creates a market-wide decline.
+  for (let i = 0; i < DRAWABLE_NEWS_TEMPLATES.length; i++) {
+    const fraction = (i + 0.5) / DRAWABLE_NEWS_TEMPLATES.length
+    const result = advanceNewsTick([], START + TICK, START, START + TICK, () => fraction)
+    assert.equal(isGlobalBearishNews(result.news[0]!), false)
+  }
 })
 
 test('première News : attente de 1–5 minutes sans génération instantanée', () => {
@@ -148,21 +182,28 @@ test('chevauchement, annulation partielle et saturation des effets globaux', () 
   assert.ok(goodPressure.price.nvideo! > combined.price.nvideo!)
   assert.ok(goodPressure.dividend.nvideo! > combined.dividend.nvideo!)
   assert.equal(combined.price.bitcoin, undefined)
+  const secondGood = event({ id: 'news-second', impact: 0.5 })
+  const stacked = getNewsPressure([good, secondGood], START)
+  assert.ok(stacked.price.nvideo! > goodPressure.price.nvideo!, 'deux news haussières s’additionnent')
+  assert.ok(stacked.dividend.nvideo! > goodPressure.dividend.nvideo!)
   const macro = event({
-    id: 'news-macro', templateId: 'macro-liquidity',
-    affectedAssetIds: ASSETS.map((asset) => asset.id), impact: -1,
+    id: 'news-macro', templateId: 'macro-recovery',
+    affectedAssetIds: ASSETS.map((asset) => asset.id), impact: 1,
   })
+  const localAndGlobal = getNewsPressure([good, macro], START)
+  assert.ok(localAndGlobal.price.nvideo! > goodPressure.price.nvideo!)
+  assert.ok(localAndGlobal.price.bitcoin! > 0)
   const multiple = getNewsPressure(Array.from({ length: 30 }, (_, i) => ({ ...macro, id: 'news-macro-' + i })), START)
   assert.equal(Object.keys(multiple.price).length, 45)
-  assert.equal(multiple.price.bitcoin, -1.25)
-  assert.equal(multiple.dividend.nvideo, -1.25)
+  assert.equal(multiple.price.bitcoin, 1.25)
+  assert.equal(multiple.dividend.nvideo, 1.25)
   assert.equal(multiple.dividend.bitcoin, undefined)
 })
 
 test('rumeur : démenti choisi une seule fois et conservé par les sauvegardes', () => {
-  const index = NEWS_TEMPLATES.findIndex(story => story.id === 'rumor-crypto-ban')
+  const index = DRAWABLE_NEWS_TEMPLATES.findIndex(story => story.id === 'rumor-crypto-ban')
   assert.ok(index >= 0)
-  const picks = [(index + 0.5) / NEWS_TEMPLATES.length, 0.5, 0.9, 0.6, 0.4, 0.4]
+  const picks = [(index + 0.5) / DRAWABLE_NEWS_TEMPLATES.length, 0.5, 0.9, 0.6, 0.4, 0.4]
   let i = 0
   const initial = advanceNewsTick([], START + TICK, START, START + TICK, () => picks[i++] ?? 0.4)
   assert.equal(initial.news.length, 1)
@@ -199,16 +240,16 @@ test('une News influe sur les prix, et la réaction des dividendes reste douce',
   const baseline = createInitialTradingState(START, 1093)
   baseline.nextNewsAt = START + HOUR
   const macro = event({
-    id: 'news-broad', templateId: 'macro-liquidity',
+    id: 'news-broad', templateId: 'macro-recovery',
     startedAt: START - 120_000, endsAt: START + 480_000,
-    affectedAssetIds: ASSETS.map((asset) => asset.id), impact: -1,
+    affectedAssetIds: ASSETS.map((asset) => asset.id), impact: 1,
   })
   const affected = { ...baseline, news: [macro] }
   const quiet = advanceMarketTick(baseline)
   const loud = advanceMarketTick(affected)
-  let lower = 0
+  let higher = 0
   for (const asset of ASSETS) {
-    if (loud.quotes[asset.id]!.price < quiet.quotes[asset.id]!.price) lower++
+    if (loud.quotes[asset.id]!.price > quiet.quotes[asset.id]!.price) higher++
     if (asset.kind === 'stock') {
       const before = quiet.quotes[asset.id]!.dividendYield!
       const after = loud.quotes[asset.id]!.dividendYield!
@@ -219,7 +260,7 @@ test('une News influe sur les prix, et la réaction des dividendes reste douce',
     }
     assert.ok(loud.quotes[asset.id]!.price >= asset.minPrice)
   }
-  assert.ok(lower >= 35, 'une nouvelle globale doit réellement influer sur les tendances')
+  assert.ok(higher >= 35, 'une nouvelle globale positive doit réellement soutenir les tendances')
 })
 
 test('24 h hors ligne : News, prix et PRNG identiques à un rattrapage découpé', () => {

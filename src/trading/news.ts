@@ -71,7 +71,20 @@ export const NEWS_TEMPLATES: readonly NewsTemplate[] = Object.freeze([
   ...RUMOR_STORIES,
 ])
 
+// Legacy global bearish stories keep their IDs so old saves remain readable,
+// but they can no longer be drawn: market-wide positive news stays available.
+function isGlobalBearishTemplate(template: NewsTemplate): boolean {
+  return template.target === 'global' && template.direction === -1
+}
+export const DRAWABLE_NEWS_TEMPLATES: readonly NewsTemplate[] = Object.freeze(
+  NEWS_TEMPLATES.filter((template) => !isGlobalBearishTemplate(template)),
+)
 const templateIndex = new Map(NEWS_TEMPLATES.map((entry) => [entry.id, entry]))
+
+export function isGlobalBearishNews(event: Pick<MarketNews, 'templateId'>): boolean {
+  const template = templateIndex.get(event.templateId)
+  return template !== undefined && isGlobalBearishTemplate(template)
+}
 const universes: Readonly<Record<AssetKind | 'all', readonly AssetDefinition[]>> = {
   all: ASSETS,
   stock: ASSETS.filter((asset) => asset.kind === 'stock'),
@@ -144,7 +157,7 @@ function newsInterval(next: () => number, frequency = 1): number {
 }
 function createEvent(at: number, next: () => number, news: readonly MarketNews[], options: NewsClockOptions = {}): MarketNews {
   const recent = new Set(news.slice(-3).map((entry) => entry.templateId))
-  const choices = NEWS_TEMPLATES.filter((entry) => !recent.has(entry.id))
+  const choices = DRAWABLE_NEWS_TEMPLATES.filter((entry) => !recent.has(entry.id))
   const template = choices[Math.floor(next() * choices.length)]!
   const duration = randomInt(next, MIN_NEWS_DURATION_MS / TICK_MS, MAX_NEWS_DURATION_MS / TICK_MS) * TICK_MS * Math.max(1, Math.min(2, options.durationMultiplier ?? 1))
   const resolution = template.rumored ? (next() < 0.65 ? 'confirmed' : 'denied') : undefined
@@ -184,8 +197,11 @@ export function advanceNewsTick(
   let scheduledAt = nextNewsAt ?? (lastTickAt + (
     eager ? newsInterval(random, options.frequencyMultiplier) :
       newsInterval(random)))
-  let upcoming = eager ? options.upcomingNews : undefined
-  const events = news.map((event) =>
+  // Purge obsolete market-wide bearish announcements from pre-update saves,
+  // including events preselected by the Prestige early-news preview.
+  let upcoming = eager && options.upcomingNews && !isGlobalBearishNews(options.upcomingNews)
+    ? options.upcomingNews : undefined
+  const events = news.filter((event) => !isGlobalBearishNews(event)).map((event) =>
     event.phase === 'rumor' && event.resolutionAt !== undefined && at >= event.resolutionAt
       ? { ...event, phase: event.resolution ?? 'confirmed' } : event)
 
@@ -226,7 +242,7 @@ export function getNewsPressure(
   const dividend: Record<string, number> = {}
   for (const event of news) {
     const template = getNewsTemplate(event.templateId)
-    if (!template) continue
+    if (!template || isGlobalBearishTemplate(template)) continue
     const envelope = getNewsEnvelope(event, at)
     if (envelope === 0) continue
     const factor = envelope * event.impact * strength * (event.phase === 'denied' ? -0.65 : 1)

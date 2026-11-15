@@ -1,6 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { ASSETS } from '../trading/catalog.ts'
-import { getNewsPresentation } from '../trading/news.ts'
+import { getNewsPresentation, isGlobalBearishNews } from '../trading/news.ts'
 import type { AscensionSpeed } from './contracts.ts'
 
 export const MARKET_SPEEDS = [1, 1.5, 2, 3, 4, 5] as const
@@ -80,7 +80,7 @@ export function marketNewsEffects(state: CapitalState, realAt: number) {
 export function peekUpcomingNews(state: CapitalState, realAt: number) {
   const level = state.ascension.progress.upgradeLevels['news-preview']
   const next = state.trading.upcomingNews
-  if (!level || !next || realAt >= next.startedAt ||
+  if (!level || !next || isGlobalBearishNews(next) || realAt >= next.startedAt ||
       next.startedAt - realAt > level * 6_000) return null
   const presentation = getNewsPresentation(next)
   return presentation ? { event: next, presentation, secondsRemaining: Math.ceil((next.startedAt - realAt) / 1000) } : null

@@ -46,9 +46,9 @@ Les versements sont calculés **chaque seconde réelle** et crédités au solde 
 
 - Un événement apparaît **toutes les 1 à 5 minutes** (tirage indépendant).
 - Son influence dure **5 à 30 minutes hors bonus Prestige**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.
-- Catalogue de **300 actualités fictives distinctes**, incluant innovations, finance, scandales, macroéconomie, adoption/régulation des cryptos, hacks, tendances de memecoins et rumeurs.
+- **279 News pouvant apparaître** (sur 300 fiches historiques) : les 21 annonces baissières touchant tout le marché sont exclues du tirage et n'influencent plus les cours. Les News globales haussières, ainsi que les News baissières limitées à une entreprise, un secteur ou une classe d'actifs, restent possibles. Les anciennes fiches sont conservées pour compatibilité avec les sauvegardes.
 - L'onglet News affiche les **10 dernières annonces** ; toute annonce plus ancienne encore active reste également visible.
-- Les fiches News indiquent le contexte, un scénario possible, le statut et les actifs ciblés. Les rumeurs peuvent être confirmées ou démenties, mais elles ne garantissent pas un mouvement de cours.
+- **Les effets de toutes les News actives se cumulent par actif** : annonces de même sens renforcées, annonces opposées partiellement compensées, avec plafonnement du cumul. Les fiches News indiquent le contexte, un scénario possible, le statut et les actifs ciblés. Les rumeurs peuvent être confirmées ou démenties, mais elles ne garantissent pas un mouvement de cours.
 
 ## Entreprises — 20 commerces uniques
 
