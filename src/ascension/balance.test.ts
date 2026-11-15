@@ -64,12 +64,16 @@ test('Prestige absolu (Fame) : bonus compose les boosts achetés, pas les collec
   assert.equal(breakdown.collectionBps,0)
 })
 
-test('Extrêmes Fame : le facteur signale un overflow au lieu de produire un gain magique',()=>{
+test('Extrêmes Fame : facteur sécurisé à ×100 même avec une Fame gigantesque',()=>{
   const state=createCapitalState(undefined,NOW)
   const boosts=Object.fromEntries(FAME_BOOST_IDS.map(id=>[id,MAX_FAME_BOOST_LEVEL])) as typeof state.prestige.boosts
   const prestige={...state.prestige,boosts,fameMicros:9_000_000_000_000_000}
   const status=getAbsolutePrestigeStatus({prestige})
   assert.equal(status.unlocked,true)
-  assert.equal(status.overflowed,true)
-  assert.equal(Number.isFinite(status.factor),false)
+  assert.equal(status.capped,true)
+  assert.equal(status.factor,100)
+  assert.equal(Number.isFinite(status.factor),true)
+  const bonus=getBonusBreakdown({prestige},'click')
+  assert.equal(bonus.shopBps,10_000)
+  assert.equal(bonus.totalBps,1_000_000)
 })
