@@ -72,6 +72,9 @@ export function performPrestige(state: CapitalState, at: number): AscensionResul
     cycle: count, completedAtRealMs: at,
     eligibleWorthCents: cents, earnedPoints, levelAtCompletion: level,
   }
+  // Le prochain cycle repart avec XP zéro, sans aucun marqueur du run passé.
+  const { xpRebase: _completedXpRebase, ...cyclePrestige } = settled.prestige
+  void _completedXpRebase
   return {
     ok: true,
     receipt: { cycle: count, earnedPoints, totalPoints, eligibleWorthCents: cents, completedAt: at },
@@ -86,10 +89,7 @@ export function performPrestige(state: CapitalState, at: number): AscensionResul
       // Fiscal period and cumulative taxes PAID deliberately survive.
       // No tax debt exists when this branch is reached.
       prestige: {
-        ...settled.prestige,
-        // A new run has its own XP history; the previous curve migration
-        // evidence cannot be reused to bypass the normal earnings guard.
-        xpRebase: undefined,
+        ...cyclePrestige,
         experienceCents: 0, experienceCarryBps: 0,
         clickCarryBps: 0, tradingCarryBps: 0,
         lastAwardedLevel: 1,

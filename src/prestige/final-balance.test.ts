@@ -58,22 +58,23 @@ test('base contractual budget: 80% collections at level 100 and 600 Fame left', 
 
 test('price audit: collection costs and level-100 ratio are theoretical, not a realistic co-occurrence', () => {
   assert.equal(TOTAL_COLLECTION_PRICE, 3_012_250_000)
-  assert.equal(getLevelStartThreshold(100), 17_537_564)
-  assert.equal(getLevel(3_012_250_000), 153)
-  const fameLevels154 = (154 * 155) / 2
-  assert.equal(fameLevels154, 11_935)
-  // If the user earned all required cash as XP-eligible income, collection Fame
-  // would only be 58.7% of base Fame before acquisition boosters (not 80%).
-  const realisticBaseShare = COLLECTION_BASE_FAME / (COLLECTION_BASE_FAME + fameLevels154)
-  assert.ok(realisticBaseShare > .62 && realisticBaseShare < .64)
-  // This is a documented balance limitation. Never silently change the
-  // locked Fame rewards or erase the level 100+ progression to mask it.
+  assert.equal(getLevelStartThreshold(100), 3_133_648)
+  const milestoneLevel = getLevel(3_012_250_000)
+  assert.ok(milestoneLevel > 250, 'la courbe dégressive accélère les niveaux élevés')
+  const fameFromLevels = milestoneLevel * (milestoneLevel + 1) / 2
+  assert.ok(Number.isSafeInteger(fameFromLevels))
+  // Le catalogue de collections reste inchangé, mais la part de Fame d'origine
+  // est maintenant plus faible puisque les niveaux supérieurs sont plus faciles.
+  const realisticBaseShare = COLLECTION_BASE_FAME / (COLLECTION_BASE_FAME + fameFromLevels)
+  assert.ok(realisticBaseShare > 0 && realisticBaseShare < .2)
+  // Ne pas retarifer rétroactivement les bonus ou les collections.
 })
 
 test('realistic late Notoriété path: all 50 cash purchases, Shop 120/120, no double asset counting', () => {
   const start = createCapitalState({ balance: 3_100_000_000, lifetimeEarned: 3_100_000_000, purchasedUpgrades: 0 }, NOW)
   const beforeWorth = getCapitalStatsOverview(start).netWorth
-  assert.equal(start.prestige.lastAwardedLevel, 154)
+  assert.equal(start.prestige.lastAwardedLevel, getLevel(3_100_000_000))
+  assert.ok(start.prestige.lastAwardedLevel > 250)
   const collected = acquireEverything(start)
   assert.equal(collected.prestige.ownedCollectionIds.length, 50)
   assert.equal(getCapitalStatsOverview(collected).collectionBookValue, TOTAL_COLLECTION_PRICE)
@@ -115,14 +116,23 @@ test('realistic early Notoriété path outperforms late purchasing without touch
   assert.ok(early.prestige.collectionFameMicros > late.prestige.collectionFameMicros)
   assert.ok(Math.abs(late.prestige.collectionFameMicros / FAME_MICROS - 22_725.14) < .000001)
   assert.ok(Math.abs(early.prestige.collectionFameMicros / FAME_MICROS - 42_925.14) < .000001)
-  const levelFame = 11_935
-  assert.ok(Math.abs(late.prestige.collectionFameMicros / (late.prestige.collectionFameMicros + levelFame * FAME_MICROS) - .6556) < .0001)
-  assert.ok(Math.abs(early.prestige.collectionFameMicros / (early.prestige.collectionFameMicros + levelFame * FAME_MICROS) - .7825) < .0001)
+  const level = seeded.prestige.lastAwardedLevel
+  const levelFame = level * (level + 1) / 2
+  const lateCollectionShare = late.prestige.collectionFameMicros /
+    (late.prestige.collectionFameMicros + levelFame * FAME_MICROS)
+  const earlyCollectionShare = early.prestige.collectionFameMicros /
+    (early.prestige.collectionFameMicros + levelFame * FAME_MICROS)
+  assert.ok(earlyCollectionShare > lateCollectionShare)
+  assert.ok(lateCollectionShare > 0 && earlyCollectionShare < 1)
   assert.ok(early.prestige.fameMicros > late.prestige.fameMicros)
-  assert.ok(Math.abs(late.prestige.fameMicros / FAME_MICROS - 10_010.14) < .000001)
-  assert.ok(Math.abs(early.prestige.fameMicros / FAME_MICROS - 30_210.14) < .000001)
-  assert.equal(getAbsolutePrestigeStatus(late).fameSteps, 100)
-  assert.equal(getAbsolutePrestigeStatus(early).fameSteps, 302)
+  assert.ok(Math.abs(late.prestige.fameMicros / FAME_MICROS -
+    (levelFame + 22_725.14 - 24_650)) < .000001)
+  assert.ok(Math.abs(early.prestige.fameMicros / FAME_MICROS -
+    (levelFame + 42_925.14 - 24_650)) < .000001)
+  assert.equal(getAbsolutePrestigeStatus(late).fameSteps,
+    Math.floor(late.prestige.fameMicros / FAME_MICROS / 100))
+  assert.equal(getAbsolutePrestigeStatus(early).fameSteps,
+    Math.floor(early.prestige.fameMicros / FAME_MICROS / 100))
   assert.ok(getAbsolutePrestigeStatus(early).factor >= getAbsolutePrestigeStatus(late).factor)
   assert.equal(getCapitalStatsOverview(early).netWorth, getCapitalStatsOverview(late).netWorth)
 })

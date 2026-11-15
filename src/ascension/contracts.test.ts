@@ -44,9 +44,9 @@ test('Prestige passe 1 : 18 identifiants uniques, budget 87 niveaux et 1637 PP r
   assert.equal(ASCENSION_SHOP_EXPECTED_TOTAL_PP, 1_637)
 })
 
-test('Calibrage niveau 100 : 17 537 564 XP ne débloquent pas à eux seuls 100 M$', () => {
+test('Calibrage niveau 100 : nouvelle courbe n atteint pas à elle seule 100 M$', () => {
   const xpAt100 = getLevelStartThreshold(100)
-  assert.equal(xpAt100, 17_537_564)
+  assert.equal(xpAt100, 3_133_648)
   assert.equal(getLevel(xpAt100), 100)
   assert.equal(getEnterprise('kiosque')?.purchaseCostCents, 7_500_000)
   assert.equal(getEnterprise('entrepot')?.purchaseCostCents, 8_000_000_000)

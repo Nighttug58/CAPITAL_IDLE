@@ -113,7 +113,7 @@ test('legacy v6: preserve current player level, 49 click upgrades and Fame on 4x
   assert.equal(restored.prestige.experienceCents, getLevelStartThreshold(50) * 100)
   assert.equal(restored.prestige.fameMicros, historicFame)
   assert.equal(restored.prestige.lifetimeFameMicros, historicFame)
-  assert.equal(restored.prestige.xpCurveVersion, 2)
+  assert.equal(restored.prestige.xpCurveVersion, 3)
   assert.deepEqual(restoreCapitalState(restored, NOW), restored)
   const accepted = prepareSaveImport(JSON.stringify(legacy), NOW)
   assert.ok(accepted.ok)

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCapitalState } from './capital.ts'
-import { getLevel, LEVEL_THRESHOLD_FACTOR } from './game.ts'
+import { getLegacyLevel, getLevel, LEVEL_THRESHOLD_FACTOR } from './game.ts'
 import { FAME_MICROS } from './prestige/state.ts'
 import { advanceFiscalEconomy } from './economy/clock.ts'
 import { accrueProfitTax } from './economy/fiscal.ts'
@@ -99,7 +99,7 @@ test('anciens fichiers bruts v4 et v5 : migration sans taxation du passé', () =
   assert.ok(legacyFive.ok)
   assert.equal(legacyFive.preview.sourceVersion, 5)
   assert.deepEqual(legacyFive.preview.state.game, original.game)
-  const historicalLevel = getLevel(original.prestige.experienceCents / 100 * LEVEL_THRESHOLD_FACTOR)
+  const historicalLevel = getLegacyLevel(original.prestige.experienceCents / 100 * LEVEL_THRESHOLD_FACTOR)
   assert.equal(legacyFive.preview.state.prestige.lastAwardedLevel, historicalLevel)
   assert.equal(legacyFive.preview.state.prestige.fameMicros, historicalLevel * (historicalLevel + 1) / 2 * FAME_MICROS)
 
