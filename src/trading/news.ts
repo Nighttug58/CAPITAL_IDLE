@@ -11,10 +11,10 @@ import { RUMOR_STORIES } from './news-library/rumors.ts'
 
 
 const TICK_MS = 5_000
-export const MIN_NEWS_INTERVAL_MS = 120_000
-export const MAX_NEWS_INTERVAL_MS = 480_000
-export const MIN_NEWS_DURATION_MS = 120_000
-export const MAX_NEWS_DURATION_MS = 1_800_000
+export const MIN_NEWS_INTERVAL_MS = 60_000
+export const MAX_NEWS_INTERVAL_MS = 300_000
+export const MIN_NEWS_DURATION_MS = 1_200_000
+export const MAX_NEWS_DURATION_MS = 3_600_000
 export const EXPIRED_NEWS_HISTORY = 10
 
 export type NewsCategory = 'innovation' | 'results' | 'finance' | 'scandal' | 'macro' | 'adoption' | 'regulation' | 'hack' | 'social' | 'rumor'
@@ -139,14 +139,14 @@ export interface NewsClockOptions {
 }
 function newsInterval(next: () => number, frequency = 1): number {
   const safe = Number.isFinite(frequency) ? Math.max(1, Math.min(1.5, frequency)) : 1
-  const base = randomInt(next, 24, 96) * TICK_MS
+  const base = randomInt(next, MIN_NEWS_INTERVAL_MS / TICK_MS, MAX_NEWS_INTERVAL_MS / TICK_MS) * TICK_MS
   return Math.max(TICK_MS, Math.ceil(base / safe / TICK_MS) * TICK_MS)
 }
 function createEvent(at: number, next: () => number, news: readonly MarketNews[], options: NewsClockOptions = {}): MarketNews {
   const recent = new Set(news.slice(-3).map((entry) => entry.templateId))
   const choices = NEWS_TEMPLATES.filter((entry) => !recent.has(entry.id))
   const template = choices[Math.floor(next() * choices.length)]!
-  const duration = randomInt(next, 24, 360) * TICK_MS * Math.max(1, Math.min(2, options.durationMultiplier ?? 1))
+  const duration = randomInt(next, MIN_NEWS_DURATION_MS / TICK_MS, MAX_NEWS_DURATION_MS / TICK_MS) * TICK_MS * Math.max(1, Math.min(2, options.durationMultiplier ?? 1))
   const resolution = template.rumored ? (next() < 0.65 ? 'confirmed' : 'denied') : undefined
   const resolutionAt = resolution ? at + Math.floor((duration * 0.60) / TICK_MS) * TICK_MS : undefined
   return {
@@ -183,7 +183,7 @@ export function advanceNewsTick(
   const eager = !!options.eager
   let scheduledAt = nextNewsAt ?? (lastTickAt + (
     eager ? newsInterval(random, options.frequencyMultiplier) :
-      randomInt(random, 24, 96) * TICK_MS))
+      newsInterval(random)))
   let upcoming = eager ? options.upcomingNews : undefined
   const events = news.map((event) =>
     event.phase === 'rumor' && event.resolutionAt !== undefined && at >= event.resolutionAt
@@ -198,7 +198,7 @@ export function advanceNewsTick(
     events.push(upcoming ?? createEvent(at, random, events, options))
     scheduledAt = at + (eager
       ? newsInterval(random, options.frequencyMultiplier)
-      : randomInt(random, 24, 96) * TICK_MS)
+      : newsInterval(random))
     upcoming = eager ? createEvent(scheduledAt, random, events, options) : undefined
   }
   return {

@@ -11,7 +11,7 @@ const props = defineProps<{
   upcoming?: ReturnType<typeof peekUpcomingNews>
 }>()
 const entries = computed(() =>
-  props.news.slice(-10).reverse().map((event) => ({ event, presentation: getNewsPresentation(event) }))
+  props.news.filter((event, index) => index >= props.news.length - 10 || event.endsAt > props.now).reverse().map((event) => ({ event, presentation: getNewsPresentation(event) }))
     .filter((entry) => entry.presentation !== null)
 )
 </script>
@@ -33,7 +33,7 @@ const entries = computed(() =>
       <div v-if="entries.length === 0" class="market-empty">
         <span class="market-empty-icon" aria-hidden="true">◷</span>
         <strong>Aucune actualité pour le moment</strong>
-        <p>Un événement fictif apparaît toutes les 2 à 8 minutes.</p>
+        <p>Un événement fictif apparaît toutes les 1 à 5 minutes.</p>
       </div>
       <button type="button" v-for="entry in entries" :key="entry.event.id" class="news-preview-row"
         :class="'news-' + entry.presentation!.direction"

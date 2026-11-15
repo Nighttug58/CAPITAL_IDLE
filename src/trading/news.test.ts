@@ -60,7 +60,7 @@ test('les 274 nouvelles fiches sont distinctes et classées par thème', () => {
   assert.equal(new Set(added.map(item => item.scenario)).size, added.length)
 })
 
-test('première News : attente de 2–8 minutes sans génération instantanée', () => {
+test('première News : attente de 1–5 minutes sans génération instantanée', () => {
   const scheduled = advanceNewsTick([], null, START, START + TICK, () => 0)
   assert.equal(scheduled.nextNewsAt, START + MIN_NEWS_INTERVAL_MS)
   assert.equal(scheduled.news.length, 0)
@@ -75,7 +75,7 @@ test('première News : attente de 2–8 minutes sans génération instantanée',
   assert.equal(getNewsRemainingMs(due.news[0]!, due.news[0]!.startedAt), MIN_NEWS_DURATION_MS)
 })
 
-test('les échéances tirées couvrent les bornes 2–8 min et 2–30 min', () => {
+test('les échéances tirées couvrent les bornes 1–5 min et 20–60 min', () => {
   const high = advanceNewsTick([], null, START, START + TICK, () => 0.999999)
   assert.equal(high.nextNewsAt, START + MAX_NEWS_INTERVAL_MS)
   const due = advanceNewsTick([], START + TICK, START, START + TICK, () => 0.999999)
@@ -237,7 +237,7 @@ test('24 h hors ligne : News, prix et PRNG identiques à un rattrapage découpé
   assert.deepEqual(catchup.quotes, replay.quotes)
   assert.deepEqual(catchup.history, replay.history)
   assert.ok(catchup.news.filter((item) => item.endsAt <= target).length <= 10)
-  assert.ok(catchup.news.length <= 26)
+  assert.ok(catchup.news.length <= 70)
 })
 
 test('reprise après sauvegarde en milieu de rattrapage : aucune nouvelle en double', () => {

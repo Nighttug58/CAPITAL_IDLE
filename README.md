@@ -43,10 +43,10 @@ Les versements sont calculés **chaque seconde réelle** et crédités au solde 
 
 ### News fictives
 
-- Un événement apparaît **toutes les 2 à 8 minutes** (tirage indépendant).
-- Son influence dure **2 à 30 minutes**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.
+- Un événement apparaît **toutes les 1 à 5 minutes** (tirage indépendant).
+- Son influence dure **20 à 60 minutes hors bonus Prestige**, avec des effets graduels sur les cours et éventuellement les rendements. Plusieurs annonces peuvent se chevaucher ; l'impact cumulé est limité.
 - Catalogue de **300 actualités fictives distinctes**, incluant innovations, finance, scandales, macroéconomie, adoption/régulation des cryptos, hacks, tendances de memecoins et rumeurs.
-- L'onglet News affiche les **10 dernières annonces** ; les événements encore actifs restent pris en compte dans la simulation même quand ils quittent cette liste.
+- L'onglet News affiche les **10 dernières annonces** ; toute annonce plus ancienne encore active reste également visible.
 - Les fiches News indiquent le contexte, un scénario possible, le statut et les actifs ciblés. Les rumeurs peuvent être confirmées ou démenties, mais elles ne garantissent pas un mouvement de cours.
 
 ## Entreprises — 20 commerces uniques

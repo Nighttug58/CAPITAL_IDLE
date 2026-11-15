@@ -143,7 +143,7 @@ describe('Trading interface mobile',()=>{
     expect(wrapper.find('.news-future-preview').classes()).toContain('news-bearish')
   })
 
-  it('affiche seulement les 10 dernières News sans masquer leur impact dans le moteur',async()=>{
+  it('affiche les 14 news actives, puis les 10 dernières après expiration',async()=>{
     const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
     state.trading.news=Array.from({length:14},(_,index)=>({
       ...news,
@@ -153,9 +153,11 @@ describe('Trading interface mobile',()=>{
     }))
     const {wrapper,getState}=setup(state)
     await tab(wrapper,3)
-    expect(wrapper.findAll('button.news-preview-row')).toHaveLength(10)
+    expect(wrapper.findAll('button.news-preview-row')).toHaveLength(14)
     expect(getState().trading.news).toHaveLength(14)
     expect(wrapper.find('.market-list-head span').text()).toContain('14 EN COURS')
+    await wrapper.setProps({state:{...state,trading:{...state.trading,dividendLastPaidAt:NOW+1_000_000}}})
+    expect(wrapper.findAll('button.news-preview-row')).toHaveLength(10)
   })
 
   it('Escape et popstate ferment les fenêtres',async()=>{

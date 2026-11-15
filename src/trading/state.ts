@@ -4,7 +4,7 @@ import type { MarketNews, MarketQuote, Position, PriceSample, TradingState } fro
 
 const MAX_ASSETS = 45
 const MAX_PRICE_SAMPLES = 720 // 1 heure à raison d'un tick toutes les 5 secondes
-const MAX_NEWS_IN_SAVE = 64 // 10 expirées + actives (borne de sécurité)
+const MAX_NEWS_IN_SAVE = 190 // 10 expirées + 120 min / 40 s avec les bonus Prestige maximaux
 const ID_PATTERN = /^[a-z0-9-]{1,48}$/
 const MAX_MONEY = Number.MAX_SAFE_INTEGER
 
@@ -65,7 +65,7 @@ function isPosition(value: unknown): value is Position {
 function isNews(value: unknown): value is MarketNews {
   return isRecord(value) && isAssetId(value.id) && isAssetId(value.templateId) &&
     isTimestamp(value.startedAt) && isTimestamp(value.endsAt) && value.endsAt > value.startedAt &&
-    value.endsAt - value.startedAt <= 60 * 60 * 1000 &&
+    value.endsAt - value.startedAt <= 120 * 60 * 1000 &&
     Array.isArray(value.affectedAssetIds) && value.affectedAssetIds.length <= MAX_ASSETS &&
     value.affectedAssetIds.every(isAssetId) &&
     typeof value.impact === 'number' && Number.isFinite(value.impact) &&
