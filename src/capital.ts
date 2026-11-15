@@ -63,8 +63,12 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
   if (raw.version === 4) {
     const historicalEarnings = isRecord(raw.game) && typeof raw.game.lifetimeEarned === 'number'
       ? raw.game.lifetimeEarned * 100 : 0
-    const migratedExperience = upgradeLegacyExperienceCents(historicalEarnings)
-    const game = restoreGame(raw.game, { experiencePoints: migratedExperience === null ? undefined : migratedExperience / 100 })
+    const oldExperience = upgradeLegacyExperienceCents(historicalEarnings)
+    const migratedExperience = oldExperience === null ? null
+      : migrateExperienceCentsToTieredCurve(oldExperience)
+    const game = restoreGame(raw.game, {
+      experiencePoints: migratedExperience === null ? undefined : migratedExperience / 100,
+    })
     const prestige = createInitialPrestigeState(game.lifetimeEarned, true)
     return {
       version: CAPITAL_SAVE_VERSION,

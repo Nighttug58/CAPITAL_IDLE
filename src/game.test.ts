@@ -9,6 +9,9 @@ import {
   CLICK_INCOME_TIER_SIZE,
   getLevel,
   getLevelStartThreshold,
+  getLegacyLevelStartThreshold,
+  getLegacyLevel,
+  migrateExperienceCentsToTieredCurve,
   getNextLevelThreshold,
   getNextUpgrade,
   migrateLegacyGame,
@@ -31,6 +34,44 @@ test('50 niveaux lissés avec des seuils strictement croissants', () => {
   assert.equal(LEVEL_THRESHOLDS[29], 20_812)
   assert.equal(LEVEL_THRESHOLDS[49], 148_008)
   assert.ok(LEVEL_THRESHOLDS.every((value, index) => index === 0 || value > LEVEL_THRESHOLDS[index - 1]!))
+})
+
+test('croissance dégressive : 10 % / 5 % / 2 % / 1 %, seuils historiques 1–50 inchangés', () => {
+  for (let level = 1; level <= 50; level++) {
+    assert.equal(getLevelStartThreshold(level), getLegacyLevelStartThreshold(level))
+  }
+  assert.equal(getLevelStartThreshold(100), 3_133_648)
+  assert.equal(getLevelStartThreshold(150), 16_570_780)
+  assert.equal(getLevelStartThreshold(200), 52_738_004)
+  assert.equal(getLevelStartThreshold(250), 126_204_976)
+  assert.equal(getLevelStartThreshold(251) - getLevelStartThreshold(250), 1_874_344)
+  for (const [level, expectedRate] of [[20, 1.10], [50, 1.05], [100, 1.02], [200, 1.01], [250, 1.01]]) {
+    const previous = getLevelStartThreshold(level) - getLevelStartThreshold(level - 1)
+    const following = getLevelStartThreshold(level + 1) - getLevelStartThreshold(level)
+    assert.ok(Math.abs(following / previous - expectedRate) < 0.001, 'passage ' + level)
+  }
+})
+
+test('conversion XP v2 -> v3 : niveau inchangé aux seuils et pourcentage conservé', () => {
+  for (const level of [1, 2, 50, 51, 99, 100, 101, 150, 200, 201, 250, 260]) {
+    const oldStart = getLegacyLevelStartThreshold(level) * 100
+    const oldNext = getLegacyLevelStartThreshold(level + 1) * 100
+    const newStart = getLevelStartThreshold(level) * 100
+    const newNext = getLevelStartThreshold(level + 1) * 100
+    for (const fraction of [0, 0.0711, 0.5, 0.999]) {
+      const oldCents = oldStart + Math.round((oldNext - oldStart) * fraction)
+      const mapped = migrateExperienceCentsToTieredCurve(oldCents)
+      assert.ok(mapped !== null, 'level ' + level)
+      assert.equal(getLegacyLevel(oldCents / 100), level)
+      assert.equal(getLevel(mapped / 100), level)
+      const newFraction = (mapped - newStart) / (newNext - newStart)
+      const oldFraction = (oldCents - oldStart) / (oldNext - oldStart)
+      assert.ok(Math.abs(newFraction - oldFraction) < 1e-6)
+    }
+  }
+  assert.equal(migrateExperienceCentsToTieredCurve(-1), null)
+  assert.equal(migrateExperienceCentsToTieredCurve(Number.POSITIVE_INFINITY), null)
+  assert.equal(migrateExperienceCentsToTieredCurve(100.5), null)
 })
 
 test('le niveau dépend du total gagné, pas du solde', () => {
