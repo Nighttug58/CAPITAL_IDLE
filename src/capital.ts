@@ -83,8 +83,10 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
     ? raw.game.lifetimeEarned * 100 : null
   const v5Experience = legacyEarnedCents === null ? null : upgradeLegacyExperienceCents(legacyEarnedCents)
   const restoredExperience = raw.version === 5 ? v5Experience : candidateExperience
+  const achievements = restoreAchievementsState(raw.achievements)
   const game = restoreGame(raw.game, {
     allowNegativeBalance: true,
+    giftAllowanceCents: achievements.cycleGiftCents,
     experiencePoints: restoredExperience === null || restoredExperience === undefined
       ? undefined : restoredExperience / 100,
   })
@@ -102,6 +104,6 @@ export function restoreCapitalState(raw: unknown, now = Date.now()): CapitalStat
     fiscal: restoreFiscalState(raw.fiscal, now),
     stats: restoreStatsState(raw.stats, now, game.lifetimeEarned),
     prestige, ascension,
-    achievements: restoreAchievementsState(raw.achievements),
+    achievements,
   }
 }

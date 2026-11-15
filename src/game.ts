@@ -191,14 +191,24 @@ function isValidSignedBalance(value: unknown): value is number {
   return exactMoneyCents(value) !== null
 }
 
-export function restoreGame(raw: unknown, options: { allowNegativeBalance?: boolean; experiencePoints?: number } = {}): GameState {
+export function restoreGame(raw: unknown, options: {
+  allowNegativeBalance?: boolean
+  experiencePoints?: number
+  /** Bonus ponctuels en cash, sans XP ni revenus : droits justifiés par les Achievements réclamés. */
+  giftAllowanceCents?: number
+} = {}): GameState {
   if (!raw || typeof raw !== 'object') return { ...INITIAL_GAME }
   const saved = raw as Partial<GameState>
   const validBalance = options.allowNegativeBalance ? isValidSignedBalance(saved.balance) : isValidMoney(saved.balance)
   if (typeof saved.balance !== 'number' || !validBalance || !isValidMoney(saved.lifetimeEarned) || !isValidInteger(saved.purchasedUpgrades)) {
     return { ...INITIAL_GAME }
   }
-  if (saved.balance > saved.lifetimeEarned || saved.purchasedUpgrades > UPGRADES.length) {
+  const allowance = options.giftAllowanceCents ?? 0
+  const balanceCents = exactMoneyCents(saved.balance)
+  const earnedCents = exactMoneyCents(saved.lifetimeEarned)
+  if (!Number.isSafeInteger(allowance) || allowance < 0 ||
+      balanceCents === null || earnedCents === null ||
+      balanceCents > earnedCents + allowance || saved.purchasedUpgrades > UPGRADES.length) {
     return { ...INITIAL_GAME }
   }
   const highestPurchasedLevel = saved.purchasedUpgrades === 0 ? 1 : UPGRADES[saved.purchasedUpgrades - 1]!.requiredLevel

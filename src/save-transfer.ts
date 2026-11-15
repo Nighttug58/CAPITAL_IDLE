@@ -56,6 +56,11 @@ function normalizeLegacyOptionalFields(raw: Record<string, unknown>, restored: C
   // Never award cash during migration: only completed tiers are recalculated
   // from existing stats, and gifts remain explicitly claimable.
   if (input.version === 7 && !('achievements' in input)) input.achievements = restored.achievements
+  if (input.version === 7 && isRecord(input.achievements) &&
+      !('cycleGiftCents' in input.achievements) &&
+      Array.isArray(input.achievements.claimedIds)) {
+    input.achievements.cycleGiftCents = restored.achievements.cycleGiftCents
+  }
   if (input.version === 5 || input.version === 6) delete input.achievements
   const trading = input.trading
   if (isRecord(trading)) {

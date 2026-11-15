@@ -82,6 +82,7 @@ export function performPrestige(state: CapitalState, at: number): AscensionResul
       trading: createInitialTradingState(at, ((settled.trading.seed + count * 0x9E3779B9) >>> 0) || 1),
       enterprises: createInitialEnterpriseState(at),
       stats: createInitialStatsState(at),
+      achievements: { ...settled.achievements, cycleGiftCents: 0 },
       // Fiscal period and cumulative taxes PAID deliberately survive.
       // No tax debt exists when this branch is reached.
       prestige: {

@@ -17,6 +17,8 @@ export interface AchievementGroup {
 }
 export interface AchievementsState {
   readonly claimedIds: readonly string[]
+  /** Cash offert depuis le dernier Prestige, exclu des revenus et de l'XP. */
+  readonly cycleGiftCents: number
 }
 
 function tiers(group: string, steps: readonly (readonly [number, number])[]): readonly AchievementTier[] {
@@ -43,17 +45,29 @@ export const ACHIEVEMENTS: readonly AchievementGroup[] = [
 const IDS = new Set(ACHIEVEMENTS.flatMap(group => group.tiers.map(tier => tier.id)))
 
 export function createInitialAchievementsState(): AchievementsState {
-  return { claimedIds: [] }
+  return { claimedIds: [], cycleGiftCents: 0 }
 }
 export function restoreAchievementsState(raw: unknown): AchievementsState {
   if (raw === undefined) return createInitialAchievementsState() // anciennes v7
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return createInitialAchievementsState()
   const record = raw as Record<string, unknown>
-  if (Object.keys(record).length !== 1 || !Array.isArray(record.claimedIds) ||
-      record.claimedIds.length > IDS.size ||
+  if (!Array.isArray(record.claimedIds) || record.claimedIds.length > IDS.size ||
       record.claimedIds.some(id => typeof id !== 'string' || !IDS.has(id)) ||
-      new Set(record.claimedIds).size !== record.claimedIds.length) return createInitialAchievementsState()
-  return { claimedIds: [...record.claimedIds] as string[] }
+      new Set(record.claimedIds).size !== record.claimedIds.length ||
+      !Object.keys(record).every(key => key === 'claimedIds' || key === 'cycleGiftCents')) {
+    return createInitialAchievementsState()
+  }
+  const claimedIds = record.claimedIds as string[]
+  const maximum = ACHIEVEMENTS.flatMap(group => group.tiers)
+    .filter(tier => claimedIds.includes(tier.id))
+    .reduce((total, tier) => total + tier.rewardCents, 0)
+  // Compatibilité : premiers snapshots Achievements avaient uniquement claimedIds.
+  const cycleGiftCents = record.cycleGiftCents === undefined ? maximum : record.cycleGiftCents
+  if (!Number.isSafeInteger(maximum) || typeof cycleGiftCents !== 'number' ||
+      !Number.isSafeInteger(cycleGiftCents) || cycleGiftCents < 0 || cycleGiftCents > maximum) {
+    return createInitialAchievementsState()
+  }
+  return { claimedIds: [...claimedIds], cycleGiftCents }
 }
 
 export function achievementProgress(state: CapitalState, metric: AchievementMetric): number {
@@ -103,7 +117,9 @@ export function claimAchievement(state: CapitalState, id: string): AchievementCl
   const group = ACHIEVEMENTS.find(item => item.tiers.includes(tier))!
   if (achievementProgress(state, group.id) < tier.target) return { ok: false, state, error: 'locked' }
   const balanceCents = exactMoneyCents(state.game.balance)
-  if (balanceCents === null || !Number.isSafeInteger(balanceCents + tier.rewardCents)) {
+  if (balanceCents === null ||
+      !Number.isSafeInteger(balanceCents + tier.rewardCents) ||
+      !Number.isSafeInteger(state.achievements.cycleGiftCents + tier.rewardCents)) {
     return { ok: false, state, error: 'money-overflow' }
   }
   return {
@@ -111,7 +127,10 @@ export function claimAchievement(state: CapitalState, id: string): AchievementCl
     state: {
       ...state,
       game: { ...state.game, balance: (balanceCents + tier.rewardCents) / 100 },
-      achievements: { claimedIds: [...state.achievements.claimedIds, id] },
+      achievements: {
+        claimedIds: [...state.achievements.claimedIds, id],
+        cycleGiftCents: state.achievements.cycleGiftCents + tier.rewardCents,
+      },
     },
   }
 }
