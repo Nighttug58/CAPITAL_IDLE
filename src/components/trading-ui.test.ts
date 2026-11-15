@@ -286,7 +286,7 @@ describe('Trading interface mobile',()=>{
   it('replie le surplus d’actifs sans les rendre inaccessibles', async () => {
     const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
     state.trading.news=[{...news,id:'global-news',templateId:'macro-recovery',
-      affectedAssetIds:Object.keys(state.trading.quotes),impact:0.8}]
+      affectedAssetIds:Object.keys(createInitialQuotes(NOW)),impact:0.8}]
     const {wrapper}=setup(state)
     await tab(wrapper,3)
     await wrapper.find('button.news-preview-row').trigger('click')
