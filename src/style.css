@@ -1349,3 +1349,26 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .banknotes:after{display:none}
 .bundle-shadow{position:absolute;bottom:3px;left:28%;width:44%;height:8px;border-radius:50%;background:#0007;filter:blur(3px)}
 @media(prefers-reduced-motion:no-preference){.bundle-shadow.pulsing{animation:shadow-pulse 180ms ease-out}}
+
+/* Indices de pression réels des News, lisibles dans les modales mobiles. */
+.news-impact-panel,.news-aggregate{border:1px solid #405148;border-radius:12px;background:#172220;padding:12px;margin:14px 0}
+.news-impact-panel-head,.news-aggregate-head{display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:10px}
+.news-impact-panel-head>strong{font-size:11px;letter-spacing:.05em}
+.news-impact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.news-impact-stat{display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px;border-radius:9px;background:#202d29;border:1px solid #3d4b44}
+.news-impact-stat>span{color:#acbeb3;font-size:10px;line-height:1.3}
+.news-impact-stat>strong{color:#f1e8d1;font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.news-impact-stat.news-impact-highlight{background:#1d3030;border-color:#567065}
+.news-impact-panel .news-index-positive,.news-aggregate .news-index-positive{color:#93e8b9}
+.news-impact-panel .news-index-negative,.news-aggregate .news-index-negative{color:#ffa6a9}
+.news-impact-note{margin:10px 0 0;color:#a8b9b0;font-size:11px;line-height:1.5}
+.news-impact-note strong{color:#dae7d9}
+.news-aggregate-head small{color:#b7c4b5;font-size:11px}
+.news-aggregate-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:6px;padding:9px 4px;border-top:1px solid #34453d;font-size:11px;font-variant-numeric:tabular-nums}
+.news-aggregate-row>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e7e5d8;font-weight:730}
+.news-aggregate-row>strong{font-size:11px;color:#dedfd7;text-align:right;font-weight:760}
+.news-aggregate-column-head{color:#abbcb2;font-size:10px}
+.news-aggregate-column-head>span:not(:first-child){text-align:right}
+.news-aggregate-more summary{padding:10px 3px;cursor:pointer;color:#e7c98b;font-size:11px;font-weight:760}
+.news-aggregate-extra{max-height:230px;overflow-y:auto;scrollbar-width:thin}
+@media(max-width:380px){.news-impact-stat{padding:8px}.news-impact-stat>strong{font-size:12px}.news-aggregate-row{gap:4px;font-size:10px}.news-aggregate-row>strong{font-size:10px}}

@@ -6,7 +6,7 @@ import { getAsset } from '../trading/catalog.ts'
 import type { TradeResult, TradeSide } from '../trading/trades.ts'
 import type { StakingResult } from '../trading/staking.ts'
 import { formatCash } from '../trading/presentation.ts'
-import { peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
+import { marketNewsEffects, peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
 import AssetList from './AssetList.vue'
 import PortfolioPanel from './PortfolioPanel.vue'
 import NewsPreview from './NewsPreview.vue'
@@ -37,6 +37,7 @@ watch(() => props.state.ascension.progress.upgradeLevels['crypto-staking'], leve
   if (level === 0 && activeTab.value === 'staking') activeTab.value = 'portfolio'
 })
 const upcoming = computed(() => peekUpcomingNews(props.state, props.state.trading.dividendLastPaidAt))
+const newsImpactMultiplier = computed(() => marketNewsEffects(props.state, props.state.trading.dividendLastPaidAt).impactMultiplier)
 const radar = computed(() => volatilityRadar(props.state).slice(0, 3))
 const hasDialog = computed(() => selectedAssetId.value !== null || selectedNewsId.value !== null)
 let historyEntry = false
@@ -184,7 +185,8 @@ onUnmounted(() => {
       />
       <div v-if="activeNews" :class="{'trading-modal-backdrop news-overlay': selectedAssetId}" class="news-layer" @click.self="closeDialog">
       <NewsDialog
-        v-if="activeNews" :key="activeNews.id" :event="activeNews" :now="state.trading.dividendLastPaidAt"
+        v-if="activeNews" :key="activeNews.id" :event="activeNews" :news="state.trading.news"
+        :now="state.trading.dividendLastPaidAt" :impact-multiplier="newsImpactMultiplier"
         @close="closeDialog" @open-asset="followNewsAsset"
       /></div>
     </div>

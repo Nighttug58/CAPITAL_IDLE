@@ -33,7 +33,7 @@ const entries = computed(() =>
       <div v-if="entries.length === 0" class="market-empty">
         <span class="market-empty-icon" aria-hidden="true">◷</span>
         <strong>Aucune actualité pour le moment</strong>
-        <p>Un événement fictif apparaît toutes les 1 à 5 minutes.</p>
+        <p>Un événement fictif apparaît toutes les 5 à 10 minutes (hors bonus Prestige).</p>
       </div>
       <button type="button" v-for="entry in entries" :key="entry.event.id" class="news-preview-row"
         :class="'news-' + entry.presentation!.direction"

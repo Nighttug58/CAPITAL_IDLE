@@ -114,6 +114,48 @@ describe('Trading interface mobile',()=>{
     await nextTick()
     expect(getState().trading.positions.bitcoin?.quantity).toBeGreaterThan(0)
   })
+  it('affiche les valeurs exactes de la News, le cumul et la mise à jour après expiration',async()=>{
+    const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
+    const positive:MarketNews={...news,id:'good-results',templateId:'earnings-beat',
+      impact:0.8,startedAt:NOW-120_000,endsAt:NOW+480_000}
+    const negative:MarketNews={...positive,id:'bad-results',templateId:'earnings-miss',impact:-0.5}
+    state.trading.news=[positive,negative]
+    const {wrapper}=setup(state)
+    await tab(wrapper,3)
+    await wrapper.findAll('button.news-preview-row')[1]!.trigger('click')
+    const dialog=wrapper.find('.trading-news-modal')
+    expect(dialog.text()).toContain('Intensité initiale')
+    expect(dialog.text()).toContain('80,00 %')
+    expect(dialog.text()).toContain('Poids sur le cours')
+    expect(dialog.text()).toContain('×0,95')
+    expect(dialog.text()).toContain('Pression cours de cette News')
+    expect(dialog.text()).toContain('+0,760')
+    expect(dialog.text()).toContain('Pression dividendes de cette News')
+    expect(dialog.text()).toContain('+0,600')
+    expect(dialog.text()).toContain('PRESSION CUMULÉE DES NEWS ACTIVES')
+    expect(dialog.find('.news-aggregate-row:not(.news-aggregate-column-head)').text()).toContain('+0,310')
+    expect(dialog.find('.news-aggregate-row:not(.news-aggregate-column-head)').text()).toContain('+0,250')
+    expect(dialog.text()).toContain('indices de pression')
+    await wrapper.setProps({state:{...state,trading:{...state.trading,dividendLastPaidAt:NOW+480_000}}})
+    expect(dialog.text()).toContain('Impact terminé')
+    expect(dialog.find('.news-impact-highlight').text()).toContain('0,000')
+    expect(dialog.find('.news-aggregate-row:not(.news-aggregate-column-head)').text()).toContain('0,000')
+  })
+  it('une News crypto ne prétend pas verser de dividendes et une News globale reste repliée',async()=>{
+    const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
+    state.trading.news=[{...news,id:'turbo-pump',templateId:'meme-viral',affectedAssetIds:['turbo'],impact:0.7}]
+    const {wrapper}=setup(state)
+    await tab(wrapper,3)
+    await wrapper.find('button.news-preview-row').trigger('click')
+    expect(wrapper.find('.news-impact-panel').text()).not.toContain('Pression dividendes')
+    expect(wrapper.find('.news-aggregate-row:not(.news-aggregate-column-head)').text()).toContain('—')
+    await wrapper.find('button.modal-close').trigger('click')
+    const global:MarketNews={...news,id:'global-good',templateId:'macro-recovery',
+      affectedAssetIds:Object.keys(state.trading.quotes),impact:0.75}
+    await wrapper.setProps({state:{...state,trading:{...state.trading,news:[global]}}})
+    await wrapper.find('button.news-preview-row').trigger('click')
+    expect(wrapper.find('.news-aggregate-more summary').text()).toContain('40 autres actifs')
+  })
   it('affiche la News et conduit à la fiche de son actif',async()=>{
     const state=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},NOW)
     state.trading.news=[news]
