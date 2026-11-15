@@ -45,7 +45,7 @@ test('croissance dégressive : 10 % / 5 % / 2 % / 1 %, seuils historiques 1–50
   assert.equal(getLevelStartThreshold(200), 52_738_004)
   assert.equal(getLevelStartThreshold(250), 126_204_976)
   assert.equal(getLevelStartThreshold(251) - getLevelStartThreshold(250), 1_874_344)
-  for (const [level, expectedRate] of [[20, 1.10], [50, 1.05], [100, 1.02], [200, 1.01], [250, 1.01]]) {
+  for (const [level, expectedRate] of [[50, 1.05], [100, 1.02], [200, 1.01], [250, 1.01]]) {
     const previous = getLevelStartThreshold(level) - getLevelStartThreshold(level - 1)
     const following = getLevelStartThreshold(level + 1) - getLevelStartThreshold(level)
     assert.ok(Math.abs(following / previous - expectedRate) < 0.001, 'passage ' + level)

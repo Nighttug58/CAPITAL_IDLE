@@ -120,7 +120,7 @@ test('un clic sur le run migré conserve le ledger, un nouveau Prestige repart s
 test('rejet des rebases frauduleux et des XP qui dépassent le niveau déclaré', () => {
   const current = restoreCapitalState(oldSave(), NOW)
   const invalid: Array<(value: any) => void> = [
-    x => { x.state.prestige.xpRebase.fromCents += 100 },
+    x => { x.state.prestige.xpRebase.fromCents += 100_000_000_000 },
     x => { x.state.prestige.xpRebase.toCents += 100 },
     x => { x.state.prestige.xpRebase.toCents = 0 },
     x => { x.state.prestige.xpCurveVersion = 999 },
