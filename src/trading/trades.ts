@@ -5,7 +5,6 @@ import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
-import { availableSellLiquidity, consumeSellLiquidity } from './liquidity.ts'
 import { liquidCryptoQuantity, liquidRewardQuantity } from './staking.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
@@ -17,7 +16,7 @@ const MAX_CENTS = Number.MAX_SAFE_INTEGER
 export type TradeSide = 'buy' | 'sell'
 export type TradeError = 'unknown-asset' | 'invalid-quantity' | 'invalid-price' |
   'insufficient-funds' | 'insufficient-supply' | 'insufficient-holdings' |
-  'amount-too-small' | 'money-overflow' | 'insufficient-liquidity' | 'staked-holdings'
+  'amount-too-small' | 'money-overflow' | 'staked-holdings'
 export type TradeFraction = 0.25 | 0.5 | 1
 
 export interface TradeReceipt {
@@ -158,7 +157,7 @@ export function getQuickQuantity(
   if (!asset || ![0.25, 0.5, 1].includes(fraction)) return 0
   const max = side === 'buy'
     ? getMaximumBuyQuantity(state, assetId)
-    : Math.min(liquidCryptoQuantity(state, assetId), availableSellLiquidity(state, assetId))
+    : liquidCryptoQuantity(state, assetId)
   if (!Number.isFinite(max) || max <= 0) return 0
   return fraction === 1 ? max : floorWithPrecision(max * fraction, asset.quantityDecimals)
 }
@@ -219,7 +218,6 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   const position = state.trading.positions[assetId]
   if (!position || quantity > position.quantity + 1e-9) return reject(state, 'insufficient-holdings')
   if (quantity > liquidCryptoQuantity(state, assetId) + 1e-9) return reject(state, 'staked-holdings')
-  if (quantity > availableSellLiquidity(state, assetId) + 1e-9) return reject(state, 'insufficient-liquidity')
 
   const price = validQuote(asset, state)
   if (price === null) return reject(state, 'invalid-price')
@@ -252,7 +250,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     ? 0 : Math.min(basisCents, Math.round(basisCents * purchasedSold / purchasedHeld))
   const profit = order.proceedsCents - soldBasis
   // Trading bonus rewards a positive realized NET gain only. Recovered cost
-  // basis and losses never receive a bonus, and the high-water XP guard stays.
+  // basis and losses never receive a bonus.
   const boosted = profit > 0
     ? scaleRewardCents(profit, getTotalBonusBps(state, 'trading'), state.prestige.tradingCarryBps)
     : null
@@ -260,10 +258,8 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   const effectiveProfit = boosted ? boosted.cents : profit
   const bonusCashCents = effectiveProfit - profit
   const newRealized = realizedCents + effectiveProfit
-  const newCredited = Math.max(creditedCents, newRealized, 0)
-  // Haut historique du bénéfice net cumulatif : une perte suivie d'un simple
-  // retour à l'équilibre ne crédite PAS de nouveau le niveau.
-  const levelEarnings = newCredited - creditedCents
+  const levelEarnings = Math.max(0, effectiveProfit)
+  const newCredited = creditedCents + levelEarnings
   if (![newRealized, newCredited, cashCents + order.proceedsCents + bonusCashCents, earnedCents + levelEarnings].every(Number.isSafeInteger)) {
     return reject(state, 'money-overflow')
   }
@@ -277,8 +273,6 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     }
   }
 
-  const liquidity = consumeSellLiquidity(state, assetId, quantity)
-  if (!liquidity) return reject(state, 'insufficient-liquidity')
   const previousStake = state.trading.staking?.positions[assetId]
   const staking = previousStake && rewardedSold > 0
     ? {
@@ -305,7 +299,6 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     trading: {
       ...state.trading,
       positions,
-      liquidity,
       ...(staking ? { staking } : {}),
       realizedNetProfit: toMoney(newRealized),
       creditedTradingProfit: toMoney(newCredited),

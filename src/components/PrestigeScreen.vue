@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
 import { ASCENSION_MIN_LEVEL, ASCENSION_MIN_WORTH_USD, eligiblePrestigeWorthFromOverview, previewPrestigePoints } from '../ascension/contracts.ts'
-import { ASCENSION_UPGRADES, ASCENSION_TOTAL_COST, ASCENSION_TOTAL_LEVELS } from '../ascension/catalog.ts'
+import { ASCENSION_UPGRADES } from '../ascension/catalog.ts'
 import { ASCENSION_CATEGORIES, ASCENSION_PRESENTATION } from '../ascension/presentation.ts'
 import { getAscensionOffers, type AscensionPurchase, type AscensionShopError } from '../ascension/shop.ts'
 import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
@@ -48,16 +48,18 @@ const frenzyOn = computed(() => frenzyActive(props.state, props.state.trading.di
 const frenzyRemaining = computed(() => Math.max(0, (props.state.ascension.run.frenzyReadyAtRealMs ?? 0) - props.state.trading.dividendLastPaidAt))
 const frenzyTime = computed(() => Math.ceil(frenzyRemaining.value / 60_000))
 const offers = computed(() => getAscensionOffers(props.state))
-const purchasedLevels = computed(() => Object.values(progress.value.upgradeLevels).reduce((sum, current) => sum + current, 0))
+const activeUpgrades = ASCENSION_UPGRADES.filter(item => item.id !== 'market-liquidity' && item.id !== 'liquidity-recovery')
+const totalLevels = activeUpgrades.reduce((sum, item) => sum + item.maxLevel, 0)
+const purchasedLevels = computed(() => activeUpgrades.reduce((sum, item) => sum + progress.value.upgradeLevels[item.id], 0))
 const spentPoints = computed(() => progress.value.lifetimePoints - progress.value.availablePoints)
-const toGo = computed(() => Math.max(0, ASCENSION_TOTAL_LEVELS - purchasedLevels.value))
+const toGo = computed(() => totalLevels - purchasedLevels.value)
 const affordPrestige = computed(() => level.value >= ASCENSION_MIN_LEVEL &&
   worth.value !== null && worth.value >= ASCENSION_MIN_WORTH_USD &&
   props.state.fiscal.taxesDueCents === 0)
 const worthProgress = computed(() => Math.min(100, Math.max(0, (worth.value ?? 0) / ASCENSION_MIN_WORTH_USD * 100)))
 const sections = computed(() => ASCENSION_CATEGORIES.map(category => ({
   ...category,
-  rows: ASCENSION_PRESENTATION.filter(item => item.category === category.id).map(item => ({
+  rows: ASCENSION_PRESENTATION.filter(item => item.category === category.id && activeUpgrades.some(def => def.id === item.id)).map(item => ({
     item,
     def: ASCENSION_UPGRADES.find(def => def.id === item.id)!,
     offer: offers.value.find(offer => offer.id === item.id)!,
@@ -182,8 +184,8 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
     <section class="ascension-summary" aria-label="Points et cycles de Prestige">
       <div><span>POINTS DISPONIBLES</span><strong>{{ fmt(progress.availablePoints) }} <small>PP</small></strong></div>
       <div><span>CYCLES PRESTIGE</span><strong>{{ fmt(progress.prestigeCount) }}</strong></div>
-      <div><span>AMÉLIORATIONS</span><strong>{{ purchasedLevels }} / {{ ASCENSION_TOTAL_LEVELS }}</strong></div>
-      <div><span>PP DÉPENSÉS</span><strong>{{ fmt(spentPoints) }} / {{ fmt(ASCENSION_TOTAL_COST) }}</strong></div>
+      <div><span>AMÉLIORATIONS</span><strong>{{ purchasedLevels }} / {{ totalLevels }}</strong></div>
+      <div><span>PP DÉPENSÉS</span><strong>{{ fmt(spentPoints) }}</strong></div>
     </section>
 
     <div class="ascension-scroll">

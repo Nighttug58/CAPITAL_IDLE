@@ -62,7 +62,7 @@ export function buyAscensionUpgrade(
 ): AscensionPurchase {
   const info = ASCENSION_PRESENTATION.find(item => item.id === id)
   const upgrade = ASCENSION_UPGRADES.find(item => item.id === id)
-  if (!info || !upgrade) return reject(state, 'unknown-upgrade')
+  if (!info || !upgrade || id === 'market-liquidity' || id === 'liquidity-recovery') return reject(state, 'unknown-upgrade')
   if (!validAscensionShopLedger(state)) return reject(state, 'invalid-state')
   if (!Number.isSafeInteger(expectedLevel) || expectedLevel < 0 ||
       state.ascension.progress.upgradeLevels[upgrade.id] !== expectedLevel) {

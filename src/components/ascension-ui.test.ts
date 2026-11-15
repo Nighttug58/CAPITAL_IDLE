@@ -35,7 +35,7 @@ function mountState(state: CapitalState) {
 }
 
 describe('Prestige économique — page et boutique', () => {
-  it('s’ouvre depuis Accueil, affiche 18 upgrades, et conserve Stats à droite', async () => {
+  it('s’ouvre depuis Accueil, affiche 16 upgrades, et conserve Stats à droite', async () => {
     const { wrapper } = mountState(fixture())
     const nav = wrapper.findAll('.bottom-nav button')
     expect(nav.map(button => button.text())).toEqual([
@@ -46,9 +46,9 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.find('.ascension-screen').exists()).toBe(true)
     expect(wrapper.find('.ascension-screen').attributes('aria-label')).toBe('Boutique Prestige')
     expect(wrapper.find('.ascension-screen h1').text()).toBe('Prestige')
-    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(18)
+    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(16)
     expect(wrapper.findAll('.ascension-category')).toHaveLength(5)
-    expect(wrapper.findAll('.ascension-upgrade button.ascension-buy:disabled')).toHaveLength(18)
+    expect(wrapper.findAll('.ascension-upgrade button.ascension-buy:disabled')).toHaveLength(16)
     expect(wrapper.find('.ascension-panel-title').text()).toContain('PP')
     expect(wrapper.find('.home-screen').isVisible()).toBe(false)
     expect(wrapper.findAll('.bottom-nav button').at(-1)?.text()).toBe('Stats')
@@ -95,7 +95,7 @@ describe('Prestige économique — page et boutique', () => {
     const start = fixture()
     const { wrapper, saved } = mountState(start)
     await wrapper.find('.prestige-launch').trigger('click')
-    expect(wrapper.findAll('.ascension-buy:disabled')).toHaveLength(18)
+    expect(wrapper.findAll('.ascension-buy:disabled')).toHaveLength(16)
     // The live runtime legitimately advances enterprise/market real clocks.
     // A rejected PP purchase must preserve the actual economic balances and
     // permanent progression, not freeze all clock timestamps in the browser.

@@ -27,14 +27,14 @@ async function prestige(wrapper: VueWrapper) {
 }
 
 describe('Prestige passe 6 — contrôles des automatismes',()=>{
-  it('présente les quatre assistants verrouillés et les 18 upgrades existants',async()=>{
+  it('présente les quatre assistants verrouillés et les 16 upgrades existants',async()=>{
     const {wrapper}=mountState(withPP())
     await prestige(wrapper)
     expect(wrapper.findAll('.automation-switch')).toHaveLength(4)
     expect(wrapper.find('.automation-panel').text()).toContain('Automatisations')
     expect(wrapper.find('.automation-locked').exists()).toBe(true)
     expect(wrapper.findAll('.automation-switch button:disabled')).toHaveLength(4)
-    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(18)
+    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(16)
     expect(wrapper.find('.automation-orders').exists()).toBe(false)
     expect(wrapper.findAll('.bottom-nav button').at(-1)?.text()).toBe('Stats')
   })

@@ -1,4 +1,3 @@
-import { availableSellLiquidity } from './liquidity.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ASSETS, createInitialQuotes } from './catalog.ts'
@@ -91,7 +90,7 @@ test('MAX des 45 actifs : quantité, frais, offre et solde validés par le moteu
     if (!result.ok) continue
     assert.ok(result.state.game.balance >= 0)
     assert.ok(result.state.trading.positions[asset.id]!.quantity <= asset.totalSupply)
-    assert.equal(getQuickQuantity(result.state, asset.id, 'sell', 1), Math.min(max, availableSellLiquidity(result.state, asset.id)))
+    assert.equal(getQuickQuantity(result.state, asset.id, 'sell', 1), max)
   }
 })
 

@@ -10,8 +10,6 @@ import {
 } from './market-effects.ts'
 import { advanceCapitalSecond } from '../trading/dividends.ts'
 import { advanceNewsTick, getNewsPressure, getNewsTemplate } from '../trading/news.ts'
-import { getAsset } from '../trading/catalog.ts'
-import { availableSellLiquidity, marketLiquidityCapacity, LIQUIDITY_REGEN_PER_MINUTE } from '../trading/liquidity.ts'
 import { buyAsset, getMaximumBuyQuantity, sellAsset } from '../trading/trades.ts'
 import { createSaveExport, prepareSaveImport } from '../save-transfer.ts'
 import type { CapitalState } from '../capital.ts'
@@ -199,25 +197,15 @@ test('Radar : classe les marchés avec les vrais échantillons historiques', () 
   assert.ok(radar[0]!.volatilityPercent > radar[1]!.volatilityPercent)
 })
 
-test('Liquidité : achat et vente séparés, ×3 profondeur, ×2,5 régénération', () => {
+test('Une poche historique épuisée permet un achat et une revente immédiate de toute la position', () => {
   const start = createCapitalState({ balance: 100_000_000, lifetimeEarned: 100_000_000, purchasedUpgrades: 0 }, NOW)
-  const btc = getAsset('bitcoin')!
-  assert.equal(marketLiquidityCapacity(btc, 0), 210)
-  assert.equal(marketLiquidityCapacity(btc, 10), 630)
-  assert.ok(getMaximumBuyQuantity(start, 'bitcoin') > 210)
-  const bought = buyAsset(start, 'bitcoin', 211)
+  start.trading.liquidity = { bitcoin: { buyUnits: 0, sellUnits: 0, updatedAt: NOW } }
+  const max = getMaximumBuyQuantity(start, 'bitcoin')
+  assert.ok(max > 210)
+  const bought = buyAsset(start, 'bitcoin', max)
   assert.ok(bought.ok)
-  assert.equal(availableSellLiquidity(bought.state, 'bitcoin'), 210)
-  const sold = sellAsset(bought.state, 'bitcoin', 210)
+  const sold = sellAsset(bought.state, 'bitcoin', max)
   assert.ok(sold.ok)
-  assert.equal(availableSellLiquidity(sold.state, 'bitcoin'), 0)
-  const later = {
-    ...sold.state,
-    trading: { ...sold.state.trading, dividendLastPaidAt: NOW + 120_000 },
-  }
-  const regenerated = availableSellLiquidity(later, 'bitcoin')
-  assert.ok(regenerated >= 210 * LIQUIDITY_REGEN_PER_MINUTE * 2 - 1e-8)
-  assert.ok(regenerated < 210)
   const imported = prepareSaveImport(createSaveExport(sold.state, NOW), NOW)
   assert.ok(imported.ok)
   assert.deepEqual(imported.preview.state, sold.state)

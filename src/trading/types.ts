@@ -104,8 +104,7 @@ export interface TradingState {
   /** Per-asset order-book depth; absent on old v4–v7 saves. */
   liquidity?: Record<string, LiquidityPool>
   realizedNetProfit: number
-  // Plus haut cumul net atteint par les profits de ventes : protège les niveaux
-  // contre un cycle perte -> récupération du même profit.
+  // Gains déjà crédités : historique conservé, puis somme des ventes positives.
   creditedTradingProfit: number
   // Fraction d'un centime et montants différés en cas de plafond monétaire.
   dividendCarry: number

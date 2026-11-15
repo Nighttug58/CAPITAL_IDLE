@@ -110,7 +110,7 @@ test('vente partielle : coût réparti et solde des centimes conservé', () => {
   assert.equal(final.state.game.lifetimeEarned, 1075.6)
 })
 
-test('vente à perte et récupération : aucun doublon de progression par revente', () => {
+test('vente à perte et récupération : XP pour chaque vente bénéficiaire', () => {
   let state = quoted(funded(1000), 'nvideo', 100)
   state = buy(state, 'nvideo', 4)
   state = quoted(state, 'nvideo', 120)
@@ -134,9 +134,10 @@ test('vente à perte et récupération : aucun doublon de progression par revent
   assert.equal(recover.ok, true)
   if (!recover.ok) return
   assert.equal(recover.receipt.netRealizedProfit, 38.2)
-  assert.equal(recover.receipt.levelEarnings, 0, 'rattraper des pertes ne doit pas compter pour deux niveaux')
+  assert.equal(recover.receipt.levelEarnings, 38.2)
   assert.equal(recover.state.trading.realizedNetProfit, -5.6)
-  assert.equal(recover.state.game.lifetimeEarned, 1018.9)
+  assert.equal(recover.state.game.lifetimeEarned, 1057.1)
+  assert.equal(recover.state.prestige.experienceCents - loss.state.prestige.experienceCents, 3820)
 
   state = quoted(recover.state, 'nvideo', 100)
   state = buy(state, 'nvideo', 1)
@@ -145,9 +146,9 @@ test('vente à perte et récupération : aucun doublon de progression par revent
   assert.equal(newRecord.ok, true)
   if (!newRecord.ok) return
   assert.equal(newRecord.receipt.netRealizedProfit, 38.8)
-  assert.equal(newRecord.receipt.levelEarnings, 14.3)
-  assert.equal(newRecord.state.trading.creditedTradingProfit, 33.2)
-  assert.equal(newRecord.state.game.lifetimeEarned, 1033.2)
+  assert.equal(newRecord.receipt.levelEarnings, 38.8)
+  assert.equal(newRecord.state.trading.creditedTradingProfit, 95.9)
+  assert.equal(newRecord.state.game.lifetimeEarned, 1095.9)
 })
 
 test('MAX achetable avec frais et précision ; 25 % et 50 % ne dépassent jamais le maximum', () => {

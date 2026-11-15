@@ -7,7 +7,6 @@ import { getNewsPresentation } from '../trading/news.ts'
 import { formatCash, formatChange, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import { liquidCryptoQuantity } from '../trading/staking.ts'
-import { availableSellLiquidity } from '../trading/liquidity.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
 
@@ -27,7 +26,6 @@ const position = computed(() => props.state.trading.positions[props.assetId])
 const owned = computed(() => position.value?.quantity ?? 0)
 const liquid = computed(() => liquidCryptoQuantity(props.state, props.assetId))
 const available = computed(() => getAvailableSupply(asset.value, owned.value))
-const liquiditySell = computed(() => availableSellLiquidity(props.state, props.assetId))
 const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
@@ -56,7 +54,6 @@ const errors: Record<string, string> = {
   'invalid-price': 'Cours indisponible : transaction suspendue.',
   'insufficient-funds': 'Solde insuffisant, frais compris.',
   'insufficient-supply': 'Quantité supérieure à l’offre restante.',
-  'insufficient-liquidity': 'Liquidité insuffisante sur ce marché : attends sa régénération.',
   'insufficient-holdings': 'Vous ne détenez pas autant d’unités.',
   'staked-holdings': 'Cette quantité est verrouillée en staking ou en retrait.',
   'amount-too-small': 'Ordre trop petit pour couvrir les arrondis et les frais.',
@@ -148,8 +145,7 @@ function submit() {
         <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
         <div><span>Unités disponibles à l’achat</span><strong>{{ formatQuantity(available) }}</strong></div>
         <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
-        <div v-if="asset.kind === 'crypto'"><span>Liquidité personnelle hors staking</span><strong>{{ formatQuantity(liquid) }}</strong></div>
-        <div><span>Liquidité à la vente</span><strong>{{ formatQuantity(liquiditySell) }}</strong></div>
+        <div v-if="asset.kind === 'crypto'"><span>Unités disponibles à la vente</span><strong>{{ formatQuantity(liquid) }}</strong></div>
       </div>
       <div v-if="relatedNews.length" class="asset-news-related">
         <span class="eyebrow">NEWS ASSOCIÉES</span>
