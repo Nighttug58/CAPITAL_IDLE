@@ -7,7 +7,7 @@ import { getNewsPresentation } from '../trading/news.ts'
 import { formatCash, formatChange, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import { liquidCryptoQuantity } from '../trading/staking.ts'
-import { availableMarketLiquidity } from '../trading/liquidity.ts'
+import { availableSellLiquidity } from '../trading/liquidity.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
 
@@ -27,8 +27,7 @@ const position = computed(() => props.state.trading.positions[props.assetId])
 const owned = computed(() => position.value?.quantity ?? 0)
 const liquid = computed(() => liquidCryptoQuantity(props.state, props.assetId))
 const available = computed(() => getAvailableSupply(asset.value, owned.value))
-const liquidityBuy = computed(() => availableMarketLiquidity(props.state, props.assetId, 'buy'))
-const liquiditySell = computed(() => availableMarketLiquidity(props.state, props.assetId, 'sell'))
+const liquiditySell = computed(() => availableSellLiquidity(props.state, props.assetId))
 const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
@@ -147,10 +146,9 @@ function submit() {
       <div class="asset-detail-grid">
         <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
         <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
-        <div><span>Disponibles</span><strong>{{ formatQuantity(available) }}</strong></div>
+        <div><span>Unités disponibles à l’achat</span><strong>{{ formatQuantity(available) }}</strong></div>
         <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
         <div v-if="asset.kind === 'crypto'"><span>Liquidité personnelle hors staking</span><strong>{{ formatQuantity(liquid) }}</strong></div>
-        <div><span>Liquidité à l’achat</span><strong>{{ formatQuantity(liquidityBuy) }}</strong></div>
         <div><span>Liquidité à la vente</span><strong>{{ formatQuantity(liquiditySell) }}</strong></div>
       </div>
       <div v-if="relatedNews.length" class="asset-news-related">

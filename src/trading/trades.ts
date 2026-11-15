@@ -5,7 +5,7 @@ import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
 import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
-import { availableMarketLiquidity, consumeMarketLiquidity } from './liquidity.ts'
+import { availableSellLiquidity, consumeSellLiquidity } from './liquidity.ts'
 import { liquidCryptoQuantity, liquidRewardQuantity } from './staking.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
@@ -127,7 +127,7 @@ export function getMaximumBuyQuantity(state: CapitalState, assetId: string): num
   if (price === null || wallet === null || wallet <= 0) return 0
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
   if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return 0
-  const available = Math.min(getAvailableSupply(asset, owned), availableMarketLiquidity(state, assetId, 'buy'))
+  const available = getAvailableSupply(asset, owned)
   if (available <= 0) return 0
 
   const upper = Math.min(available, wallet / (CENTS * price))
@@ -158,7 +158,7 @@ export function getQuickQuantity(
   if (!asset || ![0.25, 0.5, 1].includes(fraction)) return 0
   const max = side === 'buy'
     ? getMaximumBuyQuantity(state, assetId)
-    : Math.min(liquidCryptoQuantity(state, assetId), availableMarketLiquidity(state, assetId, 'sell'))
+    : Math.min(liquidCryptoQuantity(state, assetId), availableSellLiquidity(state, assetId))
   if (!Number.isFinite(max) || max <= 0) return 0
   return fraction === 1 ? max : floorWithPrecision(max * fraction, asset.quantityDecimals)
 }
@@ -173,7 +173,6 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
   if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return reject(state, 'invalid-quantity')
   if (quantity > getAvailableSupply(asset, owned) + 1e-9) return reject(state, 'insufficient-supply')
-  if (quantity > availableMarketLiquidity(state, assetId, 'buy') + 1e-9) return reject(state, 'insufficient-liquidity')
   // Éviter les achats de poussière qui seraient invendables sans aucun produit
   // de vente après arrondi et commissions, même sans mouvement de marché.
   if (!sellMoney(asset, price, quantity)) return reject(state, 'amount-too-small')
@@ -193,15 +192,12 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
     quantity: Math.min(totalQuantity, asset.totalSupply),
     costBasis: toMoney(oldBasis + order.totalCents),
   }
-  const liquidity = consumeMarketLiquidity(state, assetId, 'buy', quantity)
-  if (!liquidity) return reject(state, 'insufficient-liquidity')
   const nextState: CapitalState = {
     ...state,
     game: { ...state.game, balance: toMoney(cash - order.totalCents) },
     trading: {
       ...state.trading,
       positions: { ...state.trading.positions, [asset.id]: nextPosition },
-      liquidity,
     },
   }
   return {
@@ -223,7 +219,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
   const position = state.trading.positions[assetId]
   if (!position || quantity > position.quantity + 1e-9) return reject(state, 'insufficient-holdings')
   if (quantity > liquidCryptoQuantity(state, assetId) + 1e-9) return reject(state, 'staked-holdings')
-  if (quantity > availableMarketLiquidity(state, assetId, 'sell') + 1e-9) return reject(state, 'insufficient-liquidity')
+  if (quantity > availableSellLiquidity(state, assetId) + 1e-9) return reject(state, 'insufficient-liquidity')
 
   const price = validQuote(asset, state)
   if (price === null) return reject(state, 'invalid-price')
@@ -281,7 +277,7 @@ export function sellAsset(state: CapitalState, assetId: string, quantity: number
     }
   }
 
-  const liquidity = consumeMarketLiquidity(state, assetId, 'sell', quantity)
+  const liquidity = consumeSellLiquidity(state, assetId, quantity)
   if (!liquidity) return reject(state, 'insufficient-liquidity')
   const previousStake = state.trading.staking?.positions[assetId]
   const staking = previousStake && rewardedSold > 0

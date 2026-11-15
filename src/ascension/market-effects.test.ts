@@ -11,7 +11,7 @@ import {
 import { advanceCapitalSecond } from '../trading/dividends.ts'
 import { advanceNewsTick, getNewsPressure, getNewsTemplate } from '../trading/news.ts'
 import { getAsset } from '../trading/catalog.ts'
-import { availableMarketLiquidity, marketLiquidityCapacity, LIQUIDITY_REGEN_PER_MINUTE } from '../trading/liquidity.ts'
+import { availableSellLiquidity, marketLiquidityCapacity, LIQUIDITY_REGEN_PER_MINUTE } from '../trading/liquidity.ts'
 import { buyAsset, getMaximumBuyQuantity, sellAsset } from '../trading/trades.ts'
 import { createSaveExport, prepareSaveImport } from '../save-transfer.ts'
 import type { CapitalState } from '../capital.ts'
@@ -204,23 +204,18 @@ test('Liquidité : achat et vente séparés, ×3 profondeur, ×2,5 régénérati
   const btc = getAsset('bitcoin')!
   assert.equal(marketLiquidityCapacity(btc, 0), 210)
   assert.equal(marketLiquidityCapacity(btc, 10), 630)
-  assert.equal(availableMarketLiquidity(start, 'bitcoin', 'buy'), 210)
-  assert.equal(getMaximumBuyQuantity(start, 'bitcoin'), 210)
-  const tooMuch = buyAsset(start, 'bitcoin', 211)
-  assert.equal(tooMuch.ok, false)
-  if (!tooMuch.ok) assert.equal(tooMuch.error, 'insufficient-liquidity')
-  const bought = buyAsset(start, 'bitcoin', 210)
+  assert.ok(getMaximumBuyQuantity(start, 'bitcoin') > 210)
+  const bought = buyAsset(start, 'bitcoin', 211)
   assert.ok(bought.ok)
-  assert.equal(availableMarketLiquidity(bought.state, 'bitcoin', 'buy'), 0)
-  assert.equal(availableMarketLiquidity(bought.state, 'bitcoin', 'sell'), 210)
+  assert.equal(availableSellLiquidity(bought.state, 'bitcoin'), 210)
   const sold = sellAsset(bought.state, 'bitcoin', 210)
   assert.ok(sold.ok)
-  assert.equal(availableMarketLiquidity(sold.state, 'bitcoin', 'sell'), 0)
+  assert.equal(availableSellLiquidity(sold.state, 'bitcoin'), 0)
   const later = {
     ...sold.state,
     trading: { ...sold.state.trading, dividendLastPaidAt: NOW + 120_000 },
   }
-  const regenerated = availableMarketLiquidity(later, 'bitcoin', 'buy')
+  const regenerated = availableSellLiquidity(later, 'bitcoin')
   assert.ok(regenerated >= 210 * LIQUIDITY_REGEN_PER_MINUTE * 2 - 1e-8)
   assert.ok(regenerated < 210)
   const imported = prepareSaveImport(createSaveExport(sold.state, NOW), NOW)
