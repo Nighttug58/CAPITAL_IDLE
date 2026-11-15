@@ -1,5 +1,6 @@
 import { INITIAL_GAME, getLevel } from '../game.ts'
 import { advanceFiscalEconomy } from '../economy/clock.ts'
+import { settleTaxesForPrestige } from '../economy/fiscal.ts'
 import { createInitialEnterpriseState, createInitialStatsState } from '../economy/state.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
 import { createInitialTradingState } from '../trading/state.ts'
@@ -13,7 +14,7 @@ import {
 import { createInitialAscensionRun, MAX_ASCENSION_HISTORY } from './state.ts'
 
 export type AscensionError =
-  | 'invalid-clock' | 'pending-market-replay' | 'pending-fiscal-debt'
+  | 'invalid-clock' | 'pending-market-replay'
   | 'insufficient-level' | 'insufficient-worth' | 'money-overflow' | 'storage-error'
 
 export interface AscensionReceipt {
@@ -21,6 +22,7 @@ export interface AscensionReceipt {
   readonly earnedPoints: number
   readonly totalPoints: number
   readonly eligibleWorthCents: number
+  readonly taxesSettledCents: number
   readonly completedAt: number
 }
 export type AscensionResult =
@@ -51,16 +53,18 @@ export function performPrestige(state: CapitalState, at: number): AscensionResul
       at - settled.trading.dividendLastPaidAt >= DIVIDEND_SECOND_MS) {
     return reject(state, 'pending-market-replay')
   }
-  if (settled.fiscal.taxesDueCents > 0) return reject(state, 'pending-fiscal-debt')
-  const level = getLevel(settled.prestige.experienceCents / 100)
+  const taxesSettledCents = settled.fiscal.taxesDueCents
+  const afterTax = settleTaxesForPrestige(settled, at)
+  if (!afterTax) return reject(state, 'money-overflow')
+  const level = getLevel(afterTax.prestige.experienceCents / 100)
   if (level < ASCENSION_MIN_LEVEL) return reject(state, 'insufficient-level')
 
-  const eligible = eligiblePrestigeWorthFromOverview(getCapitalStatsOverview(settled))
+  const eligible = eligiblePrestigeWorthFromOverview(getCapitalStatsOverview(afterTax))
   if (eligible === null) return reject(state, 'money-overflow')
   if (eligible < ASCENSION_MIN_WORTH_USD) return reject(state, 'insufficient-worth')
   const cents = Math.round(eligible * 100)
   const earnedPoints = previewPrestigePoints(eligible, level)
-  const progress = settled.ascension.progress
+  const progress = afterTax.ascension.progress
   const totalPoints = progress.availablePoints + earnedPoints
   const lifetimePoints = progress.lifetimePoints + earnedPoints
   const count = progress.prestigeCount + 1
@@ -73,21 +77,22 @@ export function performPrestige(state: CapitalState, at: number): AscensionResul
     eligibleWorthCents: cents, earnedPoints, levelAtCompletion: level,
   }
   // Le prochain cycle repart avec XP zéro, sans aucun marqueur du run passé.
-  const { xpRebase: _completedXpRebase, ...cyclePrestige } = settled.prestige
+  const { xpRebase: _completedXpRebase, ...cyclePrestige } = afterTax.prestige
   void _completedXpRebase
   return {
     ok: true,
-    receipt: { cycle: count, earnedPoints, totalPoints, eligibleWorthCents: cents, completedAt: at },
+    receipt: { cycle: count, earnedPoints, totalPoints, eligibleWorthCents: cents,
+      taxesSettledCents, completedAt: at },
     state: {
-      ...settled,
+      ...afterTax,
       game: { ...INITIAL_GAME },
       // Deterministic fresh PRNG per completed cycle: no hidden Math.random.
-      trading: createInitialTradingState(at, ((settled.trading.seed + count * 0x9E3779B9) >>> 0) || 1),
+      trading: createInitialTradingState(at, ((afterTax.trading.seed + count * 0x9E3779B9) >>> 0) || 1),
       enterprises: createInitialEnterpriseState(at),
       stats: createInitialStatsState(at),
-      achievements: { ...settled.achievements, cycleGiftCents: 0 },
-      // Fiscal period and cumulative taxes PAID deliberately survive.
-      // No tax debt exists when this branch is reached.
+      achievements: { ...afterTax.achievements, cycleGiftCents: 0 },
+      // Outstanding taxes were debited and recorded, but the 72 h fiscal
+      // period retains its original anchor instead of resetting to now.
       prestige: {
         ...cyclePrestige,
         experienceCents: 0, experienceCarryBps: 0,

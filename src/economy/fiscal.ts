@@ -113,6 +113,21 @@ export function collectTaxesAtDeadline(state: CapitalState, at: number): Capital
   return debitTaxes(state, at)
 }
 
+/**
+ * At Prestige, debit pending tax and credit the per-source paid ledger without
+ * restarting the 72-hour real-time fiscal clock. The PP calculation uses
+ * net-of-tax worth, so no debt is forgiven by the transition.
+ */
+export function settleTaxesForPrestige(state: CapitalState, at: number): CapitalState | null {
+  const started = state.fiscal.periodStartedAt
+  if (!validTime(at) || !validTime(started) ||
+      at < started || at >= started + FISCAL_PERIOD_MS) return null
+  if (state.fiscal.taxesDueCents === 0) return state
+  const paid = debitTaxes(state, at)
+  if (!paid) return null
+  return { ...paid, fiscal: { ...paid.fiscal, periodStartedAt: started } }
+}
+
 export type EarlyTaxPaymentResult =
   | { readonly ok: true; readonly state: CapitalState; readonly amountCents: number }
   | { readonly ok: false; readonly state: CapitalState; readonly error: 'nothing-due' | 'invalid-clock' | 'money-overflow' }

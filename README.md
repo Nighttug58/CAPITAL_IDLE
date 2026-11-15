@@ -12,6 +12,10 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 - **Un seul solde** finance les améliorations du clicker, les transactions Trading et les entreprises. Il peut devenir négatif après le prélèvement automatique ou manuel de taxes, mais **aucun achat à crédit** n'est permis.
 - Les niveaux bénéficient des clics, des dividendes encaissés, des revenus fixes des entreprises et des **profits nets réalisés** en Trading. Ni le capital récupéré lors d'une vente, ni les gains latents, ni les taxes payées ne donnent de l'expérience. Les dépenses et les impôts ne font pas redescendre le niveau.
 
+## Prestige : taxes automatiquement soldées
+- Les impôts en cours ne bloquent plus le Prestige. Le moteur rattrape les revenus, débite **l'intégralité de la dette fiscale** en une seule transaction, enregistre le paiement par source et calcule les PP à partir du **patrimoine net d'impôts**. Aucune taxe n'est effacée gratuitement ; si la transaction ou la sauvegarde échoue, ni le Prestige ni le paiement ne sont validés.
+- Le calendrier fiscal de **72 h réelles conserve son ancrage** : aucun redémarrage du délai lors du Prestige. Le paiement manuel dans Stats reste possible.
+
 ## XP par niveau : croissance dégressive et migration
 - Les seuils augmentent de **10 % jusqu'au niveau 50**, **5 % pour les niveaux 51–100**, **2 % pour les niveaux 101–200**, puis **1 % à partir de 201**. Les seuils des 50 premiers niveaux sont inchangés ; le taux de gain de base reste **1 XP par dollar éligible**, avant bonus Fame.
 - Les sauvegardes sur l'ancienne courbe (version interne `xpCurveVersion:2`) migrent **une seule fois** vers `3`. Le niveau affiché et la fraction de progression du niveau sont conservés par interpolation en centimes d'XP. La Fame gagnée, les records de niveau, le solde, les collections, les améliorations et le Prestige restent identiques. Un témoin `xpRebase` vérifiable justifie la réduction d'XP après migration et est effacé lors du prochain Prestige. Imports JSON v6/v7 anciens conservés.

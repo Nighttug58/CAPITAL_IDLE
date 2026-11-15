@@ -54,8 +54,7 @@ const purchasedLevels = computed(() => activeUpgrades.reduce((sum, item) => sum 
 const spentPoints = computed(() => progress.value.lifetimePoints - progress.value.availablePoints)
 const toGo = computed(() => totalLevels - purchasedLevels.value)
 const affordPrestige = computed(() => level.value >= ASCENSION_MIN_LEVEL &&
-  worth.value !== null && worth.value >= ASCENSION_MIN_WORTH_USD &&
-  props.state.fiscal.taxesDueCents === 0)
+  worth.value !== null && worth.value >= ASCENSION_MIN_WORTH_USD)
 const worthProgress = computed(() => Math.min(100, Math.max(0, (worth.value ?? 0) / ASCENSION_MIN_WORTH_USD * 100)))
 const sections = computed(() => ASCENSION_CATEGORIES.map(category => ({
   ...category,
@@ -77,7 +76,6 @@ const shopErrors: Record<AscensionShopError, string> = {
 const cycleErrors: Record<AscensionError, string> = {
   'invalid-clock': 'Horloge incohérente. Réessaie une fois le jeu synchronisé.',
   'pending-market-replay': 'Le marché et les dividendes terminent leur rattrapage. Réessaie dans un instant.',
-  'pending-fiscal-debt': 'Il reste des impôts à payer. Règle ta dette dans Stats avant le Prestige.',
   'insufficient-level': 'Le niveau 100 est nécessaire pour chaque Prestige.',
   'insufficient-worth': 'Il faut au moins 100 millions $ de patrimoine éligible.',
   'money-overflow': 'Montants ou calcul économique non représentables. Le cycle est conservé.',
@@ -139,7 +137,9 @@ function confirmPrestige() {
     const result = props.performCycle()
     noticeError.value = !result.ok
     notice.value = result.ok
-      ? 'Prestige n°' + fmt(result.receipt.cycle) + ' réalisé : +' + fmt(result.receipt.earnedPoints) + ' PP permanents.'
+      ? 'Prestige n°' + fmt(result.receipt.cycle) + ' réalisé : +' + fmt(result.receipt.earnedPoints) +
+        ' PP permanents.' + (result.receipt.taxesSettledCents > 0
+          ? ' Impôts soldés : ' + cash(result.receipt.taxesSettledCents / 100) + '.' : '')
       : cycleErrors[result.error]
     if (result.ok) {
       confirming.value = false
@@ -196,15 +196,15 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
         </div>
         <div class="ascension-checks">
           <div><span>Niveau du cycle</span><strong :class="{ 'ascension-good': level >= ASCENSION_MIN_LEVEL }">{{ level }} / {{ ASCENSION_MIN_LEVEL }}</strong></div>
-          <div><span>Patrimoine éligible (hors collections)</span><strong>{{ worth === null ? 'Non disponible' : cash(worth) }}</strong></div>
+          <div><span>Patrimoine éligible (net des taxes, hors collections)</span><strong>{{ worth === null ? 'Non disponible' : cash(worth) }}</strong></div>
           <div><span>Seuil de patrimoine</span><strong>{{ cash(ASCENSION_MIN_WORTH_USD) }}</strong></div>
-          <div><span>Dette fiscale courante</span><strong :class="{ 'ascension-good': state.fiscal.taxesDueCents === 0 }">{{ cash(state.fiscal.taxesDueCents / 100) }}</strong></div>
+          <div><span>Taxes soldées automatiquement au Prestige</span><strong :class="{ 'ascension-good': state.fiscal.taxesDueCents === 0 }">{{ cash(state.fiscal.taxesDueCents / 100) }}</strong></div>
         </div>
         <div class="ascension-worth-track" role="progressbar" aria-label="Progression du patrimoine Prestige"
           :aria-valuenow="Math.round(worthProgress)" aria-valuemin="0" aria-valuemax="100">
           <span :style="{ width: worthProgress + '%' }"></span>
         </div>
-        <p class="ascension-help">Les taxes doivent être réglées avant le Prestige. Le calendrier fiscal de 72 h réelles continue après le reset.</p>
+        <p class="ascension-help">Aucun paiement manuel nécessaire : les taxes dues sont prélevées à la confirmation. Elles sont déjà déduites du patrimoine servant au calcul des PP. Le calendrier fiscal de 72 h réelles continue sans remise à zéro.</p>
         <button type="button" class="ascension-reset-launch" :disabled="!affordPrestige || busy"
           @click="openConfirmation">
           {{ affordPrestige ? 'EFFECTUER LE PRESTIGE' : 'PRESTIGE VERROUILLÉ' }}
@@ -277,6 +277,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           <h2 id="ascension-confirm-title">Confirmer le Prestige ?</h2>
           <p>Tu vas recommencer au <strong>niveau 1</strong> et perdre le cash, les actions, les cryptos, les entreprises et les améliorations de clic du cycle.</p>
           <p>La <strong>Fame</strong>, les collections, leurs bonus, les PP et les améliorations Prestige sont conservés. Les échéances fiscales continuent.</p>
+           <p v-if="state.fiscal.taxesDueCents > 0">Les taxes actuelles de <strong>{{ cash(state.fiscal.taxesDueCents / 100) }}</strong> seront réglées automatiquement dans l’opération de Prestige. Aucun impôt n’est effacé.</p>
           <div class="ascension-confirm-reward">Récompense de ce cycle : <strong>+{{ fmt(pointPreview) }} PP</strong></div>
           <p v-if="notice && noticeError" class="ascension-modal-error" role="alert">{{ notice }}</p>
           <label for="ascension-confirm-input">Écris <strong>PRESTIGE</strong> pour confirmer :</label>

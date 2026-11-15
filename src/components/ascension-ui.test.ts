@@ -139,15 +139,25 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.find('.ascension-notice').text()).toContain('Prestige n°1')
   })
 
-  it('si des impôts sont dus, Prestige est verrouillé et aucune dette ne disparaît', async () => {
+  it('avec des impôts dus, Prestige reste accessible et les solde à la confirmation', async () => {
     const taxed = fixture()
     taxed.fiscal.taxesDueCents = 100
     taxed.fiscal.dueBySourceCents.stocks = 100
     const { wrapper, saved } = mountState(taxed)
     await wrapper.find('.prestige-launch').trigger('click')
-    expect(wrapper.find('.ascension-reset-launch').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.ascension-reset-launch').attributes('disabled')).toBeUndefined()
     expect(wrapper.find('.ascension-checks').text()).toContain('1 $')
-    expect(saved().fiscal.taxesDueCents).toBe(100)
+    expect(wrapper.find('.ascension-help').text()).toContain('prélevées à la confirmation')
+    await wrapper.find('.ascension-reset-launch').trigger('click')
+    expect(wrapper.find('.ascension-confirm').text()).toContain('1 $')
+    await wrapper.find('#ascension-confirm-input').setValue('PRESTIGE')
+    await wrapper.find('.ascension-confirm-submit').trigger('click')
+    const next = saved()
+    expect(next.ascension.progress.prestigeCount).toBe(1)
+    expect(next.fiscal.taxesDueCents).toBe(0)
+    expect(next.fiscal.taxesPaidCents).toBe(100)
+    expect(next.fiscal.paidBySourceCents.stocks).toBe(100)
+    expect(next.fiscal.periodStartedAt).toBe(taxed.fiscal.periodStartedAt)
   })
 
   it('le panneau Prestige défile et la confirmation reste lisible sur mobile', () => {
