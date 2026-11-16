@@ -1,3 +1,5 @@
+import { isValidMarketBoundary } from './market.ts'
+import { getAsset } from './catalog.ts'
 import { createInitialStakingState, validStakingState } from './staking.ts'
 import type { MarketNews, MarketQuote, Position, PriceSample, TradingState } from './types.ts'
 
@@ -23,12 +25,12 @@ function isAssetId(value: unknown): value is string {
   return typeof value === 'string' && ID_PATTERN.test(value)
 }
 
-function isMap<T>(value: unknown, validate: (item: unknown) => item is T): value is Record<string, T> {
+function isMap<T>(value: unknown, validate: (item: unknown, id: string) => item is T): value is Record<string, T> {
   return isRecord(value) && Object.keys(value).length <= MAX_ASSETS &&
-    Object.entries(value).every(([id, item]) => isAssetId(id) && validate(item))
+    Object.entries(value).every(([id, item]) => isAssetId(id) && validate(item, id))
 }
 
-function isQuote(value: unknown): value is MarketQuote {
+function isQuote(value: unknown, id: string): value is MarketQuote {
   return isRecord(value) && isAmount(value.price) && value.price > 0 &&
     typeof value.momentum === 'number' && Number.isFinite(value.momentum) &&
     (value.dividendYield === null || (
@@ -41,7 +43,9 @@ function isQuote(value: unknown): value is MarketQuote {
     (value.regime === undefined || ['steady', 'bull', 'bear', 'frenzy'].includes(value.regime as string)) &&
     (value.regimeTicksLeft === undefined || (Number.isSafeInteger(value.regimeTicksLeft) && (value.regimeTicksLeft as number) >= 0 && (value.regimeTicksLeft as number) <= 115)) &&
     (value.shockDrift === undefined || (typeof value.shockDrift === 'number' && Number.isFinite(value.shockDrift) && Math.abs(value.shockDrift) <= 0.25)) &&
-    (value.shockTicksLeft === undefined || (Number.isSafeInteger(value.shockTicksLeft) && (value.shockTicksLeft as number) >= 0 && (value.shockTicksLeft as number) <= 40))
+    (value.shockTicksLeft === undefined || (Number.isSafeInteger(value.shockTicksLeft) && (value.shockTicksLeft as number) >= 0 && (value.shockTicksLeft as number) <= 40)) &&
+    (value.boundary === undefined || (getAsset(id) !== undefined &&
+      isValidMarketBoundary(value.boundary, getAsset(id)!, value.price as number, value.updatedAt as number)))
 }
 
 function isHistory(value: unknown): value is PriceSample[] {

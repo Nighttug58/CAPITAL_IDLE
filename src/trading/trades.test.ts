@@ -174,18 +174,17 @@ test('MAX achetable avec frais et précision ; 25 % et 50 % ne dépassent jamais
   }
 })
 
-test('MAX peut épuiser l’offre et racheter les unités revendues sans attendre', () => {
+test('MAX est limité par le cash, jamais par le totalSupply historique', () => {
   const start = funded(3_000_000_000_000)
   const stock = getAsset('bitcoin')!.totalSupply
-  assert.equal(getMaximumBuyQuantity(start, 'bitcoin'), stock)
-  const excess = buyAsset(start, 'bitcoin', stock + 1)
-  assert.equal(excess.ok, false)
-  const purchase = buyAsset(start, 'bitcoin', stock)
+  const max = getMaximumBuyQuantity(start, 'bitcoin')
+  assert.ok(max > stock)
+  const purchase = buyAsset(start, 'bitcoin', stock + 1)
   assert.ok(purchase.ok)
-  assert.equal(getMaximumBuyQuantity(purchase.state, 'bitcoin'), 0)
+  if (!purchase.ok) return
+  assert.ok(getMaximumBuyQuantity(purchase.state, 'bitcoin') > 0)
   const sale = sellAsset(purchase.state, 'bitcoin', 210)
   assert.ok(sale.ok)
-  assert.equal(getMaximumBuyQuantity(sale.state, 'bitcoin'), 210)
   assert.ok(buyAsset(sale.state, 'bitcoin', 210).ok)
 })
 

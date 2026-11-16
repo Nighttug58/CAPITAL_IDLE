@@ -4,8 +4,13 @@ import type { CapitalState } from '../capital.ts'
 import type { MarketNews } from '../trading/types.ts'
 import { getAsset } from '../trading/catalog.ts'
 import type { TradeResult, TradeSide } from '../trading/trades.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import type { V8TradeResult } from '../exact-runtime-v8.ts'
+import type { V8StakingResult } from '../exact-staking-v8.ts'
 import type { StakingResult } from '../trading/staking.ts'
 import { formatCash } from '../trading/presentation.ts'
+import {formatCompactUnits} from '../large-numbers.ts'
+import {getExactAmount as v} from '../exact-state-v8.ts'
 import { marketNewsEffects, peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
 import AssetList from './AssetList.vue'
 import PortfolioPanel from './PortfolioPanel.vue'
@@ -16,11 +21,17 @@ import StakingPanel from './StakingPanel.vue'
 
 const props = defineProps<{
   state: CapitalState
+  exactState?: V8CapitalState
+  executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
+  executeExactStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: string) => V8StakingResult
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
   executeStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: number) => StakingResult
 }>()
 type Tab = 'portfolio' | 'stocks' | 'crypto' | 'news' | 'staking'
 const activeTab = ref<Tab>('portfolio')
+const displayWallet=computed(()=>props.exactState
+  ?formatCompactUnits(v(props.exactState.game.balance),2,'$')
+  :formatCash(props.state.game.balance))
 const selectedAssetId = ref<string | null>(null)
 const selectedNewsId = ref<string | null>(null)
 const selectedNewsSnapshot = ref<MarketNews | null>(null)
@@ -151,7 +162,7 @@ onUnmounted(() => {
   <main id="trading" class="trading-screen" aria-label="Marchés Trading">
     <div class="trading-hero">
       <div><span class="eyebrow">CAPITAL · MARCHÉS</span><strong>Trading</strong><span class="trading-hero-note">Marché fictif · évolution en direct</span></div>
-      <div class="trading-wallet"><span>SOLDE DISPONIBLE</span><strong>{{ formatCash(state.game.balance) }}</strong></div>
+      <div class="trading-wallet"><span>SOLDE DISPONIBLE</span><strong>{{ displayWallet }}</strong></div>
     </div>
     <div v-if="radar.length" class="trading-radar" aria-label="Radar de volatilité">
       <strong>RADAR VOLATILITÉ</strong>
@@ -167,11 +178,12 @@ onUnmounted(() => {
       >{{ tab.label }}</button>
     </div>
     <section id="trading-content" class="trading-stage">
-      <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" @open-asset="openAsset" />
+      <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" :exact-state="exactState" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'stocks'" kind="stock" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'crypto'" kind="crypto" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
       <StakingPanel v-else-if="activeTab === 'staking' && executeStaking"
-        :state="state" :execute-staking="executeStaking" />
+        :state="state" :execute-staking="executeStaking"
+        :exact-state="exactState" :execute-exact-staking="executeExactStaking" />
       <NewsPreview v-else :news="state.trading.news" :now="state.trading.dividendLastPaidAt"
         :upcoming="upcoming" @open-news="openNews" />
     </section>
@@ -181,7 +193,7 @@ onUnmounted(() => {
     <div v-if="hasDialog" class="trading-modal-backdrop" @click.self="closeDialog">
       <AssetDialog
         v-if="selectedAssetId" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
-        :execute-trade="executeTrade" @close="closeDialog" @open-news="openNews"
+        :execute-trade="executeTrade" :exact-state="exactState" :execute-exact-trade="executeExactTrade" @close="closeDialog" @open-news="openNews"
       />
       <div v-if="activeNews" :class="{'trading-modal-backdrop news-overlay': selectedAssetId}" class="news-layer" @click.self="closeDialog">
       <NewsDialog

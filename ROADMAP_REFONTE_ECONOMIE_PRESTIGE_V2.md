@@ -2,8 +2,9 @@
 
 **Dépôt :** Nighttug58/CAPITAL_IDLE · **branche :** main  
 **Date de conception :** 16 novembre 2026  
-**Statut :** PASSE 1 VALIDÉE — 1/7 passe terminée. Les passes 2 à 7 sont à faire.
-**Suivi 16/11 — passe 1 :** moteur actif V8 branché dans `src/App.vue` (cash, clic, trading, staking, entreprises, dividendes, fiscalité, XP/Fame, Prestige, collections et achievements) via `src/exact-*`. Sauvegarde canonique `capital-idle-save-v8`, valeurs monétaires et positions exactes sérialisées en chaînes décimales, import des versions v4–v7 et migration locale v1–v7 avec conservation des originaux et sauvegarde de secours v7. Le code v7 reste une projection UI en lecture seule et une compatibilité d'import ; jamais une source de paiement ou de sauvegarde. Suite métier Node, suite UI Vitest et build TypeScript/Vite exécutés avec succès. **Passe 2 non commencée.**  
+**Statut :** PASSES 1 ET 2 VALIDÉES — 2/7 passes terminées. Les passes 3 à 7 sont à faire.
+**Suivi 16/11 — passe 1 :** moteur actif V8 branché dans `src/App.vue` (cash, clic, trading, staking, entreprises, dividendes, fiscalité, XP/Fame, Prestige, collections et achievements) via `src/exact-*`. Sauvegarde canonique `capital-idle-save-v8`, valeurs monétaires et positions exactes sérialisées en chaînes décimales, import des versions v4–v7 et migration locale v1–v7 avec conservation des originaux et sauvegarde de secours v7. Le code v7 reste une projection UI en lecture seule et une compatibilité d'import ; jamais une source de paiement ou de sauvegarde. Suite métier Node, suite UI Vitest et build TypeScript/Vite exécutés avec succès. **Passe 2 désormais terminée (voir suivi ci-dessous).**
+**Suivi 16/11 — passe 2 :** offre illimitée sur les 45 actifs, y compris depuis les saisies textuelles Trading, staking et ordres automatiques V8 ; le prix d’exécution reste le cours affiché (aucun slippage/impact) et les frais originaux demeurent. Les prix min/max déclenchent des événements persistés : contact exact de la borne, 5–10 minutes **réelles** de plateau, puis retournement de 1–3 minutes (actions 3–8 %, crypto 8–20 %, memecoins 20–50 %). Même délai réel à vitesse ×1 et ×5 et pendant le replay offline. Les contrôles V7 et les validations V8 acceptent les quantités au-delà de l’offre historique ; les métadonnées `totalSupply` restent uniquement informatives. Tests métier, UI et build validés. **Passe 3 non commencée.**
 **Référence initiale :** main au commit 9f524b85dc8242d2e9815de8ffe0115e45acba05.  
 **Usage :** chaque commande « next » lance exactement la passe suivante, avec audit du code à jour, changements, tests, commit et bilan. Ne pas considérer les anciennes roadmaps comme tâches en attente.
 
@@ -173,11 +174,11 @@ Travaux :
 | Passe | Livrable principal | Statut |
 |---|---|---|
 | 1 | Grands nombres + migration de sauvegarde | **Terminée — V8 actif, tests et build verts** |
-| 2 | Trading/quantités illimités + paliers min/max | À faire |
+| 2 | Trading/quantités illimités + paliers min/max | **Terminée — staging V8, bornes réelles et tests verts** |
 | 3 | Entreprises rentables et sans niveau fixe | À faire |
 | 4 | Accueil compact + Auto Click dollars | À faire |
 | 5 | XP/Fame exigeants + ledgers de cycle | À faire |
 | 6 | Prestige V2 : 11 bonus, gates, PP et Fame reset | À faire |
 | 7 | Pouvoirs News 5 %/10 % + tests finaux | À faire |
 
-**État d'exécution :** l'historique du fichier a commencé par un commit documentaire ; les travaux de la passe 1 ont depuis rendu V8 actif. La prochaine commande « next » doit démarrer **uniquement la passe 2** et préserver le moteur de grands nombres et les anciennes sauvegardes.
+**État d'exécution :** l'historique du fichier a commencé par un commit documentaire ; les travaux de la passe 1 ont depuis rendu V8 actif. La prochaine commande « next » doit démarrer **uniquement la passe 3** et préserver les moteurs V8, le trading illimité et les événements de bornes persistés.

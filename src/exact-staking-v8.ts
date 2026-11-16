@@ -36,7 +36,6 @@ export function v8SettleStaking(state:V8CapitalState,at:number):V8CapitalState {
     const multiplier=rate.numerator*BigInt(10+level)
     let carry=current.carryPicoUnits===undefined?
       BigInt(Math.round(current.carryUnits*Number(PICO))):v(current.carryPicoUnits)
-    const cap=BigInt(asset.totalSupply)*10n**BigInt(asset.quantityDecimals)
     while(previous<at){
       const boundary=(Math.floor(previous/STAKING_COMPOUND_MS)+1)*STAKING_COMPOUND_MS
       const end=Math.min(at,boundary)
@@ -45,7 +44,7 @@ export function v8SettleStaking(state:V8CapitalState,at:number):V8CapitalState {
       const rawPico=v(current.locked)*multiplier*delta*PICO/denominator+carry
       const reward=rawPico/PICO
       carry=rawPico%PICO
-      const minted=min(reward,max(0n,cap-q))
+      const minted=reward
       if(minted>0n){
         q+=minted
         current.lifetimeRewards=s(v(current.lifetimeRewards)+minted)

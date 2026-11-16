@@ -6,9 +6,9 @@ import {createV8MarketRuntime} from './exact-clock-v8.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
 import {formatCompactUnits,parseDecimalUnits} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
-import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade,v8BuyEnterprise,v8AdvanceFiscalEconomy,
+import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
  v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAchievement} from './exact-runtime-v8.ts'
-import {v8ChangeStaking} from './exact-staking-v8.ts'
+import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {getEnterpriseIncomeMicrosPerSecond} from './economy/catalog.ts'
@@ -248,7 +248,6 @@ function executeTrade(side: TradeSide, assetId: string, quantity: number): Trade
     const reason=changed.reason
     const error: TradeResult & {ok:false} = {ok:false,state:capital.value,
       error: reason==='insufficient-funds' ? 'insufficient-funds' :
-        reason==='insufficient-supply' ? 'insufficient-supply' :
         reason==='insufficient-holdings' ? 'insufficient-holdings' :
         reason==='staked-holdings' ? 'staked-holdings' :
         reason==='amount-too-small' ? 'amount-too-small' :
@@ -266,6 +265,23 @@ function executeTrade(side: TradeSide, assetId: string, quantity: number): Trade
     levelEarnings:approximateMoneyCents(v(changed.state.game.lifetimeEarned)-v(before.game.lifetimeEarned)),
     taxAccrued:approximateMoneyCents(v(changed.state.fiscal.taxesDueCents)-v(before.fiscal.taxesDueCents)),
   }}
+}
+/** Exact input path for unlimited quantities. No Number conversion or UI projection. */
+function executeExactTrade(side: TradeSide, assetId: string, quantity: string): V8TradeResult {
+  if (loadBlocked.value) return {ok:false,reason:'storage-error'}
+  settleEconomyNow()
+  const result=side==='buy'?v8BuyTrade(exact.value,assetId,quantity):v8SellTrade(exact.value,assetId,quantity)
+  if(!result.ok)return result
+  if(!replaceWholeSaveExact(result.state))return{ok:false,reason:'storage-error'}
+  return result
+}
+function executeExactStaking(action:'deposit'|'withdraw',id:string,quantity:string):V8StakingResult{
+  if(loadBlocked.value)return{ok:false,reason:'storage-error'}
+  settleEconomyNow()
+  const result=v8ChangeStaking(exact.value,action,id,quantity,Date.now())
+  if(!result.ok)return result
+  if(!replaceWholeSaveExact(result.state))return{ok:false,reason:'storage-error'}
+  return result
 }
 function executeStaking(action:'deposit'|'withdraw',id:string,quantity:number):StakingResult {
   if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
@@ -431,6 +447,36 @@ function executeCreateOrder(order:Omit<AscensionMarketOrder,'id'|'createdAtRealM
     nextOrderId:legacyRun.nextOrderId,marketOrders:[...(exact.value.ascension.run.marketOrders??[]),
       {...order,id:(legacyRun.nextOrderId??2)-1,createdAtRealMs:Date.now(),quantity:sv(units)}]}}}
   return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
+}
+/** Large pending orders use exact token units, not Number-based V7 validation. */
+function executeExactCreateOrder(order:Omit<AscensionMarketOrder,'id'|'createdAtRealMs'|'quantity'> & {quantity:string}):AutomationActionResult{
+  if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
+  const at=Date.now()
+  const run=exact.value.ascension.run
+  const asset=getAsset(order.assetId)
+  const quantity=asset?parseDecimalUnits(order.quantity,asset.quantityDecimals):null
+  if(exact.value.ascension.progress.upgradeLevels['automatic-orders']<1)
+    return{ok:false,state:capital.value,error:'locked'}
+  if(!asset||quantity===null||quantity<=0n||!Number.isFinite(order.triggerPrice)||
+     order.triggerPrice<asset.minPrice||order.triggerPrice>asset.maxPrice||
+     !['limit','stop-loss','take-profit'].includes(order.kind)||
+     (order.side!=='buy'&&order.side!=='sell')||
+     (order.kind!=='limit'&&order.side!=='sell'))
+    return{ok:false,state:capital.value,error:'invalid-order'}
+  if(!Number.isSafeInteger(at)||at<run.startedAtRealMs||
+     at<exact.value.trading.dividendLastPaidAt||at-exact.value.trading.dividendLastPaidAt>=1000){
+    marketRuntime?.wake()
+    return{ok:false,state:capital.value,error:'pending-replay'}
+  }
+  const orders=run.marketOrders??[]
+  if(orders.length>=24)return{ok:false,state:capital.value,error:'too-many-orders'}
+  const id=run.nextOrderId??1
+  if(!Number.isSafeInteger(id+1))return{ok:false,state:capital.value,error:'invalid-order'}
+  const next:V8CapitalState={...exact.value,ascension:{...exact.value.ascension,
+    run:{...run,nextOrderId:id+1,marketOrders:[...orders,
+      {...order,id,createdAtRealMs:at,quantity:sv(quantity)}]}}}
+  if(!replaceWholeSaveExact(next))return{ok:false,state:capital.value,error:'storage-error'}
+  return{ok:true,state:capital.value}
 }
 function executeCancelOrder(id:number):AutomationActionResult{
   const result=cancelMarketOrder(capital.value,id)
@@ -640,11 +686,12 @@ onUnmounted(() => {
     <PrestigeScreen v-if="page === 'prestige'" :state="capital"
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
-      :save-automation="executeAutomationSettings" :create-order="executeCreateOrder"
+      :save-automation="executeAutomationSettings" :create-order="executeCreateOrder" :create-exact-order="executeExactCreateOrder"
       :cancel-order="executeCancelOrder"
       @back="returnHomeFromPrestige" />
     <TradingScreen v-show="page === 'trading'" :state="capital"
-      :execute-trade="executeTrade" :execute-staking="executeStaking" />
+      :execute-trade="executeTrade" :execute-staking="executeStaking"
+      :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
     <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
     <StatsScreen v-show="page === 'stats'" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"

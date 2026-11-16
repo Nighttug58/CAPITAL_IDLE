@@ -7,9 +7,16 @@ import {
 } from '../trading/staking.ts'
 import { formatEditableQuantity, parseTradeQuantity } from '../trading/order-ui.ts'
 import { formatQuantity, formatPrice, formatRemaining } from '../trading/presentation.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import {getExactAmount as v} from '../exact-state-v8.ts'
+import type { V8StakingResult } from '../exact-staking-v8.ts'
+import { quantityStringToUnits } from '../exact-trading.ts'
+import {formatDecimalUnits, formatCompactUnits} from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
+  exactState?: V8CapitalState
+  executeExactStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: string) => V8StakingResult
   executeStaking: (action: 'deposit' | 'withdraw', assetId: string, quantity: number) => StakingResult
 }>()
 const selectedId = ref('ethereum')
@@ -24,7 +31,33 @@ const held = computed(() => props.state.trading.positions[coin.value.id]?.quanti
 const stake = computed(() => getStakingEntry(props.state, coin.value.id))
 const liquid = computed(() => liquidCryptoQuantity(props.state, coin.value.id))
 const max = computed(() => action.value === 'deposit' ? liquid.value : stake.value.locked)
+const exactStake = computed(() => props.exactState?.trading.staking.positions[coin.value.id])
+const exactHolding = computed(() => props.exactState?.trading.positions[coin.value.id])
+const exactMaxUnits = computed(() => {
+  if (!exactHolding.value) return 0n
+  if (action.value === 'withdraw') return exactStake.value ? v(exactStake.value.locked) : 0n
+  const reserved = exactStake.value ? v(exactStake.value.locked)+v(exactStake.value.unlocking)+v(exactStake.value.awaitingCompound) : 0n
+  return v(exactHolding.value.quantity)-reserved
+})
+const exactUnitText = (units:bigint, decimals:number) =>
+  units / 10n**BigInt(decimals) < 1_000_000n
+    ? formatDecimalUnits(units,decimals,true)
+    : formatCompactUnits(units,decimals,'')
+const showExact = (id:string, field:'holding'|'locked'|'unlocking'|'awaitingCompound'|'lifetimeRewards'|'liquid') => {
+  const precision=STAKABLE_CRYPTOS.find(x=>x.id===id)?.quantityDecimals??8
+  const entry=props.exactState?.trading.staking.positions[id]
+  const owned=props.exactState?.trading.positions[id]
+  if (!props.exactState) return null
+  if(field==='holding')return exactUnitText(owned?v(owned.quantity):0n,precision)
+  if(field==='liquid')return exactUnitText((owned?v(owned.quantity):0n)-
+    (entry?v(entry.locked)+v(entry.unlocking)+v(entry.awaitingCompound):0n),precision)
+  return exactUnitText(entry?v(entry[field]):0n,precision)
+}
 const validQuantity = computed(() => {
+  if (props.exactState && props.executeExactStaking) {
+    const units=quantityStringToUnits(quantityText.value,coin.value.quantityDecimals)
+    return units!==null&&units>0n&&units<=exactMaxUnits.value
+  }
   const number = parseTradeQuantity(quantityText.value)
   return Number.isFinite(number) && number <= max.value + 1e-9 &&
     Math.abs(number * 10 ** coin.value.quantityDecimals - Math.round(number * 10 ** coin.value.quantityDecimals)) < 0.0001
@@ -52,6 +85,12 @@ function choose(id: string) {
 watch(action, () => { quantityText.value = ''; message.value = '' })
 
 function useMax(fraction: 0.25 | 0.5 | 1) {
+  if(props.exactState&&props.executeExactStaking){
+    const units=exactMaxUnits.value*BigInt(Math.round(fraction*100))/100n
+    quantityText.value=formatDecimalUnits(units>0n?units:0n,coin.value.quantityDecimals,true)
+    message.value=''
+    return
+  }
   const precision = 10 ** coin.value.quantityDecimals
   const units = Math.floor(max.value * precision * fraction + 1e-8)
   quantityText.value = formatEditableQuantity(units / precision, coin.value.quantityDecimals)
@@ -72,6 +111,15 @@ function submit() {
   if (busy.value || !validQuantity.value) return
   busy.value = true
   try {
+    if(props.exactState && props.executeExactStaking) {
+      const result=props.executeExactStaking(action.value,coin.value.id,quantityText.value)
+      error.value=!result.ok
+      message.value=result.ok
+        ? `${quantityText.value} ${coin.value.symbol} ${action.value==='deposit'?'placés en staking.':'en retrait pendant 5 minutes réelles.'}`
+        : descriptions[result.reason]??'Action refusée.'
+      if(result.ok)quantityText.value=''
+      return
+    }
     const response = props.executeStaking(action.value, coin.value.id, parseTradeQuantity(quantityText.value))
     error.value = !response.ok
     message.value = response.ok
@@ -105,7 +153,7 @@ function submit() {
           :aria-pressed="selectedId === item.asset.id"
           @click="choose(item.asset.id)">
           <span class="staking-asset-name"><strong>{{ item.asset.symbol }}</strong><small>{{ item.asset.name }}</small></span>
-          <span class="staking-asset-info"><strong>{{ item.rate.toFixed(3) }} %/h</strong><small>{{ formatQuantity(item.stake.locked) }} bloqués</small></span>
+          <span class="staking-asset-info"><strong>{{ item.rate.toFixed(3) }} %/h</strong><small>{{ showExact(item.asset.id,'locked') ?? formatQuantity(item.stake.locked) }} bloqués</small></span>
         </button>
       </section>
 
@@ -114,12 +162,12 @@ function submit() {
           <span class="staking-yield">{{ rate.toFixed(3) }} %/h</span>
         </div>
         <div class="staking-numbers">
-          <div><span>Détenus (total)</span><strong>{{ formatQuantity(held) }} {{ coin.symbol }}</strong></div>
-          <div><span>Disponibles</span><strong>{{ formatQuantity(liquid) }} {{ coin.symbol }}</strong></div>
-          <div><span>En staking</span><strong>{{ formatQuantity(stake.locked) }} {{ coin.symbol }}</strong></div>
-          <div><span>Retrait en cours</span><strong>{{ formatQuantity(stake.unlocking) }} {{ coin.symbol }}</strong></div>
-          <div v-if="stake.awaitingCompound"><span>Récompenses à capitaliser</span><strong>{{ formatQuantity(stake.awaitingCompound) }}</strong></div>
-          <div><span>Coins gagnés (ce cycle)</span><strong>+{{ formatQuantity(stake.lifetimeRewards) }} {{ coin.symbol }}</strong></div>
+          <div><span>Détenus (total)</span><strong>{{ showExact(coin.id,'holding') ?? formatQuantity(held) }} {{ coin.symbol }}</strong></div>
+          <div><span>Disponibles</span><strong>{{ showExact(coin.id,'liquid') ?? formatQuantity(liquid) }} {{ coin.symbol }}</strong></div>
+          <div><span>En staking</span><strong>{{ showExact(coin.id,'locked') ?? formatQuantity(stake.locked) }} {{ coin.symbol }}</strong></div>
+          <div><span>Retrait en cours</span><strong>{{ showExact(coin.id,'unlocking') ?? formatQuantity(stake.unlocking) }} {{ coin.symbol }}</strong></div>
+          <div v-if="stake.awaitingCompound"><span>Récompenses à capitaliser</span><strong>{{ showExact(coin.id,'awaitingCompound') ?? formatQuantity(stake.awaitingCompound) }}</strong></div>
+          <div><span>Coins gagnés (ce cycle)</span><strong>+{{ showExact(coin.id,'lifetimeRewards') ?? formatQuantity(stake.lifetimeRewards) }} {{ coin.symbol }}</strong></div>
           <div><span>Cours actuel</span><strong>{{ formatPrice(state.trading.quotes[coin.id]?.price ?? coin.referencePrice) }}</strong></div>
           <div><span>Rendement de base</span><strong>{{ stakingBaseRate(coin.id).toFixed(3) }} %/h</strong></div>
         </div>
@@ -135,7 +183,7 @@ function submit() {
           placeholder="0" :disabled="busy" @input="message = ''" />
         <div class="staking-fractions">
           <button v-for="fraction in ([0.25, 0.5, 1] as const)" :key="fraction" type="button"
-            :disabled="busy || max <= 0" @click="useMax(fraction)">
+            :disabled="busy || (exactState ? exactMaxUnits <= 0n : max <= 0)" @click="useMax(fraction)">
             {{ fraction === 1 ? 'MAX' : Math.round(fraction * 100) + ' %' }}
           </button>
         </div>

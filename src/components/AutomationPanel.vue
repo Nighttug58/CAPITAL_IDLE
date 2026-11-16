@@ -4,6 +4,7 @@ import type { CapitalState } from '../capital.ts'
 import { ASSETS, getAsset } from '../trading/catalog.ts'
 import { formatPrice, formatQuantity } from '../trading/presentation.ts'
 import { parseTradeQuantity } from '../trading/order-ui.ts'
+import { quantityStringToUnits } from '../exact-trading.ts'
 import type { AscensionAutomationSettings, AscensionMarketOrder, AscensionOrderKind } from '../ascension/contracts.ts'
 import {
   AUTO_STOP_LOSS_BPS, AUTO_TAKE_PROFIT_BPS, MAX_PENDING_ORDERS,
@@ -14,6 +15,7 @@ const props = defineProps<{
   state: CapitalState
   saveAutomation: (patch: Partial<AscensionAutomationSettings>) => AutomationActionResult
   createOrder: (order: Omit<AscensionMarketOrder, 'id'|'createdAtRealMs'>) => AutomationActionResult
+  createExactOrder?: (order: Omit<AscensionMarketOrder,'id'|'createdAtRealMs'|'quantity'> & {quantity:string}) => AutomationActionResult
   cancelOrder: (id: number) => AutomationActionResult
 }>()
 const levels = computed(() => props.state.ascension.progress.upgradeLevels)
@@ -112,16 +114,19 @@ function putOrder() {
   if (!hasOrders.value || busy.value) return
   const quantity = parseTradeQuantity(orderQuantity.value)
   const triggerPrice = Number(orderPrice.value.replace(',', '.'))
-  if (!Number.isFinite(quantity) || !Number.isFinite(triggerPrice) || !(triggerPrice > 0)) {
+  if ((!props.createExactOrder && !Number.isFinite(quantity)) ||
+    (props.createExactOrder && (quantityStringToUnits(orderQuantity.value,currentOrderAsset.value.quantityDecimals)??0n)<=0n) ||
+    !Number.isFinite(triggerPrice) || !(triggerPrice > 0)) {
     error.value = true; notice.value = 'Prix et quantité de l’ordre invalides.'
     return
   }
   busy.value = true
   try {
-    const result = props.createOrder({
-      assetId: orderAssetId.value, side: orderSide.value,
-      kind: orderKind.value, quantity, triggerPrice,
-    })
+    const common={assetId:orderAssetId.value,side:orderSide.value,
+      kind:orderKind.value,triggerPrice}
+    const result=props.createExactOrder
+      ? props.createExactOrder({...common,quantity:orderQuantity.value})
+      : props.createOrder({...common,quantity})
     present(result, 'Ordre enregistré et prêt pour la prochaine cotation.')
     if (result.ok) orderQuantity.value = ''
   } finally { busy.value = false }

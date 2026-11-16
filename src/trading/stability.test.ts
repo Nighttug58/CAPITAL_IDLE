@@ -77,19 +77,19 @@ test('achat puis revente immédiate : les frais interdisent un profit automatiqu
   }
 })
 
-test('MAX des 45 actifs : quantité, frais, offre et solde validés par le moteur', () => {
+test('MAX des 45 actifs : quantité, frais et solde sans contrôle d offre' , () => {
   const capital = createCapitalState({ balance: 1_000_000, lifetimeEarned: 1_000_000, purchasedUpgrades: 0 }, START)
   capital.trading.quotes = createInitialQuotes(START)
   for (const asset of ASSETS) {
     const max = getMaximumBuyQuantity(capital, asset.id)
     assert.equal(getQuickQuantity(capital, asset.id, 'buy', 1), max)
-    assert.ok(max >= 0 && max <= asset.totalSupply, asset.id)
+    assert.ok(max >= 0, asset.id)
     if (max <= 0) continue
     const result = buyAsset(capital, asset.id, max)
     assert.ok(result.ok, asset.id + ': MAX should be executable')
     if (!result.ok) continue
     assert.ok(result.state.game.balance >= 0)
-    assert.ok(result.state.trading.positions[asset.id]!.quantity <= asset.totalSupply)
+    assert.equal(result.state.trading.positions[asset.id]!.quantity, max)
     assert.equal(getQuickQuantity(result.state, asset.id, 'sell', 1), max)
   }
 })

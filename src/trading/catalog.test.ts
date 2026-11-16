@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ASSETS, CATALOG_SNAPSHOT_DATE, createInitialQuotes, getAsset, getAvailableSupply } from './catalog.ts'
+import { ASSETS, CATALOG_SNAPSHOT_DATE, createInitialQuotes, getAsset } from './catalog.ts'
 
 test('catalogue exactement 20 actions, 15 cryptos, 10 memecoins', () => {
   assert.equal(ASSETS.length, 45)
@@ -57,17 +57,6 @@ test('cryptos authentiques : bornes et absence de dividendes', () => {
   assert.equal(getAsset('shiba-inu')?.totalSupply, 1_000_000_000_000_000)
   assert.equal(getAsset('dogecoin')?.supplyBasis, 'game-cap')
   assert.equal(getAsset('monero')?.supplyBasis, 'game-cap')
-})
-
-test('l offre complète reste achetable et diminue seulement des unités détenues', () => {
-  for (const asset of ASSETS) {
-    assert.equal(getAvailableSupply(asset, 0), asset.totalSupply)
-    assert.equal(getAvailableSupply(asset, asset.totalSupply), 0)
-    assert.equal(getAvailableSupply(asset, asset.totalSupply * 2), 0)
-    assert.equal(getAvailableSupply(asset, -1), 0)
-    assert.equal(getAvailableSupply(asset, Number.NaN), 0)
-    assert.ok(getAvailableSupply(asset, asset.totalSupply / 2) > 0)
-  }
 })
 
 test('les 45 cotations initiales sont indexées par actif, sans état mutable partagé', () => {

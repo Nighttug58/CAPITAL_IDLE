@@ -52,10 +52,10 @@ test('tiny memecoin trade with exact cents, no slippage and correct basis/taxes'
   assert.ok(valid(sold.state).valid,valid(sold.state).reason)
 })
 
-test('V8 can afford purchases > MAX_SAFE_CENTS while supply still caps in pass 2',()=>{
+test('V8 can afford purchases > MAX_SAFE_CENTS without issuer supply cap',()=>{
   const state=addCash(createV8CapitalState(now), 10n**110n)
   const max=v8MaximumBuyUnits(state,'nvideo')
-  assert.equal(max,24_000_000_000n*10_000n)
+  assert.ok(max>24_000_000_000n*10_000n)
   const bought=v8BuyTrade(state,'nvideo','24000000000')
   assert.equal(bought.ok,true)
   if(!bought.ok)return

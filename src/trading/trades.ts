@@ -4,7 +4,7 @@ import { getTotalBonusBps, scaleRewardCents } from '../prestige/bonuses.ts'
 import { exactMoneyCents } from '../money.ts'
 import { accrueProfitTax } from '../economy/fiscal.ts'
 import { recordRealizedTrade } from '../economy/stats-ledger.ts'
-import { ASSETS, getAsset, getAvailableSupply } from './catalog.ts'
+import { ASSETS, getAsset } from './catalog.ts'
 import { liquidCryptoQuantity, liquidRewardQuantity } from './staking.ts'
 import type { AssetDefinition, AssetKind, Position } from './types.ts'
 
@@ -15,7 +15,7 @@ const MAX_CENTS = Number.MAX_SAFE_INTEGER
 
 export type TradeSide = 'buy' | 'sell'
 export type TradeError = 'unknown-asset' | 'invalid-quantity' | 'invalid-price' |
-  'insufficient-funds' | 'insufficient-supply' | 'insufficient-holdings' |
+  'insufficient-funds' | 'insufficient-holdings' |
   'amount-too-small' | 'money-overflow' | 'staked-holdings'
 export type TradeFraction = 0.25 | 0.5 | 1
 
@@ -81,7 +81,7 @@ function floorWithPrecision(value: number, decimals: number): number {
 }
 
 function isQuantity(value: number, asset: AssetDefinition): boolean {
-  if (!Number.isFinite(value) || value <= 0 || value > asset.totalSupply) return false
+  if (!Number.isFinite(value) || value <= 0) return false
   // Tolère la représentation binaire normale de 0.1 / 0.00000001.
   const scaled = value * 10 ** asset.quantityDecimals
   return Math.abs(scaled - Math.round(scaled)) < 0.0001
@@ -126,11 +126,9 @@ export function getMaximumBuyQuantity(state: CapitalState, assetId: string): num
   const wallet = asCents(state.game.balance)
   if (price === null || wallet === null || wallet <= 0) return 0
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
-  if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return 0
-  const available = getAvailableSupply(asset, owned)
-  if (available <= 0) return 0
+  if (!Number.isFinite(owned) || owned < 0) return 0
 
-  const upper = Math.min(available, wallet / (CENTS * price))
+  const upper = wallet / (CENTS * price)
   if (!Number.isFinite(upper) || upper <= 0) return 0
 
   let multiplier = 10 ** asset.quantityDecimals
@@ -171,8 +169,7 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
   const price = validQuote(asset, state)
   if (price === null) return reject(state, 'invalid-price')
   const owned = state.trading.positions[asset.id]?.quantity ?? 0
-  if (!Number.isFinite(owned) || owned < 0 || owned > asset.totalSupply) return reject(state, 'invalid-quantity')
-  if (quantity > getAvailableSupply(asset, owned) + 1e-9) return reject(state, 'insufficient-supply')
+  if (!Number.isFinite(owned) || owned < 0) return reject(state, 'invalid-quantity')
   // Empêcher les micro-achats qui ne pourraient produire aucun centime
   // en revente immédiate ; autoriser toutefois la liquidation des reliquats
   // anciens, même si leur produit net est désormais nul.
@@ -188,9 +185,9 @@ export function buyAsset(state: CapitalState, assetId: string, quantity: number)
   const oldBasis = asCents(previous?.costBasis ?? 0)
   if (oldBasis === null || !Number.isSafeInteger(oldBasis + order.totalCents)) return reject(state, 'money-overflow')
   const totalQuantity = owned + quantity
-  if (!Number.isFinite(totalQuantity) || totalQuantity > asset.totalSupply + 1e-9) return reject(state, 'insufficient-supply')
+  if (!Number.isFinite(totalQuantity)) return reject(state, 'invalid-quantity')
   const nextPosition: Position = {
-    quantity: Math.min(totalQuantity, asset.totalSupply),
+    quantity: totalQuantity,
     costBasis: toMoney(oldBasis + order.totalCents),
   }
   const nextState: CapitalState = {

@@ -34,7 +34,7 @@ export function validMarketOrders(raw: unknown, nextOrderId: unknown, startedAt:
         typeof item.triggerPrice !== 'number' || !Number.isFinite(item.triggerPrice) ||
         item.triggerPrice < asset.minPrice || item.triggerPrice > asset.maxPrice ||
         typeof item.quantity !== 'number' || !Number.isFinite(item.quantity) ||
-        item.quantity <= 0 || item.quantity > asset.totalSupply ||
+        item.quantity <= 0 ||
         Math.abs(item.quantity * 10 ** asset.quantityDecimals -
           Math.round(item.quantity * 10 ** asset.quantityDecimals)) > 0.0001 ||
         !Number.isSafeInteger(item.createdAtRealMs) ||

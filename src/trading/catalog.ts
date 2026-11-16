@@ -136,13 +136,6 @@ export function getAsset(id: string): AssetDefinition | undefined {
   return assetIndex.get(id)
 }
 
-// Offre disponible = allocation totale de l'actif - quantité dans le portefeuille du joueur.
-// Le marché individuel ne met en circulation ni n'émet de titres supplémentaires.
-export function getAvailableSupply(asset: AssetDefinition, ownedQuantity: number): number {
-  if (!Number.isFinite(ownedQuantity) || ownedQuantity < 0) return 0
-  return Math.max(0, asset.totalSupply - Math.min(ownedQuantity, asset.totalSupply))
-}
-
 export function createInitialQuotes(at: number): Record<string, MarketQuote> {
   return Object.fromEntries(ASSETS.map((asset) => [
     asset.id,

@@ -101,7 +101,7 @@ export function validStakingState(raw: unknown, holdings: Record<string, Positio
     const totalReserved = entry.locked + entry.unlocking + entry.awaitingCompound
     const owned = holdings[id]?.quantity ?? 0
     const tolerance = 0.5 / 10 ** asset.quantityDecimals
-    return totalReserved <= owned + tolerance && totalReserved <= asset.totalSupply + tolerance &&
+    return totalReserved <= owned + tolerance &&
       entry.rewardHeld <= owned + tolerance &&
       entry.rewardLocked <= entry.locked + tolerance &&
       entry.rewardUnlocking <= entry.unlocking + tolerance &&
@@ -150,13 +150,12 @@ export function settleStaking(state: CapitalState, at: number): CapitalState {
       const rawUnits = current.locked * ratePerHour * delta / HOUR_MS * mult + current.carryUnits
       if (!Number.isFinite(rawUnits) || rawUnits > Number.MAX_SAFE_INTEGER) return state
       const rewardUnits = Math.floor(rawUnits + 1e-9)
-      const capacityUnits = Math.max(0, Math.floor((asset.totalSupply - quantity) * mult + 1e-6))
-      const mintUnits = Math.min(rewardUnits, capacityUnits)
+      const mintUnits = rewardUnits
       if (!Number.isSafeInteger(mintUnits)) return state
       if (mintUnits > 0) {
         const minted = mintUnits / mult
         quantity = trimQuantity(quantity + minted, asset.quantityDecimals)
-        if (!Number.isFinite(quantity) || quantity > asset.totalSupply + 1 / mult) return state
+        if (!Number.isFinite(quantity)) return state
         current.lifetimeRewards = trimQuantity(current.lifetimeRewards + minted, asset.quantityDecimals)
         current.rewardHeld = trimQuantity(current.rewardHeld + minted, asset.quantityDecimals)
         if (autoCompound) {

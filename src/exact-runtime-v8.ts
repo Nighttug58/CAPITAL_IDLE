@@ -146,7 +146,7 @@ function reservedUnits(state: V8CapitalState, assetId: string): bigint {
   return entry ? v(entry.locked) + v(entry.unlocking) + v(entry.awaitingCompound) : 0n
 }
 
-/** V7 totalSupply caps remain until PASS 2. No slippage/impact is introduced. */
+/** Supply is informational only: no issuer cap, market impact or slippage. */
 export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: string): V8TradeResult {
   const entry = priceFor(state, assetId)
   if (!entry) return rejectTrade('unknown-asset-or-invalid-price')
@@ -155,8 +155,6 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
   if (units === null || units <= 0n) return rejectTrade('invalid-quantity')
   const owned = state.trading.positions[assetId]
   const previous = owned ? v(owned.quantity) : 0n
-  const totalCap = BigInt(Math.floor(asset.totalSupply * 10 ** asset.quantityDecimals))
-  if (units + previous > totalCap) return rejectTrade('insufficient-supply')
   const cost = exactTradeCost(fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'buy')
   if (!cost) return rejectTrade('invalid-cost')
   const sale = exactTradeCost(fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
@@ -175,13 +173,8 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
 export function v8MaximumBuyUnits(state: V8CapitalState, assetId: string): bigint {
   const entry = priceFor(state, assetId)
   if (!entry) return 0n
-  const current = state.trading.positions[assetId]
-  const available = BigInt(Math.floor(entry.asset.totalSupply * 10 ** entry.asset.quantityDecimals)) -
-    (current ? v(current.quantity) : 0n)
-  if (available <= 0n) return 0n
-  const affordable = affordableExactQuantity(v(state.game.balance), entry.fraction,
+  return affordableExactQuantity(v(state.game.balance), entry.fraction,
     entry.asset.quantityDecimals, feeBps(entry.asset.kind))
-  return available < affordable ? available : affordable
 }
 
 export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: string): V8TradeResult {

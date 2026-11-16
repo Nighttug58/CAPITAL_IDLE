@@ -1,7 +1,7 @@
 import { ASSETS, createInitialQuotes } from './catalog.ts'
 import { advanceNewsTick, getNewsPressure, type NewsClockOptions } from './news.ts'
 import { advanceDividendYield } from './yield.ts'
-import type { AssetDefinition, MarketQuote, PriceSample, TradingState } from './types.ts'
+import type { AssetDefinition, MarketBoundaryState, MarketQuote, PriceSample, TradingState } from './types.ts'
 
 export const MARKET_TICK_MS = 5_000
 export const MARKET_HISTORY_MS = 60 * 60_000
@@ -15,14 +15,46 @@ interface RiskProfile {
   shockProbability: number
   shockMin: number
   shockMax: number
+  reboundMin: number
+  reboundMax: number
+  approachFraction: number
 }
 
 // Volatilité intentionnellement arcade. Les chocs exceptionnels sont répartis
 // sur plusieurs ticks plutôt qu'appliqués instantanément en une seule bougie.
 const PROFILES: Readonly<Record<AssetDefinition['kind'], RiskProfile>> = {
-  stock: { noise: 0.006, drift: 0.0012, shockProbability: 0.00018, shockMin: 0.12, shockMax: 0.55 },
-  crypto: { noise: 0.013, drift: 0.0026, shockProbability: 0.00035, shockMin: 0.28, shockMax: 1.1 },
-  memecoin: { noise: 0.030, drift: 0.0048, shockProbability: 0.0008, shockMin: 0.55, shockMax: 1.8 },
+  stock: { noise: 0.006, drift: 0.0012, shockProbability: 0.00018, shockMin: 0.12, shockMax: 0.55, reboundMin: 0.03, reboundMax: 0.08, approachFraction: 0.04 },
+  crypto: { noise: 0.013, drift: 0.0026, shockProbability: 0.00035, shockMin: 0.28, shockMax: 1.1, reboundMin: 0.08, reboundMax: 0.20, approachFraction: 0.06 },
+  memecoin: { noise: 0.030, drift: 0.0048, shockProbability: 0.0008, shockMin: 0.55, shockMax: 1.8, reboundMin: 0.20, reboundMax: 0.50, approachFraction: 0.09 },
+}
+
+export const BOUNDARY_MIN_HOLD_REAL_MS = 5 * 60_000
+export const BOUNDARY_MAX_HOLD_REAL_MS = 10 * 60_000
+export const BOUNDARY_MIN_REBOUND_REAL_MS = 60_000
+export const BOUNDARY_MAX_REBOUND_REAL_MS = 180_000
+
+/** Validate saved boundary timers without Number price or time coercion. */
+export function isValidMarketBoundary(
+  value: unknown, asset: AssetDefinition, price: number, updatedAt: number,
+): value is MarketBoundaryState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const event = value as Partial<MarketBoundaryState>
+  if (event.side !== 'min' && event.side !== 'max') return false
+  const start = event.touchedAtRealMs, hold = event.holdUntilRealMs
+  const end = event.reboundUntilRealMs, target = event.reboundTargetPrice
+  if (![start, hold, end].every(t => Number.isSafeInteger(t) && t! >= 0) ||
+      !Number.isFinite(target) || start! > updatedAt || hold! - start! < BOUNDARY_MIN_HOLD_REAL_MS ||
+      hold! - start! > BOUNDARY_MAX_HOLD_REAL_MS ||
+      end! - hold! < BOUNDARY_MIN_REBOUND_REAL_MS ||
+      end! - hold! > BOUNDARY_MAX_REBOUND_REAL_MS || updatedAt >= end! ||
+      target! < asset.minPrice || target! > asset.maxPrice) return false
+  const boundaryPrice = event.side === 'min' ? asset.minPrice : asset.maxPrice
+  const correctDirection = event.side === 'min' ? target! > boundaryPrice : target! < boundaryPrice
+  if (!correctDirection) return false
+  if (updatedAt < hold!) return price === boundaryPrice
+  const expected = boundaryPrice + (target! - boundaryPrice) *
+    (updatedAt - hold!) / (end! - hold!)
+  return Math.abs(price - expected) <= Math.max(1e-12, Math.abs(expected) * 1e-12)
 }
 
 const REGIMES = ['steady', 'bull', 'bear', 'frenzy'] as const satisfies readonly Regime[]
@@ -111,14 +143,50 @@ function updateQuote(
     if (shockTicksLeft === 0) shockDrift = 0
   }
 
-  // Compression douce près des planchers/plafonds : aucune remontée forcée,
-  // aucune inversion artificielle lors d'un crash. Le cours peut stagner.
-  const upperRoom = Math.log(asset.maxPrice / current.price)
-  const lowerRoom = Math.log(current.price / asset.minPrice)
-  if (logMove > 0) logMove *= clamp(upperRoom / 0.28, 0, 1)
-  if (logMove < 0) logMove *= clamp(lowerRoom / 0.28, 0, 1)
-
-  const price = clamp(current.price * Math.exp(clamp(logMove, -0.25, 0.25)), asset.minPrice, asset.maxPrice)
+  // A boundary event uses *real* milliseconds, regardless of simulated
+  // market speed. All random choices are consumed once on the initial touch,
+  // then persisted; no reroll on refresh or offline replay.
+  let boundary: MarketBoundaryState | undefined = current.boundary
+  let price: number
+  if (boundary && at < boundary.holdUntilRealMs) {
+    price = boundary.side === 'min' ? asset.minPrice : asset.maxPrice
+  } else if (boundary && at < boundary.reboundUntilRealMs) {
+    const start = boundary.side === 'min' ? asset.minPrice : asset.maxPrice
+    const fraction = clamp((at - boundary.holdUntilRealMs) /
+      (boundary.reboundUntilRealMs - boundary.holdUntilRealMs), 0, 1)
+    // Smooth outward move; ends with a large price correction in 1–3 real min.
+    price = clamp(start + (boundary.reboundTargetPrice - start) * fraction,
+      asset.minPrice, asset.maxPrice)
+  } else if (boundary) {
+    price = boundary.reboundTargetPrice
+    boundary = undefined
+  } else {
+    const candidate = clamp(current.price * Math.exp(clamp(logMove, -0.25, 0.25)),
+      asset.minPrice, asset.maxPrice)
+    const towardsFloor = logMove < 0 &&
+      (candidate <= asset.minPrice * (1 + profile.approachFraction))
+    const towardsCeiling = logMove > 0 &&
+      (candidate >= asset.maxPrice * (1 - profile.approachFraction))
+    if (towardsFloor || towardsCeiling) {
+      const side = towardsFloor ? 'min' : 'max'
+      const minimum = side === 'min'
+      const holdDuration = BOUNDARY_MIN_HOLD_REAL_MS + Math.floor(random.next() *
+        (BOUNDARY_MAX_HOLD_REAL_MS - BOUNDARY_MIN_HOLD_REAL_MS + 1))
+      const reboundDuration = BOUNDARY_MIN_REBOUND_REAL_MS + Math.floor(random.next() *
+        (BOUNDARY_MAX_REBOUND_REAL_MS - BOUNDARY_MIN_REBOUND_REAL_MS + 1))
+      const size = profile.reboundMin + random.next() * (profile.reboundMax - profile.reboundMin)
+      const touchedPrice = minimum ? asset.minPrice : asset.maxPrice
+      boundary = {
+        side, touchedAtRealMs: at, holdUntilRealMs: at + holdDuration,
+        reboundUntilRealMs: at + holdDuration + reboundDuration,
+        reboundTargetPrice: clamp(touchedPrice * (minimum ? 1 + size : 1 - size),
+          asset.minPrice, asset.maxPrice),
+      }
+      price = touchedPrice
+    } else {
+      price = candidate
+    }
+  }
   const actualMove = Math.log(price / current.price)
 
   const dividend = updateDividends
@@ -133,6 +201,7 @@ function updateQuote(
     regimeTicksLeft,
     shockDrift,
     shockTicksLeft,
+    ...(boundary ? { boundary } : {}),
   }
 }
 

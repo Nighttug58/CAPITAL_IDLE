@@ -8,9 +8,15 @@ import { formatCash, formatChange, formatPrice, formatQuantity, formatRate } fro
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import { getExactAmount as v } from '../exact-state-v8.ts'
+import { v8BuyTrade, v8SellTrade, v8MaximumBuyUnits, type V8TradeResult } from '../exact-runtime-v8.ts'
+import { formatCompactUnits, formatDecimalUnits } from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
+  exactState?: V8CapitalState
+  executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
   assetId: string
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
 }>()
@@ -42,29 +48,88 @@ const quantity = computed(() => parseTradeQuantity(quantityText.value))
 const preview = computed(() => activeSide.value === 'buy'
   ? buyAsset(props.state, props.assetId, quantity.value)
   : sellAsset(props.state, props.assetId, quantity.value))
-const ready = computed(() => preview.value.ok)
-const estimate = computed(() => preview.value.ok ? preview.value.receipt : null)
+const exactPreview = computed(() => props.exactState && props.executeExactTrade
+  ? activeSide.value === 'buy'
+    ? v8BuyTrade(props.exactState, props.assetId, quantityText.value)
+    : v8SellTrade(props.exactState, props.assetId, quantityText.value)
+  : null)
+const ready = computed(() => exactPreview.value ? exactPreview.value.ok : preview.value.ok)
+const estimate = computed(() => !exactPreview.value && preview.value.ok ? preview.value.receipt : null)
+const estimateExact = computed(() => exactPreview.value?.ok ? exactPreview.value : null)
+const cashExact = (amount:bigint) => formatCompactUnits(amount,2,'$')
+const displayFee = computed(() => estimateExact.value
+  ? cashExact(estimateExact.value.feeCents) : estimate.value ? formatCash(estimate.value.fee) : '—')
+const displayTotal = computed(() => estimateExact.value
+  ? cashExact(estimateExact.value.cashDeltaCents < 0n
+      ? -estimateExact.value.cashDeltaCents : estimateExact.value.cashDeltaCents)
+  : estimate.value ? formatCash(Math.abs(estimate.value.cashChange)) : '—')
+const displayProfit = computed(() => estimateExact.value
+  ? cashExact(estimateExact.value.realizedNetProfitCents)
+  : estimate.value ? formatCash(estimate.value.netRealizedProfit) : '—')
+const displayTax = computed(() => estimateExact.value && props.exactState
+  ? cashExact(v(estimateExact.value.state.fiscal.taxesDueCents)-v(props.exactState.fiscal.taxesDueCents))
+  : estimate.value ? formatCash(estimate.value.taxAccrued) : '—')
+const errorKey = computed(() => exactPreview.value && !exactPreview.value.ok
+  ? exactPreview.value.reason : !preview.value.ok ? preview.value.error : '')
+const exactHolding = computed(() => props.exactState?.trading.positions[props.assetId])
+const fullHolding = computed(() => exactHolding.value
+  ? formatCompactUnits(v(exactHolding.value.quantity), asset.value.quantityDecimals, '')
+  : formatQuantity(owned.value))
+const fullBalance = computed(() => props.exactState
+  ? cashExact(v(props.exactState.game.balance)) : formatCash(balance.value))
+const boundary = computed(() => props.state.trading.quotes[props.assetId]?.boundary)
+const boundaryDescription = computed(() => {
+  const event = boundary.value
+  if (!event) return null
+  const realNow = props.state.trading.dividendLastPaidAt
+  if (realNow < event.holdUntilRealMs) return `Cours bloqué au ${event.side === 'min' ? 'minimum' : 'maximum'} pendant encore ${Math.ceil((event.holdUntilRealMs-realNow)/60_000)} min réelles`
+  return `Retournement ${event.side === 'min' ? 'haussier' : 'baissier'} en cours`
+})
 
 const errors: Record<string, string> = {
   'unknown-asset': 'Actif introuvable.',
   'invalid-quantity': 'Saisissez une quantité valide, avec la bonne précision.',
   'invalid-price': 'Cours indisponible : transaction suspendue.',
   'insufficient-funds': 'Solde insuffisant, frais compris.',
-  'insufficient-supply': 'Quantité supérieure à l’offre restante.',
   'insufficient-holdings': 'Vous ne détenez pas autant d’unités.',
   'staked-holdings': 'Cette quantité est verrouillée en staking ou en retrait.',
   'amount-too-small': 'Achat trop petit : une revente immédiate ne rapporterait aucun centime.',
   'money-overflow': 'Montant trop élevé pour être calculé avec précision.',
+  'invalid-cost': 'Montant de la transaction invalide.',
+  'unknown-asset-or-invalid-price': 'Cours invalide.',
+  'storage-error': 'Sauvegarde indisponible : aucune transaction exécutée.',
 }
 function chooseFraction(fraction: TradeFraction) {
-  const amount = getQuickQuantity(props.state, props.assetId, activeSide.value, fraction)
-  quantityText.value = formatEditableQuantity(amount, asset.value.quantityDecimals)
+  if (props.exactState && props.executeExactTrade) {
+    const units=activeSide.value==='buy'
+      ? v8MaximumBuyUnits(props.exactState,props.assetId)
+      : (() => {
+        const held=props.exactState!.trading.positions[props.assetId]
+        const stake=props.exactState!.trading.staking.positions[props.assetId]
+        return held ? v(held.quantity) - (stake ? v(stake.locked)+v(stake.unlocking)+v(stake.awaitingCompound) : 0n) : 0n
+      })()
+    const fractionUnits=units*BigInt(Math.round(fraction*100))/100n
+    quantityText.value = formatDecimalUnits(fractionUnits>0n?fractionUnits:0n,asset.value.quantityDecimals,true)
+  } else {
+    const amount = getQuickQuantity(props.state, props.assetId, activeSide.value, fraction)
+    quantityText.value = formatEditableQuantity(amount, asset.value.quantityDecimals)
+  }
   status.value = null
 }
 function submit() {
   status.value = null
   if (!ready.value) {
     status.value = { success: false, message: !preview.value.ok ? errors[preview.value.error] ?? 'Ordre refusé.' : 'Ordre refusé.' }
+    return
+  }
+  if (props.exactState && props.executeExactTrade) {
+    const response=props.executeExactTrade(activeSide.value,props.assetId,quantityText.value)
+    if (!response.ok) {
+      status.value={success:false,message:errors[response.reason]??'Ordre refusé.'}
+      return
+    }
+    status.value={success:true,message:`${activeSide.value==='buy'?'Achat confirmé':'Vente confirmée'} · ${quantityText.value} ${asset.value.symbol} · frais ${cashExact(response.feeCents)}${activeSide.value==='sell' && response.cashDeltaCents===0n?' · produit net nul (moins de 0,01 $)':''}`}
+    quantityText.value=''
     return
   }
   const response = props.executeTrade(activeSide.value, props.assetId, quantity.value)
@@ -94,6 +159,7 @@ function submit() {
         <strong>{{ formatPrice(currentPrice) }}</strong>
         <span :class="change === null ? 'market-direction-flat' : change >= 0 ? 'market-direction-up' : 'market-direction-down'">{{ formatChange(change) }} · 1 h</span>
       </div>
+      <p v-if="boundaryDescription" class="yield-summary" role="status">{{ boundaryDescription }}</p>
       <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}
 
       </div>
@@ -105,7 +171,7 @@ function submit() {
         </div>
         <div class="order-hint">
           <span>{{ activeSide === 'buy' ? 'Votre solde' : 'En portefeuille' }}</span>
-          <strong>{{ activeSide === 'buy' ? formatCash(balance) : formatQuantity(owned) + ' ' + asset.symbol }}</strong>
+          <strong>{{ activeSide === 'buy' ? fullBalance : fullHolding + ' ' + asset.symbol }}</strong>
         </div>
         <label class="order-quantity-label" for="order-quantity">Quantité à {{ activeSide === 'buy' ? 'acheter' : 'vendre' }}</label>
         <input
@@ -120,19 +186,19 @@ function submit() {
           </button>
         </div>
         <div class="order-calculation">
-          <span>Frais ({{ formatRate(feeRate(asset.kind)) }})</span><strong>{{ estimate ? formatCash(estimate.fee) : '—' }}</strong>
+          <span>Frais ({{ formatRate(feeRate(asset.kind)) }})</span><strong>{{ displayFee }}</strong>
           <span>{{ activeSide === 'buy' ? 'Total à payer' : 'Montant à recevoir' }}</span>
-          <strong>{{ estimate ? formatCash(Math.abs(estimate.cashChange)) : '—' }}</strong>
-          <template v-if="activeSide === 'sell' && estimate">
-            <span>Plus-value nette réalisée</span><strong>{{ formatCash(estimate.netRealizedProfit) }}</strong>
-            <span>Taxe différée (due sous 72 h max.)</span><strong>{{ formatCash(estimate.taxAccrued) }}</strong>
+          <strong>{{ displayTotal }}</strong>
+          <template v-if="activeSide === 'sell' && (estimate || estimateExact)">
+            <span>Plus-value nette réalisée</span><strong>{{ displayProfit }}</strong>
+            <span>Taxe différée (due sous 72 h max.)</span><strong>{{ displayTax }}</strong>
           </template>
         </div>
-        <p v-if="activeSide === 'sell' && estimate && estimate.cashChange === 0" class="order-precision">
+        <p v-if="activeSide === 'sell' && ((estimate && estimate.cashChange === 0) || (estimateExact && estimateExact.cashDeltaCents === 0n))" class="order-precision">
           Cette vente rapporte 0,00 $ après arrondis et frais : les unités seront retirées sans crédit de dollars.
         </p>
-        <p v-if="quantityText.trim() && !ready && !status && !preview.ok"
-          class="order-error" role="alert">{{ errors[preview.error] ?? 'Ordre invalide.' }}</p>
+        <p v-if="quantityText.trim() && !ready && !status"
+          class="order-error" role="alert">{{ errors[errorKey] ?? 'Ordre invalide.' }}</p>
         <p v-if="status" :class="status.success ? 'order-success' : 'order-error'" role="status">{{ status.message }}</p>
         <button class="order-submit" type="button" :disabled="!ready"
           @click="submit">
@@ -143,7 +209,7 @@ function submit() {
       <div class="asset-detail-grid">
         <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
         <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
-        <div><span>Vous détenez</span><strong>{{ formatQuantity(owned) }}</strong></div>
+        <div><span>Vous détenez</span><strong>{{ fullHolding }}</strong></div>
       </div>
       <div v-if="relatedNews.length" class="asset-news-related">
         <span class="eyebrow">NEWS ASSOCIÉES</span>

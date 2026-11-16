@@ -20,6 +20,7 @@ const props = defineProps<{
   activateFrenzy: () => MarketActionResult
   saveAutomation: (patch: Partial<AscensionAutomationSettings>) => AutomationActionResult
   createOrder: (order: Omit<AscensionMarketOrder,'id'|'createdAtRealMs'>) => AutomationActionResult
+  createExactOrder?: (order: Omit<AscensionMarketOrder,'id'|'createdAtRealMs'|'quantity'> & {quantity:string}) => AutomationActionResult
   cancelOrder: (id: number) => AutomationActionResult
 }>()
 const emit = defineEmits<{ back: [] }>()
@@ -229,7 +230,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
       </section>
 
       <AutomationPanel :state="state" :save-automation="saveAutomation"
-        :create-order="createOrder" :cancel-order="cancelOrder" />
+        :create-order="createOrder" :create-exact-order="createExactOrder" :cancel-order="cancelOrder" />
       <section class="ascension-shop-heading" aria-label="Catalogue des améliorations Prestige">
         <div><span class="ascension-eyebrow">BOUTIQUE PERMANENTE</span><h2>Améliorations Prestige</h2></div>
         <span>{{ toGo }} niveaux restants</span>
