@@ -1544,26 +1544,47 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .home-upgrade-info .tap-reward {margin-left:4px;font-size:11px;font-weight:750;color:#b8f1ce;letter-spacing:-.02em}
 
 
-/* Compact footer actions: Achievements | Stats | Fullscreen */
-.app-shell .bottom-nav .nav-icon{
-  flex:0 0 40px;min-width:0;max-width:44px;width:40px;min-height:42px;
-  padding:4px;position:relative;display:flex;align-items:center;justify-content:center
+/* Seven navigation actions share the same icon + label, equal width and states. */
+.app-shell>.bottom-nav{
+  gap:clamp(2px,.65vw,6px);
+  padding-inline:clamp(4px,1.5vw,16px);
 }
-.app-shell .bottom-nav .nav-icon svg{display:block;flex-shrink:0}
-.app-shell .bottom-nav .fullscreen-button{
-  height:42px;background:transparent;color:#899594;box-shadow:none;
-  border:1px solid transparent;border-radius:11px
+.app-shell>.bottom-nav>.nav-home{
+  flex:1 1 0;
+  min-width:0;
+  max-width:none;
+  width:auto;
+  height:auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:5px 2px;
+  font-size:clamp(7.5px,2.2vw,10px);
 }
-.app-shell .bottom-nav .fullscreen-button:active{background:#283037}
-.app-shell .bottom-nav .achievements-launch.is-active{
-  color:#f2cf84;background:linear-gradient(180deg,#80602b32,#83602212)
+.app-shell>.bottom-nav>.nav-home svg{
+  width:20px;
+  height:20px;
+  flex:0 0 20px;
 }
-.app-shell .bottom-nav .achievements-pending{
-  position:absolute;top:-3px;right:-5px;letter-spacing:0;white-space:nowrap;
+.app-shell>.bottom-nav>.nav-home>.nav-label{
+  font:inherit;
+  line-height:1.2;
+}
+.app-shell>.bottom-nav>.achievements-launch{position:relative}
+.app-shell>.bottom-nav>.achievements-launch>.achievements-pending{
+  position:absolute;
+  top:-5px;
+  right:-3px;
+  font-size:10px;
+  letter-spacing:0;
 }
 @media(max-width:380px){
-  .app-shell .bottom-nav .nav-icon{flex-basis:31px;width:31px;min-width:0;padding:2px}
+  .app-shell>.bottom-nav{gap:2px;padding-inline:4px}
+  .app-shell>.bottom-nav>.nav-home{font-size:7.5px;gap:2px;padding-inline:1px}
 }
+
 /* One card per achievement family, with a single tier progression. */
 .achievements-group.is-ready{border-color:#b8985b;background:#272923}
 .achievements-group-head{align-items:center}

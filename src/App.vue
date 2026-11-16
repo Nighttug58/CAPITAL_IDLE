@@ -686,7 +686,7 @@ onUnmounted(() => {
         </svg>
         <span>Collection</span>
       </button>
-      <button ref="achievementsLaunch" type="button" class="nav-home nav-icon achievements-launch"
+      <button ref="achievementsLaunch" type="button" class="nav-home achievements-launch"
         :class="{ 'is-active': page === 'achievements' }"
         :aria-current="page === 'achievements' ? 'page' : undefined"
         :aria-label="'Ouvrir les Achievements' + (claimableAchievements ? ' · ' + claimableAchievements + ' cadeaux disponibles' : '')"
@@ -694,6 +694,7 @@ onUnmounted(() => {
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="8" r="5"/><path d="m8.3 11.3-1.1 9 4.8-2.9 4.8 2.9-1.1-9"/><path d="m10.2 8 1.1 1.1 2.5-2.5"/>
         </svg>
+        <span class="nav-label">Succès</span>
         <span v-if="claimableAchievements" class="achievements-pending" aria-hidden="true">{{ claimableAchievements }}</span>
       </button>
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'stats' }"
@@ -703,16 +704,17 @@ onUnmounted(() => {
         </svg>
         <span>Stats</span>
       </button>
-      <button v-if="supportsFullscreen" class="nav-home nav-icon fullscreen-button" type="button"
+      <button v-if="supportsFullscreen" class="nav-home nav-fullscreen" type="button"
         :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'"
         :aria-label="isFullscreen ? 'Quitter le plein écran' : 'Activer le plein écran'"
-        @click="toggleFullscreen">
+        :aria-pressed="isFullscreen" @click="toggleFullscreen">
         <svg v-if="!isFullscreen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>
         </svg>
         <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
           <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/>
         </svg>
+        <span class="nav-label">Plein écran</span>
       </button>
     </nav>
   </div>

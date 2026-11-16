@@ -28,6 +28,9 @@ describe('Achievements : navigation et récompenses groupées', () => {
     expect(button.exists()).toBe(true)
     expect(button.find('svg').exists()).toBe(true)
     expect(button.attributes('aria-label')).toContain('Achievements')
+    expect(button.find('.nav-label').text()).toBe('Succès')
+    expect(button.classes()).toContain('nav-home')
+    expect(button.classes()).not.toContain('nav-icon')
     expect(button.element.nextElementSibling?.textContent).toContain('Stats')
     await button.trigger('click')
     const page = wrapper.find('main.achievements-screen')
@@ -43,6 +46,28 @@ describe('Achievements : navigation et récompenses groupées', () => {
     await page.find('.achievements-back').trigger('click')
     await nextTick()
     expect(document.activeElement).toBe(button.element)
+  })
+
+  it('utilise un libellé et une taille homogènes pour les sept boutons avec plein écran', async () => {
+    const element=document.documentElement
+    const previous=Object.getOwnPropertyDescriptor(element,'requestFullscreen')
+    Object.defineProperty(element,'requestFullscreen',{configurable:true,value:()=>Promise.resolve()})
+    try {
+      const {wrapper}=start()
+      const nav=wrapper.findAll('.bottom-nav button')
+      expect(nav).toHaveLength(7)
+      expect(nav.every(button=>button.classes('nav-home'))).toBe(true)
+      expect(nav.every(button=>button.find('svg').exists())).toBe(true)
+      expect(nav.every(button=>button.find('span:not(.achievements-pending)').exists())).toBe(true)
+      expect(nav[4]!.find('.nav-label').text()).toBe('Succès')
+      expect(nav[5]!.text()).toBe('Stats')
+      expect(nav[6]!.find('.nav-label').text()).toBe('Plein écran')
+      expect(nav[6]!.attributes('aria-label')).toBe('Activer le plein écran')
+      expect(nav[6]!.attributes('aria-pressed')).toBe('false')
+    } finally {
+      if(previous)Object.defineProperty(element,'requestFullscreen',previous)
+      else Reflect.deleteProperty(element,'requestFullscreen')
+    }
   })
 
   it('réclame une fois les niveaux débloqués de la catégorie et conserve la sauvegarde', async () => {
@@ -112,6 +137,6 @@ describe('Achievements : navigation et récompenses groupées', () => {
     const css=readFileSync('src/style.css','utf8')
     expect(css).toContain('.app-shell>main.achievements-screen{display:flex;flex-direction:column;overflow:hidden;padding:0}')
     expect(css).toContain('.app-shell .achievements-content{overflow-y:auto;flex:1 1 auto;min-height:0;')
-    expect(css).toContain('.app-shell .bottom-nav .nav-icon{')
+    expect(css).toContain('.app-shell>.bottom-nav>.nav-home{')
   })
 })
