@@ -6,17 +6,22 @@ import { getBonusMultiplier } from '../prestige/bonuses.ts'
 import {
   ENTERPRISES, ENTERPRISE_CATEGORIES, ENTERPRISE_MILESTONES,
   getEnterpriseIncomeMicrosPerSecond, getEnterpriseMilestone,
-  getEnterpriseUpgradeCostCents, isEnterpriseUnlocked,
+  getEnterpriseUpgradeCostCentsExact,
+  getEnterpriseIncomeMicrosPerSecondExact, getNextEnterpriseMilestone, isEnterpriseUnlocked,
   type EnterpriseCategory,
 } from '../economy/catalog.ts'
 import {
   getTotalEnterpriseIncomeMicrosPerSecond,
   type EnterpriseAction, type EnterpriseError, type EnterpriseResult,
 } from '../economy/enterprises.ts'
-import { MAX_ENTERPRISE_LEVEL } from '../economy/state.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import { getExactAmount } from '../exact-state-v8.ts'
+import { v8BonusBasisPoints } from '../exact-runtime-v8.ts'
+import { formatCompactUnits } from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
+  exactState?: V8CapitalState
   executeEnterprise: (action: EnterpriseAction, id: string) => EnterpriseResult
 }>()
 
@@ -25,38 +30,56 @@ const moneyFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2
 const incomeFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 })
 const money = (dollars: number) => moneyFormatter.format(dollars) + ' $'
 const rate = (microdollars: number) => incomeFormatter.format(microdollars / 1_000_000) + ' $/s'
+const exactMoney = (cents: bigint) => formatCompactUnits(cents, 2, '$')
+const exactRate = (micro: bigint) => micro < 1_000_000_000n
+  ? rate(Number(micro)) : formatCompactUnits(micro, 6, '$/s')
+function enterpriseMultiplier(): bigint {
+  const bps = props.exactState ? v8BonusBasisPoints(props.exactState, 'enterprise') : 0
+  return BigInt(Math.round((1 + bps / 10_000) * 1_000_000))
+}
+const adjustedMicro = (raw: bigint) => raw * enterpriseMultiplier() / 1_000_000n
 
 const notice = ref<{ id: string; message: string; error: boolean } | null>(null)
 const playerLevel = computed(() => getLevel(props.state.prestige.experienceCents / 100))
 const acquiredCount = computed(() => Object.keys(props.state.enterprises.owned).length)
-const incomePerSecond = computed(() => getTotalEnterpriseIncomeMicrosPerSecond(props.state) * getBonusMultiplier(props.state, 'enterprise'))
+const incomePerSecond = computed(() => {
+  if (!props.exactState) return rate(getTotalEnterpriseIncomeMicrosPerSecond(props.state) * getBonusMultiplier(props.state, 'enterprise'))
+  let total = 0n
+  for (const [id, holding] of Object.entries(props.exactState.enterprises.owned))
+    total += getEnterpriseIncomeMicrosPerSecondExact(id, holding.level) ?? 0n
+  return exactRate(adjustedMicro(total))
+})
 
 const rows = computed(() => ENTERPRISES.map((enterprise) => {
-  const holding = props.state.enterprises.owned[enterprise.id]
+  const holding = props.exactState?.enterprises.owned[enterprise.id] ?? props.state.enterprises.owned[enterprise.id]
   const owned = !!holding
   const level = holding?.level ?? 0
   const unlocked = isEnterpriseUnlocked(enterprise.id, playerLevel.value)
-  const nextPriceCents = owned
-    ? getEnterpriseUpgradeCostCents(enterprise.id, level)
-    : enterprise.purchaseCostCents
+  const priceExact = owned ? getEnterpriseUpgradeCostCentsExact(enterprise.id, level)
+    : BigInt(enterprise.purchaseCostCents)
+  const canPurchase = unlocked && priceExact !== null && (props.exactState
+    ? getExactAmount(props.exactState.game.balance) >= priceExact
+    : props.state.game.balance * 100 >= Number(priceExact))
+  const incomeExact = getEnterpriseIncomeMicrosPerSecondExact(enterprise.id, level || 1) ?? 0n
+  const nextIncomeExact = owned ? getEnterpriseIncomeMicrosPerSecondExact(enterprise.id, level + 1) : null
   const multiplier = getBonusMultiplier(props.state, 'enterprise')
-  const incomeMicros = (getEnterpriseIncomeMicrosPerSecond(enterprise.id, level || 1) ?? 0) * multiplier
-  const nextIncomeMicros = owned && level < MAX_ENTERPRISE_LEVEL
-    ? (getEnterpriseIncomeMicrosPerSecond(enterprise.id, level + 1) ?? 0) * multiplier
-    : null
-  const nextMilestone = ENTERPRISE_MILESTONES.find((milestone) => milestone.level > level) ?? null
+  const incomeText = props.exactState ? exactRate(adjustedMicro(incomeExact))
+    : rate((getEnterpriseIncomeMicrosPerSecond(enterprise.id, level || 1) ?? 0) * multiplier)
+  const nextIncomeText = !owned ? null : props.exactState
+    ? nextIncomeExact === null ? null : exactRate(adjustedMicro(nextIncomeExact))
+    : rate((getEnterpriseIncomeMicrosPerSecond(enterprise.id, level + 1) ?? 0) * multiplier)
+  const nextMilestone = getNextEnterpriseMilestone(level)
+  const previousMilestone = level <= 20
+    ? ENTERPRISE_MILESTONES.filter(m => m.level <= level).at(-1)?.level ?? 0
+    : Math.max(20, Math.floor(level / 25) * 25)
+  const progressPercent = nextMilestone
+    ? (level - previousMilestone) / (nextMilestone.level - previousMilestone) * 100 : 100
   return {
-    ...enterprise,
-    owned,
-    level,
-    unlocked,
-    nextPriceCents,
-    incomeMicros,
-    nextIncomeMicros,
-    nextMilestone,
-    activeMilestone: getEnterpriseMilestone(level),
-    canPurchase: unlocked && nextPriceCents !== null &&
-      props.state.game.balance * 100 >= nextPriceCents,
+    ...enterprise, owned, level, unlocked, nextMilestone, progressPercent,
+    nextPriceText: priceExact === null ? 'NIVEAU INVALIDE' : props.exactState
+      ? exactMoney(priceExact) : money(Number(priceExact) / 100),
+    incomeText, nextIncomeText,
+    activeMilestone: getEnterpriseMilestone(level), canPurchase,
   }
 }))
 
@@ -83,7 +106,7 @@ function takeAction(id: string, alreadyOwned: boolean) {
     notice.value = {
       id,
       message: alreadyOwned
-        ? `Amélioration confirmée : niveau ${result.receipt.level}/20.`
+        ? `Amélioration confirmée : niveau ${result.receipt.level}.`
         : 'Achat confirmé. Les revenus sont maintenant automatiques.',
       error: false,
     }
@@ -103,7 +126,7 @@ function takeAction(id: string, alreadyOwned: boolean) {
       </div>
       <div class="enterprise-hero-wallet">
         <span>CAPITAL DISPONIBLE</span>
-        <strong>{{ money(state.game.balance) }}</strong>
+        <strong>{{ exactState ? exactMoney(getExactAmount(exactState.game.balance)) : money(state.game.balance) }}</strong>
       </div>
     </header>
 
@@ -114,7 +137,7 @@ function takeAction(id: string, alreadyOwned: boolean) {
       </div>
       <div>
         <span>REVENU PASSIF BRUT</span>
-        <strong class="enterprise-income">{{ rate(incomePerSecond) }}</strong>
+        <strong class="enterprise-income">{{ incomePerSecond }}</strong>
       </div>
     </section>
 
@@ -134,25 +157,25 @@ function takeAction(id: string, alreadyOwned: boolean) {
                 Verrouillée · niv. {{ item.requiredPlayerLevel }}
               </span>
               <span v-else-if="item.owned" class="enterprise-tag enterprise-tag-owned">
-                Possédée · niv. {{ item.level }}/20
+                Possédée · niv. {{ item.level }}
               </span>
               <span v-else class="enterprise-tag enterprise-tag-ready">Disponible</span>
             </div>
             <div class="enterprise-card-yield">
               <small>{{ item.owned ? 'REVENU ACTUEL' : 'REVENU AU NIVEAU 1' }}</small>
-              <strong>{{ rate(item.incomeMicros) }}</strong>
+              <strong>{{ item.incomeText }}</strong>
             </div>
           </div>
 
           <div v-if="item.owned" class="enterprise-level">
             <div
               class="enterprise-level-fill"
-              :style="{ width: `${item.level / MAX_ENTERPRISE_LEVEL * 100}%` }"
+              :style="{ width: `${item.progressPercent}%` }"
               role="progressbar"
               :aria-label="`Niveau de ${item.name}`"
               :aria-valuenow="item.level"
               aria-valuemin="0"
-              :aria-valuemax="MAX_ENTERPRISE_LEVEL"
+              :aria-valuemax="item.nextMilestone?.level ?? item.level + 1"
             ></div>
           </div>
 
@@ -160,30 +183,27 @@ function takeAction(id: string, alreadyOwned: boolean) {
             <span v-if="item.owned && item.activeMilestone" class="enterprise-milestone-current">
               Palier acquis : {{ item.activeMilestone.name }}
             </span>
-            <span v-else-if="item.nextMilestone">
+            <span v-if="item.nextMilestone">
               Prochain palier spécial : niv. {{ item.nextMilestone.level }} · {{ item.nextMilestone.name }}
             </span>
-            <span v-if="item.owned && item.nextIncomeMicros !== null">
-              Après amélioration : {{ rate(item.nextIncomeMicros) }}
-            </span>
-            <span v-if="item.owned && item.level === MAX_ENTERPRISE_LEVEL" class="enterprise-milestone-current">
-              Entreprise entièrement développée
+            <span v-if="item.owned && item.nextIncomeText !== null">
+              Après amélioration : {{ item.nextIncomeText }}
             </span>
           </div>
 
           <div class="enterprise-card-footer">
             <div class="enterprise-next-price">
               <span>{{ item.owned ? 'PROCHAINE AMÉLIORATION' : 'PRIX D’ACHAT' }}</span>
-              <strong>{{ item.nextPriceCents === null ? 'NIVEAU MAX' : money(item.nextPriceCents / 100) }}</strong>
+              <strong>{{ item.nextPriceText }}</strong>
             </div>
             <button
               class="enterprise-action"
               type="button"
-              :disabled="!item.canPurchase || item.nextPriceCents === null || (item.owned && item.level >= MAX_ENTERPRISE_LEVEL)"
+              :disabled="!item.canPurchase"
               :aria-label="`${item.owned ? 'Améliorer' : 'Acheter'} ${item.name}`"
               @click="takeAction(item.id, item.owned)"
             >
-              {{ item.owned && item.level >= MAX_ENTERPRISE_LEVEL ? 'MAX' : item.owned ? 'AMÉLIORER' : item.unlocked ? 'ACHETER' : `NIV. ${item.requiredPlayerLevel}` }}
+              {{ item.owned ? 'AMÉLIORER' : item.unlocked ? 'ACHETER' : `NIV. ${item.requiredPlayerLevel}` }}
             </button>
           </div>
 

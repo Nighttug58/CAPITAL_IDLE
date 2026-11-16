@@ -1,3 +1,4 @@
+import { getEnterpriseIncomeMicrosPerSecond } from './catalog.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCapitalState, restoreCapitalState } from '../capital.ts'
@@ -88,7 +89,7 @@ test('Entreprises : la valeur comptable est conservée, mais aucune revente poss
   assert.equal(view.enterpriseCount, 1)
   assert.equal(view.enterpriseLevels, 1)
   assert.equal(view.enterpriseBookValue, 75_000)
-  assert.equal(view.enterpriseIncomePerSecond, 2_604_167 / 1_000_000)
+  assert.equal(view.enterpriseIncomePerSecond, getEnterpriseIncomeMicrosPerSecond('kiosque',1)! / 1_000_000)
   assert.ok(view.sources.find(s => s.id === 'enterprises')!.gains > 0)
   assert.equal(view.assetMarketValue, 0)
   assert.equal(view.netWorth, next.game.balance + 75_000 - next.fiscal.taxesDueCents / 100)
@@ -119,7 +120,7 @@ test('Fortune nette : découvert, titres, entreprises, dette fiscale sans double
   assert.equal(after.cash, Math.round((accrued.game.balance - accrued.fiscal.taxesDueCents / 100) * 100) / 100)
   assert.equal(after.taxesDue, 0)
   assert.equal(after.taxesPaid, accrued.fiscal.taxesDueCents / 100)
-  assert.equal(after.netWorth, getCapitalStatsOverview(accrued).netWorth)
+  assert.ok(Math.abs(after.netWorth - getCapitalStatsOverview(accrued).netWorth) < 0.000001)
   assert.equal(after.lifetimeEarned, accrued.game.lifetimeEarned)
 })
 

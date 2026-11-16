@@ -12,7 +12,6 @@ import { getAsset, ASSETS } from './trading/catalog.ts'
 import { getNewsTemplate } from './trading/news.ts'
 import { getExactLevel } from './exact-levels.ts'
 import { getCollectionSlot } from './prestige/catalog.ts'
-import { MAX_ENTERPRISE_LEVEL } from './economy/state.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
 
@@ -263,7 +262,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   for (const [id,raw] of Object.entries(ownedEnterprises)) {
     if (!companies.has(id)||!object(raw) || amount(raw.investedCents) === null ||
       !Number.isSafeInteger(raw.level) || (raw.level as number) < 1 ||
-      (raw.level as number)>MAX_ENTERPRISE_LEVEL) return fail('Invalid enterprise balance')
+      (raw.level as number)>=Number.MAX_SAFE_INTEGER) return fail('Invalid enterprise balance')
   }
   for (const key of ['realizedNetProfit','creditedTradingProfit','dividendPendingCents'] as const) {
     if (amount(t[key], key === 'realizedNetProfit') === null) return fail('Invalid trading ledger')

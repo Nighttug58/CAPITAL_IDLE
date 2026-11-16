@@ -7,7 +7,7 @@ import {getExactLevel} from './exact-levels.ts'
 import {getAsset} from './trading/catalog.ts'
 import {quoteToExactFraction,affordableExactQuantity} from './exact-trading.ts'
 import {formatDecimalUnits} from './large-numbers.ts'
-import {ENTERPRISES,getEnterpriseUpgradeCostCents} from './economy/catalog.ts'
+import {ENTERPRISES,getEnterpriseUpgradeCostCentsExact} from './economy/catalog.ts'
 import {AUTOMATION_BOT_INTERVAL_MS,AUTO_STOP_LOSS_BPS,AUTO_TAKE_PROFIT_BPS,
   isMarketOrderTriggered} from './ascension/automation-orders.ts'
 import type {AscensionMarketOrder} from './ascension/contracts.ts'
@@ -125,8 +125,8 @@ export function v8AutomationFrame(state:V8CapitalState,at:number,foreground:bool
          const holding=updated.enterprises.owned[item.id]
          if(!holding)candidates.push({id:item.id,upgrade:false,cost:BigInt(item.purchaseCostCents)})
          else{
-           const cost=getEnterpriseUpgradeCostCents(item.id,holding.level)
-           if(cost!==null)candidates.push({id:item.id,upgrade:true,cost:BigInt(cost)})
+           const cost=getEnterpriseUpgradeCostCentsExact(item.id,holding.level)
+           if(cost!==null)candidates.push({id:item.id,upgrade:true,cost})
          }
        }
        candidates.sort((a,b)=>a.cost<b.cost?-1:a.cost>b.cost?1:a.id.localeCompare(b.id))

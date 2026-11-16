@@ -11,7 +11,7 @@ import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyE
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
-import {getEnterpriseIncomeMicrosPerSecond} from './economy/catalog.ts'
+import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 import {getCollectionItem} from './prestige/collections-catalog.ts'
 import {getCollectionSlot,getNextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {nextAscensionCost} from './ascension/catalog.ts'
@@ -302,7 +302,7 @@ function executeEnterprise(action:EnterpriseAction,id:string):EnterpriseResult{
   const level=result.state.enterprises.owned[id]?.level??0
   return{ok:true,state:capital.value,receipt:{enterpriseId:id,action,
     costCents:Math.max(0,approximateMoneyCents(result.costCents)*100),level,
-    incomeMicrosPerSecond:getEnterpriseIncomeMicrosPerSecond(id,level)??0}}
+    incomeMicrosPerSecond:Number(getEnterpriseIncomeMicrosPerSecondExact(id,level)??0n)}}
 }
 function persist():boolean {
   if(loadBlocked.value)return false
@@ -692,7 +692,7 @@ onUnmounted(() => {
     <TradingScreen v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
-    <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
+    <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" />
     <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
     <StatsScreen v-show="page === 'stats'" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />

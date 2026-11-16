@@ -8,7 +8,6 @@ import { exactMoneyCents } from '../money.ts'
 export const FISCAL_PERIOD_MS = 72 * 60 * 60 * 1_000
 // Taux de gameplay provisoire proposé : 15 %, centralisé et modifiable.
 export const FISCAL_TAX_RATE = 0.15
-export const MAX_ENTERPRISE_LEVEL = 20
 
 export type TaxSource = 'enterprises' | 'stocks' | 'crypto' | 'memecoins'
 export type EarningsSource =
@@ -16,7 +15,7 @@ export type EarningsSource =
   | 'stocks' | 'crypto' | 'memecoins' | 'unclassified'
 
 export interface EnterpriseHolding {
-  readonly level: number // 1..20, aucun double achat ni franchise.
+  readonly level: number // Niveau positif, entier sûr, sans plafond métier.
   readonly investedCents: number // Achat et améliorations, valeur comptable non revendable.
 }
 export interface EnterpriseState {
@@ -116,7 +115,7 @@ export function restoreEnterpriseState(raw: unknown, now = Date.now()): Enterpri
     Object.keys(raw.owned).length > 20 ||
     !Object.entries(raw.owned).every(([id, value]) =>
       /^[a-z0-9-]{1,48}$/.test(id) && isRecord(value) &&
-      Number.isSafeInteger(value.level) && (value.level as number) >= 1 && (value.level as number) <= MAX_ENTERPRISE_LEVEL &&
+      Number.isSafeInteger(value.level) && (value.level as number) >= 1 && (value.level as number) < Number.MAX_SAFE_INTEGER &&
       isSafeCount(value.investedCents)) ||
     typeof raw.revenueCarryCents !== 'number' || !Number.isFinite(raw.revenueCarryCents) ||
     raw.revenueCarryCents < 0 || raw.revenueCarryCents >= 1) return fallback()

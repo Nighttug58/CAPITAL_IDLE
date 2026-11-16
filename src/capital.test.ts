@@ -72,7 +72,7 @@ test('le portefeuille et les nouveaux compteurs sont restaurés à l identique',
 test('une section corrompue est isolée sans effacer le cash, ni les autres sections', () => {
   const state = createCapitalState({ balance: 90, lifetimeEarned: 120, purchasedUpgrades: 1 }, NOW)
   state.trading.seed = 0
-  state.enterprises.owned['cafe'] = { level: 30, investedCents: 12_000 }
+  state.enterprises.owned['cafe'] = { level: -30, investedCents: 12_000 }
   const broken = {
     ...state,
     fiscal: { ...state.fiscal, taxesDueCents: 900 },

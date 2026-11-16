@@ -45,7 +45,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(wrapper.findAll('.enterprise-card')).toHaveLength(20)
     const kiosk = wrapper.find('.enterprise-card')
     expect(kiosk.text()).toContain('Kiosque')
-    expect(kiosk.text()).toContain('2,604167')
+    expect(kiosk.text()).toContain('104,166667')
     expect(kiosk.text()).toContain('75')
     expect(kiosk.find('button.enterprise-action').attributes('disabled')).toBeUndefined()
     const locked = wrapper.findAll('.enterprise-card')[19]!
@@ -63,7 +63,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     await nextTick()
     expect(getState().enterprises.owned.kiosque?.level).toBe(1)
     expect(getState().game.balance).toBe(925_000)
-    expect(wrapper.find('.enterprise-card').text()).toContain('Possédée · niv. 1/20')
+    expect(wrapper.find('.enterprise-card').text()).toContain('Possédée · niv. 1')
     expect(wrapper.find('.enterprise-card').text()).toContain('Achat confirmé')
     expect(wrapper.find('.enterprise-card button.enterprise-action').text()).toContain('AMÉLIORER')
 
@@ -71,20 +71,20 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     await nextTick()
     expect(getState().enterprises.owned.kiosque?.level).toBe(2)
     expect(getState().game.balance).toBe(925_000 - getEnterpriseUpgradeCostCents('kiosque', 1)! / 100)
-    expect(wrapper.find('.enterprise-card').text()).toContain('niveau 2/20')
+    expect(wrapper.find('.enterprise-card').text()).toContain('niveau 2')
     expect(wrapper.find('.enterprise-summary').text()).toContain('1')
     expect(wrapper.find('.enterprise-card .enterprise-level-fill').attributes('aria-valuenow')).toBe('2')
     expect(getState().game.lifetimeEarned).toBe(1_000_000)
   })
 
-  it('au niveau 20 le bouton MAX est bloqué, sans option de revente', () => {
+  it('au niveau 20 le niveau 21 reste accessible sans revente', () => {
     const state = createCapitalState({ balance: 100_000, lifetimeEarned: 100_000, purchasedUpgrades: 0 }, START)
     state.enterprises.owned.kiosque = { level: 20, investedCents: 192_620_000 }
     const { wrapper } = setup(state)
     const kiosk = wrapper.find('.enterprise-card')
-    expect(kiosk.text()).toContain('Possédée · niv. 20/20')
+    expect(kiosk.text()).toContain('Possédée · niv. 20')
     expect(kiosk.text()).toContain('Prestige')
-    expect(kiosk.find('button.enterprise-action').text()).toBe('MAX')
+    expect(kiosk.find('button.enterprise-action').text()).toBe('AMÉLIORER')
     expect(kiosk.find('button.enterprise-action').attributes('disabled')).toBeDefined()
     expect(kiosk.text()).not.toContain('REVENDRE')
   })
@@ -129,4 +129,40 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(css).toContain('@media (max-width: 360px)')
     expect(css).toContain('.bottom-nav .nav-home { min-width: 0; flex: 1 1 0;')
   })
+})
+
+it('V8 enterprise screen displays and upgrades a level 1000 company with huge exact cash', async () => {
+  const { createV8CapitalState } = await import('../exact-state-v8.ts')
+  const { saveV8CapitalState } = await import('../exact-persistence-v8.ts')
+  const { getEnterpriseUpgradeCostCentsExact } = await import('../economy/catalog.ts')
+  const { formatCompactUnits } = await import('../large-numbers.ts')
+  const now=Date.now()
+  const base=createV8CapitalState(now)
+  const wealth=10n**110n
+  const state={...base,
+    game:{...base.game,balance:wealth.toString(),lifetimeEarned:wealth.toString()},
+    enterprises:{...base.enterprises,owned:{kiosque:{level:1000,investedCents:'987654321'}}}}
+  expect(saveV8CapitalState(localStorage,state)).toBe(true)
+  const wrapper=mount(App,{attachTo:document.body})
+  mounted.push(wrapper)
+  await wrapper.findAll('.bottom-nav button')[2]!.trigger('click')
+  await nextTick()
+  const kiosk=wrapper.find('.enterprise-card')
+  expect(kiosk.text()).toContain('Possédée · niv. 1000')
+  expect(kiosk.text()).toContain('niv. 1025')
+  const expectedCost=getEnterpriseUpgradeCostCentsExact('kiosque',1000)!
+  expect(kiosk.text()).toContain(formatCompactUnits(expectedCost))
+  expect(kiosk.text()).not.toContain('Infinity')
+  expect(kiosk.find('button.enterprise-action').text()).toContain('AMÉLIORER')
+  expect(kiosk.find('button.enterprise-action').attributes('disabled')).toBeUndefined()
+  await kiosk.find('button.enterprise-action').trigger('click')
+  await nextTick()
+  const after=JSON.parse(localStorage.getItem('capital-idle-save-v8')!)
+  expect(after.enterprises.owned.kiosque.level).toBe(1001)
+  expect(after.enterprises.owned.kiosque.investedCents).toBe((987654321n+expectedCost).toString())
+  expect(kiosk.text()).not.toContain('NIVEAU MAX')
+  await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+  await nextTick()
+  expect(wrapper.find('.stats-income-value').text()).not.toContain('Infinity')
+  expect(wrapper.find('.stats-income-value').text()).toMatch(/[A-Z] \$\/s/)
 })

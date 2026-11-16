@@ -8,7 +8,6 @@ import {
   getEnterprise, getEnterpriseIncomeMicrosPerSecond, getEnterpriseUpgradeCostCents,
   isEnterpriseUnlocked,
 } from './catalog.ts'
-import { MAX_ENTERPRISE_LEVEL } from './state.ts'
 import { accrueProfitTax } from './fiscal.ts'
 
 const CENTS_PER_DOLLAR = 100
@@ -174,8 +173,7 @@ export function upgradeEnterprise(state: CapitalState, id: string, now = Date.no
   if (!enterprise) return reject(state, 'unknown-enterprise')
   const holding = state.enterprises.owned[id]
   if (!holding) return reject(state, 'not-owned')
-  if (holding.level >= MAX_ENTERPRISE_LEVEL) return reject(state, 'max-level')
-  if (!Number.isSafeInteger(holding.level) || holding.level < 1 || holding.level > MAX_ENTERPRISE_LEVEL) {
+  if (!Number.isSafeInteger(holding.level) || holding.level < 1 || holding.level >= Number.MAX_SAFE_INTEGER) {
     return reject(state, 'max-level')
   }
   if (!validTime(now) || now < state.enterprises.lastAccruedAt) return reject(state, 'invalid-clock')

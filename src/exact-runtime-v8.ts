@@ -16,9 +16,9 @@ import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { getAsset } from './trading/catalog.ts'
 import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
   divideCostBasis } from './exact-trading.ts'
-import { getEnterprise, getEnterpriseIncomeMicrosPerSecond, getEnterpriseUpgradeCostCents, isEnterpriseUnlocked }
+import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
-import { MAX_ENTERPRISE_LEVEL, FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
+import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
 import { getNextFameBoostCost as fameCost } from './prestige/catalog.ts'
 import { nextAscensionCost } from './ascension/catalog.ts'
 import type { AscensionUpgradeId } from './ascension/contracts.ts'
@@ -363,8 +363,9 @@ export function v8BuyEnterprise(state: V8CapitalState, id: string, at: number, u
     return {ok:false,reason:'invalid-clock'}
   const settled = v8AccrueEnterpriseUntil(state,at)
   const targetLevel = previous ? previous.level+1:1
-  if (targetLevel > MAX_ENTERPRISE_LEVEL) return {ok:false,reason:'max-level'}
-  const cost = BigInt(previous ? getEnterpriseUpgradeCostCents(id,previous.level) ?? -1 : business.purchaseCostCents)
+  if (!Number.isSafeInteger(targetLevel) || targetLevel < 1 || targetLevel >= Number.MAX_SAFE_INTEGER)
+    return {ok:false,reason:'max-level'}
+  const cost = previous ? getEnterpriseUpgradeCostCentsExact(id,previous.level) ?? -1n : BigInt(business.purchaseCostCents)
   if (cost < 0n || v(settled.game.balance)<cost) return {ok:false,reason:cost < 0n?'max-level':'insufficient-funds'}
   const invested = previous ? v(previous.investedCents) : 0n
   const updated:V8CapitalState = { ...settled,
@@ -378,7 +379,7 @@ export function v8BuyEnterprise(state: V8CapitalState, id: string, at: number, u
 
 /**
  * Real-time enterprise income, including a persistent 1/10-millionth cent
- * carry and the original 15% tax debt. The ROI rebalance is pass 3.
+ * carry and the original 15% tax debt. Rebalanced ROI is applied to future accrual only.
  */
 export function v8AccrueEnterpriseUntil(state:V8CapitalState, now:number):V8CapitalState {
   const elapsed=now-state.enterprises.lastAccruedAt
@@ -386,8 +387,8 @@ export function v8AccrueEnterpriseUntil(state:V8CapitalState, now:number):V8Capi
   if(elapsed===0)return state
   let rate=0n
   for(const [id,holding] of Object.entries(state.enterprises.owned)) {
-    const micros=getEnterpriseIncomeMicrosPerSecond(id,holding.level)
-    if(micros!==null)rate+=BigInt(micros)
+    const micros=getEnterpriseIncomeMicrosPerSecondExact(id,holding.level)
+    if(micros!==null)rate+=micros
   }
   const nano=(rate*BigInt(elapsed)*BigInt(Math.round((1+v8BonusBasisPoints(state,'enterprise')/10_000)*1_000_000)))/1_000_000n +
     (state.enterprises.revenueCarryNanoCents!==undefined ? v(state.enterprises.revenueCarryNanoCents):

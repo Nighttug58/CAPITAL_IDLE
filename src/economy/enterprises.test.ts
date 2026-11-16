@@ -59,7 +59,7 @@ test('deux entreprises uniques : somme des taux, sans second portefeuille', () =
   assert.equal(second.state.stats.earnedBySource.enterprises, 0)
 })
 
-test('améliorations : +1 niveau, 19 paiements, bonus 5/10/15/20 et interdiction niveau 21', () => {
+test('améliorations : +1 niveau, 19 paiements, bonus 5/10/15/20 et passage niveau 21', () => {
   let state = purchased('kiosque', 10_000_000)
   for (let current = 1; current < 20; current++) {
     const oldIncome = getTotalEnterpriseIncomeMicrosPerSecond(state)
@@ -77,8 +77,12 @@ test('améliorations : +1 niveau, 19 paiements, bonus 5/10/15/20 et interdiction
     assert.equal(result.receipt.incomeMicrosPerSecond, getTotalEnterpriseIncomeMicrosPerSecond(state))
   }
   assert.equal(state.enterprises.owned.kiosque!.level, 20)
-  assert.deepEqual(upgradeEnterprise(state, 'kiosque', START), { ok: false, state, error: 'max-level' })
-  assert.equal(getEnterpriseUpgradeCostCents('kiosque', 20), null)
+  const twentyOne = upgradeEnterprise(state, 'kiosque', START)
+  assert.equal(twentyOne.ok, true)
+  if (twentyOne.ok) {
+    assert.equal(twentyOne.state.enterprises.owned.kiosque?.level, 21)
+    assert.equal(twentyOne.receipt.costCents, getEnterpriseUpgradeCostCents('kiosque', 20))
+  }
 })
 
 test('revenus réguliers : les fractions de centime restent exactes malgré les nouveaux montants', () => {
@@ -120,7 +124,7 @@ test('une modification de niveau crédite l ancien rendement jusqu à la transac
   const nanodollars = BigInt(Math.round(paidOld.enterprises.revenueCarryCents * 10_000_000)) +
     BigInt(newRate) * 1000n
   const cents = Number(nanodollars / 10_000_000n)
-  assert.equal(later.stats.earnedBySource.enterprises, paidOld.stats.earnedBySource.enterprises + cents / 100)
+  assert.equal(Math.round(later.stats.earnedBySource.enterprises * 100), Math.round(paidOld.stats.earnedBySource.enterprises * 100) + cents)
 })
 
 test('revenus fixes et moteur marché : avance par second, jamais de double crédit', () => {

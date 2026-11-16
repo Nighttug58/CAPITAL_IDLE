@@ -9,6 +9,8 @@ import {MAX_IMPORT_FILE_BYTES} from '../save-transfer.ts'
 import {prepareV8SaveImport} from '../exact-persistence-v8.ts'
 import type {V8CapitalState} from '../exact-state-v8.ts'
 import {getExactLevelProgress} from '../exact-levels.ts'
+import {getEnterpriseIncomeMicrosPerSecondExact} from '../economy/catalog.ts'
+import {v8BonusBasisPoints} from '../exact-runtime-v8.ts'
 import {getAsset} from '../trading/catalog.ts'
 import {exactTradeCost,quoteToExactFraction} from '../exact-trading.ts'
 import {getCollectionBookValueCents} from '../prestige/collections-catalog.ts'
@@ -84,6 +86,18 @@ const exactFame = (key:'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'coll
     formatCompactUnits(v(props.exactState.prestige[key]),6,'').trim()) : fameCount(fallback)
 
 const rate = (value: number) => precise.format(value) + ' $/s'
+const enterpriseRate = computed(() => {
+  const state=props.exactState
+  if(!state)return rate(overview.value.enterpriseIncomePerSecond)
+  let total=0n
+  for(const [id, holding] of Object.entries(state.enterprises.owned))
+    total += getEnterpriseIncomeMicrosPerSecondExact(id, holding.level) ?? 0n
+  const bonus = v8BonusBasisPoints(state, 'enterprise')
+  const multiplier = BigInt(Math.round((1 + bonus / 10_000) * 1_000_000))
+  const boosted = total * multiplier / 1_000_000n
+  return boosted < 1_000_000_000n ? rate(Number(boosted) / 1_000_000)
+    : formatCompactUnits(boosted, 6, '$/s')
+})
 // Stable Swiss digit grouping across ICU versions (Node/jsdom vs browsers).
 const fameCount = (value: number) => precise.format(value).replace(/[\u00a0\u202f ](?=\d{3}(?:\D|$))/g, "'")
 const percent = (bps: number) => precise.format(bps / 100) + ' %'
@@ -271,7 +285,7 @@ function pay() {
         <div class="stats-section-heading"><h2>Entreprises</h2><span>{{ overview.enterpriseCount }} / 20</span></div>
         <div class="stats-mini-grid">
           <div><span>NIVEAUX ACQUIS</span><strong>{{ overview.enterpriseLevels }}</strong></div>
-          <div><span>REVENU BRUT / SECONDE</span><strong class="stats-income-value">{{ rate(overview.enterpriseIncomePerSecond) }}</strong></div>
+          <div><span>REVENU BRUT / SECONDE</span><strong class="stats-income-value">{{ enterpriseRate }}</strong></div>
           <div><span>REVENUS CUMULÉS</span><strong>{{ exactIncome('enterprises',state.stats.earnedBySource.enterprises) }}</strong></div>
           <div><span>VALEUR COMPTABLE</span><strong>{{ exactDisplay(exactBalance?.invested,overview.enterpriseBookValue) }}</strong></div>
         </div>
