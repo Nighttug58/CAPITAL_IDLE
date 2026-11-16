@@ -2,7 +2,7 @@
 
 **Dépôt :** Nighttug58/CAPITAL_IDLE · **branche :** main  
 **Date de conception :** 16 novembre 2026  
-**Statut :** PASSES 1 À 5 VALIDÉES LOCALEMENT — 5/7 passes terminées. Les passes 6 et 7 restent à faire.
+**Statut :** 6/7 passes terminées. Prochaine passe : pouvoirs News et validation finale.
 **Suivi 16/11 — passe 1 :** moteur actif V8 branché dans `src/App.vue` (cash, clic, trading, staking, entreprises, dividendes, fiscalité, XP/Fame, Prestige, collections et achievements) via `src/exact-*`. Sauvegarde canonique `capital-idle-save-v8`, valeurs monétaires et positions exactes sérialisées en chaînes décimales, import des versions v4–v7 et migration locale v1–v7 avec conservation des originaux et sauvegarde de secours v7. Le code v7 reste une projection UI en lecture seule et une compatibilité d'import ; jamais une source de paiement ou de sauvegarde. Suite métier Node, suite UI Vitest et build TypeScript/Vite exécutés avec succès. **Passe 2 désormais terminée (voir suivi ci-dessous).**
 **Suivi 16/11 — passe 2 :** offre illimitée sur les 45 actifs, y compris depuis les saisies textuelles Trading, staking et ordres automatiques V8 ; le prix d’exécution reste le cours affiché (aucun slippage/impact) et les frais originaux demeurent. Les prix min/max déclenchent des événements persistés : contact exact de la borne, 5–10 minutes **réelles** de plateau, puis retournement de 1–3 minutes (actions 3–8 %, crypto 8–20 %, memecoins 20–50 %). Même délai réel à vitesse ×1 et ×5 et pendant le replay offline. Les contrôles V7 et les validations V8 acceptent les quantités au-delà de l’offre historique ; les métadonnées `totalSupply` restent uniquement informatives. Tests métier, UI et build validés. **Passe 3 désormais terminée (voir suivi ci-dessous).**
 **Suivi 16/11 — passe 3 :** catalogue rééquilibré sur 20 entreprises avec ROI bruts 12–18 min (petits commerces), 22–33 min (locaux), 40–58 min (services), 70–120 min (industrie) et 135–240 min (grandes entreprises) ; prix d'acquisition historiques inchangés. Coûts d'amélioration et revenus calculés à la demande : conservation des quatre milestones 5/10/15/20 puis extension en croissance polynomiale avec paliers tous les 25 niveaux ; plus de pré-génération 20 niveaux, plus de niveau maximum métier. Transactions et revenu passif sur BigInt V8 (incluant automatisations et rattrapage offline), fiscalité 15 % et cadence 72 h maintenues ; sauvegardes V8 et valeurs comptables payées par les anciens joueurs conservées. Pages Entreprises et Stats affichent les rendements exacts des très hauts niveaux. Validations locales : 353 tests métier, 76 tests UI, build TypeScript/Vite vert. **Passe 4 terminée (voir suivi ci-dessous).**
@@ -181,7 +181,7 @@ Travaux :
 | 3 | Entreprises rentables et sans niveau fixe | **Terminée — ROI 12 min–4 h, niveaux sans cap, BigInt V8, tests et build verts** |
 | 4 | Accueil compact + Auto Click dollars | **Terminée — 20 rangs, cash BigInt, sauvegarde V8 et tests verts** |
 | 5 | XP/Fame exigeants + ledgers de cycle | **Terminée — XP V4, Fame Shop 167 710, migrations V8 et tests verts** |
-| 6 | Prestige V2 : 11 bonus, gates, PP et Fame reset | À faire |
+| 6 | Prestige V2 : 11 bonus, gates, PP et Fame reset | Terminée — boutique à 6 530 PP et remboursements versionnés |
 | 7 | Pouvoirs News 5 %/10 % + tests finaux | À faire |
 
-**État d'exécution :** l'historique du fichier a commencé par un commit documentaire ; les travaux de la passe 1 ont depuis rendu V8 actif. La prochaine commande « next » doit démarrer **uniquement la passe 6** (boutique Prestige V2, remboursement historique PP et reset Fame du cycle), en préservant les passes 1–5 déjà validées.
+**Prochain « next » :** passe 7.

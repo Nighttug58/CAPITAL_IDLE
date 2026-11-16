@@ -1,3 +1,4 @@
+import { migratePrestigeShop } from './ascension/v2.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
  * BigInts are materialized only inside transaction functions and never
@@ -89,12 +90,15 @@ export interface V8PrestigeState extends Omit<PrestigeState,
   xpRebase?: { readonly fromCents: ExactAmount; readonly toCents: ExactAmount }
 }
 export interface V8CycleSummary extends Omit<AscensionCycleSummary,'eligibleWorthCents'|'earnedPoints'> {
+  formulaVersion?: 2
   eligibleWorthCents: ExactAmount
   earnedPoints: ExactAmount
 }
 export interface V8AscensionProgress extends Omit<AscensionProgress,'availablePoints'|'lifetimePoints'|'history'> {
   availablePoints: ExactAmount
   lifetimePoints: ExactAmount
+  shopVersion?: 2
+  legacyRanks?: AscensionProgress['upgradeLevels']
   history: readonly V8CycleSummary[]
 }
 export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {
@@ -103,7 +107,7 @@ export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {
 export interface V8AscensionRun extends Omit<AscensionRunState,'automation'|'marketOrders'> {
   /** Auto Click purchased in dollars for this cycle (missing in older V8 saves = 0). */
   autoClickLevel?: number
-  automation: Omit<AscensionRunState['automation'],'maxOrderCents'|'cashReserveCents'|'enterpriseBudgetCents'> & {
+  automation?: Omit<AscensionRunState['automation'],'maxOrderCents'|'cashReserveCents'|'enterpriseBudgetCents'> & {
     maxOrderCents: ExactAmount
     cashReserveCents: ExactAmount
     enterpriseBudgetCents?: ExactAmount
@@ -144,5 +148,5 @@ export function convertValidatedV7ToV8(source: CapitalState): V8CapitalState {
   const converted = projectValidatedV7ToExactV8(source, decimals)
   const checked = validateExactV8State(converted, decimals)
   if (!checked.valid) throw new Error('V8 conversion invalid: ' + checked.reason)
-  return migratePreV2V8Save(converted as unknown as V8CapitalState)
+  return migratePrestigeShop(migratePreV2V8Save(converted as unknown as V8CapitalState))
 }

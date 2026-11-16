@@ -1,3 +1,4 @@
+import { prestigeShop, prestigeSpent, prestigePoints } from './ascension/v2.ts'
 import { isValidMarketBoundary } from './trading/market.ts'
 /**
  * Strict V8 serialization contract. No BigInt is ever written to JSON; all
@@ -108,7 +109,10 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
     !safe(run.marketClock.simulatedAtMs)||!safe(run.marketClock.realAnchorMs)||
     run.marketClock.realAnchorMs<run.startedAtRealMs||
     run.marketClock.simulatedAtMs<run.startedAtRealMs||
-    ![1,1.5,2,3,4,5].includes(run.marketClock.selectedSpeed as number)||
+    ![1,1.5,2,3,4,5].includes(run.marketClock.selectedSpeed as number))return false
+  if(progress.shopVersion===2){
+    if(run.automation!==undefined || run.marketOrders!==undefined || run.nextOrderId!==undefined || run.lastStrategyAtRealMs!==undefined)return false
+  } else if(
     !object(run.automation)||!Array.isArray(run.automation.allowedAssetIds)||
     run.automation.allowedAssetIds.some((id:unknown)=>typeof id!=='string'||!allowedAssets.has(id))||
     !['autoClickEnabled','investorEnabled','traderEnabled','enterpriseEnabled'].every(
@@ -232,13 +236,20 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const availablePP = amount(progress.availablePoints), lifetimePP = amount(progress.lifetimePoints)
   if (availablePP === null || lifetimePP === null || availablePP > lifetimePP ||
       !object(progress.upgradeLevels)) return fail('Invalid PP ledger')
-  const shopPP = ascensionSpentPoints(progress.upgradeLevels as Record<string, number>)
+  if(progress.shopVersion!==undefined && progress.shopVersion!==2)return fail('Unknown Prestige tariff')
+  const shopPP = progress.shopVersion===2 ? prestigeSpent(progress.upgradeLevels,progress.legacyRanks) : ascensionSpentPoints(progress.upgradeLevels as Record<string, number>)
   if (shopPP === null || lifetimePP - availablePP !== BigInt(shopPP)) return fail('PP shop ledger does not balance')
   if(progress.history && Array.isArray(progress.history) && progress.history.length > 100)
     return fail('Prestige history exceeds 100 cycles')
   if (!Array.isArray(progress.history) || typeof progress.prestigeCount !== 'number' ||
       !Number.isSafeInteger(progress.prestigeCount) || progress.prestigeCount < 0)
     return fail('Missing prestige history')
+  if(progress.shopVersion===2){
+    const ranks=progress.upgradeLevels as Record<string,number>
+    const legacy=progress.legacyRanks as Record<string,number>
+    for(const offer of prestigeShop)
+      if(ranks[offer.id]>legacy[offer.id] && progress.prestigeCount<offer.cycle)return fail('Locked Prestige purchase')
+  }
   let pointsInHistory=0n
   for (const [index, item] of progress.history.entries()) {
     if (!object(item) || amount(item.eligibleWorthCents) === null || amount(item.earnedPoints) === null ||
@@ -246,7 +257,9 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
       return fail('Invalid prestige history')
     const total=amount(item.earnedPoints)!
     const worth=amount(item.eligibleWorthCents)!
-    if(!safe(item.levelAtCompletion)||item.levelAtCompletion<100||
+    if(item.formulaVersion===2){
+      if(progress.shopVersion!==2 || !safe(item.completedAtRealMs) || !safe(item.levelAtCompletion) || total===0n || prestigePoints(worth,item.levelAtCompletion)!==total)return fail('Invalid Prestige V2 reward')
+    } else if(item.formulaVersion!==undefined || !safe(item.levelAtCompletion)||item.levelAtCompletion<100||
       !safe(item.completedAtRealMs)||worth<10_000_000_000n||
       (worth<=BigInt(Number.MAX_SAFE_INTEGER) &&
         BigInt(previewPrestigePoints(Number(worth)/100,item.levelAtCompletion))!==total))
@@ -301,6 +314,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   for (const key of ['realizedNetProfit','creditedTradingProfit','dividendPendingCents'] as const) {
     if (amount(t[key], key === 'realizedNetProfit') === null) return fail('Invalid trading ledger')
   }
+  if(progress.shopVersion===2)return {valid:true}
   if (!object(a.run) || !object((a.run as Dict).automation)) return fail('Missing run state')
   const automation = (a.run as Dict).automation as Dict
   for (const key of ['maxOrderCents','cashReserveCents'] as const)

@@ -1,5 +1,5 @@
 import {readV8LegacyUI} from './v8-ui-test-helper.ts'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import App from '../App.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
@@ -10,8 +10,8 @@ import { buyAsset } from '../trading/trades.ts'
 
 const KEY = 'capital-idle-save-v7'
 const mounted: VueWrapper[] = []
-beforeEach(() => localStorage.clear())
-afterEach(() => mounted.splice(0).forEach(wrapper => wrapper.unmount()))
+beforeEach(() => {localStorage.clear(); vi.spyOn(Date,'now').mockReturnValue(1_800_000_000_000)})
+afterEach(() => {mounted.splice(0).forEach(wrapper => wrapper.unmount()); vi.restoreAllMocks()})
 
 function ready(): CapitalState {
   const now = Date.now()

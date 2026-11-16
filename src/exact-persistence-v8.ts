@@ -1,3 +1,4 @@
+import { migratePrestigeShop } from './ascension/v2.ts'
 /**
  * Versioned V8 save persistence. V7 originals are NEVER overwritten before
  * the V8 write has been verified; invalid source material is not reset.
@@ -45,11 +46,11 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
     try{
       const parsed=JSON.parse(previous) as unknown
       if(!validate(parsed))return{ok:false,reason:'invalid-v8'}
-      if((parsed as V8CapitalState).prestige.xpCurveVersion===4)
+      if((parsed as V8CapitalState).prestige.xpCurveVersion===4 && parsed.ascension.progress.shopVersion===2)
         return{ok:true,state:parsed as V8CapitalState,origin:'v8'}
       // Rebalance historical V8 snapshots once. Keep their raw original bytes
       // and do not replace the active key until the new state is validated.
-      const upgraded=migratePreV2V8Save(parsed as V8CapitalState)
+      const upgraded=migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState))
       if(!validate(upgraded))return{ok:false,reason:'invalid-v8'}
       const payload=JSON.stringify(upgraded)
       try {
@@ -157,7 +158,7 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
   if(parsed.version===8){
     if(!validate(parsed))return{ok:false,reason:'invalid-save'}
     try {
-      const upgraded=migratePreV2V8Save(parsed as V8CapitalState)
+      const upgraded=migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState))
       if(!validate(upgraded))return{ok:false,reason:'invalid-save'}
       return{ok:true,state:upgraded,sourceVersion:8}
     } catch { return{ok:false,reason:'invalid-save'} }

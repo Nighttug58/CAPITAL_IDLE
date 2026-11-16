@@ -4,7 +4,7 @@ import type { V8CapitalState } from './exact-state-v8.ts'
 import {v8AdvanceFiscalEconomy} from './exact-runtime-v8.ts'
 import {v8SettleStaking} from './exact-staking-v8.ts'
 import {v8AdvanceMarketSecond} from './exact-market-v8.ts'
-import {v8AutomationFrame} from './exact-automation-v8.ts'
+import {v8AutoClickFrame} from './exact-autoclick-frame.ts'
 import {armDollarAutoClick} from './dollar-autoclick-v8.ts'
 
 const SAVE_INTERVAL_MS=5000
@@ -67,7 +67,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
      const staked=v8SettleStaking(business,timestamp)
      const replay=catchUpV8(staked,timestamp)
      const final=replay.pendingSeconds===0?
-       v8AutomationFrame(replay.state,timestamp,options.isForeground?.()??true):replay.state
+       v8AutoClickFrame(replay.state,timestamp,options.isForeground?.()??true):replay.state
      if(final!==current){options.setState(final);dirty=true}
      saveIfDirty(replay.pendingSeconds===0)
      if(!started||paused)return

@@ -13,12 +13,15 @@ const wrappers: VueWrapper[] = []
 beforeEach(() => localStorage.clear())
 afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()))
 
-function withPP(): CapitalState {
+function withPP(cycles = 1): CapitalState {
   const now = Date.now()
   const initial = createCapitalState({ balance: 10_000_000_000, lifetimeEarned: 10_000_000_000, purchasedUpgrades: 0 }, now)
   const cycle = performPrestige(initial, now)
   if (!cycle.ok) throw new Error('Prestige fixture invalid')
-  return cycle.state
+  const progress=cycle.state.ascension.progress
+  const history=Array.from({length:cycles}, (_,i)=>({...progress.history[0]!,cycle:i+1}))
+  return {...cycle.state,ascension:{...cycle.state.ascension,progress:{...progress,history,
+    prestigeCount:cycles,lifetimePoints:progress.lifetimePoints*cycles,availablePoints:progress.availablePoints*cycles}}}
 }
 function buyLevels(state: CapitalState, id: string, amount: number): CapitalState {
   let current = state
@@ -47,7 +50,7 @@ describe('Prestige marché — contrôles interactifs et affichage', () => {
   })
 
   it('achète et active ×1,5, revient à ×1, persiste sa sélection', async () => {
-    const { wrapper, stored } = mountGame(withPP())
+    const { wrapper, stored } = mountGame(withPP(10))
     await wrapper.find('.prestige-launch').trigger('click')
     await wrapper.find('.ascension-upgrade[data-upgrade="time-accelerator"] .ascension-buy').trigger('click')
     await nextTick()
@@ -63,7 +66,7 @@ describe('Prestige marché — contrôles interactifs et affichage', () => {
   })
 
   it('Frénésie ne s’active qu’après achat et enregistre son cooldown réel', async () => {
-    const { wrapper, stored } = mountGame(withPP())
+    const { wrapper, stored } = mountGame(withPP(7))
     await wrapper.find('.prestige-launch').trigger('click')
     const ability = wrapper.find('.ascension-frenzy-button')
     expect(ability.attributes('disabled')).toBeDefined()

@@ -60,7 +60,8 @@ export function projectV8ForLegacyUI(state:V8CapitalState):CapitalState{
  }))
  const {xpRebase: _legacyXpRebase, ...prestigeNoRebase}=prestige
   void _legacyXpRebase
- const {enterpriseBudgetCents:_legacyBudget,...automationNoBudget}=ascension.run.automation
+ const automation=ascension.run.automation ?? {autoClickEnabled:false,investorEnabled:false,traderEnabled:false,enterpriseEnabled:false,allowedAssetIds:[],maxOrderCents:'0',cashReserveCents:'0'}
+ const {enterpriseBudgetCents:_legacyBudget,...automationNoBudget}=automation
  void _legacyBudget
  const {marketOrders:_legacyOrders,automation:_legacyAutomation,...ascensionRunNoLedger}=ascension.run
  void _legacyOrders
@@ -96,10 +97,10 @@ export function projectV8ForLegacyUI(state:V8CapitalState):CapitalState{
          eligibleWorthCents:boundedNumber(v(x.eligibleWorthCents)),
          earnedPoints:boundedNumber(v(x.earnedPoints))}))},
      run:{...ascensionRunNoLedger,automation:{...automationNoBudget,
-       maxOrderCents:boundedNumber(v(ascension.run.automation.maxOrderCents)),
-       cashReserveCents:boundedNumber(v(ascension.run.automation.cashReserveCents)),
-       ...(ascension.run.automation.enterpriseBudgetCents!==undefined?
-         {enterpriseBudgetCents:boundedNumber(v(ascension.run.automation.enterpriseBudgetCents))}:{})},
+       maxOrderCents:boundedNumber(v(automation.maxOrderCents)),
+       cashReserveCents:boundedNumber(v(automation.cashReserveCents)),
+       ...(automation.enterpriseBudgetCents!==undefined?
+         {enterpriseBudgetCents:boundedNumber(v(automation.enterpriseBudgetCents))}:{})},
        ...(ascensionOrders?{marketOrders:ascensionOrders}:{})},
    },
    achievements:{...achievements,cycleGiftCents:boundedNumber(v(achievements.cycleGiftCents))},

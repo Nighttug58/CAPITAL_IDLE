@@ -13,6 +13,7 @@ function capital(){
    ascension:{...st.ascension,progress:{...st.ascension.progress,
      availablePoints:'0',lifetimePoints:'40',prestigeCount:1,highestFameAwardedLevel:100,
      history:[{cycle:1,completedAtRealMs:now-1,eligibleWorthCents:'40000000000',earnedPoints:'40',levelAtCompletion:100}],
+     legacyRanks:{...st.ascension.progress.upgradeLevels,'crypto-staking':1},
      upgradeLevels:{...st.ascension.progress.upgradeLevels,'crypto-staking':1}}},
  }
 }

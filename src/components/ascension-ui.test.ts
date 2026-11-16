@@ -9,7 +9,7 @@ import { performPrestige } from '../ascension/engine.ts'
 
 const STORAGE = 'capital-idle-save-v7'
 const mounted: VueWrapper[] = []
-beforeEach(() => localStorage.clear())
+beforeEach(() => {localStorage.clear(); vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000)})
 afterEach(() => {
   mounted.splice(0).forEach(wrapper => wrapper.unmount())
   vi.restoreAllMocks()
@@ -18,7 +18,7 @@ afterEach(() => {
 function fixture(withPoints = false): CapitalState {
   const now = Date.now()
   const start = createCapitalState({
-    balance: 120_000_000, lifetimeEarned: 120_000_000, purchasedUpgrades: 0,
+    balance: 120_000_000_000, lifetimeEarned: 120_000_000_000, purchasedUpgrades: 0,
   }, now)
   if (!withPoints) return start
   const result = performPrestige(start, now)
@@ -36,7 +36,7 @@ function mountState(state: CapitalState) {
 }
 
 describe('Prestige économique — page et boutique', () => {
-  it('s’ouvre depuis Accueil, affiche 15 upgrades (Auto Click payé en dollars), et conserve Stats à droite', async () => {
+  it('s’ouvre depuis Accueil, affiche 11 upgrades (Auto Click payé en dollars), et conserve Stats à droite', async () => {
     const { wrapper } = mountState(fixture())
     const nav = wrapper.findAll('.bottom-nav button')
     expect(nav.map(button => button.text())).toEqual([
@@ -47,9 +47,9 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.find('.ascension-screen').exists()).toBe(true)
     expect(wrapper.find('.ascension-screen').attributes('aria-label')).toBe('Boutique Prestige')
     expect(wrapper.find('.ascension-screen h1').text()).toBe('Prestige')
-    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(15)
-    expect(wrapper.findAll('.ascension-category')).toHaveLength(5)
-    expect(wrapper.findAll('.ascension-upgrade button.ascension-buy:disabled')).toHaveLength(15)
+    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(11)
+    expect(wrapper.findAll('.ascension-category')).toHaveLength(4)
+    expect(wrapper.findAll('.ascension-upgrade button.ascension-buy:disabled')).toHaveLength(11)
     expect(wrapper.find('.ascension-panel-title').text()).toContain('PP')
     expect(wrapper.find('.home-screen').isVisible()).toBe(false)
     expect(wrapper.findAll('.bottom-nav button').at(-1)?.text()).toBe('Stats')
@@ -72,38 +72,39 @@ describe('Prestige économique — page et boutique', () => {
     await wrapper.find('.prestige-launch').trigger('click')
     expect(wrapper.find('.ascension-summary').text()).toContain(String(start.ascension.progress.availablePoints))
     expect(wrapper.find('.ascension-upgrade[data-upgrade="auto-click"]').exists()).toBe(false)
-    const offer = wrapper.find('.ascension-upgrade[data-upgrade="news-duration"]')
-    expect(offer.find('.ascension-upgrade-level').text()).toContain('0/4')
-    expect(offer.find('.ascension-upgrade-cost').text()).toContain('10 PP')
+    const offer = wrapper.find('.ascension-upgrade[data-upgrade="news-frequency"]')
+    expect(offer.find('.ascension-upgrade-level').text()).toContain('0/10')
+    expect(offer.find('.ascension-upgrade-cost').text()).toContain('20 PP')
     await offer.find('button.ascension-buy').trigger('click')
     await nextTick()
     const updated = saved()
-    expect(updated.ascension.progress.upgradeLevels['news-duration']).toBe(1)
-    expect(updated.ascension.progress.availablePoints).toBe(start.ascension.progress.availablePoints - 10)
+    expect(updated.ascension.progress.upgradeLevels['news-frequency']).toBe(1)
+    expect(updated.ascension.progress.availablePoints).toBe(start.ascension.progress.availablePoints - 20)
     expect(updated.prestige.fameMicros).toBe(beforeFame)
-    expect(offer.find('.ascension-upgrade-level').text()).toContain('1/4')
-    expect(wrapper.find('.ascension-notice').text()).toContain('Événements prolongés')
+    expect(offer.find('.ascension-upgrade-level').text()).toContain('1/10')
+    expect(wrapper.find('.ascension-notice').text()).toContain('Fréquence médiatique')
     wrapper.unmount()
     mounted.splice(mounted.indexOf(wrapper), 1)
     const restarted = mount(App, { attachTo: document.body })
     mounted.push(restarted)
     await restarted.find('.prestige-launch').trigger('click')
-    expect(restarted.find('.ascension-upgrade[data-upgrade="news-duration"] .ascension-upgrade-level').text()).toContain('1/4')
+    expect(restarted.find('.ascension-upgrade[data-upgrade="news-frequency"] .ascension-upgrade-level').text()).toContain('1/10')
   })
 
   it('refuse les achats en PP insuffisants sans modifier l’économie et la Fame', async () => {
     const start = fixture()
     const { wrapper, saved } = mountState(start)
     const migratedPrestige = saved().prestige
+    const migratedProgress = saved().ascension.progress
     await wrapper.find('.prestige-launch').trigger('click')
-    expect(wrapper.findAll('.ascension-buy:disabled')).toHaveLength(15)
+    expect(wrapper.findAll('.ascension-buy:disabled')).toHaveLength(11)
     // The live runtime legitimately advances enterprise/market real clocks.
     // A rejected PP purchase must preserve the actual economic balances and
     // permanent progression, not freeze all clock timestamps in the browser.
     expect(saved().game).toEqual(start.game)
     expect(saved().prestige).toEqual(migratedPrestige)
-    expect(saved().ascension.progress).toEqual(start.ascension.progress)
-    expect(wrapper.find('.ascension-upgrade[data-upgrade="auto-trader"] .ascension-buy').attributes('disabled')).toBeDefined()
+    expect(saved().ascension.progress).toEqual(migratedProgress)
+    expect(wrapper.find('.automation-panel').exists()).toBe(false)
   })
 
   it('affiche les conditions et exige PRESTIGE avant de réinitialiser', async () => {
@@ -122,7 +123,7 @@ describe('Prestige économique — page et boutique', () => {
     expect(dialog.find('.ascension-confirm-submit').attributes('disabled')).toBeDefined()
     await dialog.find('.ascension-cancel').trigger('click')
     expect(wrapper.find('.ascension-confirm').exists()).toBe(false)
-    expect(saved().game.balance).toBe(120_000_000)
+    expect(saved().game.balance).toBe(120_000_000_000)
     await wrapper.find('.ascension-reset-launch').trigger('click')
     await wrapper.find('#ascension-confirm-input').setValue('PRESTIGE')
     expect(wrapper.find('.ascension-confirm-submit').attributes('disabled')).toBeUndefined()
@@ -134,7 +135,7 @@ describe('Prestige économique — page et boutique', () => {
     expect(done.ascension.progress.prestigeCount).toBe(1)
     expect(done.ascension.progress.availablePoints).toBeGreaterThanOrEqual(20)
     expect(done.ascension.progress.highestFameAwardedLevel).toBe(start.prestige.lastAwardedLevel)
-    expect(done.prestige.fameMicros).toBe(start.prestige.fameMicros)
+    expect(done.prestige.fameMicros).toBe(0)
     expect(done.fiscal.periodStartedAt).toBe(start.fiscal.periodStartedAt)
     expect(wrapper.find('.ascension-confirm').exists()).toBe(false)
     expect(wrapper.find('.ascension-reset-launch').attributes('disabled')).toBeDefined()

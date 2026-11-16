@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import {createV8CapitalState, getExactAmount as v, withExactAmount as sv, type V8CapitalState} from './exact-state-v8.ts'
+import {createV8CapitalState, getExactAmount as v, type V8CapitalState} from './exact-state-v8.ts'
 import {projectV8ForLegacyUI, approximateMoneyCents} from './exact-view-v8.ts'
 import {loadV8CapitalState, saveV8CapitalState, exportV8Save} from './exact-persistence-v8.ts'
 import {createV8MarketRuntime} from './exact-clock-v8.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
-import {formatCompactUnits,parseDecimalUnits} from './large-numbers.ts'
+import {formatCompactUnits} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
@@ -15,7 +15,7 @@ import {getAsset} from './trading/catalog.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
-import {nextAscensionCost} from './ascension/catalog.ts'
+import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
@@ -39,10 +39,6 @@ import PrestigeScreen from './components/PrestigeScreen.vue'
 import { type AscensionPurchase } from './ascension/shop.ts'
 import { type AscensionResult } from './ascension/engine.ts'
 import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
-import {
-  configureAutomation, createMarketOrder, cancelMarketOrder, type AutomationActionResult,
-} from './ascension/automation-orders.ts'
-import type { AscensionAutomationSettings, AscensionMarketOrder } from './ascension/contracts.ts'
 import { getBonusBreakdown, getBonusMultiplier } from './prestige/bonuses.ts'
 import { type FameShopPurchase } from './prestige/shop.ts'
 import { type CollectionPurchase } from './prestige/collections.ts'
@@ -435,67 +431,6 @@ function executePrestigeCycle():AscensionResult{
     earnedPoints:limited(changed.earnedPoints),totalPoints:limited(v(changed.state.ascension.progress.availablePoints)),
     eligibleWorthCents:limited(changed.worthCents),taxesSettledCents:limited(tax),completedAt:at}}
 }
-function executeAutomationSettings(patch:Partial<AscensionAutomationSettings>):AutomationActionResult{
-  const result=configureAutomation(capital.value,patch)
-  if(!result.ok||result.state===capital.value)return result
-  const values=result.state.ascension.run.automation
-  const {enterpriseBudgetCents, ...withoutBudget}=values
-  const exactAutomation={...withoutBudget,maxOrderCents:sv(BigInt(values.maxOrderCents)),
-    cashReserveCents:sv(BigInt(values.cashReserveCents)),
-    ...(enterpriseBudgetCents===undefined?{}:{enterpriseBudgetCents:sv(BigInt(enterpriseBudgetCents))})}
-  const next={...exact.value,ascension:{...exact.value.ascension,
-    run:{...exact.value.ascension.run,automation:exactAutomation}}}
-  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
-}
-function executeCreateOrder(order:Omit<AscensionMarketOrder,'id'|'createdAtRealMs'>):AutomationActionResult{
-  const result=createMarketOrder(capital.value,order,Date.now())
-  if(!result.ok){if(result.error==='pending-replay')marketRuntime?.wake();return result}
-  const asset=getAsset(order.assetId)
-  const units=asset?parseDecimalUnits(finiteNumberDecimal(order.quantity)??'invalid',asset.quantityDecimals):null
-  if(units===null)return{ok:false,state:capital.value,error:'invalid-order'}
-  const legacyRun=result.state.ascension.run
-  const next={...exact.value,ascension:{...exact.value.ascension,run:{...exact.value.ascension.run,
-    nextOrderId:legacyRun.nextOrderId,marketOrders:[...(exact.value.ascension.run.marketOrders??[]),
-      {...order,id:(legacyRun.nextOrderId??2)-1,createdAtRealMs:Date.now(),quantity:sv(units)}]}}}
-  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
-}
-/** Large pending orders use exact token units, not Number-based V7 validation. */
-function executeExactCreateOrder(order:Omit<AscensionMarketOrder,'id'|'createdAtRealMs'|'quantity'> & {quantity:string}):AutomationActionResult{
-  if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
-  const at=Date.now()
-  const run=exact.value.ascension.run
-  const asset=getAsset(order.assetId)
-  const quantity=asset?parseDecimalUnits(order.quantity,asset.quantityDecimals):null
-  if(exact.value.ascension.progress.upgradeLevels['automatic-orders']<1)
-    return{ok:false,state:capital.value,error:'locked'}
-  if(!asset||quantity===null||quantity<=0n||!Number.isFinite(order.triggerPrice)||
-     order.triggerPrice<asset.minPrice||order.triggerPrice>asset.maxPrice||
-     !['limit','stop-loss','take-profit'].includes(order.kind)||
-     (order.side!=='buy'&&order.side!=='sell')||
-     (order.kind!=='limit'&&order.side!=='sell'))
-    return{ok:false,state:capital.value,error:'invalid-order'}
-  if(!Number.isSafeInteger(at)||at<run.startedAtRealMs||
-     at<exact.value.trading.dividendLastPaidAt||at-exact.value.trading.dividendLastPaidAt>=1000){
-    marketRuntime?.wake()
-    return{ok:false,state:capital.value,error:'pending-replay'}
-  }
-  const orders=run.marketOrders??[]
-  if(orders.length>=24)return{ok:false,state:capital.value,error:'too-many-orders'}
-  const id=run.nextOrderId??1
-  if(!Number.isSafeInteger(id+1))return{ok:false,state:capital.value,error:'invalid-order'}
-  const next:V8CapitalState={...exact.value,ascension:{...exact.value.ascension,
-    run:{...run,nextOrderId:id+1,marketOrders:[...orders,
-      {...order,id,createdAtRealMs:at,quantity:sv(quantity)}]}}}
-  if(!replaceWholeSaveExact(next))return{ok:false,state:capital.value,error:'storage-error'}
-  return{ok:true,state:capital.value}
-}
-function executeCancelOrder(id:number):AutomationActionResult{
-  const result=cancelMarketOrder(capital.value,id)
-  if(!result.ok)return result
-  const next={...exact.value,ascension:{...exact.value.ascension,run:{...exact.value.ascension.run,
-    marketOrders:exact.value.ascension.run.marketOrders?.filter(x=>x.id!==id)??[]}}}
-  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
-}
 function executeMarketSpeed(speed:number):MarketActionResult{
   const result=selectMarketSpeed(capital.value,speed,Date.now())
   if(!result.ok||result.state===capital.value)return result
@@ -728,11 +663,9 @@ onUnmounted(() => {
       :claim-reward="claimAchievementReward" @back="returnHomeFromAchievements" />
     <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
-    <PrestigeScreen v-if="page === 'prestige'" :state="capital"
+    <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital"
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
-      :save-automation="executeAutomationSettings" :create-order="executeCreateOrder" :create-exact-order="executeExactCreateOrder"
-      :cancel-order="executeCancelOrder"
       @back="returnHomeFromPrestige" />
     <TradingScreen v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"

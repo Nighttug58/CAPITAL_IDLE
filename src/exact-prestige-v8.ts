@@ -1,5 +1,6 @@
-/** V8 version of current (PRE-rebalance) Prestige cycle and point accounting.
- * Eligibility/costs stay at level 100 and $100M until pass 6. */
+import { MIN_LEVEL, MIN_WORTH_CENTS, prestigePoints as previewV8PrestigePoints } from './ascension/v2.ts'
+export { previewV8PrestigePoints }
+
 import type {V8CapitalState} from './exact-state-v8.ts'
 import {createV8CapitalState,getExactAmount as v,withExactAmount as s} from './exact-state-v8.ts'
 import {getExactLevel} from './exact-levels.ts'
@@ -8,20 +9,6 @@ import {getAsset} from './trading/catalog.ts'
 import {v8AdvanceFiscalEconomy,v8PayTaxes} from './exact-runtime-v8.ts'
 import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
-
-const MIN_LEVEL=100
-const MIN_WORTH_CENTS=10_000_000_000n
-/** Newton integer square-root; no Number conversion even at 10^1000. */
-export function isqrt(n:bigint):bigint{
-  if(n<0n)throw new RangeError('Negative square root')
-  if(n<2n)return n
-  let x=1n<<BigInt(Math.ceil(n.toString(2).length/2))
-  for(;;){const y=(x+n/x)>>1n;if(y>=x)return x;x=y}
-}
-export function previewV8PrestigePoints(worthCents:bigint,level:number):bigint{
-  if(level<MIN_LEVEL||worthCents<MIN_WORTH_CENTS)return 0n
-  return isqrt(worthCents*400n/MIN_WORTH_CENTS)
-}
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
@@ -67,7 +54,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
     availablePoints:s(v(progress.availablePoints)+earnedPoints),
     lifetimePoints:s(v(progress.lifetimePoints)+earnedPoints),
     prestigeCount:nextCycle,
-    history:[...progress.history,{cycle:nextCycle,completedAtRealMs:at,
+    history:[...progress.history,{formulaVersion:2 as const,cycle:nextCycle,completedAtRealMs:at,
       eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level}]
       .slice(-MAX_ASCENSION_HISTORY),
   }
@@ -78,8 +65,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   const result:V8CapitalState={...fresh,
     prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
       experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
-      // Pass 5 prepares cycle counters; the actual Fame balance reset is
-      // deliberately postponed to the Prestige V2 redesign in pass 6.
+      fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),
       cycleEarnedFameMicros:'0',cycleLevelFameMicros:'0',cycleCollectionFameMicros:'0'},
     fiscal:afterTax.fiscal,
     ascension:{...fresh.ascension,progress:nextProgress},

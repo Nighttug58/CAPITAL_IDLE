@@ -1,27 +1,24 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
-import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
-import { ASCENSION_MIN_LEVEL, ASCENSION_MIN_WORTH_USD, eligiblePrestigeWorthFromOverview, previewPrestigePoints } from '../ascension/contracts.ts'
-import { ASCENSION_UPGRADES } from '../ascension/catalog.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import { prestigeShop,prestigeCost,prestigePoints,MIN_LEVEL as ASCENSION_MIN_LEVEL,MIN_WORTH_CENTS } from '../ascension/v2.ts'
+import { v8EligiblePrestigeWorthCents } from '../exact-prestige-v8.ts'
+import { getExactLevel } from '../exact-levels.ts'
+import { formatCompactUnits } from '../large-numbers.ts'
+const ASCENSION_MIN_WORTH_USD=Number(MIN_WORTH_CENTS)/100
 import { ASCENSION_CATEGORIES, ASCENSION_PRESENTATION } from '../ascension/presentation.ts'
-import { getAscensionOffers, type AscensionPurchase, type AscensionShopError } from '../ascension/shop.ts'
+import { type AscensionPurchase, type AscensionShopError } from '../ascension/shop.ts'
 import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
-import type { AscensionAutomationSettings, AscensionMarketOrder } from '../ascension/contracts.ts'
-import type { AutomationActionResult } from '../ascension/automation-orders.ts'
-import AutomationPanel from './AutomationPanel.vue'
 import { MARKET_SPEEDS, marketSpeed, frenzyActive, type MarketActionResult } from '../ascension/market-effects.ts'
 
 const props = defineProps<{
+  exact: V8CapitalState
   state: CapitalState
   purchaseUpgrade: (id: string, currentLevel: number) => AscensionPurchase
   performCycle: () => AscensionResult
   selectSpeed: (speed: number) => MarketActionResult
   activateFrenzy: () => MarketActionResult
-  saveAutomation: (patch: Partial<AscensionAutomationSettings>) => AutomationActionResult
-  createOrder: (order: Omit<AscensionMarketOrder,'id'|'createdAtRealMs'>) => AutomationActionResult
-  createExactOrder?: (order: Omit<AscensionMarketOrder,'id'|'createdAtRealMs'|'quantity'> & {quantity:string}) => AutomationActionResult
-  cancelOrder: (id: number) => AutomationActionResult
 }>()
 const emit = defineEmits<{ back: [] }>()
 
@@ -36,35 +33,40 @@ const noticeError = ref(false)
 const number = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const integer = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 0 })
 const cash = (amount: number) => number.format(amount) + ' $'
-const fmt = (value: number) => integer.format(value)
-const overview = computed(() => getCapitalStatsOverview(props.state))
-const worth = computed(() => eligiblePrestigeWorthFromOverview(overview.value))
-const level = computed(() => overview.value.level)
-const pointPreview = computed(() => previewPrestigePoints(worth.value ?? 0, level.value))
-const progress = computed(() => props.state.ascension.progress)
+const fmt = (value: number|bigint|string) => integer.format(typeof value === "string" ? BigInt(value) : value)
+
+const worth = computed(() => v8EligiblePrestigeWorthCents(props.exact))
+const level = computed(() => getExactLevel(BigInt(props.exact.prestige.experienceCents)))
+const pointPreview = computed(() => prestigePoints(worth.value, level.value))
+const progress = computed(() => props.exact.ascension.progress)
 const currentSpeed = computed(() => marketSpeed(props.state))
 const unlockedSpeedLevel = computed(() => progress.value.upgradeLevels['time-accelerator'])
 const hasFrenzy = computed(() => progress.value.upgradeLevels['market-frenzy'] > 0)
 const frenzyOn = computed(() => frenzyActive(props.state, props.state.trading.dividendLastPaidAt))
 const frenzyRemaining = computed(() => Math.max(0, (props.state.ascension.run.frenzyReadyAtRealMs ?? 0) - props.state.trading.dividendLastPaidAt))
 const frenzyTime = computed(() => Math.ceil(frenzyRemaining.value / 60_000))
-const offers = computed(() => getAscensionOffers(props.state))
-const activeUpgrades = ASCENSION_UPGRADES.filter(item => item.id !== 'auto-click' && item.id !== 'market-liquidity' && item.id !== 'liquidity-recovery')
+
+const activeUpgrades = prestigeShop
 const totalLevels = activeUpgrades.reduce((sum, item) => sum + item.maxLevel, 0)
 const purchasedLevels = computed(() => activeUpgrades.reduce((sum, item) => sum + progress.value.upgradeLevels[item.id], 0))
-const spentPoints = computed(() => progress.value.lifetimePoints - progress.value.availablePoints)
+const spentPoints = computed(() => BigInt(progress.value.lifetimePoints) - BigInt(progress.value.availablePoints))
 const toGo = computed(() => totalLevels - purchasedLevels.value)
 const affordPrestige = computed(() => level.value >= ASCENSION_MIN_LEVEL &&
-  worth.value !== null && worth.value >= ASCENSION_MIN_WORTH_USD)
-const worthProgress = computed(() => Math.min(100, Math.max(0, (worth.value ?? 0) / ASCENSION_MIN_WORTH_USD * 100)))
+  worth.value !== null && worth.value >= MIN_WORTH_CENTS)
+const worthProgress = computed(() => Math.min(100, Math.max(0, Number(worth.value*100n/MIN_WORTH_CENTS))))
 const sections = computed(() => ASCENSION_CATEGORIES.map(category => ({
   ...category,
   rows: ASCENSION_PRESENTATION.filter(item => item.category === category.id && activeUpgrades.some(def => def.id === item.id)).map(item => ({
     item,
-    def: ASCENSION_UPGRADES.find(def => def.id === item.id)!,
-    offer: offers.value.find(offer => offer.id === item.id)!,
+    def: prestigeShop.find(def => def.id === item.id)!,
+    offer: (() => {
+      const currentLevel=progress.value.upgradeLevels[item.id]
+      const nextCost=prestigeCost(item.id,currentLevel)
+      const gate=prestigeShop.find(row=>row.id===item.id)!.cycle
+      return {currentLevel,nextCost,gate,canAfford:progress.value.prestigeCount>=gate && nextCost!==null && BigInt(progress.value.availablePoints)>=BigInt(nextCost)}
+    })(),
   })),
-})))
+})).filter(section=>section.rows.length))
 
 const shopErrors: Record<AscensionShopError, string> = {
   'unknown-upgrade': 'Amélioration introuvable.',
@@ -77,8 +79,8 @@ const shopErrors: Record<AscensionShopError, string> = {
 const cycleErrors: Record<AscensionError, string> = {
   'invalid-clock': 'Horloge incohérente. Réessaie une fois le jeu synchronisé.',
   'pending-market-replay': 'Le marché et les dividendes terminent leur rattrapage. Réessaie dans un instant.',
-  'insufficient-level': 'Le niveau 100 est nécessaire pour chaque Prestige.',
-  'insufficient-worth': 'Il faut au moins 100 millions $ de patrimoine éligible.',
+  'insufficient-level': 'Le niveau 150 est nécessaire pour chaque Prestige.',
+  'insufficient-worth': 'Il faut au moins 10 milliards $ de patrimoine éligible.',
   'money-overflow': 'Montants ou calcul économique non représentables. Le cycle est conservé.',
   'storage-error': 'La sauvegarde a échoué : ton empire et tes PP restent inchangés.',
 }
@@ -197,7 +199,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
         </div>
         <div class="ascension-checks">
           <div><span>Niveau du cycle</span><strong :class="{ 'ascension-good': level >= ASCENSION_MIN_LEVEL }">{{ level }} / {{ ASCENSION_MIN_LEVEL }}</strong></div>
-          <div><span>Patrimoine éligible (net des taxes, hors collections)</span><strong>{{ worth === null ? 'Non disponible' : cash(worth) }}</strong></div>
+          <div><span>Patrimoine éligible (net des taxes, hors collections)</span><strong>{{ formatCompactUnits(worth,2,'$') }}</strong></div>
           <div><span>Seuil de patrimoine</span><strong>{{ cash(ASCENSION_MIN_WORTH_USD) }}</strong></div>
           <div><span>Taxes soldées automatiquement au Prestige</span><strong :class="{ 'ascension-good': state.fiscal.taxesDueCents === 0 }">{{ cash(state.fiscal.taxesDueCents / 100) }}</strong></div>
         </div>
@@ -229,8 +231,6 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
         </div>
       </section>
 
-      <AutomationPanel :state="state" :save-automation="saveAutomation"
-        :create-order="createOrder" :create-exact-order="createExactOrder" :cancel-order="cancelOrder" />
       <section class="ascension-shop-heading" aria-label="Catalogue des améliorations Prestige">
         <div><span class="ascension-eyebrow">BOUTIQUE PERMANENTE</span><h2>Améliorations Prestige</h2></div>
         <span>{{ toGo }} niveaux restants</span>
@@ -258,7 +258,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
             <button type="button" class="ascension-buy" :disabled="!row.offer.canAfford || busy || confirming"
               :aria-label="'Acheter ' + row.item.label + ' niveau ' + (row.offer.currentLevel + 1)"
               @click="buy(row.item.id, row.offer.currentLevel)">
-              {{ row.offer.nextCost === null ? 'MAX' : row.offer.canAfford ? 'ACHETER' : 'PP INSUFF.' }}
+              {{ row.offer.nextCost === null ? 'MAX' : progress.prestigeCount < row.offer.gate ? 'PRESTIGE ' + row.offer.gate + ' REQUIS' : row.offer.canAfford ? 'ACHETER' : 'PP INSUFF.' }}
             </button>
           </div>
         </article>
@@ -277,7 +277,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           <span class="ascension-eyebrow">CONFIRMATION IRRÉVERSIBLE</span>
           <h2 id="ascension-confirm-title">Confirmer le Prestige ?</h2>
           <p>Tu vas recommencer au <strong>niveau 1</strong> et perdre le cash, les actions, les cryptos, les entreprises et les améliorations de clic du cycle.</p>
-          <p>La <strong>Fame</strong>, les collections, leurs bonus, les PP et les améliorations Prestige sont conservés. Les échéances fiscales continuent.</p>
+          <p>Le solde de <strong>Fame</strong> et l’Auto Click reviennent à zéro. Les boosts Fame achetés, les collections, leurs bonus, les PP et les améliorations Prestige sont conservés. Les échéances fiscales continuent.</p>
            <p v-if="state.fiscal.taxesDueCents > 0">Les taxes actuelles de <strong>{{ cash(state.fiscal.taxesDueCents / 100) }}</strong> seront réglées automatiquement dans l’opération de Prestige. Aucun impôt n’est effacé.</p>
           <div class="ascension-confirm-reward">Récompense de ce cycle : <strong>+{{ fmt(pointPreview) }} PP</strong></div>
           <p v-if="notice && noticeError" class="ascension-modal-error" role="alert">{{ notice }}</p>

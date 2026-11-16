@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createV8CapitalState, getExactAmount as cents, type V8CapitalState } from './exact-state-v8.ts'
 import { dollarAutoClickPriceCents, buyDollarAutoClick, armDollarAutoClick,
   getDollarAutoClickLevel, DOLLAR_AUTOCLICK_MAX_LEVEL } from './dollar-autoclick-v8.ts'
-import { v8AutomationFrame } from './exact-automation-v8.ts'
+import { v8AutoClickFrame } from './exact-autoclick-frame.ts'
 import { createV8MarketRuntime } from './exact-clock-v8.ts'
 import { v8PerformPrestige } from './exact-prestige-v8.ts'
 import { getExactLevelStartThreshold } from './exact-levels.ts'
@@ -74,25 +74,22 @@ test('Dollar Auto Click purchases are cash-only and exact; XP, Fame, PP and clic
 test('One real foreground second yields one batch of native XP/Fame/click credit, never a backlog',()=>{
   let state=buyDollarAutoClick(funded(),NOW)!
   assert.ok(state)
-  // The old Prestige PP Auto Click and saved autoClickEnabled flag are inert.
-  state={...state,ascension:{...state.ascension,run:{...state.ascension.run,
-    automation:{...state.ascension.run.automation,autoClickEnabled:true}}}}
   const baseEarned=cents(state.game.lifetimeEarned)
-  const quiet=v8AutomationFrame(ready(state,NOW),NOW,true)
+  const quiet=v8AutoClickFrame(ready(state,NOW),NOW,true)
   assert.equal(quiet.stats.clickCount,0)
-  const hidden=v8AutomationFrame(ready(quiet,NOW+1000),NOW+1000,false)
+  const hidden=v8AutoClickFrame(ready(quiet,NOW+1000),NOW+1000,false)
   assert.equal(hidden.stats.clickCount,0)
-  const first=v8AutomationFrame(ready(hidden,NOW+1000),NOW+1000,true)
+  const first=v8AutoClickFrame(ready(hidden,NOW+1000),NOW+1000,true)
   assert.equal(first.stats.clickCount,1)
   assert.equal(cents(first.game.lifetimeEarned),baseEarned+100n)
   assert.equal(cents(first.stats.earnedBySource.clicks),100n)
   assert.equal(cents(first.prestige.experienceCents),100n)
-  const repeat=v8AutomationFrame(ready(first,NOW+1000),NOW+1000,true)
+  const repeat=v8AutoClickFrame(ready(first,NOW+1000),NOW+1000,true)
   assert.equal(repeat.stats.clickCount,1)
-  const offlineGap=v8AutomationFrame(ready(repeat,NOW+12_000),NOW+12_000,true)
+  const offlineGap=v8AutoClickFrame(ready(repeat,NOW+12_000),NOW+12_000,true)
   assert.equal(offlineGap.stats.clickCount,1)
   assert.equal(offlineGap.ascension.run.lastAutomationAtRealMs,NOW+12_000)
-  const resumed=v8AutomationFrame(ready(offlineGap,NOW+13_000),NOW+13_000,true)
+  const resumed=v8AutoClickFrame(ready(offlineGap,NOW+13_000),NOW+13_000,true)
   assert.equal(resumed.stats.clickCount,2)
   assert.ok(valid(resumed).valid,valid(resumed).reason)
 })
@@ -105,13 +102,13 @@ test('At rank 20, exactly twenty clicks per foreground tick; legacy PP Auto Clic
     upgradeLevels:{...state.ascension.progress.upgradeLevels,'auto-click':20},
     lifetimePoints:'210',availablePoints:'0'},run:{...state.ascension.run,
       automation:{...state.ascension.run.automation,autoClickEnabled:true}}}}
-  const result=v8AutomationFrame(ready(withOldPP,NOW+1000),NOW+1000,true)
+  const result=v8AutoClickFrame(ready(withOldPP,NOW+1000),NOW+1000,true)
   assert.equal(result.stats.clickCount,20)
   assert.equal(cents(result.game.lifetimeEarned)-cents(state.game.lifetimeEarned),2000n)
   assert.equal(v8BuyPrestigeUpgrade(withOldPP,'auto-click',20),null)
   const withoutDollars={...withOldPP,ascension:{...withOldPP.ascension,run:{...withOldPP.ascension.run,
     autoClickLevel:0}}}
-  const oldOnly=v8AutomationFrame(ready(withoutDollars,NOW+1000),NOW+1000,true)
+  const oldOnly=v8AutoClickFrame(ready(withoutDollars,NOW+1000),NOW+1000,true)
   assert.equal(oldOnly.stats.clickCount,0)
 })
 
@@ -147,11 +144,11 @@ test('The V8 schema accepts pre-pass-4 saves without Auto Click; new saves persi
 
 test('Prestige clears dollar Auto Click and PP old ranks remain unchanged for refund',()=>{
   const base=funded()
-  const xp=getExactLevelStartThreshold(100)*100n
-  const levelFame=5_050_000_000n
-  const eligible={...base,prestige:{...base.prestige,experienceCents:xp.toString(),lastAwardedLevel:100,
+  const xp=getExactLevelStartThreshold(150)*100n
+  const levelFame=11_325_000_000n
+  const eligible={...base,prestige:{...base.prestige,experienceCents:xp.toString(),lastAwardedLevel:150,
     fameMicros:levelFame.toString(),lifetimeFameMicros:levelFame.toString(),levelFameMicros:levelFame.toString()},
-    ascension:{...base.ascension,progress:{...base.ascension.progress,highestFameAwardedLevel:100}}}
+    ascension:{...base.ascension,progress:{...base.ascension.progress,highestFameAwardedLevel:150}}}
   const owned=buyDollarAutoClick(eligible,NOW)!
   assert.equal(owned.ascension.run.autoClickLevel,1)
   const result=v8PerformPrestige(owned,NOW)

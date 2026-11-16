@@ -20,7 +20,7 @@ import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUp
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
 import { getV2NextFameBoostCost as fameCost } from './prestige/catalog.ts'
-import { nextAscensionCost } from './ascension/catalog.ts'
+import { prestigeShop, prestigeCost } from './ascension/v2.ts'
 import type { AscensionUpgradeId } from './ascension/contracts.ts'
 import { ACHIEVEMENTS, type AchievementMetric } from './achievements.ts'
 
@@ -304,9 +304,10 @@ export function v8BuyFameUpgrade(state: V8CapitalState, id: FameBoostId,
 export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgradeId,
   expectedLevel: number): V8CapitalState | null {
   // Former PP Auto Click is retired; its ledger is retained for the pass-6 refund.
-  if (id === 'auto-click' || id === 'market-liquidity' || id === 'liquidity-recovery') return null
+  const offer=prestigeShop.find(row=>row.id===id)
+  if (!offer || state.ascension.progress.shopVersion!==2 || state.ascension.progress.prestigeCount<offer.cycle) return null
   if (state.ascension.progress.upgradeLevels[id] !== expectedLevel) return null
-  const price = nextAscensionCost(id, expectedLevel)
+  const price = prestigeCost(id, expectedLevel)
   if (price === null || v(state.ascension.progress.availablePoints) < BigInt(price)) return null
   return { ...state,
     ascension: { ...state.ascension, progress: { ...state.ascension.progress,
