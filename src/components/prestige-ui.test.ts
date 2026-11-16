@@ -126,9 +126,9 @@ describe('Fame Shop & Collection — responsive UI', () => {
   it('ajoute Collection avant Stats, avec cinq onglets et dix objets par catégorie', async () => {
     const { wrapper } = mountSaved(20_000)
     const nav = wrapper.findAll('.bottom-nav button')
-    expect(nav.map((button) => button.text())).toEqual([
-      'Accueil', 'Trading', 'Entreprises', 'Collection', '', 'Stats',
-    ])
+    expect(nav.slice(0,4).map(button => button.text())).toEqual(['Accueil','Trading','Entreprises','Collection'])
+    expect(nav[4]!.attributes('aria-label')).toContain('Achievements')
+    expect(nav[5]!.text()).toBe('Stats')
     await nav[3]!.trigger('click')
     expect(wrapper.find('.collection-screen').exists()).toBe(true)
     expect(wrapper.find('.collection-screen').isVisible()).toBe(true)

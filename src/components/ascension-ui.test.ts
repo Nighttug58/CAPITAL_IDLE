@@ -39,9 +39,9 @@ describe('Prestige économique — page et boutique', () => {
   it('s’ouvre depuis Accueil, affiche 11 upgrades (Auto Click payé en dollars), et conserve Stats à droite', async () => {
     const { wrapper } = mountState(fixture())
     const nav = wrapper.findAll('.bottom-nav button')
-    expect(nav.map(button => button.text())).toEqual([
-      'Accueil', 'Trading', 'Entreprises', 'Collection', '', 'Stats',
-    ])
+    expect(nav.slice(0,4).map(button => button.text())).toEqual(['Accueil','Trading','Entreprises','Collection'])
+    expect(nav[4]!.attributes('aria-label')).toContain('Achievements')
+    expect(nav[5]!.text()).toBe('Stats')
     expect(wrapper.find('.prestige-launch').exists()).toBe(true)
     await wrapper.find('.prestige-launch').trigger('click')
     expect(wrapper.find('.ascension-screen').exists()).toBe(true)
