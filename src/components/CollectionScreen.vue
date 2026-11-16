@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { formatCompactUnits } from '../large-numbers.ts'
+import { formatCompactUnits, formatFameMicros } from '../large-numbers.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { CURRENT_COLLECTION_ITEMS } from '../prestige/collections-catalog.ts'
 import { currentCollectionId, getCollectionSlot } from '../prestige/catalog.ts'
@@ -9,7 +9,6 @@ import { COLLECTION_CATEGORIES, FAME_BOOSTS, type CollectionCategoryId } from '.
 import {
   type CollectionPurchase, type CollectionPurchaseError,
 } from '../prestige/collections.ts'
-import { FAME_MICROS } from '../prestige/state.ts'
 
 const props = defineProps<{
   state: V8CapitalState
@@ -25,7 +24,7 @@ const closeButton = ref<HTMLButtonElement | null>(null)
 const dialog = ref<HTMLElement | null>(null)
 const numbers = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const money = (cents: number) => numbers.format(cents / 100) + ' $'
-const fame = (micros: number) => numbers.format(micros / FAME_MICROS)
+const fame = (micros: number) => formatFameMicros(BigInt(Math.round(micros)))
 const percentage = (bps: number) => numbers.format(bps / 100) + ' %'
 const iconByCategory: Record<CollectionCategoryId, string> = {
   watches: '⌚', autos: '🏎', paintings: '▣', antiquities: '🏺', jewelry: '◆',
@@ -139,7 +138,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
 
     <div class="collection-summary">
       <div><span>GOLD DISPONIBLE</span><strong>{{ formatCompactUnits(BigInt(state.game.balance), 2, '$') }}</strong></div>
-      <div><span>FAME DISPONIBLE</span><strong class="collection-fame-balance">✦ {{ formatCompactUnits(BigInt(state.prestige.fameMicros), 6, '') }}</strong></div>
+      <div><span>FAME DISPONIBLE</span><strong class="collection-fame-balance">✦ {{ formatFameMicros(BigInt(state.prestige.fameMicros)) }}</strong></div>
     </div>
 
     <div class="collection-tabs" role="tablist" aria-label="Catégories de collection">

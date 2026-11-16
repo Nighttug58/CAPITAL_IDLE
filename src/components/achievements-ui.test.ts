@@ -20,21 +20,23 @@ function start(saved = createCapitalState({
   return { wrapper, read: () => readV8LegacyUI() }
 }
 
-describe('Achievements : bouton ruban et récupération persistante', () => {
-  it('bouton ruban compact sur accueil et retour avec focus', async () => {
+describe('Achievements : navigation et récompenses groupées', () => {
+  it('bouton dans la navigation avant Stats ; une seule carte par catégorie', async () => {
     const { wrapper } = start()
     const button = wrapper.find('button.achievements-launch')
     expect(button.exists()).toBe(true)
     expect(button.find('svg').exists()).toBe(true)
     expect(button.attributes('aria-label')).toContain('Achievements')
+    expect(button.element.nextElementSibling?.textContent).toContain('Stats')
     await button.trigger('click')
     const page = wrapper.find('main.achievements-screen')
     expect(page.exists()).toBe(true)
     expect(page.find('h1').text()).toContain('Achievements')
     expect(page.findAll('.achievements-group')).toHaveLength(10)
-    for(const toggle of page.findAll('button[aria-expanded]'))await toggle.trigger('click')
-    expect(page.findAll('.achievement-tier').length).toBeGreaterThanOrEqual(260)
-    expect(wrapper.find('.bottom-nav').exists()).toBe(true)
+    expect(page.findAll('.achievement-track')).toHaveLength(10)
+    expect(page.findAll('.achievement-level')).toHaveLength(10)
+    expect(page.findAll('.achievement-tier')).toHaveLength(0)
+    expect(page.find('.achievements-claim-all').exists()).toBe(true)
     expect(wrapper.find('.home-screen').isVisible()).toBe(false)
     expect(document.activeElement).toBe(page.find('.achievements-back').element)
     await page.find('.achievements-back').trigger('click')
@@ -42,7 +44,7 @@ describe('Achievements : bouton ruban et récupération persistante', () => {
     expect(document.activeElement).toBe(button.element)
   })
 
-  it('charge une ancienne v7 et récupère le palier une seule fois en cash', async () => {
+  it('réclame une fois les niveaux débloqués de la catégorie et conserve la sauvegarde', async () => {
     const saved = createCapitalState({
       balance: 1_500, lifetimeEarned: 1_500, purchasedUpgrades: 0,
     }, Date.now())
@@ -53,51 +55,60 @@ describe('Achievements : bouton ruban et récupération persistante', () => {
     const launch = wrapper.find('button.achievements-launch')
     expect(launch.find('.achievements-pending').exists()).toBe(true)
     await launch.trigger('click')
-    const reward = wrapper.find('[data-achievement="clicks-100"]')
-    expect(reward.classes()).toContain('is-ready')
-    expect(reward.find('.achievement-claim').exists()).toBe(true)
-    await reward.find('.achievement-claim').trigger('click')
+    const card = wrapper.find('[data-group="clicks"]')
+    expect(card.classes()).toContain('is-ready')
+    expect(card.find('.achievement-level').text()).toMatch(/Niveau 1 \//)
+    await card.find('.achievement-claim').trigger('click')
     await nextTick()
     const savedAfter = read()
     expect(savedAfter.game.balance).toBe(1_600)
     expect(savedAfter.game.lifetimeEarned).toBe(1_500)
     expect(savedAfter.achievements.claimedIds).toContain('clicks-100')
-    expect(reward.find('.achievement-claim').exists()).toBe(false)
-    expect(reward.text()).toContain('Récupéré')
-    const imported = prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!, Date.now())
-    expect(imported.ok).toBe(true)
+    expect(card.find('.achievement-claim').exists()).toBe(false)
+    expect(prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!, Date.now()).ok).toBe(true)
     await wrapper.find('.achievements-back').trigger('click')
     await nextTick()
     await wrapper.find('.achievements-launch').trigger('click')
-    expect(wrapper.find('[data-achievement="clicks-100"] .achievement-claim').exists()).toBe(false)
+    expect(wrapper.find('[data-group="clicks"] .achievement-claim').exists()).toBe(false)
   })
 
-  it('garde le cash et la sauvegarde d origine si l enregistrement du cadeau échoue', async () => {
-    const initial = createCapitalState({
-      balance: 1_500, lifetimeEarned: 1_500, purchasedUpgrades: 0,
-    }, Date.now())
-    initial.stats.clickCount = 100
-    const { wrapper, read } = start(initial)
-    const before = JSON.stringify(read())
-    const storage = Storage.prototype.setItem
-    Storage.prototype.setItem = function (key: string, value: string) {
-      if (key === 'capital-idle-save-v8') throw new Error('Quota')
-      return storage.call(this, key, value)
+  it('récupérer tout est atomique, multi-catégories et idempotent', async () => {
+    const saved = createCapitalState({balance:1_500,lifetimeEarned:1_500,purchasedUpgrades:0},Date.now())
+    saved.stats.clickCount=120
+    const {wrapper,read}=start(saved)
+    await wrapper.find('.achievements-launch').trigger('click')
+    const button=wrapper.find('.achievements-claim-all')
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+    await nextTick()
+    expect(read().game.balance).toBe(1_850) // +100 clics, +250 revenus
+    expect(read().achievements.claimedIds).toEqual(expect.arrayContaining(['clicks-100','earnings-1000']))
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!,Date.now()).ok).toBe(true)
+  })
+
+  it('échec de sauvegarde : aucun cadeau ne passe en mémoire', async () => {
+    const initial = createCapitalState({balance:1_500,lifetimeEarned:1_500,purchasedUpgrades:0},Date.now())
+    initial.stats.clickCount=100
+    const {wrapper,read}=start(initial)
+    const before=JSON.stringify(read())
+    const storage=Storage.prototype.setItem
+    Storage.prototype.setItem=function(key:string,value:string){
+      if(key==='capital-idle-save-v8')throw new Error('Quota')
+      return storage.call(this,key,value)
     }
-    try {
+    try{
       await wrapper.find('.achievements-launch').trigger('click')
-      await wrapper.find('[data-achievement="clicks-100"] .achievement-claim').trigger('click')
+      await wrapper.find('.achievements-claim-all').trigger('click')
       expect(wrapper.find('.achievements-notice').text()).toContain('Sauvegarde impossible')
       expect(JSON.stringify(read())).toBe(before)
-    } finally {
-      Storage.prototype.setItem = storage
-    }
+    }finally{Storage.prototype.setItem=storage}
   })
 
-  it('page scrollable et bouton à largeur fixe même sur petits écrans', () => {
-    const css = readFileSync('src/style.css', 'utf8')
+  it('les cartes défilent verticalement sans déplacer la barre de navigation',()=>{
+    const css=readFileSync('src/style.css','utf8')
     expect(css).toContain('.app-shell>main.achievements-screen{display:flex;flex-direction:column;overflow:hidden;padding:0}')
     expect(css).toContain('.app-shell .achievements-content{overflow-y:auto;flex:1 1 auto;min-height:0;')
-    expect(css).toContain('.app-shell .home-actions .achievements-launch{')
+    expect(css).toContain('.app-shell .bottom-nav .nav-icon{')
   })
 })

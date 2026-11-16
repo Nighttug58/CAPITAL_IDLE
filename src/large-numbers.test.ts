@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   decodeExactInteger, encodeExactInteger, legacyDollarsToCents, legacyInteger,
   parseDecimalUnits, formatDecimalUnits, multiplyRatio, percentOfWealthCents,
-  suffixForTier, formatCompactUnits, makeExactSaveEnvelope,
+  suffixForTier, formatCompactUnits, formatFameMicros, makeExactSaveEnvelope,
 } from './large-numbers.ts'
 
 test('exact canonical serialization and billion-digit-compatible integers', () => {
@@ -67,4 +67,15 @@ test('exact save envelope keeps integers as canonical JSON strings', () => {
   assert.equal(decodeExactInteger(parsed.balanceCents), 10n ** 100n)
   assert.equal(decodeExactInteger(parsed.debtCents), -5n)
   assert.equal(typeof parsed.balanceCents, 'string')
+})
+
+test('Fame: une seule décimale arrondie, sans convertir les grands entiers en Number',()=>{
+  assert.equal(formatFameMicros(0n),'0.0')
+  assert.equal(formatFameMicros(123_456n),'0.1')
+  assert.equal(formatFameMicros(1_850_000n),'1.9')
+  assert.equal(formatFameMicros(999_949_999n),'999.9')
+  assert.equal(formatFameMicros(999_950_000n),'1.0K')
+  assert.equal(formatFameMicros(1_234_567_890n),'1.2K')
+  assert.equal(formatFameMicros(1_800_000_000_000_000n),'1.8B')
+  assert.equal(formatFameMicros(-1_800_000n),'-1.8')
 })

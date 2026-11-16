@@ -1542,3 +1542,37 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 }
 
 .home-upgrade-info .tap-reward {margin-left:4px;font-size:11px;font-weight:750;color:#b8f1ce;letter-spacing:-.02em}
+
+
+/* Compact footer actions: Achievements | Stats | Fullscreen */
+.app-shell .bottom-nav .nav-icon{
+  flex:0 0 40px;min-width:0;max-width:44px;width:40px;min-height:42px;
+  padding:4px;position:relative;display:flex;align-items:center;justify-content:center
+}
+.app-shell .bottom-nav .nav-icon svg{display:block;flex-shrink:0}
+.app-shell .bottom-nav .fullscreen-button{
+  height:42px;background:transparent;color:#899594;box-shadow:none;
+  border:1px solid transparent;border-radius:11px
+}
+.app-shell .bottom-nav .fullscreen-button:active{background:#283037}
+.app-shell .bottom-nav .achievements-launch.is-active{
+  color:#f2cf84;background:linear-gradient(180deg,#80602b32,#83602212)
+}
+.app-shell .bottom-nav .achievements-pending{
+  position:absolute;top:-3px;right:-5px;letter-spacing:0;white-space:nowrap;
+}
+@media(max-width:380px){
+  .app-shell .bottom-nav .nav-icon{flex-basis:31px;width:31px;min-width:0;padding:2px}
+}
+/* One card per achievement family, with a single tier progression. */
+.achievements-group.is-ready{border-color:#b8985b;background:#272923}
+.achievements-group-head{align-items:center}
+.achievements-group-head .achievement-level{font-size:12px;color:#f5d995}
+.achievement-current{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:9px 0 7px;font-size:11px;color:#bbcdc1}
+.achievements-group>.achievement-track{height:7px;margin:0 0 9px;background:#34443c}
+.achievements-group>.achievement-track>span{background:linear-gradient(90deg,#b58d47,#f4d490)}
+.achievement-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:31px}
+.achievement-footer small{color:#d2dbca;font-size:11px;line-height:1.3}
+.achievement-footer .achievement-state{flex:none}
+.achievements-claim-all{margin-top:12px;width:100%;border:1px solid #d6bc7b;border-radius:9px;padding:10px;background:#ae8744;color:#171a16;font-weight:850;font-size:13px}
+.achievements-claim-all:disabled{opacity:.5;cursor:not-allowed}

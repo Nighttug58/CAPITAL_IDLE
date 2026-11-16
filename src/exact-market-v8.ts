@@ -6,7 +6,8 @@ import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { quoteToExactFraction } from './exact-trading.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8BonusBasisPoints, v8CreditIncome, v8AdvanceFiscalEconomy } from './exact-runtime-v8.ts'
-import { advanceMarketTick, MARKET_TICK_MS } from './trading/market.ts'
+import { advanceMarketTick, MARKET_TICK_MS, createRandom } from './trading/market.ts'
+import { createEvent, getNewsDirection, isGlobalBearishNews, trimNews } from './trading/news.ts'
 import type { TradingState } from './trading/types.ts'
 import { ASSETS } from './trading/catalog.ts'
 import { MARKET_SPEEDS, FRENZY_ACTIVE_MS } from './ascension/market-effects.ts'
@@ -76,6 +77,19 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
         propagateSingle:effects.propagateSingle,eager:true},
     })
     trading=updated as unknown as V8TradingState
+  }
+  // Le ticker de prix tourne par 5s, mais une News de secours doit démarrer
+  // dès la prochaine seconde réelle où aucune News rouge/verte n'est active.
+  const liveNews = trading.news.filter(event => !isGlobalBearishNews(event))
+  if (!liveNews.some(event => event.startedAt <= at && event.endsAt > at &&
+      getNewsDirection(event) !== 'neutral')) {
+    const random = createRandom(trading.seed)
+    const effects = v8MarketNewsEffects(state,at)
+    const emergency = createEvent(at,() => random.next(),liveNews,{
+      durationMultiplier:effects.durationMultiplier,
+      propagateSingle:effects.propagateSingle,
+    })
+    trading = {...trading,seed:random.seed(),news:trimNews([...liveNews,emergency],at)}
   }
   const bonus=getRewardRateUnits(v8BonusBasisPoints(state,'dividend'))
   if(bonus===null)throw new RangeError('Invalid dividend bonus')

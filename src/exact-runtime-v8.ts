@@ -367,6 +367,35 @@ export function v8ClaimAchievement(state: V8CapitalState, id: string): V8Capital
   }
 }
 
+/** Atomically credit every available gift from one or all achievement families. */
+export function v8ClaimAvailableAchievements(state: V8CapitalState, groupId?: AchievementMetric):
+  { state: V8CapitalState; count: number; rewardCents: bigint } | null {
+  const claimed = new Set(state.achievements.claimedIds)
+  const newIds: string[] = []
+  let rewardCents = 0n
+  for (const group of ACHIEVEMENTS) {
+    if (groupId !== undefined && group.id !== groupId) continue
+    const progress = claimProgress(state, group.id)
+    for (const tier of group.tiers) {
+      if (BigInt(tier.target) > progress) break
+      if (claimed.has(tier.id)) continue
+      newIds.push(tier.id)
+      rewardCents += BigInt(tier.rewardCents)
+    }
+  }
+  if (!newIds.length) return null
+  return {
+    count: newIds.length, rewardCents,
+    state: { ...state,
+      game: { ...state.game, balance: s(v(state.game.balance) + rewardCents) },
+      achievements: { ...state.achievements,
+        claimedIds: [...state.achievements.claimedIds, ...newIds],
+        cycleGiftCents: s(v(state.achievements.cycleGiftCents) + rewardCents),
+      },
+    },
+  }
+}
+
 export type V8EnterprisePurchase = {ok:true; state:V8CapitalState; costCents:bigint} | {ok:false;reason:string}
 export function v8BuyEnterprise(state: V8CapitalState, id: string, at: number, upgrade = false): V8EnterprisePurchase {
   const business = getEnterprise(id)

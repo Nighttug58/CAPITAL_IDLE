@@ -5,6 +5,7 @@ import { convertValidatedV7ToV8, getExactAmount as v, type V8CapitalState } from
 import { v8AdvanceMarketSecond, v8DividendPicoCents } from './exact-market-v8.ts'
 import { advanceCapitalSecond } from './trading/dividends.ts'
 import { getAsset } from './trading/catalog.ts'
+import { getNewsDirection } from './trading/news.ts'
 import { validateExactV8State } from './exact-save-validation.ts'
 
 const now=1_800_000_000_000
@@ -12,6 +13,10 @@ const valid=(s:V8CapitalState)=>validateExactV8State(s,id=>getAsset(id)?.quantit
 
 test('v8 seeded market ticks agree exactly with v7 when no positions are owned',()=>{
   let legacy=createCapitalState(undefined,now)
+  // Une News déjà active permet de vérifier la parité déterministe des deux
+  // moteurs sans déclencher le nouveau secours V8 plus fin (chaque seconde).
+  legacy.trading.news=[{id:'news-existing',templateId:'chip-breakthrough',
+    startedAt:now,endsAt:now+600_000,affectedAssetIds:['nvideo'],impact:0.8,phase:'active'}]
   let exact=convertValidatedV7ToV8(legacy)
   for(let i=0;i<15;i++) {
     legacy=advanceCapitalSecond(legacy)
@@ -42,4 +47,21 @@ test('v8 dividends credit a very large position with no MAX_SAFE_INTEGER stall',
   assert.ok(valid(next).valid,valid(next).reason)
   // The save value remains an exact decimal string, even after a huge payout.
   assert.equal(typeof JSON.parse(JSON.stringify(next)).game.balance,'string')
+})
+
+test('V8 remplace une News expirée à la seconde exacte, sans attendre le tick de prix',()=>{
+  const initial=convertValidatedV7ToV8(createCapitalState(undefined,now))
+  const first=v8AdvanceMarketSecond(initial)
+  assert.equal(first.trading.news.length,1)
+  assert.equal(first.trading.news[0]?.startedAt,now+1000)
+  assert.notEqual(getNewsDirection(first.trading.news[0]!), 'neutral')
+  const continuous=v8AdvanceMarketSecond(first)
+  assert.deepEqual(continuous.trading.news,first.trading.news)
+  const expired={...first,trading:{...first.trading,
+    news:first.trading.news.map(item=>({...item,endsAt:now+2000}))}}
+  const replacement=v8AdvanceMarketSecond(expired)
+  assert.equal(replacement.trading.news.filter(item=>item.startedAt===now+2000).length,1)
+  assert.ok(replacement.trading.news.some(item=>item.startedAt===now+2000 &&
+    getNewsDirection(item)!=='neutral'))
+  assert.equal(replacement.trading.nextNewsAt,first.trading.nextNewsAt)
 })

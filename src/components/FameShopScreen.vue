@@ -4,11 +4,10 @@ import type { CapitalState } from '../capital.ts'
 import { FAME_BOOSTS, getV2NextFameBoostCost, FAME_BOOST_BPS_PER_LEVEL } from '../prestige/catalog.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount } from '../exact-state-v8.ts'
-import { formatCompactUnits } from '../large-numbers.ts'
+import { formatFameMicros } from '../large-numbers.ts'
 import { getBonusBreakdown } from '../prestige/bonuses.ts'
 import { getAbsolutePrestigeStatus } from '../prestige/absolute.ts'
 import { getFameShopOffers, type FameShopError, type FameShopPurchase } from '../prestige/shop.ts'
-import { FAME_MICROS } from '../prestige/state.ts'
 
 const props = defineProps<{
   state: CapitalState
@@ -20,14 +19,10 @@ const returnButton = ref<HTMLButtonElement | null>(null)
 const notice = ref('')
 const noticeError = ref(false)
 const numeric = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
-const fame = (micros: number) => numeric.format(micros / FAME_MICROS)
-const fameBalance = computed(() => {
-  if (!props.exactState) return fame(props.state.prestige.fameMicros)
-  const micros = getExactAmount(props.exactState.prestige.fameMicros)
-  return micros < 1_000_000_000n
-    ? numeric.format(Number(micros) / 1_000_000)
-    : formatCompactUnits(micros, 6, '').trim()
-})
+const fame = (micros: number) => formatFameMicros(BigInt(Math.round(micros)))
+const fameBalance = computed(() => props.exactState
+  ? formatFameMicros(getExactAmount(props.exactState.prestige.fameMicros))
+  : fame(props.state.prestige.fameMicros))
 const percentage = (basisPoints: number) => numeric.format(basisPoints / 100) + ' %'
 const offers = computed(() => props.exactState ? FAME_BOOSTS.map(boost => {
   const currentLevel = props.exactState!.prestige.boosts[boost.id]

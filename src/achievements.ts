@@ -141,6 +141,10 @@ export function getClaimableAchievementCount(state: CapitalState): number {
   return count
 }
 
+export type AchievementBatchResult =
+  | { readonly ok: true; readonly count: number; readonly rewardCents: bigint }
+  | { readonly ok: false; readonly error: 'storage-error' | 'nothing-to-claim' }
+
 export type AchievementClaimResult =
   | { readonly ok: true; readonly state: CapitalState; readonly rewardCents: number; readonly id: string }
   | { readonly ok: false; readonly state: CapitalState; readonly error: 'unknown' | 'locked' | 'claimed' | 'money-overflow' | 'storage-error' }

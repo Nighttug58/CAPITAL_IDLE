@@ -1,38 +1,44 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
-import { ACHIEVEMENTS, getAchievementOffers, type AchievementClaimResult } from '../achievements.ts'
+import { ACHIEVEMENTS, getAchievementOffers, type AchievementBatchResult, type AchievementMetric } from '../achievements.ts'
+import { formatCompactUnits } from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
-  claimReward: (id: string) => AchievementClaimResult
+  claimRewards: (groupId?: AchievementMetric) => AchievementBatchResult
 }>()
 const emit = defineEmits<{ back: [] }>()
 const backButton = ref<HTMLButtonElement | null>(null)
-const expanded=ref<string[]>([])
 const notice = ref('')
 const noticeError = ref(false)
 const offers = computed(() => getAchievementOffers(props.state))
-const rows = computed(() => ACHIEVEMENTS.map(group => ({
-  ...group,
-  progress: offers.value.find(offer => offer.group === group.id)?.progress ?? 0,
-  tiers: offers.value.filter(offer => offer.group === group.id),
-})))
+const rows = computed(() => ACHIEVEMENTS.map(group => {
+  const tiers = offers.value.filter(offer => offer.group === group.id)
+  const progress = tiers[0]?.progress ?? 0
+  const reached = tiers.filter(offer => progress >= offer.target).length
+  const received = tiers.filter(offer => offer.claimed).length
+  const pending = tiers.filter(offer => offer.claimable).length
+  const next = tiers[reached]
+  const previous = reached ? tiers[reached - 1]!.target : 0
+  const percent = next ? Math.min(100, Math.max(0, (progress - previous) / (next.target - previous) * 100)) : 100
+  return { ...group, progress, reached, received, pending, next, percent }
+}))
 const claimed = computed(() => offers.value.filter(offer => offer.claimed).length)
 const claimable = computed(() => offers.value.filter(offer => offer.claimable).length)
 const total = computed(() => offers.value.length)
 const numeric = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
-const cash = (cents: number) => numeric.format(cents / 100) + ' $'
+const money = (cents: number) => numeric.format(cents / 100) + ' $'
+const reward = (cents: bigint) => formatCompactUnits(cents, 2, '$')
 const target = (value: number, unit: string) => numeric.format(value) + (unit === '$' ? ' $' : ' ' + unit)
 
-function claim(id: string) {
-  const result = props.claimReward(id)
+function claim(groupId?: AchievementMetric) {
+  const result = props.claimRewards(groupId)
   noticeError.value = !result.ok
   notice.value = result.ok
-    ? 'Cadeau récupéré : +' + cash(result.rewardCents) + ' !'
+    ? result.count + ' cadeau(x) récupéré(s) : +' + reward(result.rewardCents) + ' !'
     : result.error === 'storage-error' ? 'Sauvegarde impossible. Aucun cadeau versé.'
-      : result.error === 'money-overflow' ? 'Solde trop élevé pour recevoir ce cadeau.'
-        : 'Ce cadeau est indisponible ou déjà récupéré.'
+      : 'Aucun cadeau disponible à récupérer.'
 }
 onMounted(() => { void nextTick(() => backButton.value?.focus()) })
 </script>
@@ -49,46 +55,42 @@ onMounted(() => { void nextTick(() => backButton.value?.focus()) })
         </svg>
         <div><span class="eyebrow">CADEAUX ET PROGRESSION</span><h1>Achievements</h1></div>
       </div>
-      <p>Atteins des paliers et récupère leurs récompenses en cash. Ta progression existante est prise en compte.</p>
+      <p>Un seul achievement par catégorie, avec niveaux et progression vers le prochain palier.</p>
       <div class="achievements-summary">
-        <span><strong>{{ claimed }} / {{ total }}</strong> récompenses récupérées</span>
-        <span class="achievements-ready"><strong>{{ claimable }}</strong> à récupérer</span>
+        <span><strong>{{ claimed }} / {{ total }}</strong> cadeaux récupérés</span>
+        <span class="achievements-ready"><strong>{{ claimable }}</strong> disponibles</span>
       </div>
+      <button type="button" class="achievements-claim-all" :disabled="claimable === 0"
+        @click="claim()">Récupérer tout <span v-if="claimable">({{ claimable }})</span></button>
       <p v-if="notice" class="achievements-notice" :class="{ 'is-error': noticeError }" role="status">{{ notice }}</p>
     </header>
     <div class="achievements-content">
-      <section v-for="group in rows" :key="group.id" class="achievements-group" :data-group="group.id">
+      <section v-for="group in rows" :key="group.id" class="achievements-group"
+        :class="{ 'is-ready': group.pending > 0 }" :data-group="group.id">
         <div class="achievements-group-head">
           <div><h2>{{ group.title }}</h2><p>{{ group.description }}</p></div>
-          <strong>{{ target(group.progress, group.unit) }}</strong>
+          <strong class="achievement-level">Niveau {{ group.reached }} / {{ group.tiers.length }}</strong>
         </div>
-        <div class="achievements-tiers">
-          <article v-for="offer in (expanded.includes(group.id) ? group.tiers : group.tiers.slice(0,3))" :key="offer.id" class="achievement-tier"
-            :class="{ 'is-claimed': offer.claimed, 'is-ready': offer.claimable }" :data-achievement="offer.id">
-            <div class="achievement-tier-info">
-              <span class="achievement-target">{{ target(offer.target, group.unit) }}</span>
-              <strong>+{{ cash(offer.rewardCents) }}</strong>
-              <div class="achievement-track" role="progressbar"
-                :aria-label="'Progression vers ' + target(offer.target, group.unit)"
-                :aria-valuenow="Math.min(offer.progress, offer.target)"
-                aria-valuemin="0" :aria-valuemax="offer.target">
-                <span :style="{ width: Math.min(100, offer.progress / offer.target * 100) + '%' }"></span>
-              </div>
-            </div>
-            <button v-if="offer.claimable" class="achievement-claim" type="button"
-              :aria-label="'Récupérer ' + cash(offer.rewardCents) + ' pour ' + target(offer.target, group.unit)"
-              @click="claim(offer.id)">Récupérer</button>
-            <span v-else class="achievement-state" :class="{ 'is-complete': offer.claimed }">
-              {{ offer.claimed ? 'Récupéré' : 'À débloquer' }}
-            </span>
-          </article>
+        <div class="achievement-current">
+          <span>{{ target(group.progress, group.unit) }}</span>
+          <span v-if="group.next">Objectif : {{ target(group.next.target, group.unit) }}</span>
+          <span v-else>Tous les paliers atteints</span>
         </div>
-        <button type="button" class="achievement-claim" :aria-expanded="expanded.includes(group.id)"
-          @click="expanded=expanded.includes(group.id)?expanded.filter(id=>id!==group.id):[...expanded,group.id]">
-          {{ expanded.includes(group.id) ? 'Réduire' : 'Voir les '+ group.tiers.length +' paliers' }}
-        </button>
+        <div class="achievement-track" role="progressbar"
+          :aria-label="'Progression de ' + group.title"
+          :aria-valuenow="Math.round(group.percent)" aria-valuemin="0" aria-valuemax="100">
+          <span :style="{ width: group.percent + '%' }"></span>
+        </div>
+        <div class="achievement-footer">
+          <small v-if="group.next">Prochain cadeau : +{{ money(group.next.rewardCents) }}</small>
+          <small v-else>Récompenses récupérées : {{ group.received }} / {{ group.tiers.length }}</small>
+          <button v-if="group.pending" type="button" class="achievement-claim"
+            :aria-label="'Récupérer ' + group.pending + ' cadeaux de ' + group.title"
+            @click="claim(group.id)">Récupérer ({{ group.pending }})</button>
+          <span v-else class="achievement-state">{{ group.reached ? 'À jour' : 'À débloquer' }}</span>
+        </div>
       </section>
-      <p class="achievements-footnote">Un cadeau se réclame une seule fois, même après un Prestige. Il ajoute du cash sans générer d’XP, de Fame ou de taxe. Les clics, revenus et entreprises concernent le cycle actuel ; le record de niveau, les collections et les Prestiges survivent aux cycles.</p>
+      <p class="achievements-footnote">Chaque palier se réclame une fois, même après Prestige. Les cadeaux donnent uniquement du cash, sans XP, Fame ni taxe. Les niveaux et cadeaux existants sont conservés depuis les anciennes sauvegardes.</p>
     </div>
   </main>
 </template>

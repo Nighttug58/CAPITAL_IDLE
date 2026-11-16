@@ -4,11 +4,11 @@ import {projectV8ForLegacyUI, approximateMoneyCents} from './exact-view-v8.ts'
 import {loadV8CapitalState, saveV8CapitalState, exportV8Save} from './exact-persistence-v8.ts'
 import {createV8MarketRuntime} from './exact-clock-v8.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
-import {formatCompactUnits} from './large-numbers.ts'
+import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
- v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAchievement} from './exact-runtime-v8.ts'
+ v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAvailableAchievements} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
@@ -25,7 +25,7 @@ import {
   getNextUpgrade,
   type GameState,
 } from './game.ts'
-import { getClaimableAchievementCount, type AchievementClaimResult } from './achievements.ts'
+import { getClaimableAchievementCount, type AchievementMetric, type AchievementBatchResult } from './achievements.ts'
 import AchievementsScreen from './components/AchievementsScreen.vue'
 import { exportFileName } from './save-transfer.ts'
 import type { CapitalState } from './capital.ts'
@@ -130,7 +130,7 @@ const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 
 const formatMoney = (value: number) => numberFormatter.format(value) + ' $'
 const exactCashLabel = computed(() => formatCompactUnits(v(exact.value.game.balance)))
 
-const fameBalance = computed(() => formatCompactUnits(v(exact.value.prestige.fameMicros),6,'').trim())
+const fameBalance = computed(() => formatFameMicros(v(exact.value.prestige.fameMicros)))
 function openFameShop() {
   page.value = 'fame'
 }
@@ -147,14 +147,14 @@ function syncExactState(next: V8CapitalState) {
   exact.value = next
   capital.value = projectV8ForLegacyUI(next)
 }
-function claimAchievementReward(id: string): AchievementClaimResult {
-  if (loadBlocked.value) return { ok:false, state:capital.value, error:'storage-error' }
-  const next = v8ClaimAchievement(exact.value,id)
-  if (!next) return {ok:false,state:capital.value,error:'locked'}
-  const old = capital.value
-  const reward = Number(v(next.game.balance)-v(exact.value.game.balance))
-  return replaceWholeSaveExact(next) ? {ok:true,state:capital.value,id,rewardCents:reward}
-    : {ok:false,state:old,error:'storage-error'}
+function claimAchievementRewards(groupId?: AchievementMetric): AchievementBatchResult {
+  if (loadBlocked.value) return {ok:false,error:'storage-error'}
+  const result = v8ClaimAvailableAchievements(exact.value,groupId)
+  if (!result) return {ok:false,error:'nothing-to-claim'}
+  // Un seul commit de sauvegarde pour les paliers: tous ou aucun.
+  return replaceWholeSaveExact(result.state)
+    ? {ok:true,count:result.count,rewardCents:result.rewardCents}
+    : {ok:false,error:'storage-error'}
 }
 function openPrestige() {
   page.value = 'prestige'
@@ -538,33 +538,6 @@ onUnmounted(() => {
             <small>{{ formatCompactUnits(v(exact.ascension.progress.availablePoints),0,'PP') }} PP</small>
           </span>
         </button>
-        <button ref="achievementsLaunch" class="achievements-launch" type="button"
-          title="Achievements · Cadeaux en cash"
-          :aria-label="'Ouvrir les Achievements' + (claimableAchievements ? ' · ' + claimableAchievements + ' cadeaux disponibles' : '')"
-          @click="openAchievements">
-          <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="8" r="5" />
-            <path d="m8.3 11.3-1.1 9 4.8-2.9 4.8 2.9-1.1-9" />
-            <path d="m10.2 8 1.1 1.1 2.5-2.5" />
-          </svg>
-          <span v-if="claimableAchievements" class="achievements-pending" aria-hidden="true">{{ claimableAchievements }}</span>
-        </button>
-      <button
-        v-if="supportsFullscreen"
-        class="fullscreen-button"
-        type="button"
-        :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'"
-        :aria-label="isFullscreen ? 'Quitter le plein écran' : 'Activer le plein écran'"
-        @click="toggleFullscreen"
-      >
-        <svg v-if="!isFullscreen" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
-          <path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5" />
-        </svg>
-        <svg v-else width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
-          <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5" />
-        </svg>
-      </button>
       </div>
       <div class="balance-value" aria-label="Solde">{{exactCashLabel}}</div>
       <section class="home-progression" aria-label="Progression et améliorations">
@@ -666,7 +639,7 @@ onUnmounted(() => {
     </main>
 
     <AchievementsScreen v-if="page === 'achievements'" :state="capital"
-      :claim-reward="claimAchievementReward" @back="returnHomeFromAchievements" />
+      :claim-rewards="claimAchievementRewards" @back="returnHomeFromAchievements" />
     <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
     <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital"
@@ -682,7 +655,7 @@ onUnmounted(() => {
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' || page === 'achievements' }"
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' }"
         :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
@@ -713,12 +686,33 @@ onUnmounted(() => {
         </svg>
         <span>Collection</span>
       </button>
+      <button ref="achievementsLaunch" type="button" class="nav-home nav-icon achievements-launch"
+        :class="{ 'is-active': page === 'achievements' }"
+        :aria-current="page === 'achievements' ? 'page' : undefined"
+        :aria-label="'Ouvrir les Achievements' + (claimableAchievements ? ' · ' + claimableAchievements + ' cadeaux disponibles' : '')"
+        title="Achievements · Cadeaux en cash" @click="openAchievements">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="8" r="5"/><path d="m8.3 11.3-1.1 9 4.8-2.9 4.8 2.9-1.1-9"/><path d="m10.2 8 1.1 1.1 2.5-2.5"/>
+        </svg>
+        <span v-if="claimableAchievements" class="achievements-pending" aria-hidden="true">{{ claimableAchievements }}</span>
+      </button>
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'stats' }"
         :aria-current="page === 'stats' ? 'page' : undefined" @click="page = 'stats'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 3v18h18M7 15l4-4 3 2 5-6" />
         </svg>
         <span>Stats</span>
+      </button>
+      <button v-if="supportsFullscreen" class="nav-home nav-icon fullscreen-button" type="button"
+        :title="isFullscreen ? 'Quitter le plein écran' : 'Plein écran'"
+        :aria-label="isFullscreen ? 'Quitter le plein écran' : 'Activer le plein écran'"
+        @click="toggleFullscreen">
+        <svg v-if="!isFullscreen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>
+        </svg>
+        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/>
+        </svg>
       </button>
     </nav>
   </div>

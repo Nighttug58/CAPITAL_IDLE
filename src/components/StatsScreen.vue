@@ -15,7 +15,7 @@ import {getAsset} from '../trading/catalog.ts'
 import {exactTradeCost,quoteToExactFraction} from '../exact-trading.ts'
 import {getCollectionBookValueCents} from '../prestige/collections-catalog.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
-import {formatCompactUnits,formatDecimalUnits} from '../large-numbers.ts'
+import {formatCompactUnits,formatDecimalUnits,formatFameMicros} from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
@@ -81,9 +81,8 @@ const exactTradingTotal = (losses=false): string | null => {
   return ['stocks','crypto','memecoins'].reduce((sum,key)=>sum+v(source[key as 'stocks'|'crypto'|'memecoins']),0n).toString()
 }
 const exactFame = (key:'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'collectionFameMicros'|'cycleEarnedFameMicros'|'cycleLevelFameMicros'|'cycleCollectionFameMicros'|'fameSpentMicros',fallback:number) =>
-  props.exactState ? (v(props.exactState.prestige[key]) < 1_000_000_000_000_000n ?
-    fameCount(Number(v(props.exactState.prestige[key]))/1_000_000) :
-    formatCompactUnits(v(props.exactState.prestige[key]),6,'').trim()) : fameCount(fallback)
+  props.exactState ? formatFameMicros(v(props.exactState.prestige[key])) :
+    formatFameMicros(BigInt(Math.round(fallback * 1_000_000)))
 
 const rate = (value: number) => precise.format(value) + ' $/s'
 const enterpriseRate = computed(() => {

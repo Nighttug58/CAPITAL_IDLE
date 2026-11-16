@@ -154,3 +154,21 @@ export function formatCompactUnits(value: bigint, decimals = 2, unit = '$'): str
 export function makeExactSaveEnvelope(fields: Record<string, bigint>): Record<string, string> {
   return Object.fromEntries(Object.entries(fields).map(([key, amount]) => [key, encodeExactInteger(amount)]))
 }
+
+/** Affichage de Fame exact (millionièmes) avec une seule décimale arrondie. */
+export function formatFameMicros(value: bigint): string {
+  const negative = value < 0n
+  const magnitude = negative ? -value : value
+  let tier = magnitude < 1_000_000_000n ? 0
+    : Math.floor(((magnitude / 1_000_000n).toString().length - 1) / 3)
+  let divisor = 1_000_000n * 1000n ** BigInt(tier)
+  let tenths = (magnitude * 10n + divisor / 2n) / divisor
+  if (tenths >= 10_000n) {
+    tier++
+    divisor *= 1000n
+    tenths = (magnitude * 10n + divisor / 2n) / divisor
+  }
+  const whole = (tenths / 10n).toString()
+  return (negative ? '-' : '') + (tier ? whole : groupDigits(whole)) +
+    '.' + (tenths % 10n).toString() + suffixForTier(tier)
+}
