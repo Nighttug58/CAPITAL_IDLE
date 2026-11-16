@@ -24,7 +24,8 @@ const precise = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 })
 const money = (cents: number) => format.format(cents / 100) + ' $'
 const cash = (value: number) => format.format(value) + ' $'
 const rate = (value: number) => precise.format(value) + ' $/s'
-const fameCount = (value: number) => precise.format(value)
+// Stable Swiss digit grouping across ICU versions (Node/jsdom vs browsers).
+const fameCount = (value: number) => precise.format(value).replace(/[\u00a0\u202f ](?=\d{3}(?:\D|$))/g, "'")
 const percent = (bps: number) => precise.format(bps / 100) + ' %'
 const prestigeFactor = (value: number) => Number.isFinite(value) ? '×' + precise.format(value) : 'Hors limites'
 const hours = (ms: number) => {

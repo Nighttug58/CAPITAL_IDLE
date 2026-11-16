@@ -2,7 +2,8 @@
 
 **Dépôt :** Nighttug58/CAPITAL_IDLE · **branche :** main  
 **Date de conception :** 16 novembre 2026  
-**Statut :** DOCUMENT DE PLANIFICATION — 0/7 passe implémentée dans cette refonte.  
+**Statut :** PASSE 1 EN COURS — 0/7 passe entièrement validée.
+**Suivi 16/11 :** primitives BigInt, règlement exact isolé, calculs de trading exacts, projection v7→v8 et prévalidation réalisés et testés. Aucun branchement dans les moteurs actifs et aucune sauvegarde v8 active tant que l'ensemble du runtime ne gère pas les montants exacts. Correction de l'affichage Fame en fr-CH. Le lancement de la passe 2 reste bloqué.  
 **Référence initiale :** main au commit 9f524b85dc8242d2e9815de8ffe0115e45acba05.  
 **Usage :** chaque commande « next » lance exactement la passe suivante, avec audit du code à jour, changements, tests, commit et bilan. Ne pas considérer les anciennes roadmaps comme tâches en attente.
 
@@ -171,7 +172,7 @@ Travaux :
 
 | Passe | Livrable principal | Statut |
 |---|---|---|
-| 1 | Grands nombres + migration de sauvegarde | À faire |
+| 1 | Grands nombres + migration de sauvegarde | En cours — intégration des moteurs v8 restante |
 | 2 | Trading/quantités illimités + paliers min/max | À faire |
 | 3 | Entreprises rentables et sans niveau fixe | À faire |
 | 4 | Accueil compact + Auto Click dollars | À faire |
