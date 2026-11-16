@@ -61,7 +61,7 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.find('.ascension-screen').exists()).toBe(false)
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
     expect(document.activeElement).toBe(wrapper.find('.prestige-launch').element)
-    await nav[4]!.trigger('click')
+    await nav[5]!.trigger('click')
     expect(wrapper.find('.stats-screen').isVisible()).toBe(true)
   })
 
