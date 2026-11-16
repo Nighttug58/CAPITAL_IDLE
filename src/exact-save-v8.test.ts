@@ -75,3 +75,25 @@ test('invalid legacy values reject migration instead of silently truncating', ()
   assert.equal(isValidV8ExactAmount('-123'), false)
   assert.equal(isValidV8ExactAmount('-123', true), true)
 })
+
+test('snapshot migration accepts an actual saved game and stock purchase', async () => {
+  const { createCapitalState } = await import('./capital.ts')
+  const { buyAsset } = await import('./trading/trades.ts')
+  const { getAsset } = await import('./trading/catalog.ts')
+  const { prepareSaveImport, createSaveExport } = await import('./save-transfer.ts')
+  const now = 1_800_000_000_000
+  const initial = createCapitalState({ balance: 1000, lifetimeEarned: 1000, purchasedUpgrades: 0 }, now)
+  const purchase = buyAsset(initial, 'nvideo', 2)
+  assert.equal(purchase.ok, true)
+  if (!purchase.ok) return
+  const imported = prepareSaveImport(createSaveExport(purchase.state, now), now)
+  assert.equal(imported.ok, true)
+  if (!imported.ok) return
+  const snapshot = projectValidatedV7ToExactV8(
+    imported.preview.state, id => getAsset(id)?.quantityDecimals ?? null,
+  )
+  assert.equal((snapshot.trading as any).positions.nvideo.quantity, '2000000')
+  assert.equal((snapshot.game as any).balance, '66596')
+  assert.equal((snapshot.trading as any).positions.nvideo.costBasis, '33404')
+  assert.equal(snapshot.version, 8)
+})
