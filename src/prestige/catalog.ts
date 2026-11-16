@@ -56,6 +56,51 @@ export function getNextFameBoostCost(id: string, currentLevel: number): number |
 export const TOTAL_FAME_SHOP_COST = FAME_BOOSTS.reduce((sum, boost) => sum + boost.totalCost, 0)
 
 /**
+ * Fame Shop V2 tariff (pass 5): first rank costs 5× the original; the
+ * additional quadratic term increases the premium at higher ranks. The
+ * 120-rank shop costs exactly 167 710 Fame. Historic V7/V8 purchases retain
+ * the original tariff and are never recharged when the game is migrated.
+ */
+export const FAME_SHOP_TARIFF_VERSION = 2 as const
+export const V2_FAME_BOOSTS: readonly FameBoostDefinition[] = Object.freeze(FAME_BOOSTS.map(boost => {
+  const costs = Object.freeze(boost.costs.map((original, index) => original * 5 + 3 * index * index))
+  return Object.freeze({ ...boost, costs, totalCost: costs.reduce((sum, cost) => sum + cost, 0) })
+}))
+export const TOTAL_V2_FAME_SHOP_COST = V2_FAME_BOOSTS.reduce((sum, boost) => sum + boost.totalCost, 0)
+const v2ById = new Map<FameBoostId, FameBoostDefinition>(V2_FAME_BOOSTS.map(boost => [boost.id, boost]))
+
+export function getV2NextFameBoostCost(id: string, level: number): number | null {
+  const boost = v2ById.get(id as FameBoostId)
+  if (!boost || !Number.isSafeInteger(level) || level < 0 || level >= MAX_FAME_BOOST_LEVEL) return null
+  return boost.costs[level] ?? null
+}
+
+/**
+ * Anti-forgery ledger: each historically purchased rank is priced at its
+ * original cost; all subsequent ranks are priced at V2. legacyLevels are
+ * frozen on initial migration, and cannot grow during normal game actions.
+ */
+export function getVersionedPurchasedFameCost(
+  levels: Readonly<Record<FameBoostId, number>>,
+  legacyLevels: Readonly<Record<FameBoostId, number>>,
+): number | null {
+  if (!levels || !legacyLevels || typeof levels !== 'object' || typeof legacyLevels !== 'object' ||
+      Array.isArray(levels) || Array.isArray(legacyLevels) ||
+      Object.keys(levels).length !== FAME_BOOST_IDS.length ||
+      Object.keys(legacyLevels).length !== FAME_BOOST_IDS.length) return null
+  let total = 0
+  for (const boost of FAME_BOOSTS) {
+    const current = levels[boost.id]
+    const preserved = legacyLevels[boost.id]
+    const v2 = v2ById.get(boost.id)!
+    if (!Number.isSafeInteger(current) || !Number.isSafeInteger(preserved) ||
+        preserved < 0 || current < preserved || current > MAX_FAME_BOOST_LEVEL) return null
+    for (let i = 0; i < current; i++) total += i < preserved ? boost.costs[i]! : v2.costs[i]!
+  }
+  return total
+}
+
+/**
  * Total Fame already spent on the six boost trees. Derive the ledger from the
  * immutable price catalog rather than storing a second spend counter.
  * Any invalid, unknown or out-of-range level makes the ledger invalid.

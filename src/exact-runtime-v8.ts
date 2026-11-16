@@ -10,7 +10,7 @@ import { getExactLevel } from './exact-levels.ts'
 import { multiplyRatio } from './large-numbers.ts'
 import { getClickValue, UPGRADES } from './game.ts'
 import { FAME_BOOST_BPS_PER_LEVEL, FAME_BOOST_IDS, getCollectionSlot,
-  getPurchasedFameBoostCost } from './prestige/catalog.ts'
+  getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { getAsset } from './trading/catalog.ts'
@@ -19,7 +19,7 @@ import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordable
 import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
-import { getNextFameBoostCost as fameCost } from './prestige/catalog.ts'
+import { getV2NextFameBoostCost as fameCost } from './prestige/catalog.ts'
 import { nextAscensionCost } from './ascension/catalog.ts'
 import type { AscensionUpgradeId } from './ascension/contracts.ts'
 import { ACHIEVEMENTS, type AchievementMetric } from './achievements.ts'
@@ -64,9 +64,12 @@ function xpAward(state: V8CapitalState, newCents: bigint): V8CapitalState {
   const newLevel = getExactLevel(experienceCents)
   const highest = state.ascension.progress.highestFameAwardedLevel
   const updatedHighest = Math.max(highest, newLevel)
+  // Fame is awarded for crossing a level ONCE IN THIS CYCLE. The historical
+  // highest level remains an achievement record, never a Fame gate.
+  const oldLevel = state.prestige.lastAwardedLevel
   const fameBaseMicros = (
-    BigInt(updatedHighest) * (BigInt(updatedHighest) + 1n) -
-    BigInt(highest) * (BigInt(highest) + 1n)
+    BigInt(newLevel) * (BigInt(newLevel) + 1n) -
+    BigInt(oldLevel) * (BigInt(oldLevel) + 1n)
   ) / 2n * FAME_MICROS
   const fameRate = getRewardRateUnits(v8BonusBasisPoints(state, 'fame'))
   if (fameRate === null) throw new RangeError('Invalid Fame rate')
@@ -80,6 +83,8 @@ function xpAward(state: V8CapitalState, newCents: bigint): V8CapitalState {
       fameMicros: s(v(state.prestige.fameMicros) + fameAdded),
       lifetimeFameMicros: s(v(state.prestige.lifetimeFameMicros) + fameAdded),
       levelFameMicros: s(v(state.prestige.levelFameMicros) + fameAdded),
+      cycleEarnedFameMicros: s(v(state.prestige.cycleEarnedFameMicros) + fameAdded),
+      cycleLevelFameMicros: s(v(state.prestige.cycleLevelFameMicros) + fameAdded),
     },
     ascension: updatedHighest === highest ? state.ascension : {
       ...state.ascension,
@@ -286,12 +291,14 @@ export function v8BuyFameUpgrade(state: V8CapitalState, id: FameBoostId,
   const price = fameCost(id, current)
   if (price === null || current !== expectedLevel ||
     v(state.prestige.fameMicros) < BigInt(price)*FAME_MICROS) return null
-  const spent = getPurchasedFameBoostCost(state.prestige.boosts)
-  if (spent === null || v(state.prestige.lifetimeFameMicros) - v(state.prestige.fameMicros) !==
-    BigInt(spent)*FAME_MICROS) return null
+  const spent = getVersionedPurchasedFameCost(state.prestige.boosts, state.prestige.fameLegacyLevels)
+  if (spent === null || v(state.prestige.fameSpentMicros) !== BigInt(spent)*FAME_MICROS ||
+      v(state.prestige.lifetimeFameMicros) !== v(state.prestige.fameMicros) +
+        v(state.prestige.fameSpentMicros) + v(state.prestige.fameForfeitedMicros)) return null
   return { ...state, prestige: { ...state.prestige,
     boosts: { ...state.prestige.boosts, [id]:current+1 },
     fameMicros:s(v(state.prestige.fameMicros) - BigInt(price)*FAME_MICROS),
+    fameSpentMicros:s(v(state.prestige.fameSpentMicros) + BigInt(price)*FAME_MICROS),
   } }
 }
 export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgradeId,
@@ -323,6 +330,8 @@ export function v8BuyCollection(state: V8CapitalState, id: string): V8CapitalSta
       fameMicros:s(v(state.prestige.fameMicros) + gained),
       lifetimeFameMicros:s(v(state.prestige.lifetimeFameMicros) + gained),
       collectionFameMicros:s(v(state.prestige.collectionFameMicros) + gained),
+      cycleEarnedFameMicros:s(v(state.prestige.cycleEarnedFameMicros) + gained),
+      cycleCollectionFameMicros:s(v(state.prestige.cycleCollectionFameMicros) + gained),
     },
   }
 }

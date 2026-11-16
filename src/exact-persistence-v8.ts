@@ -8,6 +8,7 @@ import { getAsset } from './trading/catalog.ts'
 import { validateExactV8State } from './exact-save-validation.ts'
 import { previewV8Migration } from './exact-save-migration.ts'
 import { createV8CapitalState, convertValidatedV7ToV8, type V8CapitalState } from './exact-state-v8.ts'
+import { migratePreV2V8Save } from './fame-cycle-v8.ts'
 import { MAX_IMPORT_FILE_BYTES, SAVE_FILE_FORMAT, SAVE_FILE_FORMAT_VERSION } from './save-transfer.ts'
 import {createCapitalState} from './capital.ts'
 import {restoreGame,migrateLegacyGame,migrateV2Game,LEVEL_THRESHOLD_FACTOR} from './game.ts'
@@ -16,6 +17,7 @@ import {createInitialAscensionState} from './ascension/state.ts'
 
 export const V8_STORAGE_KEY = 'capital-idle-save-v8'
 export const V8_BACKUP_KEY = 'capital-idle-save-backup-v7'
+export const V8_FAME_REBALANCE_BACKUP_KEY = 'capital-idle-save-backup-v8-pre-fame-rebalance'
 const PREVIOUS_KEYS = [
   'capital-idle-save-v7','capital-idle-save-v6','capital-idle-save-v5','capital-idle-save-v4',
 ] as const
@@ -43,7 +45,23 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
     try{
       const parsed=JSON.parse(previous) as unknown
       if(!validate(parsed))return{ok:false,reason:'invalid-v8'}
-      return{ok:true,state:parsed,origin:'v8'}
+      if((parsed as V8CapitalState).prestige.xpCurveVersion===4)
+        return{ok:true,state:parsed as V8CapitalState,origin:'v8'}
+      // Rebalance historical V8 snapshots once. Keep their raw original bytes
+      // and do not replace the active key until the new state is validated.
+      const upgraded=migratePreV2V8Save(parsed as V8CapitalState)
+      if(!validate(upgraded))return{ok:false,reason:'invalid-v8'}
+      const payload=JSON.stringify(upgraded)
+      try {
+        if(storage.getItem(V8_FAME_REBALANCE_BACKUP_KEY)===null)
+          storage.setItem(V8_FAME_REBALANCE_BACKUP_KEY,previous)
+        storage.setItem(V8_STORAGE_KEY,payload)
+        if(storage.getItem(V8_STORAGE_KEY)!==payload){
+          storage.setItem(V8_STORAGE_KEY,previous)
+          return{ok:false,reason:'write-failed'}
+        }
+      } catch { return{ok:false,reason:'write-failed'} }
+      return{ok:true,state:upgraded,origin:'migrated'}
     }catch{return{ok:false,reason:'invalid-v8'}}
   }
   for(const key of PREVIOUS_KEYS){
@@ -104,7 +122,7 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
 /** A single verified write; never change the current V8 record on failure. */
 export function saveV8CapitalState(storage:Pick<Storage,'getItem'|'setItem'>,
   state:V8CapitalState):boolean {
-  if(!validate(state))return false
+  if(state.prestige.xpCurveVersion!==4||!validate(state))return false
   try{
     const serialized=JSON.stringify(state)
     if(new TextEncoder().encode(serialized).byteLength>MAX_IMPORT_FILE_BYTES)return false
@@ -138,7 +156,11 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
   if(!record(parsed))return{ok:false,reason:'invalid-save'}
   if(parsed.version===8){
     if(!validate(parsed))return{ok:false,reason:'invalid-save'}
-    return{ok:true,state:parsed,sourceVersion:8}
+    try {
+      const upgraded=migratePreV2V8Save(parsed as V8CapitalState)
+      if(!validate(upgraded))return{ok:false,reason:'invalid-save'}
+      return{ok:true,state:upgraded,sourceVersion:8}
+    } catch { return{ok:false,reason:'invalid-save'} }
   }
   if(![4,5,6,7].includes(parsed.version as number))return{ok:false,reason:'unsupported-version'}
   const migrated=previewV8Migration(JSON.stringify(parsed),now)
@@ -148,7 +170,7 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
 }
 
 export function exportV8Save(state:V8CapitalState,now=Date.now()):string{
-  if(!validNow(now)||!validate(state))throw new RangeError('Invalid V8 export')
+  if(!validNow(now)||state.prestige.xpCurveVersion!==4||!validate(state))throw new RangeError('Invalid V8 export')
   return JSON.stringify({format:SAVE_FILE_FORMAT,formatVersion:SAVE_FILE_FORMAT_VERSION,
     exportedAt:now,state})
 }

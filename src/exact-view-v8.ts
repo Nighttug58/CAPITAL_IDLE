@@ -27,14 +27,14 @@ export function approximateQuantity(units:bigint,decimals:number):number{
 export function projectV8ForLegacyUI(state:V8CapitalState):CapitalState{
  const {game,trading,enterprises,fiscal,stats,prestige,ascension,achievements}=state
  const fameSpent=getPurchasedFameBoostCost(prestige.boosts)??0
- const lifetimeFame=boundedNumber(v(prestige.lifetimeFameMicros))
  const fame=boundedNumber(v(prestige.fameMicros))
  // Derivable legacy shop ledger remains structurally valid on display when
  // permanent Fame becomes larger than its old 53-bit integer capacity.
- const shownLifetimeFame=lifetimeFame===Number.MAX_SAFE_INTEGER?
-   Number.MAX_SAFE_INTEGER:lifetimeFame
- const shownFame=lifetimeFame===Number.MAX_SAFE_INTEGER?
-   Math.max(0,Number.MAX_SAFE_INTEGER-fameSpent*1_000_000):fame
+ // Legacy screens expect the OLD price table. Construct a read-only facade
+ // satisfying their old Fame Shop equation without changing actual V8 funds.
+ const shownFame=fame===Number.MAX_SAFE_INTEGER?
+   Number.MAX_SAFE_INTEGER-fameSpent*1_000_000:fame
+ const shownLifetimeFame=shownFame+fameSpent*1_000_000
  const ppSpent=ascensionSpentPoints(ascension.progress.upgradeLevels)??0
  const lifetimePP=boundedNumber(v(ascension.progress.lifetimePoints))
  const shownAvailablePP=lifetimePP===Number.MAX_SAFE_INTEGER?
@@ -82,7 +82,7 @@ export function projectV8ForLegacyUI(state:V8CapitalState):CapitalState{
      paidBySourceCents:taxAmounts(fiscal.paidBySourceCents)},
    stats:{...stats,earnedBySource:amounts(stats.earnedBySource),
      realizedLossesBySource:amounts(stats.realizedLossesBySource)},
-   prestige:{...prestigeNoRebase,
+   prestige:{...prestigeNoRebase, xpCurveVersion:3,
      experienceCents:boundedNumber(v(prestige.experienceCents)),
      fameMicros:shownFame,lifetimeFameMicros:shownLifetimeFame,
      levelFameMicros:boundedNumber(v(prestige.levelFameMicros)),

@@ -125,7 +125,7 @@ describe('Stats : progression et patrimoine complet', () => {
     expect(stored.game.lifetimeEarned).toBe(101)
     await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
     expect(wrapper.find('.stats-source[data-source="clicks"]').text()).toContain('1')
-    expect(wrapper.find('.stats-progress').text()).toContain('101')
+    expect(wrapper.find('.stats-progress').text()).toContain('501 XP')
   })
 
   it('petits écrans : sections scrollables et mise en page à deux colonnes repliables', () => {

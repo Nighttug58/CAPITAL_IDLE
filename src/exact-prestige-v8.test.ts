@@ -5,6 +5,7 @@ import {getExactLevelStartThreshold} from './exact-levels.ts'
 import {v8PerformPrestige,previewV8PrestigePoints,isqrt,v8EligiblePrestigeWorthCents} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {validateExactV8State} from './exact-save-validation.ts'
+import {v8CreditIncome} from './exact-runtime-v8.ts'
 const now=1_800_000_000_000
 
 test('BigInt prestige preview agrees with exact old formula at known powers',()=>{
@@ -41,10 +42,20 @@ test('Prestige with 10^120 cash earns exact PP, settles tax and preserves Fame/c
  assert.equal(result.state.ascension.progress.prestigeCount,1)
  assert.equal(result.state.prestige.experienceCents,'0')
  assert.equal(v(result.state.prestige.fameMicros),levelsFame)
+ assert.equal(result.state.prestige.cycleEarnedFameMicros,'0')
+ assert.equal(result.state.prestige.cycleLevelFameMicros,'0')
+ assert.equal(result.state.prestige.cycleCollectionFameMicros,'0')
+ assert.equal(result.state.prestige.xpRebaseV4,undefined)
  assert.equal(result.state.game.balance,'0')
  assert.equal(result.state.fiscal.taxesPaidCents,'100')
  assert.equal(result.state.fiscal.taxesDueCents,'0')
  assert.equal(result.state.fiscal.periodStartedAt,now)
  const validation=validateExactV8State(result.state,id=>getAsset(id)?.quantityDecimals??null)
  assert.ok(validation.valid,validation.reason)
+ const repeated=v8CreditIncome(result.state,'enterprises',getExactLevelStartThreshold(3)*100n)
+ assert.equal(repeated.prestige.lastAwardedLevel,3)
+ assert.equal(v(repeated.prestige.fameMicros),levelsFame+5_000_000n)
+ assert.equal(repeated.prestige.cycleLevelFameMicros,'5000000')
+ const nextCheck=validateExactV8State(repeated,id=>getAsset(id)?.quantityDecimals??null)
+ assert.ok(nextCheck.valid,nextCheck.reason)
 })

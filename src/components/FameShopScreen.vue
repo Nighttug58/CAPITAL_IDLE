@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
-import { FAME_BOOSTS } from '../prestige/catalog.ts'
+import { FAME_BOOSTS, getV2NextFameBoostCost, FAME_BOOST_BPS_PER_LEVEL } from '../prestige/catalog.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import { getExactAmount } from '../exact-state-v8.ts'
+import { formatCompactUnits } from '../large-numbers.ts'
 import { getBonusBreakdown } from '../prestige/bonuses.ts'
 import { getAbsolutePrestigeStatus } from '../prestige/absolute.ts'
 import { getFameShopOffers, type FameShopError, type FameShopPurchase } from '../prestige/shop.ts'
@@ -9,6 +12,7 @@ import { FAME_MICROS } from '../prestige/state.ts'
 
 const props = defineProps<{
   state: CapitalState
+  exactState?: V8CapitalState
   purchaseBoost: (id: string, currentLevel: number) => FameShopPurchase
 }>()
 const emit = defineEmits<{ back: [] }>()
@@ -17,8 +21,26 @@ const notice = ref('')
 const noticeError = ref(false)
 const numeric = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const fame = (micros: number) => numeric.format(micros / FAME_MICROS)
+const fameBalance = computed(() => {
+  if (!props.exactState) return fame(props.state.prestige.fameMicros)
+  const micros = getExactAmount(props.exactState.prestige.fameMicros)
+  return micros < 1_000_000_000n
+    ? numeric.format(Number(micros) / 1_000_000)
+    : formatCompactUnits(micros, 6, '').trim()
+})
 const percentage = (basisPoints: number) => numeric.format(basisPoints / 100) + ' %'
-const offers = computed(() => getFameShopOffers(props.state))
+const offers = computed(() => props.exactState ? FAME_BOOSTS.map(boost => {
+  const currentLevel = props.exactState!.prestige.boosts[boost.id]
+  const nextCostFame = getV2NextFameBoostCost(boost.id, currentLevel)
+  return {
+    boostId: boost.id, currentLevel, maxLevel: 20 as const,
+    currentBonusBps: currentLevel * FAME_BOOST_BPS_PER_LEVEL,
+    nextBonusBps: nextCostFame === null ? null : (currentLevel + 1) * FAME_BOOST_BPS_PER_LEVEL,
+    nextCostFame,
+    canAfford: nextCostFame !== null &&
+      getExactAmount(props.exactState!.prestige.fameMicros) >= BigInt(nextCostFame) * 1_000_000n,
+  }
+}) : getFameShopOffers(props.state))
 const rows = computed(() => FAME_BOOSTS.map((boost, index) => ({
   boost, offer: offers.value[index]!, collectionBonus: getBonusBreakdown(props.state, boost.id).collectionBps,
 })))
@@ -69,7 +91,7 @@ onMounted(() => { void nextTick(() => returnButton.value?.focus()) })
       <div class="fame-shop-summary">
         <div>
           <span>SOLDE FAME</span>
-          <strong><span aria-hidden="true">✦</span> {{ fame(state.prestige.fameMicros) }}</strong>
+          <strong><span aria-hidden="true">✦</span> {{ fameBalance }}</strong>
         </div>
         <div>
           <span>PALIERS ACHETÉS</span>

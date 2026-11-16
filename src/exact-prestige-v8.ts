@@ -74,9 +74,13 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   const fresh=createV8CapitalState(at)
   const {...previousPrestige}=afterTax.prestige
   delete previousPrestige.xpRebase
+  delete previousPrestige.xpRebaseV4
   const result:V8CapitalState={...fresh,
     prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
-      experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0},
+      experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
+      // Pass 5 prepares cycle counters; the actual Fame balance reset is
+      // deliberately postponed to the Prestige V2 redesign in pass 6.
+      cycleEarnedFameMicros:'0',cycleLevelFameMicros:'0',cycleCollectionFameMicros:'0'},
     fiscal:afterTax.fiscal,
     ascension:{...fresh.ascension,progress:nextProgress},
     achievements:{claimedIds:[...afterTax.achievements.claimedIds],cycleGiftCents:'0'},

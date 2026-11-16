@@ -6,11 +6,11 @@ import { isValidMarketBoundary } from './trading/market.ts'
  */
 import { decodeExactInteger } from './large-numbers.ts'
 import type { AssetDecimals } from './exact-save-v8.ts'
-import { getPurchasedFameBoostCost } from './prestige/catalog.ts'
+import { getPurchasedFameBoostCost, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import { ascensionSpentPoints } from './ascension/catalog.ts'
 import { getAsset, ASSETS } from './trading/catalog.ts'
 import { getNewsTemplate } from './trading/news.ts'
-import { getExactLevel } from './exact-levels.ts'
+import { getExactLevel, getExactV3Level, rebaseV3ExperienceCents } from './exact-levels.ts'
 import { getCollectionSlot } from './prestige/catalog.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
@@ -100,7 +100,8 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
     !safe(p.lastAwardedLevel)||p.lastAwardedLevel<1||
     !safe(progress.prestigeCount)||!safe(progress.highestFameAwardedLevel)||
     !safe(run.startedAtRealMs))return false
-  if(p.lastAwardedLevel!==getExactLevel(amount(p.experienceCents)??0n))return false
+  if (![3,4].includes(p.xpCurveVersion as number)) return false
+  if(p.lastAwardedLevel !== (p.xpCurveVersion === 4 ? getExactLevel : getExactV3Level)(amount(p.experienceCents)??0n))return false
   if(progress.highestFameAwardedLevel<p.lastAwardedLevel)return false
   if(progress.prestigeCount>0&&progress.highestFameAwardedLevel<100)return false
   if(!safe(run.startedAtRealMs)||!object(run.marketClock)||
@@ -193,9 +194,39 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     sum+BigInt(getCollectionSlot(id)?.fame??0)*1_000_000n,0n)
   if(collectionsFame < baseCollections)return fail('Collection Fame ledger too small')
   if (!object(p.boosts)) return fail('Missing Fame boost ledger')
-  const shopSpent = getPurchasedFameBoostCost(p.boosts as Parameters<typeof getPurchasedFameBoostCost>[0])
-  if (shopSpent === null || lifetimeFame - fame !== BigInt(shopSpent) * 1_000_000n)
-    return fail('Fame shop ledger does not balance')
+  if (p.xpCurveVersion === 4) {
+    if (p.fameShopLedgerVersion !== 2 || !object(p.fameLegacyLevels))
+      return fail('Missing versioned Fame purchase ledger')
+    const legacyLevels = p.fameLegacyLevels as Parameters<typeof getVersionedPurchasedFameCost>[1]
+    const expectedSpent = getVersionedPurchasedFameCost(
+      p.boosts as Parameters<typeof getVersionedPurchasedFameCost>[0], legacyLevels)
+    const spent = amount(p.fameSpentMicros), forfeited = amount(p.fameForfeitedMicros)
+    const cycleEarned = amount(p.cycleEarnedFameMicros)
+    const cycleLevels = amount(p.cycleLevelFameMicros)
+    const cycleCollections = amount(p.cycleCollectionFameMicros)
+    if (expectedSpent === null || spent === null || forfeited === null ||
+        cycleEarned === null || cycleLevels === null || cycleCollections === null ||
+        spent !== BigInt(expectedSpent) * 1_000_000n ||
+        lifetimeFame !== fame + spent + forfeited ||
+        cycleEarned !== cycleLevels + cycleCollections ||
+        cycleEarned > lifetimeFame || cycleLevels > levelsFame || cycleCollections > collectionsFame)
+      return fail('Permanent / cycle Fame ledgers do not balance')
+    if (p.xpRebaseV4 !== undefined) {
+      if (!object(p.xpRebaseV4)) return fail('Malformed XP V4 migration evidence')
+      const from = amount(p.xpRebaseV4.fromCents), to = amount(p.xpRebaseV4.toCents)
+      if (from === null || to === null || to > amount(p.experienceCents)! ||
+          rebaseV3ExperienceCents(from) !== to)
+        return fail('Invalid XP V4 migration evidence')
+    }
+  } else {
+    if (p.fameShopLedgerVersion !== undefined || p.fameLegacyLevels !== undefined ||
+        p.fameSpentMicros !== undefined || p.xpRebaseV4 !== undefined)
+      return fail('Ambiguous legacy Fame schema')
+    const spent = getPurchasedFameBoostCost(
+      p.boosts as Parameters<typeof getPurchasedFameBoostCost>[0])
+    if (spent === null || lifetimeFame - fame !== BigInt(spent) * 1_000_000n)
+      return fail('Legacy Fame shop ledger does not balance')
+  }
   if (!object(a.progress)) return fail('Missing Prestige progress')
   const progress = a.progress as Dict
   const availablePP = amount(progress.availablePoints), lifetimePP = amount(progress.lifetimePoints)

@@ -15,6 +15,7 @@ import { getAsset } from './trading/catalog.ts'
 import { createCapitalState, type CapitalState } from './capital.ts'
 import { projectValidatedV7ToExactV8 } from './exact-save-v8.ts'
 import { validateExactV8State } from './exact-save-validation.ts'
+import { migratePreV2V8Save } from './fame-cycle-v8.ts'
 
 export type ExactAmount = string
 export interface V8GameState extends Omit<GameState, 'balance'|'lifetimeEarned'> {
@@ -66,7 +67,20 @@ export interface V8StatsState extends Omit<StatsState, 'earnedBySource'|'realize
   realizedLossesBySource: V8LossBreakdown // cents
 }
 export interface V8PrestigeState extends Omit<PrestigeState,
-  'experienceCents'|'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'collectionFameMicros'|'xpRebase'> {
+  'experienceCents'|'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'collectionFameMicros'|'xpRebase'|'xpCurveVersion'> {
+  /** Active XP curve: existing v8-3 saves are migrated once before gameplay. */
+  xpCurveVersion: 4
+  /** Historical purchases remain at their original prices, future ranks use V2. */
+  fameShopLedgerVersion: 2
+  fameLegacyLevels: PrestigeState['boosts']
+  fameSpentMicros: ExactAmount
+  /** Total Fame removed when completing past cycles (activated in pass 6). */
+  fameForfeitedMicros: ExactAmount
+  /** Newly earned Fame in the current Prestige cycle (not lifetime history). */
+  cycleEarnedFameMicros: ExactAmount
+  cycleLevelFameMicros: ExactAmount
+  cycleCollectionFameMicros: ExactAmount
+  xpRebaseV4?: { readonly fromCents: ExactAmount; readonly toCents: ExactAmount }
   experienceCents: ExactAmount
   fameMicros: ExactAmount
   lifetimeFameMicros: ExactAmount
@@ -130,5 +144,5 @@ export function convertValidatedV7ToV8(source: CapitalState): V8CapitalState {
   const converted = projectValidatedV7ToExactV8(source, decimals)
   const checked = validateExactV8State(converted, decimals)
   if (!checked.valid) throw new Error('V8 conversion invalid: ' + checked.reason)
-  return converted as unknown as V8CapitalState
+  return migratePreV2V8Save(converted as unknown as V8CapitalState)
 }

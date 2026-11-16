@@ -1,5 +1,5 @@
 import {readV8LegacyUI} from './v8-ui-test-helper.ts'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
@@ -96,7 +96,9 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(wrapper.find('.enterprise-category .enterprise-card').text()).toContain('75')
   })
 
-  it('la navigation principale contient Entreprises et le clicker reste intact', async () => {
+  it('la navigation principale contient Entreprises et le clicker reste intact', async ({ onTestFinished }) => {
+    vi.spyOn(Date, 'now').mockReturnValue(START)
+    onTestFinished(() => vi.restoreAllMocks())
     const now = Date.now()
     const state = createCapitalState({ balance: 1_000_000, lifetimeEarned: 1_000_000, purchasedUpgrades: 0 }, now)
     localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
@@ -112,8 +114,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     expect(wrapper.find('.enterprise-card').text()).toContain('Possédée')
     const saved = readV8LegacyUI()
     expect(saved.enterprises.owned.kiosque?.level).toBe(1)
-    expect(saved.game.balance).toBeGreaterThanOrEqual(925_000)
-    expect(saved.game.balance).toBeLessThan(925_005)
+    expect(saved.game.balance).toBe(925_000)
     await buttons[0]!.trigger('click')
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
     expect(wrapper.find('.balance-value').text()).toContain('925.00K $')

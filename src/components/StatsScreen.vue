@@ -80,7 +80,7 @@ const exactTradingTotal = (losses=false): string | null => {
   const source=losses?state.stats.realizedLossesBySource:state.stats.earnedBySource
   return ['stocks','crypto','memecoins'].reduce((sum,key)=>sum+v(source[key as 'stocks'|'crypto'|'memecoins']),0n).toString()
 }
-const exactFame = (key:'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'collectionFameMicros',fallback:number) =>
+const exactFame = (key:'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'collectionFameMicros'|'cycleEarnedFameMicros'|'cycleLevelFameMicros'|'cycleCollectionFameMicros'|'fameSpentMicros',fallback:number) =>
   props.exactState ? (v(props.exactState.prestige[key]) < 1_000_000_000_000_000n ?
     fameCount(Number(v(props.exactState.prestige[key]))/1_000_000) :
     formatCompactUnits(v(props.exactState.prestige[key]),6,'').trim()) : fameCount(fallback)
@@ -311,10 +311,10 @@ function pay() {
         </div>
         <div class="stats-prestige-summary">
           <div><span>FAME DISPONIBLE</span><strong>✦ {{ exactFame('fameMicros',fameOverview.available) }}</strong></div>
-          <div><span>FAME TOTALE OBTENUE</span><strong>{{ exactFame('lifetimeFameMicros',fameOverview.earned) }}</strong></div>
-          <div><span>GAGNÉE PAR NIVEAUX</span><strong>{{ exactFame('levelFameMicros',fameOverview.fromLevels) }}</strong></div>
-          <div><span>GAGNÉE PAR COLLECTIONS</span><strong>{{ exactFame('collectionFameMicros',fameOverview.fromCollections) }}</strong></div>
-          <div><span>DÉPENSÉE EN BOOSTS</span><strong>{{ fameCount(fameOverview.spent) }}</strong></div>
+          <div><span>FAME OBTENUE CE CYCLE</span><strong>{{ exactFame('cycleEarnedFameMicros',fameOverview.earned) }}</strong></div>
+          <div><span>GAGNÉE PAR NIVEAUX (CYCLE)</span><strong>{{ exactFame('cycleLevelFameMicros',fameOverview.fromLevels) }}</strong></div>
+          <div><span>GAGNÉE PAR COLLECTIONS (CYCLE)</span><strong>{{ exactFame('cycleCollectionFameMicros',fameOverview.fromCollections) }}</strong></div>
+          <div><span>DÉPENSÉE EN BOOSTS</span><strong>{{ exactFame('fameSpentMicros', fameOverview.spent) }}</strong></div>
           <div><span>OBJETS ACQUIS</span><strong>{{ fameOverview.ownedCollections }} / {{ fameOverview.totalCollections }}</strong></div>
         </div>
         <div class="stats-absolute-panel" :class="{ 'is-unlocked': fameOverview.absolute.unlocked }">

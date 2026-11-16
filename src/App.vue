@@ -14,7 +14,7 @@ import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 import {getCollectionItem} from './prestige/collections-catalog.ts'
-import {getCollectionSlot,getNextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
+import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {nextAscensionCost} from './ascension/catalog.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
@@ -170,7 +170,7 @@ function returnHomeFromPrestige() {
 function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase {
   if (loadBlocked.value) return {ok:false,state:capital.value,error:'invalid-state'}
   settleEconomyNow()
-  const price = getNextFameBoostCost(id,currentLevel)
+  const price = getV2NextFameBoostCost(id,currentLevel)
   const oldFame = v(exact.value.prestige.fameMicros)
   const next = v8BuyFameUpgrade(exact.value,id as keyof V8CapitalState['prestige']['boosts'],currentLevel)
   if (!next || price===null) return {ok:false,state:capital.value,error:'insufficient-fame'}
@@ -727,7 +727,7 @@ onUnmounted(() => {
 
     <AchievementsScreen v-if="page === 'achievements'" :state="capital"
       :claim-reward="claimAchievementReward" @back="returnHomeFromAchievements" />
-    <FameShopScreen v-if="page === 'fame'" :state="capital" :purchase-boost="executeFamePurchase"
+    <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
     <PrestigeScreen v-if="page === 'prestige'" :state="capital"
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
