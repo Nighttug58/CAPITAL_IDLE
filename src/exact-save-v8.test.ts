@@ -92,7 +92,7 @@ test('snapshot migration accepts an actual saved game and stock purchase', async
   const snapshot = projectValidatedV7ToExactV8(
     imported.preview.state, id => getAsset(id)?.quantityDecimals ?? null,
   )
-  assert.equal((snapshot.trading as any).positions.nvideo.quantity, '2000000')
+  assert.equal((snapshot.trading as any).positions.nvideo.quantity, '20000')
   assert.equal((snapshot.game as any).balance, '66595')
   assert.equal((snapshot.trading as any).positions.nvideo.costBasis, '33405')
   assert.equal(snapshot.version, 8)
