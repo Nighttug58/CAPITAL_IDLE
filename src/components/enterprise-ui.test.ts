@@ -1,3 +1,4 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -109,13 +110,13 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     await wrapper.find('.enterprise-card button.enterprise-action').trigger('click')
     await nextTick()
     expect(wrapper.find('.enterprise-card').text()).toContain('Possédée')
-    const saved = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
+    const saved = readV8LegacyUI()
     expect(saved.enterprises.owned.kiosque?.level).toBe(1)
     expect(saved.game.balance).toBeGreaterThanOrEqual(925_000)
     expect(saved.game.balance).toBeLessThan(925_005)
     await buttons[0]!.trigger('click')
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
-    expect(wrapper.find('.balance-value').text()).toContain(new Intl.NumberFormat('fr-CH').format(925_000))
+    expect(wrapper.find('.balance-value').text()).toContain('925.00K $')
     await buttons[1]!.trigger('click')
     expect(wrapper.find('.trading-screen').isVisible()).toBe(true)
   })

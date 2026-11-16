@@ -1,8 +1,8 @@
 /**
  * Transaction-safe candidate migration: validate the source v7 with the
  * existing strict importer, then produce and check an exact v8 snapshot.
- * This module never mutates localStorage and never replaces the active save.
- * The runtime must be migrated to bigint before this becomes the live path.
+ * This module never mutates localStorage itself: the active V8 persistence
+ * boundary validates and writes the converted state atomically.
  */
 import { getAsset } from './trading/catalog.ts'
 import { MAX_IMPORT_FILE_BYTES, prepareSaveImport, SAVE_FILE_FORMAT,

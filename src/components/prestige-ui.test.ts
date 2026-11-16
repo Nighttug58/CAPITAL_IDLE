@@ -1,3 +1,4 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -22,7 +23,7 @@ function mountSaved(balance: number, earned: number = balance) {
   localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
-  const current = () => JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
+  const current = () => readV8LegacyUI()
   return { wrapper, current, initial: state }
 }
 
@@ -295,7 +296,7 @@ describe('Prestige absolu — écran et sauvegarde', () => {
     expect(stats.find('.stats-prestige-boost[data-boost="click"]').text()).toContain('avec Prestige')
     expect(stats.find('.stats-prestige-boost[data-boost="fame"]').text()).toContain('Collection')
     expect(stats.text()).toContain('jamais aux collections')
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v7')!).prestige.fameMicros).toBe(600 * FAME_MICROS)
+    expect(readV8LegacyUI().prestige.fameMicros).toBe(600 * FAME_MICROS)
   })
 
   it('Prestige rechargé n’est ni remboursé ni obtenu une seconde fois, puis RESET le désactive', async () => {
@@ -309,7 +310,7 @@ describe('Prestige absolu — écran et sauvegarde', () => {
     await wrapper.find('#reset-code').setValue('RESET')
     await wrapper.find('.backup-confirm-danger').trigger('click')
     await nextTick()
-    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
+    const stored = readV8LegacyUI()
     expect(getAbsolutePrestigeStatus(stored).unlocked).toBe(false)
     expect(stored.prestige.fameMicros).toBe(FAME_MICROS)
     expect(stored.prestige.ownedCollectionIds).toHaveLength(0)

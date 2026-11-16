@@ -1,0 +1,98 @@
+/** Exact dividends and market clock. Price discovery stays the existing seeded
+ * deterministic Trading engine. Only the monetary settlement moves to BigInt.
+ * This module does not introduce price-bound changes (pass 2). */
+import type { V8CapitalState, V8TradingState } from './exact-state-v8.ts'
+import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
+import { quoteToExactFraction } from './exact-trading.ts'
+import { getRewardRateUnits } from './prestige/bonuses.ts'
+import { v8BonusBasisPoints, v8CreditIncome, v8AdvanceFiscalEconomy } from './exact-runtime-v8.ts'
+import { advanceMarketTick, MARKET_TICK_MS } from './trading/market.ts'
+import type { TradingState } from './trading/types.ts'
+import { ASSETS } from './trading/catalog.ts'
+import { MARKET_SPEEDS, FRENZY_ACTIVE_MS } from './ascension/market-effects.ts'
+
+const YEAR_SECONDS = 86_400n
+const PICO_CENTS = 1_000_000_000_000n
+const BONUS_RATE_DENOM=10_000_000_000n
+const STOCKS=ASSETS.filter(asset=>asset.kind==='stock')
+
+export function v8MarketNewsEffects(state:V8CapitalState,at:number){
+  const levels=state.ascension.progress.upgradeLevels
+  const frenzyEnds=state.ascension.run.frenzyEndsAtRealMs??0
+  const frenzy=levels['market-frenzy']>0 && at>=frenzyEnds-FRENZY_ACTIVE_MS && at<frenzyEnds
+  return {
+    durationMultiplier:1+.25*levels['news-duration'],
+    impactMultiplier:(1+.25*levels['news-impact'])*(frenzy?1.5:1),
+    frequencyMultiplier:1+.05*levels['news-frequency'],
+    propagateSingle:levels['news-propagation']>0,
+  }
+}
+
+/** Exact per-second gross dividend in trillionths of a cent. */
+export function v8DividendPicoCents(trading:V8TradingState):bigint {
+  let total=0n
+  for(const asset of STOCKS){
+    const position=trading.positions[asset.id]
+    if(!position || v(position.quantity)<=0n)continue
+    const yieldNow=trading.quotes[asset.id]?.dividendYield??asset.initialDividendYield
+    if(yieldNow===null)continue
+    const refPrice=quoteToExactFraction(asset.referencePrice)
+    const yieldRate=quoteToExactFraction(yieldNow)
+    if(!refPrice||!yieldRate)continue
+    const numerator=v(position.quantity)*refPrice.numerator*yieldRate.numerator*100n*PICO_CENTS
+    const denominator=10n**BigInt(asset.quantityDecimals)*refPrice.denominator*yieldRate.denominator*YEAR_SECONDS
+    total+=numerator/denominator
+  }
+  return total
+}
+
+/** Simulates exactly ONE real second; no timelapse, double-paying or Number caps. */
+export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V8CapitalState {
+  const previous=state.trading.dividendLastPaidAt
+  const at=previous+1000
+  if(!Number.isSafeInteger(at))return state
+  const run=state.ascension.run
+  let clock=run.marketClock
+  let origin=run.startedAtRealMs
+  const dormant=clock.simulatedAtMs===origin && clock.realAnchorMs===origin && previous!==origin
+  if(dormant){origin=previous;clock={...clock,simulatedAtMs:previous,realAnchorMs:previous}}
+  if(clock.realAnchorMs!==previous||at<clock.realAnchorMs)return state
+  const speedIndex=MARKET_SPEEDS.indexOf(clock.selectedSpeed)
+  const speed=speedIndex<0 || speedIndex>state.ascension.progress.upgradeLevels['time-accelerator'] ? 1 : clock.selectedSpeed
+  const nextSimulatedAt=clock.simulatedAtMs+(at-clock.realAnchorMs)*speed
+  if(!Number.isSafeInteger(nextSimulatedAt))return state
+  const previousTicks=Math.floor((clock.simulatedAtMs-origin)/MARKET_TICK_MS)
+  const nextTicks=Math.floor((nextSimulatedAt-origin)/MARKET_TICK_MS)
+  if(nextTicks<previousTicks||nextTicks-previousTicks>1)return state
+  let trading=state.trading
+  if(nextTicks>previousTicks){
+    const effects=v8MarketNewsEffects(state,at)
+    const updated=advanceMarketTick(trading as unknown as TradingState,recordHistory,{
+      realAt:at,speed,
+      updateDividends:Math.floor((at-origin)/MARKET_TICK_MS)>
+        Math.floor((Math.max(origin,trading.lastTickAt)-origin)/MARKET_TICK_MS),
+      newsStrength:effects.impactMultiplier,
+      news:{durationMultiplier:effects.durationMultiplier,frequencyMultiplier:effects.frequencyMultiplier,
+        propagateSingle:effects.propagateSingle,eager:true},
+    })
+    trading=updated as unknown as V8TradingState
+  }
+  const bonus=getRewardRateUnits(v8BonusBasisPoints(state,'dividend'))
+  if(bonus===null)throw new RangeError('Invalid dividend bonus')
+  const carry=trading.dividendCarryPicoCents!==undefined?v(trading.dividendCarryPicoCents):
+    BigInt(Math.round(trading.dividendCarry*Number(PICO_CENTS)))
+  const pending=v(trading.dividendPendingCents)
+  const earnedPico=v8DividendPicoCents(trading)*bonus/BONUS_RATE_DENOM
+  const total=carry+pending*PICO_CENTS+earnedPico
+  const due=total/PICO_CENTS
+  const rem=total%PICO_CENTS
+  const updated:V8CapitalState={...state,
+    trading:{...trading,dividendLastPaidAt:at,
+      dividendPendingCents:'0',dividendCarryPicoCents:s(rem),
+      dividendCarry:Number(rem)/Number(PICO_CENTS)},
+    ascension:{...state.ascension,run:{...run,startedAtRealMs:origin,
+      marketClock:{...clock,realAnchorMs:at,simulatedAtMs:nextSimulatedAt}}},
+  }
+  const credited=due>0n?v8CreditIncome(updated,'dividends',due):updated
+  return v8AdvanceFiscalEconomy(credited,at)
+}

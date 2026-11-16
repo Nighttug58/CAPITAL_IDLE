@@ -1,3 +1,4 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -117,7 +118,7 @@ describe('Stats : progression et patrimoine complet', () => {
     mounted.push(wrapper)
     await wrapper.find('.tap-zone').trigger('click')
     await nextTick()
-    const stored = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
+    const stored = readV8LegacyUI()
     expect(stored.stats.clickCount).toBe(1)
     expect(stored.stats.earnedBySource.clicks).toBe(1)
     expect(stored.stats.earnedBySource.unclassified).toBe(100)
@@ -168,14 +169,14 @@ describe('Gestion des sauvegardes dans Stats', () => {
     expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeDefined()
     await wrapper.find('.backup-reset-confirm .backup-confirm-actions button').trigger('click')
     expect(wrapper.find('.backup-reset-confirm').exists()).toBe(false)
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v7')!).game.balance).toBe(567)
+    expect(readV8LegacyUI().game.balance).toBe(567)
 
     await wrapper.find('.backup-reset').trigger('click')
     await wrapper.find('#reset-code').setValue('RESET')
     expect(wrapper.find('.backup-confirm-danger').attributes('disabled')).toBeUndefined()
     await wrapper.find('.backup-confirm-danger').trigger('click')
     await nextTick()
-    const fresh = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
+    const fresh = readV8LegacyUI()
     expect(fresh.game.balance).toBe(0)
     expect(fresh.game.lifetimeEarned).toBe(0)
     expect(fresh.fiscal.taxesDueCents).toBe(0)
@@ -215,19 +216,19 @@ describe('Gestion des sauvegardes dans Stats', () => {
     await choose(encoded)
     expect(wrapper.find('.backup-confirm').exists()).toBe(true)
     expect(wrapper.find('.backup-import-details').text()).toContain(new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 }).format(1250))
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v7')!).game.balance).toBe(250)
+    expect(readV8LegacyUI().game.balance).toBe(250)
     await wrapper.find('.backup-confirm-actions button').trigger('click')
     expect(wrapper.find('.backup-confirm').exists()).toBe(false)
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v7')!).game.balance).toBe(250)
+    expect(readV8LegacyUI().game.balance).toBe(250)
 
     await choose('{invalid')
     expect(wrapper.find('.backup-error').exists()).toBe(true)
-    expect(JSON.parse(localStorage.getItem('capital-idle-save-v7')!).game.balance).toBe(250)
+    expect(readV8LegacyUI().game.balance).toBe(250)
 
     await choose(encoded)
     await wrapper.find('.backup-confirm-primary').trigger('click')
     await flushPromises()
-    const imported = JSON.parse(localStorage.getItem('capital-idle-save-v7')!) as CapitalState
+    const imported = readV8LegacyUI()
     expect(imported.game.balance).toBe(1250)
     expect(imported.trading.positions.nvideo.quantity).toBe(1)
     expect(imported.fiscal.taxesDueCents).toBe(75)

@@ -5,15 +5,22 @@ import type { EarlyTaxPaymentResult } from '../economy/fiscal.ts'
 import { FISCAL_PERIOD_MS, FISCAL_TAX_RATE } from '../economy/state.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
 import { getFameStatsOverview } from '../prestige/overview.ts'
-import {
-  MAX_IMPORT_FILE_BYTES, prepareSaveImport, type SaveImportPreview,
-} from '../save-transfer.ts'
+import {MAX_IMPORT_FILE_BYTES} from '../save-transfer.ts'
+import {prepareV8SaveImport} from '../exact-persistence-v8.ts'
+import type {V8CapitalState} from '../exact-state-v8.ts'
+import {getExactLevelProgress} from '../exact-levels.ts'
+import {getAsset} from '../trading/catalog.ts'
+import {exactTradeCost,quoteToExactFraction} from '../exact-trading.ts'
+import {getCollectionBookValueCents} from '../prestige/collections-catalog.ts'
+import {getExactAmount as v} from '../exact-state-v8.ts'
+import {formatCompactUnits,formatDecimalUnits} from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
+  exactState?: V8CapitalState
   payTaxes: () => EarlyTaxPaymentResult
   exportSave: () => boolean
-  importSave: (state: CapitalState) => boolean
+  importSave: (state: V8CapitalState) => boolean
   resetSave: () => boolean
 }>()
 
@@ -22,7 +29,60 @@ const fameOverview = computed(() => getFameStatsOverview(props.state))
 const format = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const precise = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 })
 const money = (cents: number) => format.format(cents / 100) + ' $'
+const importMoney = (text:string) => {
+  const cents=v(text)
+  const whole=cents<0n?-cents:cents
+  if(whole <= 10_000_000_000_000n)return format.format(Number(formatDecimalUnits(cents,2)))+' $'
+  return formatCompactUnits(cents)
+}
 const cash = (value: number) => format.format(value) + ' $'
+const exactProgress = computed(() => props.exactState ? getExactLevelProgress(v(props.exactState.prestige.experienceCents)) : null)
+const exactBalance = computed(() => {
+  const state=props.exactState
+  if(!state)return null
+  const invested=Object.values(state.enterprises.owned).reduce((sum,item)=>sum+v(item.investedCents),0n)
+  const collection=BigInt(getCollectionBookValueCents(state.prestige.ownedCollectionIds)??0)
+  let market=0n
+  let marketNet=0n
+  let basis=0n
+  for(const [id,item] of Object.entries(state.trading.positions)){
+    const asset=getAsset(id)
+    if(!asset)continue
+    const price=state.trading.quotes[id]?.price??asset.referencePrice
+    const quote=quoteToExactFraction(price)
+    if(!quote)continue
+    const gross=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,0n,'sell')
+    const fee=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,
+      asset.kind==='stock'?50n:asset.kind==='crypto'?100n:150n,'sell')
+    market+=gross?.grossCents??0n
+    marketNet+=fee?.proceedsCents??0n
+    basis+=v(item.costBasis)
+  }
+  const free=v(state.game.balance),due=v(state.fiscal.taxesDueCents)
+  return {cash:free,market,invested,collection,due,net:free+market+invested+collection-due,
+    unrealized:marketNet-basis}
+})
+const exactDisplay = (amount:bigint|undefined,fallback:number) =>
+  amount===undefined ? cash(fallback) : importMoney(amount.toString())
+const exactIncome = (id:string,value:number) => {
+  const state=props.exactState
+  const sources=state?.stats.earnedBySource
+  const losses=state?.stats.realizedLossesBySource
+  const amount=id.startsWith('loss:') ? losses?.[id.slice(5) as keyof typeof losses] :
+    sources?.[id as keyof typeof sources]
+  return amount!==undefined ? importMoney(amount) : cash(value)
+}
+const exactTradingTotal = (losses=false): string | null => {
+  const state=props.exactState
+  if(!state)return null
+  const source=losses?state.stats.realizedLossesBySource:state.stats.earnedBySource
+  return ['stocks','crypto','memecoins'].reduce((sum,key)=>sum+v(source[key as 'stocks'|'crypto'|'memecoins']),0n).toString()
+}
+const exactFame = (key:'fameMicros'|'lifetimeFameMicros'|'levelFameMicros'|'collectionFameMicros',fallback:number) =>
+  props.exactState ? (v(props.exactState.prestige[key]) < 1_000_000_000_000_000n ?
+    fameCount(Number(v(props.exactState.prestige[key]))/1_000_000) :
+    formatCompactUnits(v(props.exactState.prestige[key]),6,'').trim()) : fameCount(fallback)
+
 const rate = (value: number) => precise.format(value) + ' $/s'
 // Stable Swiss digit grouping across ICU versions (Node/jsdom vs browsers).
 const fameCount = (value: number) => precise.format(value).replace(/[\u00a0\u202f ](?=\d{3}(?:\D|$))/g, "'")
@@ -57,7 +117,7 @@ const sources = [
 ] as const
 
 const backupFileInput = ref<HTMLInputElement | null>(null)
-const pendingImport = ref<SaveImportPreview | null>(null)
+const pendingImport = ref<{state:V8CapitalState;sourceVersion:4|5|6|7|8;exportedAt:number|null}|null>(null)
 const importName = ref('')
 const importError = ref('')
 const backupNotice = ref('')
@@ -68,7 +128,7 @@ const importing = ref(false)
 const importErrors: Record<'file-too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-save', string> = {
   'file-too-large': 'Fichier trop volumineux (16 Mo maximum).',
   'invalid-json': 'Ce fichier n’est pas un JSON valide.',
-  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 / v6 / v7).',
+  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 / v6 / v7 / v8).',
   'invalid-save': 'Sauvegarde corrompue ou incohérente : aucune donnée n’a été remplacée.',
 }
 function openImportChooser() {
@@ -92,9 +152,13 @@ async function readImportFile(event: Event) {
   importing.value = true
   try {
     const contents = await file.text()
-    const result = prepareSaveImport(contents)
-    if (result.ok) pendingImport.value = result.preview
-    else importError.value = importErrors[result.error]
+    const result = prepareV8SaveImport(contents)
+    if (result.ok) {
+      const raw=JSON.parse(contents) as Record<string,unknown>
+      pendingImport.value={state:result.state,sourceVersion:result.sourceVersion,
+        exportedAt:typeof raw.exportedAt==='number'?raw.exportedAt:null}
+    }
+    else importError.value = importErrors[result.reason]
   } catch {
     importError.value = 'Lecture du fichier impossible. La partie actuelle est conservée.'
   } finally {
@@ -138,7 +202,7 @@ function pay() {
   const result = props.payTaxes()
   confirming.value = false
   notice.value = result.ok
-    ? `Paiement de ${money(result.amountCents)} effectué. Nouvelle échéance dans 72 h.`
+    ? `Paiement de ${props.exactState ? importMoney(props.exactState.fiscal.taxesPaidCents) : money(result.amountCents)} effectué. Nouvelle échéance dans 72 h.`
     : result.error === 'nothing-due'
       ? 'Aucune taxe à payer pour cette période.'
       : 'Paiement impossible pour le moment. Vérifiez votre horloge ou votre sauvegarde.'
@@ -155,21 +219,21 @@ function pay() {
 
     <div class="stats-scroll">
       <section class="stats-overview" aria-label="Vue d’ensemble du joueur">
-        <div><span>NIVEAU</span><strong>{{ overview.level }}</strong></div>
-        <div><span>FORTUNE NETTE</span><strong :class="{ 'tax-debt': overview.netWorth < 0 }">{{ cash(overview.netWorth) }}</strong></div>
-        <div><span>SOLDE DISPONIBLE</span><strong :class="{ 'tax-debt': state.game.balance < 0 }">{{ cash(overview.cash) }}</strong></div>
-        <div><span>REVENUS CUMULÉS</span><strong>{{ cash(overview.lifetimeEarned) }}</strong></div>
+        <div><span>NIVEAU</span><strong>{{ exactProgress?.level ?? overview.level }}</strong></div>
+        <div><span>FORTUNE NETTE</span><strong :class="{ 'tax-debt': (exactBalance ? exactBalance.net < 0n : overview.netWorth < 0) }">{{ exactDisplay(exactBalance?.net,overview.netWorth) }}</strong></div>
+        <div><span>SOLDE DISPONIBLE</span><strong :class="{ 'tax-debt': (exactBalance ? exactBalance.cash < 0n : state.game.balance < 0) }">{{ exactDisplay(exactBalance?.cash,overview.cash) }}</strong></div>
+        <div><span>REVENUS CUMULÉS</span><strong>{{ exactState ? importMoney(exactState.game.lifetimeEarned) : cash(overview.lifetimeEarned) }}</strong></div>
       </section>
 
       <section class="stats-section stats-progress" aria-label="Progression">
-        <div class="stats-section-heading"><h2>Progression</h2><span>{{ overview.nextLevelAt === null ? 'NIVEAU MAX' : 'PROCHAIN NIVEAU ' + (overview.level + 1) }}</span></div>
+        <div class="stats-section-heading"><h2>Progression</h2><span>{{ exactProgress ? 'PROCHAIN NIVEAU ' + (exactProgress.level + 1) : overview.nextLevelAt === null ? 'NIVEAU MAX' : 'PROCHAIN NIVEAU ' + (overview.level + 1) }}</span></div>
         <div class="stats-progress-meter" role="progressbar" aria-label="Progression du niveau joueur"
-          :aria-valuenow="Math.round(overview.levelProgressPercent)" aria-valuemin="0" aria-valuemax="100">
-          <div :style="{ width: overview.levelProgressPercent + '%' }"></div>
+          :aria-valuenow="Math.round(exactProgress ? exactProgress.fractionBasisPoints/100 : overview.levelProgressPercent)" aria-valuemin="0" aria-valuemax="100">
+          <div :style="{ width: (exactProgress ? exactProgress.fractionBasisPoints/100 : overview.levelProgressPercent) + '%' }"></div>
         </div>
         <div class="stats-progress-description">
-          <span>{{ format.format(overview.experience) }} XP</span>
-          <span>{{ overview.nextLevelAt === null ? 'Palier final atteint' : format.format(overview.nextLevelAt) + ' XP requis' }}</span>
+          <span>{{ exactState ? importMoney(exactState.prestige.experienceCents).replace(' $','') : format.format(overview.experience) }} XP</span>
+          <span>{{ exactProgress ? importMoney((exactProgress.nextCents).toString()).replace(' $','') + ' XP requis' : overview.nextLevelAt === null ? 'Palier final atteint' : format.format(overview.nextLevelAt) + ' XP requis' }}</span>
         </div>
         <div class="stats-mini-grid">
           <div><span>CLICS EFFECTUÉS</span><strong>{{ overview.clickCount.toLocaleString('fr-CH') }}</strong></div>
@@ -185,20 +249,20 @@ function pay() {
           <div v-for="source in overview.sources" :key="source.id" class="stats-source" :data-source="source.id">
             <div class="stats-source-top">
               <strong>{{ source.label }}</strong>
-              <span>{{ cash(source.gains) }}</span>
+              <span>{{ exactIncome(source.id,source.gains) }}</span>
             </div>
             <div class="stats-source-track" aria-hidden="true">
               <div :style="{ width: (source.fraction * 100) + '%' }"></div>
             </div>
             <div v-if="source.losses > 0" class="stats-source-loss">
-              <span>Pertes réalisées</span><strong>−{{ cash(source.losses) }}</strong>
+              <span>Pertes réalisées</span><strong>−{{ exactIncome('loss:'+source.id,source.losses) }}</strong>
             </div>
           </div>
         </div>
         <div class="stats-totals">
-          <div><span>Total des recettes positives ventilées</span><strong>{{ cash(overview.totalPositiveSources) }}</strong></div>
-          <div><span>Plus-values réalisées positives</span><strong>{{ cash(overview.totalRealizedTradingProfit) }}</strong></div>
-          <div><span>Pertes réalisées (actions et cryptos)</span><strong class="tax-debt">−{{ cash(overview.totalRealizedTradingLoss) }}</strong></div>
+          <div><span>Total des recettes positives ventilées</span><strong>{{ exactState ? importMoney(Object.values(exactState.stats.earnedBySource).reduce((sum,val)=>sum+v(val),0n).toString()) : cash(overview.totalPositiveSources) }}</strong></div>
+          <div><span>Plus-values réalisées positives</span><strong>{{ exactTradingTotal(false)!==null ? importMoney(exactTradingTotal(false)!) : cash(overview.totalRealizedTradingProfit) }}</strong></div>
+          <div><span>Pertes réalisées (actions et cryptos)</span><strong class="tax-debt">−{{ exactTradingTotal(true)!==null ? importMoney(exactTradingTotal(true)!) : cash(overview.totalRealizedTradingLoss) }}</strong></div>
         </div>
         <p class="stats-footnote">« Historique non ventilé » : revenus issus d’une ancienne sauvegarde, impossibles à répartir avec certitude. Les recettes par source ne sont pas additionnables directement à l’XP, dont le Trading protège les niveaux contre le double crédit après une perte.</p>
       </section>
@@ -208,8 +272,8 @@ function pay() {
         <div class="stats-mini-grid">
           <div><span>NIVEAUX ACQUIS</span><strong>{{ overview.enterpriseLevels }}</strong></div>
           <div><span>REVENU BRUT / SECONDE</span><strong class="stats-income-value">{{ rate(overview.enterpriseIncomePerSecond) }}</strong></div>
-          <div><span>REVENUS CUMULÉS</span><strong>{{ cash(state.stats.earnedBySource.enterprises) }}</strong></div>
-          <div><span>VALEUR COMPTABLE</span><strong>{{ cash(overview.enterpriseBookValue) }}</strong></div>
+          <div><span>REVENUS CUMULÉS</span><strong>{{ exactIncome('enterprises',state.stats.earnedBySource.enterprises) }}</strong></div>
+          <div><span>VALEUR COMPTABLE</span><strong>{{ exactDisplay(exactBalance?.invested,overview.enterpriseBookValue) }}</strong></div>
         </div>
         <p class="stats-footnote">La valeur comptable correspond au montant investi. Les entreprises ne peuvent jamais être revendues.</p>
       </section>
@@ -217,14 +281,14 @@ function pay() {
       <section class="stats-section stats-assets" aria-label="Patrimoine">
         <div class="stats-section-heading"><h2>Patrimoine</h2><span>BILAN ACTUEL</span></div>
         <div class="stats-balance-list">
-          <div><span>Liquidités (découvert inclus)</span><strong :class="{ 'tax-debt': overview.cash < 0 }">{{ cash(overview.cash) }}</strong></div>
-          <div><span>Actions et cryptos · valeur de marché</span><strong>{{ cash(overview.assetMarketValue) }}</strong></div>
-          <div><span>Entreprises · valeur comptable</span><strong>{{ cash(overview.enterpriseBookValue) }}</strong></div>
-          <div><span>Collections · valeur comptable</span><strong>{{ cash(overview.collectionBookValue) }}</strong></div>
-          <div><span>Taxes encore dues</span><strong class="tax-debt">−{{ cash(overview.taxesDue) }}</strong></div>
-          <div class="stats-balance-result"><span>Fortune nette</span><strong :class="{ 'tax-debt': overview.netWorth < 0 }">{{ cash(overview.netWorth) }}</strong></div>
+          <div><span>Liquidités (découvert inclus)</span><strong :class="{ 'tax-debt': overview.cash < 0 }">{{ exactDisplay(exactBalance?.cash,overview.cash) }}</strong></div>
+          <div><span>Actions et cryptos · valeur de marché</span><strong>{{ exactDisplay(exactBalance?.market,overview.assetMarketValue) }}</strong></div>
+          <div><span>Entreprises · valeur comptable</span><strong>{{ exactDisplay(exactBalance?.invested,overview.enterpriseBookValue) }}</strong></div>
+          <div><span>Collections · valeur comptable</span><strong>{{ exactDisplay(exactBalance?.collection,overview.collectionBookValue) }}</strong></div>
+          <div><span>Taxes encore dues</span><strong class="tax-debt">−{{ exactDisplay(exactBalance?.due,overview.taxesDue) }}</strong></div>
+          <div class="stats-balance-result"><span>Fortune nette</span><strong :class="{ 'tax-debt': (exactBalance ? exactBalance.net < 0n : overview.netWorth < 0) }">{{ exactDisplay(exactBalance?.net,overview.netWorth) }}</strong></div>
         </div>
-        <p class="stats-footnote">Plus-value latente du portefeuille : {{ cash(overview.unrealizedTradingProfit) }} (déjà intégrée à la valeur de marché, pas ajoutée une seconde fois). Les taxes payées sont déjà déduites du solde.</p>
+        <p class="stats-footnote">Plus-value latente du portefeuille : {{ exactDisplay(exactBalance?.unrealized,overview.unrealizedTradingProfit) }} (déjà intégrée à la valeur de marché, pas ajoutée une seconde fois). Les taxes payées sont déjà déduites du solde.</p>
       </section>
 
       <section class="stats-section stats-prestige" aria-label="Fame, collections et Prestige absolu">
@@ -232,10 +296,10 @@ function pay() {
           <span>{{ fameOverview.absolute.purchasedLevels }} / 120 PALIERS</span>
         </div>
         <div class="stats-prestige-summary">
-          <div><span>FAME DISPONIBLE</span><strong>✦ {{ fameCount(fameOverview.available) }}</strong></div>
-          <div><span>FAME TOTALE OBTENUE</span><strong>{{ fameCount(fameOverview.earned) }}</strong></div>
-          <div><span>GAGNÉE PAR NIVEAUX</span><strong>{{ fameCount(fameOverview.fromLevels) }}</strong></div>
-          <div><span>GAGNÉE PAR COLLECTIONS</span><strong>{{ fameCount(fameOverview.fromCollections) }}</strong></div>
+          <div><span>FAME DISPONIBLE</span><strong>✦ {{ exactFame('fameMicros',fameOverview.available) }}</strong></div>
+          <div><span>FAME TOTALE OBTENUE</span><strong>{{ exactFame('lifetimeFameMicros',fameOverview.earned) }}</strong></div>
+          <div><span>GAGNÉE PAR NIVEAUX</span><strong>{{ exactFame('levelFameMicros',fameOverview.fromLevels) }}</strong></div>
+          <div><span>GAGNÉE PAR COLLECTIONS</span><strong>{{ exactFame('collectionFameMicros',fameOverview.fromCollections) }}</strong></div>
           <div><span>DÉPENSÉE EN BOOSTS</span><strong>{{ fameCount(fameOverview.spent) }}</strong></div>
           <div><span>OBJETS ACQUIS</span><strong>{{ fameOverview.ownedCollections }} / {{ fameOverview.totalCollections }}</strong></div>
         </div>
@@ -270,26 +334,26 @@ function pay() {
         <div class="stats-tax-title"><h2>Administration fiscale</h2><span>Taux {{ Math.round(FISCAL_TAX_RATE * 100) }} %</span></div>
         <div class="stats-tax-due">
           <span>TAXES ACCUMULÉES</span>
-          <strong>{{ money(state.fiscal.taxesDueCents) }}</strong>
+          <strong>{{ exactState ? importMoney(exactState.fiscal.taxesDueCents) : money(state.fiscal.taxesDueCents) }}</strong>
           <span>Prochain prélèvement automatique : <b>{{ remaining }}</b></span>
         </div>
         <div class="stats-tax-sources">
           <div v-for="source in sources" :key="source.id">
             <span>{{ source.label }}</span>
-            <strong>{{ money(state.fiscal.dueBySourceCents[source.id]) }}</strong>
+            <strong>{{ exactState ? importMoney(exactState.fiscal.dueBySourceCents[source.id]) : money(state.fiscal.dueBySourceCents[source.id]) }}</strong>
           </div>
           <div class="stats-tax-total">
             <span>Toutes taxes déjà payées</span>
-            <strong>{{ money(state.fiscal.taxesPaidCents) }}</strong>
+            <strong>{{ exactState ? importMoney(exactState.fiscal.taxesPaidCents) : money(state.fiscal.taxesPaidCents) }}</strong>
           </div>
         </div>
         <p class="stats-tax-help">Les taxes s'accumulent sans prélèvement immédiat. À chaque échéance de 72 heures réelles, elles sont débitées automatiquement, même si le solde devient négatif.</p>
-        <button type="button" class="stats-tax-pay" :disabled="state.fiscal.taxesDueCents === 0" @click="confirming = true">
+        <button type="button" class="stats-tax-pay" :disabled="(exactState ? v(exactState.fiscal.taxesDueCents) === 0n : state.fiscal.taxesDueCents === 0)" @click="confirming = true">
           Payer les taxes maintenant
         </button>
         <div v-if="confirming" class="stats-tax-confirm" role="alertdialog" aria-modal="false" aria-label="Confirmer le paiement fiscal">
           <strong>Confirmer le paiement anticipé ?</strong>
-          <p>Montant total : {{ money(state.fiscal.taxesDueCents) }}. Le solde peut devenir négatif. Le compteur repartira de 72 heures.</p>
+          <p>Montant total : {{ exactState ? importMoney(exactState.fiscal.taxesDueCents) : money(state.fiscal.taxesDueCents) }}. Le solde peut devenir négatif. Le compteur repartira de 72 heures.</p>
           <div>
             <button type="button" @click="confirming = false">Annuler</button>
             <button type="button" class="stats-tax-confirm-pay" @click="pay">Confirmer le paiement</button>
@@ -320,9 +384,9 @@ function pay() {
           <strong>Remplacer la partie actuelle ?</strong>
           <p>Le fichier <b>{{ importName }}</b> contient une sauvegarde v{{ pendingImport.sourceVersion }}. Les données actuelles seront remplacées.</p>
           <div class="backup-import-details">
-            <span>Argent de la sauvegarde</span><strong>{{ cash(pendingImport.state.game.balance) }}</strong>
+            <span>Argent de la sauvegarde</span><strong>{{ importMoney(pendingImport.state.game.balance) }}</strong>
             <span>Entreprises possédées</span><strong>{{ Object.keys(pendingImport.state.enterprises.owned).length }} / 20</strong>
-            <span>Taxes accumulées</span><strong>{{ money(pendingImport.state.fiscal.taxesDueCents) }}</strong>
+            <span>Taxes accumulées</span><strong>{{ importMoney(pendingImport.state.fiscal.taxesDueCents) }}</strong>
             <span>Date d’export</span>
             <strong>{{ pendingImport.exportedAt === null ? 'Ancien format' : new Date(pendingImport.exportedAt).toLocaleString('fr-CH') }}</strong>
           </div>

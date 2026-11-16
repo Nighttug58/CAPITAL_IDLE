@@ -2,8 +2,8 @@
 
 **Dépôt :** Nighttug58/CAPITAL_IDLE · **branche :** main  
 **Date de conception :** 16 novembre 2026  
-**Statut :** PASSE 1 EN COURS — 0/7 passe entièrement validée.
-**Suivi 16/11 :** primitives BigInt, règlement exact isolé, calculs de trading exacts, projection v7→v8 et prévalidation réalisés et testés. Aucun branchement dans les moteurs actifs et aucune sauvegarde v8 active tant que l'ensemble du runtime ne gère pas les montants exacts. Correction de l'affichage Fame en fr-CH. Le lancement de la passe 2 reste bloqué.  
+**Statut :** PASSE 1 VALIDÉE — 1/7 passe terminée. Les passes 2 à 7 sont à faire.
+**Suivi 16/11 — passe 1 :** moteur actif V8 branché dans `src/App.vue` (cash, clic, trading, staking, entreprises, dividendes, fiscalité, XP/Fame, Prestige, collections et achievements) via `src/exact-*`. Sauvegarde canonique `capital-idle-save-v8`, valeurs monétaires et positions exactes sérialisées en chaînes décimales, import des versions v4–v7 et migration locale v1–v7 avec conservation des originaux et sauvegarde de secours v7. Le code v7 reste une projection UI en lecture seule et une compatibilité d'import ; jamais une source de paiement ou de sauvegarde. Suite métier Node, suite UI Vitest et build TypeScript/Vite exécutés avec succès. **Passe 2 non commencée.**  
 **Référence initiale :** main au commit 9f524b85dc8242d2e9815de8ffe0115e45acba05.  
 **Usage :** chaque commande « next » lance exactement la passe suivante, avec audit du code à jour, changements, tests, commit et bilan. Ne pas considérer les anciennes roadmaps comme tâches en attente.
 
@@ -172,7 +172,7 @@ Travaux :
 
 | Passe | Livrable principal | Statut |
 |---|---|---|
-| 1 | Grands nombres + migration de sauvegarde | En cours — intégration des moteurs v8 restante |
+| 1 | Grands nombres + migration de sauvegarde | **Terminée — V8 actif, tests et build verts** |
 | 2 | Trading/quantités illimités + paliers min/max | À faire |
 | 3 | Entreprises rentables et sans niveau fixe | À faire |
 | 4 | Accueil compact + Auto Click dollars | À faire |
@@ -180,4 +180,4 @@ Travaux :
 | 6 | Prestige V2 : 11 bonus, gates, PP et Fame reset | À faire |
 | 7 | Pouvoirs News 5 %/10 % + tests finaux | À faire |
 
-**Règle de départ :** ce commit ajoute uniquement le présent fichier Markdown ; il n'implémente ni la passe 1, ni un changement d'équilibrage, ni une migration de sauvegarde. La prochaine commande « next » doit démarrer **uniquement la passe 1**.
+**État d'exécution :** l'historique du fichier a commencé par un commit documentaire ; les travaux de la passe 1 ont depuis rendu V8 actif. La prochaine commande « next » doit démarrer **uniquement la passe 2** et préserver le moteur de grands nombres et les anciennes sauvegardes.

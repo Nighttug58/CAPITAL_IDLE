@@ -1,3 +1,4 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import App from '../App.vue'
@@ -20,7 +21,7 @@ function mountState(state:CapitalState) {
   localStorage.setItem(KEY,JSON.stringify(state))
   const wrapper=mount(App,{attachTo:document.body})
   mounted.push(wrapper)
-  return {wrapper,stored:():CapitalState=>JSON.parse(localStorage.getItem(KEY)!) as CapitalState}
+  return {wrapper,stored:():CapitalState=>readV8LegacyUI()}
 }
 async function prestige(wrapper: VueWrapper) {
   await wrapper.find('.prestige-launch').trigger('click')

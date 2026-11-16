@@ -4,6 +4,16 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 
 **Jouer :** https://nighttug58.github.io/CAPITAL_IDLE/
 
+## Moteur économique V8 — grands nombres et migration
+
+Depuis la **passe 1 de la refonte**, la sauvegarde active utilise `capital-idle-save-v8` et un moteur exact en **BigInt**. Le cash, les dépenses, les investissements, le prix de revient, le staking, les revenus, l'XP, la Fame, les PP et les impôts sont calculés en unités entières, puis conservés dans le JSON sous forme de **chaînes décimales canoniques**. Les grands nombres apparaissent en K, M, B, T, Q, QQ, AA, AB, AC… sans perdre les valeurs comptables.
+
+La première ouverture d'une sauvegarde locale **v1 à v7** effectue une migration contrôlée vers V8 : l'original n'est pas effacé et, pour v7, une copie `capital-idle-save-backup-v7` est conservée. Les imports manuels v4–v7 sont acceptés après validation stricte. Une sauvegarde corrompue bloque l'écriture et demande import ou réinitialisation explicite : **aucun reset silencieux**. L'export manuel utilise désormais les champs exacts V8. `src/capital.ts` reste un modèle v7 de compatibilité/affichage, non l'autorité économique active.
+
+**Hors du périmètre de la passe 1 :** les limites de quantité du trading (passe 2), les nouvelles bornes de cours (passe 2), les revenus/niveaux d'entreprises (passe 3) et la révision des récompenses Prestige (passe 6) restent inchangés. Voir [la roadmap V2](ROADMAP_REFONTE_ECONOMIE_PRESTIGE_V2.md).
+
+
+
 ## Accueil — le clicker
 
 - Départ à **0 $**, **1 $ par clic**.

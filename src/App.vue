@@ -1,24 +1,33 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import {createV8CapitalState, getExactAmount as v, withExactAmount as sv, type V8CapitalState} from './exact-state-v8.ts'
+import {projectV8ForLegacyUI, approximateMoneyCents} from './exact-view-v8.ts'
+import {loadV8CapitalState, saveV8CapitalState, exportV8Save} from './exact-persistence-v8.ts'
+import {createV8MarketRuntime} from './exact-clock-v8.ts'
+import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
+import {formatCompactUnits,parseDecimalUnits} from './large-numbers.ts'
+import {finiteNumberDecimal} from './exact-save-v8.ts'
+import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade,v8BuyEnterprise,v8AdvanceFiscalEconomy,
+ v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAchievement} from './exact-runtime-v8.ts'
+import {v8ChangeStaking} from './exact-staking-v8.ts'
+import {v8PerformPrestige} from './exact-prestige-v8.ts'
+import {getAsset} from './trading/catalog.ts'
+import {getEnterpriseIncomeMicrosPerSecond} from './economy/catalog.ts'
+import {getCollectionItem} from './prestige/collections-catalog.ts'
+import {getCollectionSlot,getNextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
+import {nextAscensionCost} from './ascension/catalog.ts'
+import {FISCAL_PERIOD_MS} from './economy/state.ts'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
-  getLevelStartThreshold,
   getClickValue,
   MAX_CLICK_LEVEL,
-  getLevel,
-  getNextLevelThreshold,
   getNextUpgrade,
-  purchaseUpgrade,
   type GameState,
 } from './game.ts'
-import { loadCapitalState, replaceCapitalSave, saveCapitalState } from './persistence.ts'
-import { createCapitalState } from './capital.ts'
-import { claimAchievement, getClaimableAchievementCount, type AchievementClaimResult } from './achievements.ts'
+import { getClaimableAchievementCount, type AchievementClaimResult } from './achievements.ts'
 import AchievementsScreen from './components/AchievementsScreen.vue'
-import { createSaveExport, exportFileName } from './save-transfer.ts'
+import { exportFileName } from './save-transfer.ts'
 import type { CapitalState } from './capital.ts'
-import { createMarketRuntime } from './trading/runtime.ts'
-import { buyAsset, sellAsset } from './trading/trades.ts'
-import { changeStaking, type StakingResult } from './trading/staking.ts'
+import { type StakingResult } from './trading/staking.ts'
 import type { TradeResult, TradeSide } from './trading/trades.ts'
 import TradingScreen from './components/TradingScreen.vue'
 import EnterpriseScreen from './components/EnterpriseScreen.vue'
@@ -26,21 +35,17 @@ import StatsScreen from './components/StatsScreen.vue'
 import FameShopScreen from './components/FameShopScreen.vue'
 import CollectionScreen from './components/CollectionScreen.vue'
 import PrestigeScreen from './components/PrestigeScreen.vue'
-import { buyAscensionUpgrade, type AscensionPurchase } from './ascension/shop.ts'
-import { commitPrestige, type AscensionResult } from './ascension/engine.ts'
+import { type AscensionPurchase } from './ascension/shop.ts'
+import { type AscensionResult } from './ascension/engine.ts'
 import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
 import {
   configureAutomation, createMarketOrder, cancelMarketOrder, type AutomationActionResult,
 } from './ascension/automation-orders.ts'
 import type { AscensionAutomationSettings, AscensionMarketOrder } from './ascension/contracts.ts'
 import { getBonusBreakdown, getBonusMultiplier } from './prestige/bonuses.ts'
-import { FAME_MICROS } from './prestige/state.ts'
-import { buyFameUpgrade, type FameShopPurchase } from './prestige/shop.ts'
-import { buyCollectionItem, type CollectionPurchase } from './prestige/collections.ts'
-import { advanceFiscalEconomy, payFiscalBalanceNow } from './economy/clock.ts'
+import { type FameShopPurchase } from './prestige/shop.ts'
+import { type CollectionPurchase } from './prestige/collections.ts'
 import type { EarlyTaxPaymentResult } from './economy/fiscal.ts'
-import { earnCapitalClick, recordActivePlay } from './economy/stats-ledger.ts'
-import { buyEnterprise, upgradeEnterprise } from './economy/enterprises.ts'
 import type { EnterpriseAction, EnterpriseResult } from './economy/enterprises.ts'
 
 interface FloatingGain {
@@ -50,17 +55,23 @@ interface FloatingGain {
   y: number
 }
 
-const capital = ref<CapitalState>(loadCapitalState())
-const game = computed<GameState>({
-  get: () => capital.value.game,
-  set: (updated) => { capital.value = { ...capital.value, game: updated } },
-})
-const level = computed(() => getLevel(capital.value.prestige.experienceCents / 100))
+// V8 is the single authoritative state. The old numeric model is a read-only
+// compatibility projection for existing Vue screens, NEVER a save authority.
+const boot = loadV8CapitalState(localStorage)
+const loadBlocked = ref(!boot.ok)
+const loadError = ref(boot.ok ? '' : boot.reason)
+const exact = ref<V8CapitalState>(boot.ok ? boot.state : createV8CapitalState())
+const capital = ref<CapitalState>(projectV8ForLegacyUI(exact.value))
+const game = computed<GameState>(() => capital.value.game)
+const level = computed(() => getExactLevel(v(exact.value.prestige.experienceCents)))
 const clickValue = computed(() => getClickValue(game.value.purchasedUpgrades) * getBonusMultiplier(capital.value, 'click'))
-const nextLevel = computed(() => getNextLevelThreshold(capital.value.prestige.experienceCents / 100))
+const xpProgress = computed(() => getExactLevelProgress(v(exact.value.prestige.experienceCents)))
+const xpLabel = computed(() => formatCompactUnits(v(exact.value.prestige.experienceCents)-xpProgress.value.startCents,2,'XP')+' / '+
+  formatCompactUnits(xpProgress.value.nextCents-xpProgress.value.startCents,2,'XP'))
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
-const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value && game.value.balance >= nextUpgrade.value.price)
+const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value &&
+  v(exact.value.game.balance) >= BigInt(nextUpgrade.value.price)*100n)
 const page = ref<'home' | 'fame' | 'prestige' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
@@ -107,26 +118,16 @@ function advanceBundle(now: number) {
   animateBundle(now)
 }
 let nextGainId = 0
-let marketRuntime: ReturnType<typeof createMarketRuntime> | null = null
-let applyingMarket = false
+let marketRuntime: ReturnType<typeof createV8MarketRuntime> | null = null
 let activeSince: number | null = null
 
-const progressStart = computed(() => getLevelStartThreshold(level.value))
-const progressPercent = computed(() => {
-  if (nextLevel.value === null) return 100
-  const range = nextLevel.value - progressStart.value
-  return range > 0 ? Math.min(100, Math.max(0, ((capital.value.prestige.experienceCents / 100 - progressStart.value) / range) * 100)) : 0
-})
+const progressPercent = computed(() => xpProgress.value.fractionBasisPoints / 100)
 
 const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const formatMoney = (value: number) => numberFormatter.format(value) + ' $'
+const exactCashLabel = computed(() => formatCompactUnits(v(exact.value.game.balance)))
 
-const fameBalance = computed(() => {
-  const amount = capital.value.prestige.fameMicros / FAME_MICROS
-  return amount >= 1_000_000
-    ? new Intl.NumberFormat('fr-CH', { notation: 'compact', maximumFractionDigits: 2 }).format(amount)
-    : numberFormatter.format(amount)
-})
+const fameBalance = computed(() => formatCompactUnits(v(exact.value.prestige.fameMicros),6,'').trim())
 function openFameShop() {
   page.value = 'fame'
 }
@@ -139,11 +140,18 @@ function returnHomeFromAchievements() {
   page.value = 'home'
   void nextTick(() => achievementsLaunch.value?.focus())
 }
+function syncExactState(next: V8CapitalState) {
+  exact.value = next
+  capital.value = projectV8ForLegacyUI(next)
+}
 function claimAchievementReward(id: string): AchievementClaimResult {
-  const proposed = claimAchievement(capital.value, id)
-  if (!proposed.ok) return proposed
-  return replaceWholeSave(proposed.state) ? proposed
-    : { ok: false, state: capital.value, error: 'storage-error' }
+  if (loadBlocked.value) return { ok:false, state:capital.value, error:'storage-error' }
+  const next = v8ClaimAchievement(exact.value,id)
+  if (!next) return {ok:false,state:capital.value,error:'locked'}
+  const old = capital.value
+  const reward = Number(v(next.game.balance)-v(exact.value.game.balance))
+  return replaceWholeSaveExact(next) ? {ok:true,state:capital.value,id,rewardCents:reward}
+    : {ok:false,state:old,error:'storage-error'}
 }
 function openPrestige() {
   page.value = 'prestige'
@@ -154,51 +162,66 @@ function returnHomeFromPrestige() {
 }
 
 function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase {
+  if (loadBlocked.value) return {ok:false,state:capital.value,error:'invalid-state'}
   settleEconomyNow()
-  const result = buyFameUpgrade(capital.value, id, currentLevel)
-  if (result.ok) {
-    applyingMarket = true
-    try { capital.value = result.state } finally { applyingMarket = false }
-    persist()
-  }
-  return result
+  const price = getNextFameBoostCost(id,currentLevel)
+  const oldFame = v(exact.value.prestige.fameMicros)
+  const next = v8BuyFameUpgrade(exact.value,id as keyof V8CapitalState['prestige']['boosts'],currentLevel)
+  if (!next || price===null) return {ok:false,state:capital.value,error:'insufficient-fame'}
+  syncExactState(next)
+  persist()
+  const state=capital.value
+  const actualCost = oldFame-v(next.prestige.fameMicros)
+  return {ok:true,state,receipt:{
+    boostId:id as keyof V8CapitalState['prestige']['boosts'],
+    previousLevel:currentLevel,newLevel:currentLevel+1,
+    costFame:price,costMicros:Number(actualCost),
+    previousBonusBps:currentLevel*FAME_BOOST_BPS_PER_LEVEL,
+    newBonusBps:(currentLevel+1)*FAME_BOOST_BPS_PER_LEVEL,
+    remainingFameMicros:state.prestige.fameMicros,
+  }}
 }
 
 function executeCollectionPurchase(id: string): CollectionPurchase {
+  if (loadBlocked.value) return {ok:false,state:capital.value,error:'invalid-state'}
   settleEconomyNow()
-  const result = buyCollectionItem(capital.value, id)
-  if (result.ok) {
-    applyingMarket = true
-    try { capital.value = result.state } finally { applyingMarket = false }
-    persist()
-  }
-  return result
+  const item = getCollectionItem(id)
+  const slot = getCollectionSlot(id)
+  if (!item || !slot) return {ok:false,state:capital.value,error:'unknown-item'}
+  const oldFame=v(exact.value.prestige.fameMicros)
+  const next = v8BuyCollection(exact.value,id)
+  if (!next) return {ok:false,state:capital.value,error:'insufficient-funds'}
+  syncExactState(next)
+  persist()
+  const state=capital.value
+  return {ok:true,state,receipt:{itemId:id,category:slot.category,
+    priceCents:slot.priceCents,baseFame:item.fame,
+    awardedFameMicros:Number(v(next.prestige.fameMicros)-oldFame),
+    boostId:slot.boostId,bonusBps:slot.bonusBps,
+    remainingCashCents:approximateMoneyCents(v(next.game.balance))*100,
+    availableFameMicros:state.prestige.fameMicros,
+    ownedCount:next.prestige.ownedCollectionIds.length,
+  }}
 }
 
 function click(event: MouseEvent) {
-  const updated = earnCapitalClick(capital.value)
-  if (updated === capital.value) return
-  const gained = updated.game.balance - capital.value.game.balance
-  applyingMarket = true
-  try { capital.value = updated } finally { applyingMarket = false }
+  if (loadBlocked.value) return
+  const previous=v(exact.value.game.balance)
+  const updated=v8Click(exact.value)
+  const gainedCents=v(updated.game.balance)-previous
+  if (gainedCents<=0n) return
+  syncExactState(updated)
   persist()
-  if (gained <= 0) return
-
-  const target = event.currentTarget
-  if (!(target instanceof HTMLElement)) return
-  const bounds = target.getBoundingClientRect()
-  const pointerClick = event.detail !== 0
-  const pointerX = pointerClick ? event.clientX - bounds.left : bounds.width / 2
-  const pointerY = pointerClick ? event.clientY - bounds.top : bounds.height / 2
-
-  // Le texte reste lisible même si le joueur touche tout près du bord.
-  const x = Math.max(19, Math.min(81, (pointerX / Math.max(bounds.width, 1)) * 100))
-  const y = Math.max(24, Math.min(74, (pointerY / Math.max(bounds.height, 1)) * 100))
-  floatingGains.value = [
-    ...floatingGains.value.slice(-11),
-    { id: ++nextGainId, amount: gained, x, y },
-  ]
-  // Relance le rebond visuel après chaque clic, même si le doigt est déjà relevé.
+  const gained=approximateMoneyCents(gainedCents)
+  const target=event.currentTarget
+  if (!(target instanceof HTMLElement))return
+  const bounds=target.getBoundingClientRect()
+  const pointerClick=event.detail!==0
+  const pointerX=pointerClick?event.clientX-bounds.left:bounds.width/2
+  const pointerY=pointerClick?event.clientY-bounds.top:bounds.height/2
+  const x=Math.max(19,Math.min(81,(pointerX/Math.max(bounds.width,1))*100))
+  const y=Math.max(24,Math.min(74,(pointerY/Math.max(bounds.height,1))*100))
+  floatingGains.value=[...floatingGains.value.slice(-11),{id:++nextGainId,amount:gained,x,y}]
   advanceBundle(performance.now())
   tapAnimationId.value++
 }
@@ -208,209 +231,228 @@ function removeFloatingGain(id: number) {
 }
 
 function buy() {
-  game.value = purchaseUpgrade(game.value, capital.value.prestige.experienceCents / 100)
+  if (loadBlocked.value) return
+  const next = v8UpgradeClick(exact.value)
+  if (next) {syncExactState(next); persist()}
 }
 
-// Achat/vente déclenchés par l'UI : solde et portefeuille mis à jour ensemble.
-// La validation vient du moteur métier, jamais d'une formule du composant Vue.
+// All V8 money/quantity mutations go through the exact store, never the
+// read-only v7 UI projection. Legacy receipts contain display-only Numbers.
 function executeTrade(side: TradeSide, assetId: string, quantity: number): TradeResult {
+  if (loadBlocked.value) return {ok:false,state:capital.value,error:'money-overflow'}
   settleEconomyNow()
-  const result = side === 'buy'
-    ? buyAsset(capital.value, assetId, quantity)
-    : sellAsset(capital.value, assetId, quantity)
-  if (result.ok) {
-    // Comme pour les entreprises, ne pas sauvegarder deux fois le même
-    // mouvement de caisse via le watcher du clicker.
-    applyingMarket = true
-    try { capital.value = result.state } finally { applyingMarket = false }
-    persist()
+  const before = exact.value
+  const changed = side==='buy' ? v8BuyTrade(before,assetId,finiteNumberDecimal(quantity)??'invalid') :
+    v8SellTrade(before,assetId,finiteNumberDecimal(quantity)??'invalid')
+  if (!changed.ok) {
+    const reason=changed.reason
+    const error: TradeResult & {ok:false} = {ok:false,state:capital.value,
+      error: reason==='insufficient-funds' ? 'insufficient-funds' :
+        reason==='insufficient-supply' ? 'insufficient-supply' :
+        reason==='insufficient-holdings' ? 'insufficient-holdings' :
+        reason==='staked-holdings' ? 'staked-holdings' :
+        reason==='amount-too-small' ? 'amount-too-small' :
+        reason==='invalid-quantity' ? 'invalid-quantity' :
+        reason==='unknown-asset-or-invalid-price' ? 'invalid-price' : 'money-overflow'}
+    return error
   }
-  return result
+  if (!replaceWholeSaveExact(changed.state)) return {ok:false,state:capital.value,error:'money-overflow'}
+  const asset=getAsset(assetId)!
+  return {ok:true,state:capital.value,receipt:{assetId,side,quantity,
+    price:before.trading.quotes[assetId]?.price??asset.referencePrice,
+    gross:approximateMoneyCents(changed.grossCents),fee:approximateMoneyCents(changed.feeCents),
+    cashChange:approximateMoneyCents(changed.cashDeltaCents),
+    netRealizedProfit:approximateMoneyCents(changed.realizedNetProfitCents),
+    levelEarnings:approximateMoneyCents(v(changed.state.game.lifetimeEarned)-v(before.game.lifetimeEarned)),
+    taxAccrued:approximateMoneyCents(v(changed.state.fiscal.taxesDueCents)-v(before.fiscal.taxesDueCents)),
+  }}
 }
-
-/** Persist crypto locks before displaying a successful staking operation. */
-function executeStaking(action: 'deposit' | 'withdraw', id: string, quantity: number): StakingResult {
-  const proposed = changeStaking(capital.value, action, id, quantity, Date.now())
-  if (!proposed.ok) return proposed
-  if (!replaceWholeSave(proposed.state)) {
-    return { ok: false, state: capital.value, error: 'storage-error' }
-  }
-  return proposed
-}
-
-function executeEnterprise(action: EnterpriseAction, id: string): EnterpriseResult {
+function executeStaking(action:'deposit'|'withdraw',id:string,quantity:number):StakingResult {
+  if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
   settleEconomyNow()
-  const result = action === 'buy'
-    ? buyEnterprise(capital.value, id)
-    : upgradeEnterprise(capital.value, id)
-  if (result.ok) {
-    // Une seule écriture : ne pas déclencher en parallèle le watcher du clicker.
-    applyingMarket = true
-    try { capital.value = result.state } finally { applyingMarket = false }
-    persist()
-    marketRuntime?.wake()
-  }
-  return result
+  const changed=v8ChangeStaking(exact.value,action,id,finiteNumberDecimal(quantity)??'invalid',Date.now())
+  if(!changed.ok){const error=changed.reason as Exclude<StakingResult,{ok:true}>['error'];
+    return{ok:false,state:capital.value,error}}
+  if(!replaceWholeSaveExact(changed.state))return{ok:false,state:capital.value,error:'storage-error'}
+  return {ok:true,state:capital.value,receipt:{assetId:id,action,quantity,unlockAt:changed.unlockAt}}
 }
-
-function persist() {
-  // Une seule horloge (celle du jeu) ; le temps masqué ne compte jamais dans
-  // le temps de jeu actif. Aucun setInterval additionnel pour la page Stats.
-  if (activeSince !== null) {
-    const now = Date.now()
-    const withSession = recordActivePlay(capital.value, Math.max(0, now - activeSince))
-    activeSince = now
-    if (withSession !== capital.value) {
-      applyingMarket = true
-      try { capital.value = withSession } finally { applyingMarket = false }
+function executeEnterprise(action:EnterpriseAction,id:string):EnterpriseResult{
+  if(loadBlocked.value)return{ok:false,state:capital.value,error:'money-overflow'}
+  settleEconomyNow()
+  const result=v8BuyEnterprise(exact.value,id,Date.now(),action==='upgrade')
+  if(!result.ok)return{ok:false,state:capital.value,error:result.reason as Exclude<EnterpriseResult,{ok:true}>['error']}
+  if(!replaceWholeSaveExact(result.state))return{ok:false,state:capital.value,error:'money-overflow'}
+  marketRuntime?.wake()
+  const level=result.state.enterprises.owned[id]?.level??0
+  return{ok:true,state:capital.value,receipt:{enterpriseId:id,action,
+    costCents:Math.max(0,approximateMoneyCents(result.costCents)*100),level,
+    incomeMicrosPerSecond:getEnterpriseIncomeMicrosPerSecond(id,level)??0}}
+}
+function persist():boolean {
+  if(loadBlocked.value)return false
+  if(activeSince!==null){
+    const now=Date.now()
+    const elapsed=Math.max(0,now-activeSince)
+    activeSince=now
+    if(Number.isSafeInteger(elapsed)&&Number.isSafeInteger(exact.value.stats.activePlayMs+elapsed)){
+      syncExactState({...exact.value,stats:{...exact.value.stats,activePlayMs:exact.value.stats.activePlayMs+elapsed}})
     }
   }
-  return saveCapitalState(capital.value)
+  return saveV8CapitalState(localStorage,exact.value)
 }
-
-function settleEconomyNow() {
-  const updated = advanceFiscalEconomy(capital.value, Date.now())
-  if (updated !== capital.value) {
-    applyingMarket = true
-    try { capital.value = updated } finally { applyingMarket = false }
-    persist()
-  }
+function settleEconomyNow(){
+  if(loadBlocked.value)return
+  const next=v8AdvanceFiscalEconomy(exact.value,Date.now())
+  if(next!==exact.value){syncExactState(next);persist()}
 }
-
-function payTaxes(): EarlyTaxPaymentResult {
-  const payment = payFiscalBalanceNow(capital.value, Date.now())
-  if (payment.state !== capital.value) {
-    applyingMarket = true
-    try { capital.value = payment.state } finally { applyingMarket = false }
-    persist()
-    marketRuntime?.wake()
-  }
-  return payment
+function payTaxes():EarlyTaxPaymentResult{
+  if(loadBlocked.value)return{ok:false,state:capital.value,error:'money-overflow'}
+  settleEconomyNow()
+  const at=Date.now()
+  const period=exact.value.fiscal.periodStartedAt
+  const due=v(exact.value.fiscal.taxesDueCents)
+  if(due===0n)return{ok:false,state:capital.value,error:'nothing-due'}
+  if(at<period||at>=period+FISCAL_PERIOD_MS)return{ok:false,state:capital.value,error:'invalid-clock'}
+  const next=v8PayTaxes(exact.value,at)
+  if(!replaceWholeSaveExact(next))return{ok:false,state:capital.value,error:'money-overflow'}
+  return{ok:true,state:capital.value,amountCents:Number(due>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):due)}
 }
-
-/**
- * Le runtime est stoppé avant une importation ou un reset. Son éventuelle
- * dernière sauvegarde concerne encore l'ancienne partie ; l'écriture
- * atomique v7 est donc faite seulement APRÈS cet arrêt.
- */
-function startMarketRuntime() {
-  marketRuntime = createMarketRuntime({
-    getState: () => capital.value,
-    isForeground: () => !document.hidden,
-    setState: (updated) => {
-      applyingMarket = true
-      try { capital.value = updated } finally { applyingMarket = false }
-    },
+function startMarketRuntime(){
+  if(loadBlocked.value)return
+  marketRuntime=createV8MarketRuntime({
+    getState:()=>exact.value,
+    isForeground:()=>!document.hidden,
+    setState:syncExactState,
     persist,
   })
   marketRuntime.start()
-  if (document.hidden) marketRuntime.pause()
+  if(document.hidden)marketRuntime.pause()
 }
-
-function replaceWholeSave(next: CapitalState): boolean {
+/** Stop timers, persist a verified V8 snapshot, and only then publish the
+ * new in-memory state. Failed writes leave the previous game untouched. */
+function replaceWholeSaveExact(next:V8CapitalState):boolean {
   marketRuntime?.stop()
-  marketRuntime = null
-  if (!replaceCapitalSave(next)) {
-    startMarketRuntime() // échec d'écriture : continuer exactement l'ancienne partie
+  marketRuntime=null
+  if(!saveV8CapitalState(localStorage,next)){
+    if(!loadBlocked.value)startMarketRuntime()
     return false
   }
-  applyingMarket = true
-  try {
-    capital.value = next
-    floatingGains.value = []
-    cancelAnimationFrame(spinRequest)
-    spinFrame.value = spinPhase = spinTarget = spinStreak = spinRequest = 0
-    lastPaidTap = -Infinity
-    tapAnimationId.value = 0
-    nextGainId = 0
-  } finally { applyingMarket = false }
-  activeSince = document.hidden ? null : Date.now()
-  startMarketRuntime() // rattrapage horodaté de la sauvegarde importée
+  loadBlocked.value=false
+  loadError.value=''
+  syncExactState(next)
+  floatingGains.value=[]
+  cancelAnimationFrame(spinRequest)
+  spinFrame.value=spinPhase=spinTarget=spinStreak=spinRequest=0
+  lastPaidTap=-Infinity
+  tapAnimationId.value=0
+  nextGainId=0
+  activeSince=document.hidden?null:Date.now()
+  startMarketRuntime()
   return true
 }
-
-function exportSave(): boolean {
-  let url: string | null = null
-  try {
+function exportSave():boolean {
+  let url:string|null=null
+  try{
+    if(loadBlocked.value)return false
     settleEconomyNow()
-    persist()
-    const at = Date.now()
-    const json = createSaveExport(capital.value, at)
-    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
-    url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = exportFileName(at)
+    if(!persist())return false
+    const at=Date.now()
+    const blob=new Blob([exportV8Save(exact.value,at)],{type:'application/json;charset=utf-8'})
+    url=URL.createObjectURL(blob)
+    const link=document.createElement('a')
+    link.href=url
+    link.download=exportFileName(at)
     document.body.appendChild(link)
-    try { link.click() } finally { link.remove() }
-    const exportedUrl = url
-    setTimeout(() => URL.revokeObjectURL(exportedUrl), 2_000)
+    try{link.click()}finally{link.remove()}
+    const exportedUrl=url
+    setTimeout(()=>URL.revokeObjectURL(exportedUrl),2000)
     return true
-  } catch {
-    if (url !== null) URL.revokeObjectURL(url)
-    return false
+  }catch{if(url!==null)URL.revokeObjectURL(url);return false}
+}
+function importSave(next:V8CapitalState):boolean{return replaceWholeSaveExact(next)}
+function resetSave():boolean{
+  if(!replaceWholeSaveExact(createV8CapitalState(Date.now())))return false
+  // A deliberate RESET means complete erasure, unlike the automatic V7->V8
+  // migration which keeps a backup. The new V8 key is already authoritative.
+  for(const key of ['capital-idle-save-v1','capital-idle-save-v2','capital-idle-save-v3',
+    'capital-idle-save-v4','capital-idle-save-v5','capital-idle-save-v6',
+    'capital-idle-save-v7','capital-idle-save-backup-v7']){
+    try{localStorage.removeItem(key)}catch{/* V8 is still authoritative */}
   }
+  return true
 }
-function importSave(next: CapitalState): boolean {
-  return replaceWholeSave(next)
+function executePrestigePurchase(id:string,expectedLevel:number):AscensionPurchase{
+  if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
+  const cost=nextAscensionCost(id as keyof V8CapitalState['ascension']['progress']['upgradeLevels'],expectedLevel)
+  const next=v8BuyPrestigeUpgrade(exact.value,id as keyof V8CapitalState['ascension']['progress']['upgradeLevels'],expectedLevel)
+  if(!next||cost===null)return{ok:false,state:capital.value,error:'insufficient-points'}
+  if(!replaceWholeSaveExact(next))return{ok:false,state:capital.value,error:'storage-error'}
+  return {ok:true,state:capital.value,receipt:{upgradeId:id as keyof V8CapitalState['ascension']['progress']['upgradeLevels'],
+    previousLevel:expectedLevel,newLevel:expectedLevel+1,costPoints:cost,
+    remainingPoints:Number(v(next.ascension.progress.availablePoints)>BigInt(Number.MAX_SAFE_INTEGER)?
+      BigInt(Number.MAX_SAFE_INTEGER):v(next.ascension.progress.availablePoints))}}
 }
-function resetSave(): boolean {
-  return replaceWholeSave(createCapitalState(undefined, Date.now()))
-}
-
-/** PP purchases use the same atomic replacement path as import/RESET. */
-function executePrestigePurchase(id: string, expectedLevel: number): AscensionPurchase {
-  const purchase = buyAscensionUpgrade(capital.value, id, expectedLevel)
-  if (!purchase.ok) return purchase
-  if (!replaceWholeSave(purchase.state)) {
-    return { ok: false, state: capital.value, error: 'storage-error' }
+function executePrestigeCycle():AscensionResult{
+  if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
+  const at=Date.now()
+  const before=exact.value
+  const tax=v(before.fiscal.taxesDueCents)
+  const changed=v8PerformPrestige(before,at)
+  if(!changed.ok){
+    if(changed.reason==='pending-market-replay')marketRuntime?.wake()
+    return{ok:false,state:capital.value,error:changed.reason as Exclude<AscensionResult,{ok:true}>['error']}
   }
-  return purchase
+  if(!replaceWholeSaveExact(changed.state))return{ok:false,state:capital.value,error:'storage-error'}
+  const limited=(n:bigint)=>Number(n>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):n)
+  return{ok:true,state:capital.value,receipt:{cycle:changed.cycle,
+    earnedPoints:limited(changed.earnedPoints),totalPoints:limited(v(changed.state.ascension.progress.availablePoints)),
+    eligibleWorthCents:limited(changed.worthCents),taxesSettledCents:limited(tax),completedAt:at}}
 }
-
-/** A cycle reset is calculated from the latest state; the runtime stops
- *  before writing and restarts only after successful replacement. */
-function executePrestigeCycle(): AscensionResult {
-  const outcome = commitPrestige(capital.value, Date.now(), replaceWholeSave)
-  if (!outcome.ok && outcome.error === 'pending-market-replay') marketRuntime?.wake()
-  return outcome
+function executeAutomationSettings(patch:Partial<AscensionAutomationSettings>):AutomationActionResult{
+  const result=configureAutomation(capital.value,patch)
+  if(!result.ok||result.state===capital.value)return result
+  const values=result.state.ascension.run.automation
+  const {enterpriseBudgetCents, ...withoutBudget}=values
+  const exactAutomation={...withoutBudget,maxOrderCents:sv(BigInt(values.maxOrderCents)),
+    cashReserveCents:sv(BigInt(values.cashReserveCents)),
+    ...(enterpriseBudgetCents===undefined?{}:{enterpriseBudgetCents:sv(BigInt(enterpriseBudgetCents))})}
+  const next={...exact.value,ascension:{...exact.value.ascension,
+    run:{...exact.value.ascension.run,automation:exactAutomation}}}
+  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
 }
-function executeAutomationSettings(
-  patch: Partial<AscensionAutomationSettings>,
-): AutomationActionResult {
-  const result = configureAutomation(capital.value, patch)
-  if (!result.ok || result.state === capital.value) return result
-  return replaceWholeSave(result.state)
-    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+function executeCreateOrder(order:Omit<AscensionMarketOrder,'id'|'createdAtRealMs'>):AutomationActionResult{
+  const result=createMarketOrder(capital.value,order,Date.now())
+  if(!result.ok){if(result.error==='pending-replay')marketRuntime?.wake();return result}
+  const asset=getAsset(order.assetId)
+  const units=asset?parseDecimalUnits(finiteNumberDecimal(order.quantity)??'invalid',asset.quantityDecimals):null
+  if(units===null)return{ok:false,state:capital.value,error:'invalid-order'}
+  const legacyRun=result.state.ascension.run
+  const next={...exact.value,ascension:{...exact.value.ascension,run:{...exact.value.ascension.run,
+    nextOrderId:legacyRun.nextOrderId,marketOrders:[...(exact.value.ascension.run.marketOrders??[]),
+      {...order,id:(legacyRun.nextOrderId??2)-1,createdAtRealMs:Date.now(),quantity:sv(units)}]}}}
+  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
 }
-function executeCreateOrder(
-  order: Omit<AscensionMarketOrder, 'id' | 'createdAtRealMs'>,
-): AutomationActionResult {
-  const result = createMarketOrder(capital.value, order, Date.now())
-  if (!result.ok) {
-    if (result.error === 'pending-replay') marketRuntime?.wake()
-    return result
-  }
-  return replaceWholeSave(result.state)
-    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+function executeCancelOrder(id:number):AutomationActionResult{
+  const result=cancelMarketOrder(capital.value,id)
+  if(!result.ok)return result
+  const next={...exact.value,ascension:{...exact.value.ascension,run:{...exact.value.ascension.run,
+    marketOrders:exact.value.ascension.run.marketOrders?.filter(x=>x.id!==id)??[]}}}
+  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
 }
-function executeCancelOrder(id: number): AutomationActionResult {
-  const result = cancelMarketOrder(capital.value, id)
-  if (!result.ok) return result
-  return replaceWholeSave(result.state)
-    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+function executeMarketSpeed(speed:number):MarketActionResult{
+  const result=selectMarketSpeed(capital.value,speed,Date.now())
+  if(!result.ok||result.state===capital.value)return result
+  const next={...exact.value,ascension:{...exact.value.ascension,run:{...exact.value.ascension.run,
+    marketClock:result.state.ascension.run.marketClock}}}
+  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
 }
-function executeMarketSpeed(speed: number): MarketActionResult {
-  const result = selectMarketSpeed(capital.value, speed, Date.now())
-  if (!result.ok || result.state === capital.value) return result
-  return replaceWholeSave(result.state)
-    ? result : { ok: false, state: capital.value, error: 'storage-error' }
-}
-function executeMarketFrenzy(): MarketActionResult {
-  const result = activateMarketFrenzy(capital.value, Date.now())
-  if (!result.ok) return result
-  return replaceWholeSave(result.state)
-    ? result : { ok: false, state: capital.value, error: 'storage-error' }
+function executeMarketFrenzy():MarketActionResult{
+  const result=activateMarketFrenzy(capital.value,Date.now())
+  if(!result.ok)return result
+  const run=result.state.ascension.run
+  const next={...exact.value,ascension:{...exact.value.ascension,run:{...exact.value.ascension.run,
+    frenzyEndsAtRealMs:run.frenzyEndsAtRealMs,frenzyReadyAtRealMs:run.frenzyReadyAtRealMs}}}
+  return replaceWholeSaveExact(next)?{ok:true,state:capital.value}:{ok:false,state:capital.value,error:'storage-error'}
 }
 
 function syncMarketVisibility() {
@@ -453,11 +495,11 @@ async function toggleFullscreen() {
 
 // Les clics sont sauvegardés aussitôt ; les centaines de ticks de rattrapage
 // ne déclenchent pas une écriture localStorage à chaque tranche.
-watch(game, () => { if (!applyingMarket) persist() }, { flush: 'sync' })
+// V8 commands explicitly persist; no observer is allowed to serialize the v7 UI facade.
 
 onMounted(() => {
   activeSince = document.hidden ? null : Date.now()
-  startMarketRuntime()
+  if(!loadBlocked.value)startMarketRuntime()
 
   document.addEventListener('fullscreenchange', syncFullscreen)
   document.addEventListener('visibilitychange', syncMarketVisibility)
@@ -480,18 +522,22 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
+    <div v-if="loadBlocked" class="save-load-blocked" role="alert">
+      Sauvegarde non chargée ({{ loadError }}). Vos données ont été préservées :
+      importez un fichier valide depuis Stats, ou utilisez RESET pour recommencer.
+    </div>
     <main v-show="page === 'home'" id="accueil" class="home-screen">
       <div class="home-actions">
         <button ref="fameLaunch" class="fame-shop-launch" type="button" @click="openFameShop"
-          :title="'Fame disponibles : ' + numberFormatter.format(capital.prestige.fameMicros / FAME_MICROS)"
-          :aria-label="'Ouvrir le Fame Shop, ' + numberFormatter.format(capital.prestige.fameMicros / FAME_MICROS) + ' Fame disponibles'">
+          :title="'Fame disponibles : ' + fameBalance"
+          :aria-label="'Ouvrir le Fame Shop, ' + fameBalance + ' Fame disponibles'">
           <b aria-hidden="true">✦</b><span>Fame Shop</span><strong>{{ fameBalance }}</strong>
         </button>
         <button v-if="page === 'home'" ref="prestigeLaunch" class="prestige-launch" type="button"
           aria-label="Ouvrir le Prestige" @click="openPrestige">
           <span class="prestige-launch-symbol" aria-hidden="true">◆</span>
           <span class="prestige-launch-info"><strong>PRESTIGE</strong>
-            <small>{{ numberFormatter.format(capital.ascension.progress.availablePoints) }} PP</small>
+            <small>{{ formatCompactUnits(v(exact.ascension.progress.availablePoints),0,'PP') }} PP</small>
           </span>
         </button>
         <button ref="achievementsLaunch" class="achievements-launch" type="button"
@@ -522,7 +568,7 @@ onUnmounted(() => {
         </svg>
       </button>
       </div>
-      <div class="balance-value" aria-label="Solde">{{formatMoney(game.balance)}}</div>
+      <div class="balance-value" aria-label="Solde">{{exactCashLabel}}</div>
       <section class="home-progression" aria-label="Progression et améliorations">
       <div class="level-panel" aria-label="Progression du niveau">
         <div class="level-heading">
@@ -536,7 +582,7 @@ onUnmounted(() => {
           aria-valuemin="0"
           aria-valuemax="100"
         >
-          <small class="xp-unit">XP</small><strong class="xp-count">{{nextLevel === null ? 'Niveau max' : numberFormatter.format(capital.prestige.experienceCents / 100 - progressStart) + ' / ' + numberFormatter.format(nextLevel - progressStart)}}</strong>
+          <small class="xp-unit">XP</small><strong class="xp-count">{{xpLabel}}</strong>
           <div class="progress-track">
             <div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div>
           </div>
@@ -601,7 +647,7 @@ onUnmounted(() => {
       :execute-trade="executeTrade" :execute-staking="executeStaking" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :execute-enterprise="executeEnterprise" />
     <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
-    <StatsScreen v-show="page === 'stats'" :state="capital" :pay-taxes="payTaxes"
+    <StatsScreen v-show="page === 'stats'" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">

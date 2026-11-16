@@ -1459,3 +1459,6 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .app-shell>main.achievements-screen{display:flex;flex-direction:column;overflow:hidden;padding:0}
 .app-shell>main.achievements-screen>.achievements-content{margin-top:0}
 .app-shell>main.achievements-screen>.achievements-header{margin-top:0}
+.save-load-blocked{position:fixed;z-index:9000;left:12px;right:12px;top:12px;
+  padding:12px 14px;background:#332524;border:1px solid #d77b71;border-radius:8px;
+  color:#fff0ed;font-size:12px;line-height:1.45;box-shadow:0 2px 12px #0009}

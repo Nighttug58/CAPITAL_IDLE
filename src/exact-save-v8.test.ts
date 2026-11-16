@@ -97,3 +97,15 @@ test('snapshot migration accepts an actual saved game and stock purchase', async
   assert.equal((snapshot.trading as any).positions.nvideo.costBasis, '33405')
   assert.equal(snapshot.version, 8)
 })
+
+test('legitimate V7 IEEE-754 quantity artifacts migrate without extra coins', () => {
+  const legacy = fixture()
+  const a = 0.1 + 0.2
+  legacy.trading.positions.tiny.quantity = a
+  legacy.trading.staking!.positions.tiny.locked = a
+  const converted = projectValidatedV7ToExactV8(legacy, id => id === 'tiny' ? 8 : null)
+  assert.equal((converted.trading as any).positions.tiny.quantity, '30000000')
+  assert.equal((converted.trading as any).staking.positions.tiny.locked, '30000000')
+  legacy.trading.positions.tiny.quantity = 0.3000000001
+  assert.throws(() => projectValidatedV7ToExactV8(legacy, () => 8))
+})

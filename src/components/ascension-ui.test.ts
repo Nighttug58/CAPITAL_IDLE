@@ -1,3 +1,4 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -30,7 +31,7 @@ function mountState(state: CapitalState) {
   localStorage.setItem(STORAGE, JSON.stringify(state))
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
-  const saved = (): CapitalState => JSON.parse(localStorage.getItem(STORAGE)!) as CapitalState
+  const saved = (): CapitalState => readV8LegacyUI()
   return { wrapper, saved }
 }
 

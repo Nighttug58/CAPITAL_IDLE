@@ -1,3 +1,4 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -32,7 +33,7 @@ function mountGame(state: CapitalState) {
   localStorage.setItem(SAVED, JSON.stringify(state))
   const wrapper = mount(App, { attachTo: document.body })
   wrappers.push(wrapper)
-  return { wrapper, stored: () => JSON.parse(localStorage.getItem(SAVED)!) as CapitalState }
+  return { wrapper, stored: () => readV8LegacyUI() }
 }
 
 describe('Prestige marché — contrôles interactifs et affichage', () => {

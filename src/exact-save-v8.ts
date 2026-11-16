@@ -1,7 +1,6 @@
 /**
- * Prepared V7 -> V8 exact-value representation. This is deliberately not wired
- * into persistence until every economic engine consumes exact integer units.
- * Activating this early would reset old saves through the V7 Number validators.
+ * Prepared V7 -> V8 exact-value representation. The legacy save is strictly validated before conversion, and all monetary
+ * fields are converted to canonical strings before V8 persistence.
  */
 import type { CapitalState } from './capital.ts'
 import {
@@ -59,6 +58,21 @@ function quantity(value: unknown, id: string, getDecimals: AssetDecimals, path: 
   if (!Number.isSafeInteger(decimals) || decimals === null || decimals < 0 || decimals > 100) {
     throw new RangeError('Unknown asset/precision: ' + id)
   }
+  // The V7 domain permits IEEE-754 artifacts such as 0.1 + 0.2.
+  // Before migration, snap only when the EXACT V7 quantity validator would
+  // have accepted it: less than 1/10 000 of one minimum tradable unit.
+  // This does not excuse a malformed extra decimal place (e.g. 0.12345
+  // where the asset permits only four decimals).
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new RangeError('Unrepresentable legacy position: ' + path)
+  }
+  const scaled = value * 10 ** decimals
+  const rounded = Math.round(scaled)
+  if (Number.isSafeInteger(rounded) && Math.abs(scaled - rounded) < 0.0001) {
+    return encodeExactInteger(BigInt(rounded))
+  }
+  // A quantity above the safe unit range can still be an exact integer when
+  // the instrument has zero decimal places; don't silently round it.
   const decimal = finiteNumberDecimal(value)
   const result = parseDecimalUnits(decimal, decimals, false)
   if (result === null) throw new RangeError('Unrepresentable legacy position: ' + path)
@@ -90,6 +104,13 @@ export function projectValidatedV7ToExactV8(
   field(trading, 'realizedNetProfit', 'dollars', 'trading.realizedNetProfit', true)
   field(trading, 'creditedTradingProfit', 'dollars', 'trading.creditedTradingProfit')
   field(trading, 'dividendPendingCents', 'cents', 'trading.dividendPendingCents')
+  // Legacy fraction-of-cent carries become a fixed 10^-12 cent remainder.
+  // These are *not* dollar amounts; never multiply them by 100.
+  if (typeof trading.dividendCarry !== 'number' || !Number.isFinite(trading.dividendCarry) ||
+      trading.dividendCarry < 0 || trading.dividendCarry >= 1) {
+    throw new RangeError('Invalid dividend remainder')
+  }
+  trading.dividendCarryPicoCents = encodeExactInteger(BigInt(Math.round(trading.dividendCarry * 1e12)))
   const positions = record(trading.positions, 'trading.positions')
   for (const [id, value] of Object.entries(positions)) {
     const position = record(value, 'trading.positions.' + id)
@@ -104,11 +125,21 @@ export function projectValidatedV7ToExactV8(
       'rewardUnlocking', 'lifetimeRewards']) {
       item[key] = quantity(item[key], id, getDecimals, 'trading.staking.positions.' + id + '.' + key)
     }
-    // carryUnits remains a finite fractional remainder (< 1 smallest unit).
-    // It needs a dedicated exact rational contract before active V8 use.
+    // Staking carry is a fractional *minimum token unit*, NOT full coins.
+    if (typeof item.carryUnits !== 'number' || !Number.isFinite(item.carryUnits) ||
+        item.carryUnits < 0 || item.carryUnits >= 1) {
+      throw new RangeError('Invalid staking remainder: ' + id)
+    }
+    item.carryPicoUnits = encodeExactInteger(BigInt(Math.round(item.carryUnits * 1e12)))
   }
 
   const enterprises = record(copy.enterprises, 'enterprises')
+  if (typeof enterprises.revenueCarryCents !== 'number' ||
+      !Number.isFinite(enterprises.revenueCarryCents) ||
+      enterprises.revenueCarryCents < 0 || enterprises.revenueCarryCents >= 1) {
+    throw new RangeError('Invalid enterprise remainder')
+  }
+  enterprises.revenueCarryNanoCents = encodeExactInteger(BigInt(Math.round(enterprises.revenueCarryCents * 1e7)))
   const owned = record(enterprises.owned, 'enterprises.owned')
   for (const [id, value] of Object.entries(owned)) {
     field(record(value, 'enterprises.owned.' + id), 'investedCents', 'cents', 'enterprises.owned.' + id + '.investedCents')

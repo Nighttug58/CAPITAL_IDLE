@@ -1,10 +1,11 @@
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
 import App from '../App.vue'
 import { createCapitalState } from '../capital.ts'
-import { prepareSaveImport } from '../save-transfer.ts'
+import { prepareV8SaveImport } from '../exact-persistence-v8.ts'
 
 const mounted: VueWrapper[] = []
 beforeEach(() => { localStorage.clear() })
@@ -16,7 +17,7 @@ function start(saved = createCapitalState({
   localStorage.setItem('capital-idle-save-v7', JSON.stringify(saved))
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
-  return { wrapper, read: () => JSON.parse(localStorage.getItem('capital-idle-save-v7')!) }
+  return { wrapper, read: () => readV8LegacyUI() }
 }
 
 describe('Achievements : bouton ruban et récupération persistante', () => {
@@ -62,7 +63,7 @@ describe('Achievements : bouton ruban et récupération persistante', () => {
     expect(savedAfter.achievements.claimedIds).toContain('clicks-100')
     expect(reward.find('.achievement-claim').exists()).toBe(false)
     expect(reward.text()).toContain('Récupéré')
-    const imported = prepareSaveImport(JSON.stringify(savedAfter), Date.now())
+    const imported = prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!, Date.now())
     expect(imported.ok).toBe(true)
     await wrapper.find('.achievements-back').trigger('click')
     await nextTick()
@@ -79,7 +80,7 @@ describe('Achievements : bouton ruban et récupération persistante', () => {
     const before = JSON.stringify(read())
     const storage = Storage.prototype.setItem
     Storage.prototype.setItem = function (key: string, value: string) {
-      if (key === 'capital-idle-save-v7') throw new Error('Quota')
+      if (key === 'capital-idle-save-v8') throw new Error('Quota')
       return storage.call(this, key, value)
     }
     try {
