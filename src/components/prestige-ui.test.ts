@@ -44,7 +44,7 @@ describe('Click rewards — tranches de 50 niveaux', () => {
       localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
       const wrapper = mount(App, { attachTo: document.body })
       mounted.push(wrapper)
-      const upgradeCard = wrapper.find('.upgrade-card')
+      const upgradeCard = wrapper.find('.home-upgrade-row[aria-label="Amélioration du clic"]')
       expect(upgradeCard.exists()).toBe(true)
       expect(upgradeCard.text()).toContain(expectedNext)
       expect(wrapper.find('.tap-reward').text()).toContain(

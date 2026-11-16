@@ -4,6 +4,7 @@ import type {V8CapitalState} from './exact-state-v8.ts'
 import {getExactAmount as v} from './exact-state-v8.ts'
 import {v8Click,v8BuyTrade,v8SellTrade,v8BuyEnterprise,v8MaximumBuyUnits} from './exact-runtime-v8.ts'
 import {getExactLevel} from './exact-levels.ts'
+import {getDollarAutoClickLevel} from './dollar-autoclick-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {quoteToExactFraction,affordableExactQuantity} from './exact-trading.ts'
 import {formatDecimalUnits} from './large-numbers.ts'
@@ -51,7 +52,8 @@ export function v8AutomationFrame(state:V8CapitalState,at:number,foreground:bool
    at-state.trading.dividendLastPaidAt>=1000||at-state.enterprises.lastAccruedAt>=1000)return state
  const config=state.ascension.run.automation
  const levels=state.ascension.progress.upgradeLevels
- const autoclick=config.autoClickEnabled&&levels['auto-click']>0
+ const clickLevel=getDollarAutoClickLevel(state)
+ const autoclick=clickLevel>0
  const bots=(config.investorEnabled&&levels['auto-investor']>0)||
    (config.traderEnabled&&levels['auto-trader']>0)||
    (config.enterpriseEnabled&&levels['auto-enterprise']>0)||
@@ -59,10 +61,16 @@ export function v8AutomationFrame(state:V8CapitalState,at:number,foreground:bool
  if(!autoclick&&!bots)return state
  let updated=state
  const seconds=Math.floor(at/1000)*1000
- const lastClick=state.ascension.run.lastAutomationAtRealMs??seconds-1000
- if(autoclick&&seconds>lastClick){
-   for(let n=0;n<Math.min(20,levels['auto-click']);n++)updated=v8Click(updated)
-   updated={...updated,ascension:{...updated.ascension,run:{...updated.ascension.run,lastAutomationAtRealMs:seconds}}}
+ const lastClick=state.ascension.run.lastAutomationAtRealMs
+ if(autoclick && (lastClick===undefined || seconds>lastClick)){
+   // Never simulate missed real seconds. In a continuously visible session,
+   // earn exactly one batch of [rank] ordinary clicks each elapsed second.
+   if(lastClick!==undefined && seconds-lastClick===1000 &&
+       state.stats.clickCount<=Number.MAX_SAFE_INTEGER-clickLevel){
+     for(let n=0;n<clickLevel;n++)updated=v8Click(updated)
+   }
+   updated={...updated,ascension:{...updated.ascension,run:{...updated.ascension.run,
+     lastAutomationAtRealMs:seconds}}}
  }
  const lastStrategy=state.ascension.run.lastStrategyAtRealMs??at-AUTOMATION_BOT_INTERVAL_MS
  if(bots&&at-lastStrategy>=AUTOMATION_BOT_INTERVAL_MS){

@@ -296,7 +296,8 @@ export function v8BuyFameUpgrade(state: V8CapitalState, id: FameBoostId,
 }
 export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgradeId,
   expectedLevel: number): V8CapitalState | null {
-  if (id === 'market-liquidity' || id === 'liquidity-recovery') return null
+  // Former PP Auto Click is retired; its ledger is retained for the pass-6 refund.
+  if (id === 'auto-click' || id === 'market-liquidity' || id === 'liquidity-recovery') return null
   if (state.ascension.progress.upgradeLevels[id] !== expectedLevel) return null
   const price = nextAscensionCost(id, expectedLevel)
   if (price === null || v(state.ascension.progress.availablePoints) < BigInt(price)) return null

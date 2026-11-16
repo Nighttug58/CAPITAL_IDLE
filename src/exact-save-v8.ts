@@ -171,6 +171,8 @@ export function projectValidatedV7ToExactV8(
     field(item, 'earnedPoints', 'units', 'ascension.progress.history.earnedPoints')
   }
   const run = record(ascension.run, 'ascension.run')
+  // This field did not exist in V7; it is cycle-scoped and starts at zero.
+  run.autoClickLevel = 0
   const automation = record(run.automation, 'ascension.run.automation')
   for (const key of ['maxOrderCents', 'cashReserveCents']) field(automation, key, 'cents', 'ascension.run.automation.' + key)
   if (automation.enterpriseBudgetCents !== undefined)

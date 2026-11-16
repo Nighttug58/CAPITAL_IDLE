@@ -6,6 +6,7 @@ import {createV8MarketRuntime} from './exact-clock-v8.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
 import {formatCompactUnits,parseDecimalUnits} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
+import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
  v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAchievement} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
@@ -72,6 +73,12 @@ const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value &&
   v(exact.value.game.balance) >= BigInt(nextUpgrade.value.price)*100n)
+const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * getBonusMultiplier(capital.value, 'click'))
+const autoClickLevel = computed(() => getDollarAutoClickLevel(exact.value))
+const autoClickCost = computed(() => dollarAutoClickPriceCents(autoClickLevel.value))
+const autoClickAffordable = computed(() => autoClickCost.value !== null && v(exact.value.game.balance) >= autoClickCost.value)
+const missingAutoClickCash = computed(() => autoClickCost.value===null ? null
+  : autoClickCost.value > v(exact.value.game.balance) ? autoClickCost.value-v(exact.value.game.balance) : 0n)
 const page = ref<'home' | 'fame' | 'prestige' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
@@ -82,7 +89,6 @@ const supportsFullscreen = typeof document !== 'undefined' && typeof document.do
 const floatingGains = ref<FloatingGain[]>([])
 const boostDialog = ref<HTMLDialogElement | null>(null)
 const clickBoosts = computed(() => getBonusBreakdown(capital.value, 'click'))
-const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * getBonusMultiplier(capital.value, 'click'))
 const tapAnimationId = ref(0)
 const spinFrame = ref(0)
 let spinPhase = 0
@@ -234,6 +240,12 @@ function buy() {
   if (loadBlocked.value) return
   const next = v8UpgradeClick(exact.value)
   if (next) {syncExactState(next); persist()}
+}
+function buyAutoClick() {
+  if (loadBlocked.value) return
+  settleEconomyNow()
+  const next = buyDollarAutoClick(exact.value, Date.now())
+  if (next) replaceWholeSaveExact(next)
 }
 
 // All V8 money/quantity mutations go through the exact store, never the
@@ -616,47 +628,81 @@ onUnmounted(() => {
       </div>
       <div class="balance-value" aria-label="Solde">{{exactCashLabel}}</div>
       <section class="home-progression" aria-label="Progression et améliorations">
-      <div class="level-panel" aria-label="Progression du niveau">
-        <div class="level-heading">
-          <span class="level-label">NIVEAU <strong>{{ level }}</strong></span>
-        </div>
-        <div
-          class="progress-frame"
-          role="progressbar"
-          :aria-label="`Progression du niveau ${level}`"
-          :aria-valuenow="Math.round(progressPercent)"
-          aria-valuemin="0"
-          aria-valuemax="100"
-        >
-          <small class="xp-unit">XP</small><strong class="xp-count">{{xpLabel}}</strong>
-          <div class="progress-track">
-            <div class="progress-fill" :style="{ width: `${progressPercent}%` }"></div>
+        <div class="home-progress-head">
+          <div class="home-progress-identity">
+            <span class="home-progress-caption">PROGRESSION</span>
+            <strong>Niveau <span>{{ level }}</span></strong>
+          </div>
+          <div class="home-progress-actions">
+            <span class="home-progress-percent">{{ Math.round(progressPercent) }} %</span>
+            <button class="boost-trigger" type="button" @click="boostDialog?.showModal()">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"/>
+              </svg>
+              Boosts
+            </button>
           </div>
         </div>
-        <button class="boost-trigger" type="button" @click="boostDialog?.showModal()">Boosts</button>
-      </div>
-      <dialog ref="boostDialog" class="boost-dialog" aria-label="Sources du gain par clic">
-        <h2>Gain par clic</h2><dl>
-          <dt>Base au niveau actuel</dt><dd>{{formatMoney(getClickValue(game.purchasedUpgrades))}}</dd>
-          <dt>Fame Shop</dt><dd>+{{numberFormatter.format(clickBoosts.shopBps / 100)}} %</dd>
-          <dt>Collection</dt><dd>+{{numberFormatter.format(clickBoosts.collectionBps / 100)}} %</dd>
-          <dt>Prestige absolu</dt><dd>+{{numberFormatter.format((clickBoosts.totalBps-clickBoosts.shopBps-clickBoosts.collectionBps)/100)}} %</dd>
-          <dt>Total par clic</dt><dd>{{formatMoney(clickValue)}}</dd>
-        </dl><button @click="boostDialog?.close()">Fermer</button>
-      </dialog>
-      <section class="upgrade-card" aria-label="Amélioration du clic">
-        <div class="upgrade-copy">
-          <span class="eyebrow">PROCHAINE AMÉLIORATION</span>
-          <strong><span class="tap-reward">{{formatMoney(clickValue)}}</span><template v-if="nextUpgrade"> → <em>{{formatMoney(nextGain)}}</em></template> par clic</strong>
-          <small v-if="!nextUpgrade">Niveau maximal</small>
-          <span class="upgrade-tier">Niv. {{game.purchasedUpgrades}} / {{MAX_CLICK_LEVEL}}</span>
-          <small v-if="nextUpgrade && game.balance < nextUpgrade.price">Il manque {{formatMoney(nextUpgrade.price-game.balance)}}</small>
+        <div class="home-xp-track" role="progressbar" :aria-label="`Progression du niveau ${level}`"
+          :aria-valuenow="Math.round(progressPercent)" aria-valuemin="0" aria-valuemax="100">
+          <span class="home-xp-fill" :style="{width: `${progressPercent}%`}"></span>
         </div>
-        <button class="upgrade-button" type="button" :disabled="!upgradeAffordable" @click="buy">
-          {{ !nextUpgrade ? 'MAX' : !upgradeUnlocked ? 'Niv. '+nextUpgrade.requiredLevel+' · '+formatMoney(nextUpgrade.price) : 'Améliorer · '+formatMoney(nextUpgrade.price) }}
-          <svg v-if="upgradeAffordable" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-        </button>
-      </section>
+        <div class="home-xp-summary"><span>Vers le niveau {{ level + 1 }}</span><strong>{{ xpLabel }}</strong></div>
+        <dialog ref="boostDialog" class="boost-dialog" aria-label="Sources du gain par clic">
+          <h2>Gain par clic</h2><dl>
+            <dt>Base au niveau actuel</dt><dd>{{formatMoney(getClickValue(game.purchasedUpgrades))}}</dd>
+            <dt>Fame Shop</dt><dd>+{{numberFormatter.format(clickBoosts.shopBps / 100)}} %</dd>
+            <dt>Collection</dt><dd>+{{numberFormatter.format(clickBoosts.collectionBps / 100)}} %</dd>
+            <dt>Prestige absolu</dt><dd>+{{numberFormatter.format((clickBoosts.totalBps-clickBoosts.shopBps-clickBoosts.collectionBps)/100)}} %</dd>
+            <dt>Total par clic</dt><dd>{{formatMoney(clickValue)}}</dd>
+          </dl><button type="button" @click="boostDialog?.close()">Fermer</button>
+        </dialog>
+        <div class="home-upgrade-list">
+          <div class="home-upgrade-row" aria-label="Amélioration du clic">
+            <span class="home-upgrade-symbol home-upgrade-click-symbol" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m5 3 14 10-7 1-3 7-4-18Z"/><path d="m12 14 3 6"/>
+              </svg>
+            </span>
+            <div class="home-upgrade-info">
+              <strong>Revenu par clic <span class="tap-reward">{{ formatMoney(clickValue) }}</span></strong>
+              <small>Niv. {{ game.purchasedUpgrades }} / {{ MAX_CLICK_LEVEL }}
+                <template v-if="nextUpgrade"> · → <span class="home-upgrade-increment">{{ formatMoney(nextGain) }}</span></template>
+                <template v-else> · Niveau maximal</template>
+              </small>
+            </div>
+            <button class="upgrade-button home-upgrade-buy" type="button" :disabled="loadBlocked || !upgradeAffordable" @click="buy">
+              <span>{{ !nextUpgrade ? 'MAX' : !upgradeUnlocked ? 'Niv. ' + nextUpgrade.requiredLevel : 'Améliorer' }}</span>
+              <strong v-if="nextUpgrade">{{ formatCompactUnits(BigInt(nextUpgrade.price)*100n) }}</strong>
+            </button>
+          </div>
+          <div class="home-upgrade-row" aria-label="Amélioration Auto Click">
+            <span class="home-upgrade-symbol home-upgrade-auto-symbol" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m13 2-9 12h7l-1 8 10-13h-7V2Z"/>
+              </svg>
+            </span>
+            <div class="home-upgrade-info">
+              <strong>Auto Click <span class="home-auto-rate">{{ autoClickLevel }} /s</span></strong>
+              <small>Niv. {{ autoClickLevel }} / {{ DOLLAR_AUTOCLICK_MAX_LEVEL }}
+                <template v-if="autoClickCost !== null"> · +1 clic/s</template>
+                <template v-else> · MAX</template>
+              </small>
+            </div>
+            <button class="upgrade-button home-upgrade-buy home-auto-buy" type="button"
+              :disabled="loadBlocked || !autoClickAffordable" @click="buyAutoClick">
+              <span>{{ autoClickCost === null ? 'MAX' : 'Améliorer' }}</span>
+              <strong v-if="autoClickCost !== null">{{ formatCompactUnits(autoClickCost) }}</strong>
+            </button>
+          </div>
+        </div>
+        <div class="home-auto-footnote" aria-live="polite">
+          <span><span class="home-online-dot" aria-hidden="true"></span> Automatique uniquement en jeu actif</span>
+          <small v-if="missingAutoClickCash !== null && missingAutoClickCash > 0n">Manque {{ formatCompactUnits(missingAutoClickCash) }}</small>
+        </div>
       </section>
       <button
         class="tap-zone"

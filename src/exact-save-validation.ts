@@ -112,6 +112,9 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
     run.automation.allowedAssetIds.some((id:unknown)=>typeof id!=='string'||!allowedAssets.has(id))||
     !['autoClickEnabled','investorEnabled','traderEnabled','enterpriseEnabled'].every(
       key=>typeof (run.automation as Dict)[key]==='boolean'))return false
+  // Missing means an old, still-valid V8 save: treat as level 0.
+  if(run.autoClickLevel!==undefined && (!safe(run.autoClickLevel)||run.autoClickLevel>20))return false
+  if(run.lastAutomationAtRealMs!==undefined && !safe(run.lastAutomationAtRealMs))return false
   if(run.marketOrders!==undefined){
     if(!Array.isArray(run.marketOrders)||run.marketOrders.length>24||
       !safe(run.nextOrderId)||run.nextOrderId<1)return false

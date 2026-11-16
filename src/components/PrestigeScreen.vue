@@ -49,7 +49,7 @@ const frenzyOn = computed(() => frenzyActive(props.state, props.state.trading.di
 const frenzyRemaining = computed(() => Math.max(0, (props.state.ascension.run.frenzyReadyAtRealMs ?? 0) - props.state.trading.dividendLastPaidAt))
 const frenzyTime = computed(() => Math.ceil(frenzyRemaining.value / 60_000))
 const offers = computed(() => getAscensionOffers(props.state))
-const activeUpgrades = ASCENSION_UPGRADES.filter(item => item.id !== 'market-liquidity' && item.id !== 'liquidity-recovery')
+const activeUpgrades = ASCENSION_UPGRADES.filter(item => item.id !== 'auto-click' && item.id !== 'market-liquidity' && item.id !== 'liquidity-recovery')
 const totalLevels = activeUpgrades.reduce((sum, item) => sum + item.maxLevel, 0)
 const purchasedLevels = computed(() => activeUpgrades.reduce((sum, item) => sum + progress.value.upgradeLevels[item.id], 0))
 const spentPoints = computed(() => progress.value.lifetimePoints - progress.value.availablePoints)

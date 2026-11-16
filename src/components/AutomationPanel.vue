@@ -39,10 +39,9 @@ const currentOrderAsset = computed(() => getAsset(orderAssetId.value) ?? ASSETS[
 const currentPrice = computed(() =>
   props.state.trading.quotes[orderAssetId.value]?.price ?? currentOrderAsset.value.referencePrice)
 const hasOrders = computed(() => levels.value['automatic-orders'] > 0)
-const hasAny = computed(() => ['auto-click','auto-investor','auto-trader','auto-enterprise','automatic-orders']
+const hasAny = computed(() => ['auto-investor','auto-trader','auto-enterprise','automatic-orders']
   .some(id => levels.value[id as keyof typeof levels.value] > 0))
 const toggles = [
-  { key: 'autoClickEnabled', upgrade: 'auto-click', name: 'Auto Click', note: '1 clic/s par niveau, 20 maximum' },
   { key: 'investorEnabled', upgrade: 'auto-investor', name: 'Auto Investisseur', note: 'Achète les actifs sélectionnés selon le budget' },
   { key: 'traderEnabled', upgrade: 'auto-trader', name: 'Auto Trader', note: 'Ventes sur Take Profit ou Stop Loss' },
   { key: 'enterpriseEnabled', upgrade: 'auto-enterprise', name: 'Auto Entreprise', note: 'Achète ou améliore l’entreprise la moins chère' },
@@ -150,7 +149,7 @@ watch(orderSide, value => {
       <p>Les bots fonctionnent seulement avec le jeu au premier plan, sans gains ni achats hors ligne. Une décision toutes les cinq secondes réelles.</p>
     </div>
 
-    <div v-if="!hasAny" class="automation-locked">Débloque Auto Click, Auto Investisseur, Auto Trader, Auto Entreprise ou Ordres automatiques dans la boutique ci-dessous.</div>
+    <div v-if="!hasAny" class="automation-locked">Débloque Auto Investisseur, Auto Trader, Auto Entreprise ou Ordres automatiques dans la boutique ci-dessous. Auto Click est maintenant disponible en dollars sur Accueil.</div>
     <div class="automation-switches">
       <div v-for="item in toggles" :key="item.key" class="automation-switch">
         <div><strong>{{ item.name }}</strong><small>{{ item.note }}</small></div>

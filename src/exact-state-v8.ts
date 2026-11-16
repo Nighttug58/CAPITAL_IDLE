@@ -87,6 +87,8 @@ export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {
   quantity: ExactAmount
 }
 export interface V8AscensionRun extends Omit<AscensionRunState,'automation'|'marketOrders'> {
+  /** Auto Click purchased in dollars for this cycle (missing in older V8 saves = 0). */
+  autoClickLevel?: number
   automation: Omit<AscensionRunState['automation'],'maxOrderCents'|'cashReserveCents'|'enterpriseBudgetCents'> & {
     maxOrderCents: ExactAmount
     cashReserveCents: ExactAmount

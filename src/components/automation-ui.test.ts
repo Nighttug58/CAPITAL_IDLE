@@ -5,6 +5,8 @@ import App from '../App.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
 import { performPrestige } from '../ascension/engine.ts'
 import { buyAscensionUpgrade } from '../ascension/shop.ts'
+import { configureAutomation } from '../ascension/automation-orders.ts'
+import { readV8Raw } from './v8-ui-test-helper.ts'
 
 const KEY='capital-idle-save-v7'
 const mounted: VueWrapper[]=[]
@@ -28,30 +30,33 @@ async function prestige(wrapper: VueWrapper) {
 }
 
 describe('Prestige passe 6 — contrôles des automatismes',()=>{
-  it('présente les quatre assistants verrouillés et les 16 upgrades existants',async()=>{
+  it('présente trois assistants PP, sans Auto Click',async()=>{
     const {wrapper}=mountState(withPP())
     await prestige(wrapper)
-    expect(wrapper.findAll('.automation-switch')).toHaveLength(4)
+    expect(wrapper.findAll('.automation-switch')).toHaveLength(3)
     expect(wrapper.find('.automation-panel').text()).toContain('Automatisations')
     expect(wrapper.find('.automation-locked').exists()).toBe(true)
-    expect(wrapper.findAll('.automation-switch button:disabled')).toHaveLength(4)
-    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(16)
+    expect(wrapper.findAll('.automation-switch button:disabled')).toHaveLength(3)
+    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(15)
     expect(wrapper.find('.automation-orders').exists()).toBe(false)
     expect(wrapper.findAll('.bottom-nav button').at(-1)?.text()).toBe('Stats')
   })
 
-  it('Auto Click se débloque, s’active et sa préférence survit au rechargement',async()=>{
-    const {wrapper,stored}=mountState(withPP())
+  it('préserve les anciens PP Auto Click mais ne propose plus de bot PP actif',async()=>{
+    const old = buyAscensionUpgrade(withPP(),'auto-click',0)
+    expect(old.ok).toBe(true)
+    if(!old.ok)return
+    const configured=configureAutomation(old.state,{autoClickEnabled:true})
+    expect(configured.ok).toBe(true)
+    if(!configured.ok)return
+    const {wrapper,stored}=mountState(configured.state)
     await prestige(wrapper)
-    await wrapper.find('.ascension-upgrade[data-upgrade="auto-click"] .ascension-buy').trigger('click')
-    expect(wrapper.find('.automation-switch button').attributes('disabled')).toBeUndefined()
-    await wrapper.find('.automation-switch button').trigger('click')
-    expect(stored().ascension.run.automation.autoClickEnabled).toBe(true)
-    expect(wrapper.find('.automation-switch button').attributes('aria-pressed')).toBe('true')
-    wrapper.unmount(); mounted.splice(mounted.indexOf(wrapper),1)
-    const restarted=mount(App,{attachTo:document.body});mounted.push(restarted)
-    await prestige(restarted)
-    expect(restarted.find('.automation-switch button').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.ascension-upgrade[data-upgrade="auto-click"]').exists()).toBe(false)
+    expect(wrapper.find('.automation-switch').text()).toContain('Auto Investisseur')
+    expect(wrapper.find('.automation-switches').text()).not.toContain('Auto Click')
+    expect(stored().ascension.progress.upgradeLevels['auto-click']).toBe(1)
+    expect(readV8Raw().ascension.run.autoClickLevel).toBe(0)
+    expect(wrapper.find('.automation-panel').text()).toContain('en dollars sur Accueil')
   })
 
   it('paramètre budgets, seuils et actifs et écrit le JSON atomiquement',async()=>{

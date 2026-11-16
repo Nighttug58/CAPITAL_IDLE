@@ -5,6 +5,7 @@ import {v8AdvanceFiscalEconomy} from './exact-runtime-v8.ts'
 import {v8SettleStaking} from './exact-staking-v8.ts'
 import {v8AdvanceMarketSecond} from './exact-market-v8.ts'
 import {v8AutomationFrame} from './exact-automation-v8.ts'
+import {armDollarAutoClick} from './dollar-autoclick-v8.ts'
 
 const SAVE_INTERVAL_MS=5000
 const REPLAY_PAUSE_MS=16
@@ -75,9 +76,15 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
      timer=schedule(process,delay)
    }finally{processing=false}
  }
- function start(){if(started)return;started=true;paused=false;process()}
+ function armForegroundClicks(){
+   if(options.isForeground?.()===false)return
+   const current=options.getState()
+   const armed=armDollarAutoClick(current,now())
+   if(armed!==current){options.setState(armed);dirty=true}
+ }
+ function start(){if(started)return;started=true;paused=false;armForegroundClicks();process()}
  function pause(){if(!started||paused)return;paused=true;clear();saveIfDirty(true)}
- function resume(){if(!started||!paused)return;paused=false;process()}
+ function resume(){if(!started||!paused)return;paused=false;armForegroundClicks();process()}
  function wake(){if(started&&!paused)process()}
  function stop(){if(!started)return;started=false;paused=false;clear();saveIfDirty(true)}
  return{start,pause,resume,wake,stop}
