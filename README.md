@@ -10,9 +10,11 @@ Depuis la **passe 1 de la refonte**, la sauvegarde active utilise `capital-idle-
 
 La première ouverture d'une sauvegarde locale **v1 à v7** effectue une migration contrôlée vers V8 : l'original n'est pas effacé et, pour v7, une copie `capital-idle-save-backup-v7` est conservée. Les imports manuels v4–v7 sont acceptés après validation stricte. Une sauvegarde corrompue bloque l'écriture et demande import ou réinitialisation explicite : **aucun reset silencieux**. L'export manuel utilise désormais les champs exacts V8. `src/capital.ts` reste un modèle v7 de compatibilité/affichage, non l'autorité économique active.
 
-**Hors du périmètre de la passe 1 :** les limites de quantité du trading (passe 2), les nouvelles bornes de cours (passe 2), les revenus/niveaux d'entreprises (passe 3) et la révision des récompenses Prestige (passe 6) restent inchangés. Voir [la roadmap V2](ROADMAP_REFONTE_ECONOMIE_PRESTIGE_V2.md).
+## Prestige V2 et pouvoirs News
 
+Le Prestige demande le niveau 150 et 10 milliards $ de patrimoine éligible hors collections, après impôts. Les 11 pouvoirs permanents se débloquent du Prestige 1 au Prestige 15. La boutique complète coûte 6 530 PP. La Fame disponible repart de zéro à chaque cycle. Les boosts et les 100 objets de collection restent acquis.
 
+Dans Trading → News, le Prestige 7 permet de générer une annonce pour 5 % du patrimoine net. Au Prestige 10, ouvrir une annonce active permet de la terminer pour 10 %, après confirmation. Les collections comptent dans le prix des deux pouvoirs. Le paiement utilise le cash disponible. Les annonces programmées gardent leur échéance.
 
 ## Accueil — le clicker
 
@@ -35,7 +37,7 @@ La première ouverture d'une sauvegarde locale **v1 à v7** effectue une migrati
 - Aucune suppression ni modification des Fame déjà gagnées ; l'écrêtage concerne uniquement les bonus calculés, pas la progression enregistrée.
 
 ## Achievements — récompenses de progression
-- Bouton ruban sur Accueil, ouvrant une page de **26 cadeaux en cash** répartis entre niveaux, clics, revenus, entreprises, collections et Prestige. Les paliers atteints dans les anciennes sauvegardes sont reconnus au chargement : le joueur choisit quand les réclamer.
+- Bouton ruban sur Accueil, ouvrant une page de **478 cadeaux en cash** répartis entre niveaux, clics, revenus, entreprises, collections, Prestige, bénéfices réalisés sur actions, cryptos et memecoins, et dividendes. Les paliers atteints dans les anciennes sauvegardes sont reconnus au chargement : le joueur choisit quand les réclamer.
 - Chaque cadeau est **unique et persisté** dans `achievements.claimedIds`, y compris lors des Prestiges ; les cadeaux n'ajoutent ni XP ni Fame et ne créent pas de taxe. Reset intégral = remise à zéro des succès. Les anciens fichiers v4–v7 restent importables, les v7 antérieures sans compteur sont migrées sans cadeau automatique.
 
 ## Trading — 45 instruments
@@ -105,7 +107,7 @@ La page **Stats** est l'onglet le plus à droite de la navigation principale. El
 
 ## Sauvegarde locale, import/export et rattrapage hors ligne
 
-- Sauvegarde automatique **v7** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v6** sont migrées vers v7 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
+- Sauvegarde automatique **v8** en `localStorage` sur le navigateur/appareil. Les anciennes sauvegardes **v1 à v6** sont migrées vers v8 en conservant les données disponibles, sans appliquer rétroactivement les taxes. Aucune synchronisation cloud ni compte utilisateur.
 - Tout en bas de **Stats** : **Exporter** télécharge un JSON complet et versionné (`CAPITAL_IDLE_save_YYYY-MM-DD.json`) ; **Importer** valide le fichier (v4/v5/v6, taille maximale **16 Mo**, cohérence du schéma, valeurs, horloges et portefeuille), présente un aperçu et demande une **confirmation avant remplacement** ; **Réinitialiser** nécessite la saisie exacte de `RESET`.
 - Import et reset remplacent la sauvegarde v6 **après arrêt de l'ancien moteur**, puis reprennent le jeu sur les horloges sauvegardées. Un fichier invalide est rejeté sans effacer la partie. Les anciennes clés v1–v5 sont effacées lors du remplacement, et une v6 reste prioritaire pour empêcher la résurrection d'une ancienne partie.
 - La restauration conserve les dates de simulation ; le revenu d'entreprises et les taxes sont repris sur toute la durée écoulée. Le **Trading/News/dividendes** conserve volontairement son rejeu **par tranches bornées** : une très longue absence peut demander plusieurs cycles pour rattraper ce sous-système, sans limiter les revenus fixes des entreprises.
@@ -160,7 +162,7 @@ npm run build
 `npm test` exécute les vérifications de calculs financiers, les simulations temporelles, les migrations et les **tests de composants Vue**. `npm run build` lance le contrôle TypeScript puis génère `dist/` via Vite.
 
 - `src/game.ts` : clicker, seuils de niveau extensibles et améliorations du clic.
-- `src/prestige/catalog.ts`, `state.ts`, `bonuses.ts`, `shop.ts`, `collections-catalog.ts`, `collections.ts`, `absolute.ts`, `overview.ts` : catalogue Fame/Collection, compteurs de progression et **moteur commun des six bonus additifs**. Les revenus de clic, entreprises, dividendes, trading, XP et Fame utilisent ce calcul ; les fractions de centime sont conservées et les règles fiscales existantes restent applicables. Le **Fame Shop côté domaine** propose six arbres de 20 paliers, avec achat atomique en Fame, prix déterministe, contrôle du palier attendu contre les doubles achats, et validation des dépenses au rechargement. La **Collection** contient **50 pièces fictives uniques**, réparties entre Montres, Autos, Peintures, Antiquités et Joaillerie : fiches descriptives, achat définitif en Gold, récompense Fame unique (20 200 Fame de base sur tout le catalogue) et bonus permanent partagé. Les objets possédés entrent dans le patrimoine à leur coût historique d'acquisition, sans valeur de marché ni revente. L'interface actuelle comprend un bouton Fame violet à droite du solde sur **Accueil** ouvrant une **page Fame Shop dédiée** : six améliorations défilantes, solde Fame, paliers, prix et Prestige absolu. Le bouton « Accueil » de la page permet de revenir au clicker ; la navigation principale à cinq onglets reste accessible. L'onglet **Collection** reste avant Stats avec cinq catégories, dix pièces chacune, des fiches descriptives, l'état de propriété, la confirmation des achats de prestige et une sauvegarde immédiate. L’interface mobile et les commandes au clavier ont des tests dédiés. La **passe 7** livre également le **Prestige absolu**, gratuit et automatiquement actif après **120/120 paliers** : chaque tranche entière de **100 Fame disponibles** multiplie les **seuls bonus Fame Shop** par `1.01 ^ floor(FameDisponible / 100)`, avant l'addition des bonus de collection (jamais multipliés). Les effets sont recalculés sur la Fame présente, sans attribution rétroactive et sans champ de sauvegarde supplémentaire. **Stats** présente le solde Fame, les gains par niveaux/collections, la Fame dépensée, les 50 objets, le détail des six bonus et le multiplicateur Prestige ; les sauvegardes et imports v6 ainsi que les migrations v5 le conservent par déduction. La **passe 8 clôt** l'intégration avec les tests d'équilibrage, les simulations de parcours et le déploiement final vérifié dans GitHub Actions.
+- `src/prestige/catalog.ts`, `state.ts`, `bonuses.ts`, `shop.ts`, `collections-catalog.ts`, `collections.ts`, `absolute.ts`, `overview.ts` : catalogue Fame/Collection, compteurs de progression et **moteur commun des six bonus additifs**. Les revenus de clic, entreprises, dividendes, trading, XP et Fame utilisent ce calcul ; les fractions de centime sont conservées et les règles fiscales existantes restent applicables. Le **Fame Shop côté domaine** propose six arbres de 20 paliers, avec achat atomique en Fame, prix déterministe, contrôle du palier attendu contre les doubles achats, et validation des dépenses au rechargement. La **Collection** contient **100 pièces fictives uniques**, réparties entre Montres, Autos, Peintures, Antiquités et Joaillerie : fiches descriptives, achat définitif en Gold, récompense Fame unique (165 195 Fame de base sur tout le catalogue) et bonus permanent partagé. Les objets possédés entrent dans le patrimoine à leur coût historique d'acquisition, sans valeur de marché ni revente. L'interface actuelle comprend un bouton Fame violet à droite du solde sur **Accueil** ouvrant une **page Fame Shop dédiée** : six améliorations défilantes, solde Fame, paliers, prix et Prestige absolu. Le bouton « Accueil » de la page permet de revenir au clicker ; la navigation principale à cinq onglets reste accessible. L'onglet **Collection** reste avant Stats avec cinq catégories, vingt pièces chacune, des fiches descriptives, l'état de propriété, la confirmation des achats de prestige et une sauvegarde immédiate. L’interface mobile et les commandes au clavier ont des tests dédiés. La **passe 7** livre également le **Prestige absolu**, gratuit et automatiquement actif après **120/120 paliers** : chaque tranche entière de **100 Fame disponibles** multiplie les **seuls bonus Fame Shop** par `1.01 ^ floor(FameDisponible / 100)`, avant l'addition des bonus de collection (jamais multipliés). Les effets sont recalculés sur la Fame présente, sans attribution rétroactive et sans champ de sauvegarde supplémentaire. **Stats** présente le solde Fame, les gains par niveaux/collections, la Fame dépensée, les 50 objets, le détail des six bonus et le multiplicateur Prestige ; les sauvegardes et imports v6 ainsi que les migrations v5 le conservent par déduction. La **passe 8 clôt** l'intégration avec les tests d'équilibrage, les simulations de parcours et le déploiement final vérifié dans GitHub Actions.
 - `src/capital.ts` / `src/persistence.ts` / `src/save-transfer.ts` : solde unique, sauvegardes, migrations, import/export et reset.
 - `src/trading/catalog.ts` : 45 actifs, bornes et quantités.
 - `src/trading/market.ts`, `news.ts`, `yield.ts` : simulateur de cours, annonces et rendements.
@@ -173,97 +175,6 @@ npm run build
 
 Voir également [la roadmap Trading](ROADMAP_TRADING.md), [la roadmap Entreprises/Stats/Fiscalité](ROADMAP_ENTREPRISES_STATS_FISCALITE.md), [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md), [les règles du moteur News](TRADING_NEWS.md) et [l'interface Trading](TRADING_INTERFACE.md).
 
-
-## Nouveau Prestige économique — passe 2 (14/11/2026)
-
-Les **Points de Prestige (PP)** ne sont pas la Fame : le domaine `src/ascension/` est distinct du module Fame historique `src/prestige/`. Le moteur métier est implémenté en passe 2 et l'écran d'activation sera livré en passe 3. **Le site compilé à la racine ne contient pas encore cette interface.**
-
-- Conditions : **niveau 100** sur le cycle et **100 M$** de patrimoine éligible hors collection permanente ; PP = `floor(20 × sqrt(patrimoine / 100 M$))`.
-- Un Prestige remet à zéro cash, XP du cycle, achats de clics, investissements, entreprises et statistiques du cycle, mais conserve Fame, objets, boosts Fame, PP, niveaux de Prestige et historique des cycles.
-- La Fame gagnée pour des niveaux atteints lors de cycles précédents ne peut pas être regagnée : un record global du plus haut niveau récompensé est persisté.
-- La dette fiscale **doit être nulle après rattrapage** et le calendrier des **72 h réelles** est conservé. Le moteur refuse aussi le reset avant la fin d'un replay marché/dividendes en attente.
-- **Sauvegarde v7** : migrations locales v1–v6, imports v4/v5/v6/v7 avec validation de l'état Prestige et des dépenses en PP. Import et RESET complet remplacent toujours l'ensemble de la partie, pas seulement le cycle.
-- La transition est pure ; l'intégration UI utilisera `commitPrestige` avec `replaceCapitalSave` après arrêt du runtime. Aucune PP n'est créditée si l'écriture échoue. Les nouveaux bonus et achats Prestige ne sont pas encore activés en passe 2.
-
-Voir [ROADMAP_PRESTIGE.md](ROADMAP_PRESTIGE.md) pour la progression et les limites de validation.
-
-
-### Passe 3 — Boutique et page Prestige
-
-Une page **Prestige** distincte du Fame Shop est accessible depuis l'accueil, sans déplacer **Stats** de l'extrémité droite de la navigation à cinq onglets. Elle affiche les PP, le nombre de cycles, le seuil de 100 M$ hors collections, les conditions de fiscalité, et le catalogue de **18 upgrades / 87 niveaux / 1 637 PP** regroupés en cinq familles. Chaque achat vérifie le niveau attendu, les coûts du catalogue et le ledger PP, puis écrit la sauvegarde v7 avant d'afficher le succès. Les achats sont irréversibles. Une confirmation manuelle **PRESTIGE** est nécessaire pour détruire le run ; la Fame, ses bonus, les collections et la progression PP sont conservés. La page avertit que les effets de news, staking et bots ne deviendront actifs qu'aux passes 4 à 6 ; l'achat à ce stade ne simule pas de faux revenus. Tests domaine et tests Vue dédiés ajoutés.
-
-
-### Passe 4 — Marchés Prestige, temps et liquidités
-
-Le marché sépare maintenant la **vitesse virtuelle des cours** du temps réel. Dans la page Prestige, l'accélérateur de marché permet de sélectionner ×1, ×1,5, ×2, ×3, ×4 ou ×5 selon le niveau acheté ; les dividendes, taxes (72 h), entreprises et cooldowns ne sont pas accélérés. Les News conservent une durée réelle tout en bénéficiant des améliorations de durée ×2, puissance bilatérale ×2, fréquence +50 %, vision anticipée, propagation sur une deuxième cible et Frénésie activable. Le Radar de volatilité est visible dans Trading une fois débloqué. Les News ont désormais une durée de base de 5 à 30 minutes réelles (de 10 à 60 minutes au maximum avec l'amélioration de durée Prestige). Les anciens plafonds de liquidité à l'achat et à la vente ont été supprimés : les ordres restent contrôlés par le cash, les frais, l'offre totale, les unités détenues et le staking.
-
-Le moteur est dans `src/ascension/market-effects.ts` et `src/trading/{market,news,trades,dividends}.ts` ; les validations sont couvertes par les tests de domaine et d'interface.
-
-
-### Passe 5 — Staking crypto (Prestige)
-
-L'amélioration Prestige **Staking crypto** (40 PP) débloque un onglet **Staking** dans Trading. **Neuf des quinze cryptomonnaies classiques** sont éligibles (ETH, BNB, TRX, SOL, ADA, LINK, AVAX, SUI, UNI). Bitcoin, les autres cryptos non retenues et les dix memecoins ne sont pas stakables. Les taux fictifs de base sont respectivement **0,02 / 0,04 / 0,06 % par heure réelle**, suivant l'actif ; l'amélioration **Rendement de staking** donne +10 % par niveau, jusqu'à ×2.
-
-- **Même portefeuille :** les coins placés restent dans `trading.positions` et sont valorisés une seule fois dans Stats et le patrimoine Prestige. Les quantités `locked`, `unlocking` et les récompenses réservées ne sont jamais vendables.
-- **Retrait différé :** demande d'unstake = retrait de la quantité du principal actif, puis blocage pendant **5 minutes réelles**, libération automatique ; les coins en déblocage ne rapportent plus.
-- **Récompenses :** émission de coins bornée par `totalSupply`, plafonnée à **24 heures réelles par reprise** ; reliquats infra-précision conservés, pas de double versement au replay. Récompenses dans le coin correspondant, sans cash/XP/taxe avant vente ; vente des unités récompensées en priorité, à base de coût nulle, soumise aux mêmes frais et taxes différées que le Trading.
-- **Capitalisation :** l'amélioration Prestige **Staking composé automatique** (35 PP) réserve les récompenses et les place automatiquement en staking sur des frontières de **10 minutes réelles**. L'accélérateur temporel de marché ne modifie jamais le taux ni la durée des retraits.
-- **Sauvegarde v7 :** sous-ledger `trading.staking` validé et migré automatiquement quand il manque aux anciennes v7. Les positions et revenus de staking disparaissent lors d'un Prestige, tout comme les autres investissements ; PP, Fame et améliorations restent.
-- **Runtime :** calcul O(positions × 144 tranches maxi) à chaque reprise, indépendant du replay du marché, sans nouveau timer périodique. Les opérations d'UI enregistrent la sauvegarde avant de confirmer le résultat.
-
-Les tests `src/trading/staking.test.ts` et `src/components/staking-ui.test.ts` ont été ajoutés aux scripts npm, mais **leur exécution et le build ne sont pas attestés** dans cette session. La version statique publiée à la racine GitHub Pages n'a pas été régénérée.
-
-
-### Passe 6 — Automatisations Prestige
-
-Quatre améliorations de la boutique Prestige contrôlent des bots qui n'ajoutent aucune seconde minuterie : **Auto Click** (1 clic par seconde et par niveau, maximum 20), **Auto Investisseur**, **Auto Trader** et **Auto Entreprise**. L'amélioration distincte **Ordres automatiques** débloque les ordres limites (achat sous le seuil, vente au-dessus), Stop Loss et Take Profit (ventes). Les contrôles sont réunis sur la page Prestige, dans **Automatisations**.
-
-- **Sessions réellement actives** : les bots ne travaillent que lorsque le jeu est visible au premier plan et que le moteur de marché a rattrapé le temps réel. Les clics sont calculés une fois par seconde réelle (pas d'animations flottantes), les stratégies une fois toutes les **5 secondes réelles**. Les curseurs d'exécution sont persistants, aucun rattrapage de clicks ou d'achats hors ligne.
-- **Même moteur économique** : Auto Click utilise `earnCapitalClick` (Fame, XP, bilan des gains, bonus clic). Investisseur / Trader / Ordres utilisent `buyAsset` et `sellAsset` (frais, liquidités, staking, taxes différées, XP sur bénéfice réalisé et garde anti-doublon). Auto Entreprise utilise `buyEnterprise` et `upgradeEnterprise` avec les coûts, niveaux requis et revenus normaux.
-- **Paramètres** : liste autorisée d'actifs, budget maximal par ordre, réserve minimale de cash, budget entreprises, Take Profit (10 % initialement) et Stop Loss (5 % initialement). Un solde négatif ne permet aucun achat automatique. Le bot tente un achat/une vente/une opération d'entreprise au plus toutes les 5 secondes ; les transactions non autorisées par l'économie sont refusées.
-- **Ordres conditionnels** : au plus **24 ordres** en attente, identifiants croissants, déclenchement au prix du marché simulé (pas de prix garanti), une exécution réussie supprime définitivement l'ordre. Un ordre non exécutable reste en attente pour une prochaine cotation. Les ordres sont évalués dans l'ordre de leur création. La réserve cash est respectée à l'exécution d'un ordre d'achat. Les commandes peuvent être annulées sans frais.
-- **Priorité déterministe** : ordre conditionnel → Auto Trader → Auto Investisseur → Auto Entreprise, après le replay économique. Les toggles, limites, curseurs et ordres sont propres au cycle et sont supprimés par un Prestige, mais les niveaux Prestige débloqués restent permanents.
-- **Sauvegarde** : les champs additionnels de `ascension.run` restent compatibles avec les anciennes sauvegardes **v7**, tout en refusant les stratégies ou ordres activés sans upgrade, les horodatages non valides, les doublons d'identifiants et les prix/quantités impossibles. Aucune création ou suppression d'ordre n'est affichée comme réussie avant remplacement atomique de la sauvegarde.
-
-Fichiers principaux : `src/ascension/automation-{runtime,orders,validation}.ts`, `src/components/AutomationPanel.vue`, `src/trading/runtime.ts`. Tests métier `src/ascension/automation.test.ts` et Vue `src/components/automation-ui.test.ts` ajoutés à `package.json`. **Tests et compilation non exécutés dans cet environnement** (pas d'accès au clone/dépendances npm). GitHub Actions payants non déclenchés et site compilé à la racine non modifié.
-
-
-### Validation du mécanisme GitHub Pages (sans dépendances Vue)
-
-Le chemin de publication `npm run build:root` passe désormais impérativement par `npm run verify:release` : suite complète Node et Vue/JSDOM, puis `vue-tsc --noEmit` et build Vite. Si une étape échoue, **aucun fichier de la racine Pages n'est remplacé**. Le script de synchronisation valide également l'existence du JavaScript et des feuilles CSS référencés par l'HTML généré avant d'effacer les anciens assets.
-
-**Validation réellement exécutée :** `node --test scripts/sync-pages-root.test.mjs` — **4 tests réussis / 4**, sur Node 22 : `dist/` manquant, CSS manquant, HTML TypeScript refusé, et remplacement correct à partir de faux assets compilés. Ces tests sont confinés à un dossier temporaire et ne modifient ni l'ancien site ni la sauvegarde utilisateur.
-
-**Non exécuté :** installation npm, tests métier / Vue du jeu, `vue-tsc` et compilation Vite, faute de connectivité au dépôt et aux dépendances dans le conteneur. Le test de synchronisation n'atteste donc **pas** le build de CAPITAL_IDLE et ne permet pas de publier la racine.
-
-### Passe 7 — Bilan d'audit, correctifs et conditions de livraison
-
-**Statut : audit et corrections de code effectués ; validation de la release encore bloquée.** Le dépôt GitHub est accessible via l'intégration, mais son clone npm et les dépendances Vue/Vite ne sont pas disponibles dans cet environnement ; aucune suite `npm test` / `npm run test:ui` / `npm run build` n'a donc été exécutée. Le site statique GitHub Pages à la racine n'a pas été recompilé ni publié.
-
-Les corrections finales portent sur (1) l'interdiction de deux transactions automatiques sur **le même actif pendant un même cycle de 5 secondes** pour éviter un va-et-vient vendeur/acheteur et des commissions inutiles ; (2) la **rotation déterministe** des actifs autorisés à Auto Investisseur afin de répartir les achats au lieu de favoriser continuellement le premier symbole ; (3) le recours à l'autorité commune des **centimes exacts** dans le bot ; (4) les autosauvegardes : une erreur d'écriture n'efface plus l'état « non sauvegardé » du runtime, permettant une nouvelle tentative. Les achats de PP et cycles Prestige conservent leur transaction d'écriture atomique.
-
-Des tests Node supplémentaires décrivent le scénario anti-churn, la diversification, la reprise de sauvegarde après refus localStorage, le catalogue de 18 upgrades / 87 niveaux / **1 637 PP**, la formule PP par patrimoine ainsi que l'interaction du Prestige absolu Fame avec les boosts achetés et sa protection face à un facteur non fini. Ces tests sont écrits, **pas déclarés réussis**.
-
-**Équilibrage analytique — niveau 100 obligatoire, même patrimoine par cycle :**
-
-| Patrimoine éligible | PP/cycle | Cycles pour 1 637 PP |
-| ---: | ---: | ---: |
-| 100 M$ | 20 | 82 |
-| 250 M$ | 31 | 53 |
-| 500 M$ | 44 | 38 |
-| 1 Md$ | 63 | 26 |
-| 2 Md$ | 89 | 19 |
-| 5 Md$ | 141 | 12 |
-| 10 Md$ | 200 | 9 |
-
-**Interprétation :** une boutique complète en ~26 Prestige est possible à 1 Md$ de patrimoine éligible par cycle. Ce tableau est un **modèle PP**, pas une simulation de 20–30 parties réelles ; le temps pour atteindre le niveau 100, les frais, la fiscalité, les effets Fame et les marchés restent à mesurer.
-
-**Boost final après catalogue complet :** option **non implémentée**, car elle n'est pas encore validée. Proposition non contraignante : achat unique pour 200 PP, après les 87 niveaux, donnant un bonus utilitaire de régénération de liquidité de +25 % au plus, additif et jamais exponentiel. Revoir son intérêt après tests d'équilibrage pour éviter de dupliquer le bonus Fame.
-
-**Blocages de livraison :** tests et compilation npm non exécutés ; aucun test mobile/PC, ni long rattrapage de plusieurs jours/semaines ; coût du replay `256 secondes / batch` potentiellement élevé et à profiler ; pas de recette des imports v4–v7 avec sauvegardes réelles. Tant qu'ils ne sont pas levés, **ne pas déclarer Prestige prêt à déployer**.
-
-**Ordre de validation sur une machine disposant du dépôt et de npm :**
-`npm install` → `npm test` → `npm run build` → test manuel dans navigateur et mobile → `npm run build:root` → commit des fichiers compilés. Aucun workflow GitHub Actions payant n'a été déclenché ; il n'y a pas de `package-lock.json` actuel pour supposer que `npm ci` fonctionne.
 
 ## Déploiement GitHub Pages
 

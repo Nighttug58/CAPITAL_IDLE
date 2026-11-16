@@ -57,7 +57,7 @@ function validMarketEvent(value:unknown):boolean {
   const id=value.id, template=value.templateId
   if(typeof id!=='string'||!/^[a-z0-9-]{1,48}$/.test(id)||
     typeof template!=='string'||!getNewsTemplate(template)||
-    !safe(value.startedAt)||!safe(value.endsAt)||value.endsAt<=value.startedAt||
+    !safe(value.startedAt)||!safe(value.endsAt)||(value.endsAt<value.startedAt || (value.endsAt===value.startedAt && value.manuallyEnded!==true))||
     value.endsAt-value.startedAt>120*60_000||
     !Array.isArray(value.affectedAssetIds)||value.affectedAssetIds.length>45||
     !value.affectedAssetIds.every(id=>typeof id==='string'&&allowedAssets.has(id))||
@@ -74,7 +74,7 @@ function validTradingStateShape(t:Dict):boolean {
     !safe(t.dividendLastPaidAt)||t.dividendLastPaidAt<t.lastTickAt||
     !validPercent(t.dividendCarry,0,0.9999999999999999)||
     !map(t.quotes)||!map(t.history)||Object.keys(t.quotes).length>45||
-    Object.keys(t.history).length>45||!Array.isArray(t.news)||t.news.length>190||
+    Object.keys(t.history).length>45||!Array.isArray(t.news)||
     t.news.some(e=>!validMarketEvent(e))||
     (t.upcomingNews!==undefined && (!validMarketEvent(t.upcomingNews)||
       !object(t.upcomingNews)||t.upcomingNews.startedAt!==t.nextNewsAt)))return false
@@ -160,6 +160,11 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     gifts = achievements as Dict, s = stats as Dict
   if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s))
     return fail('Invalid V8 market, timestamps, account or XP shape')
+  if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
+    !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||
+    value.newsPowers.recent.some(entry=>!object(entry)||typeof entry.eventId!=='string'||!safe(entry.at)||
+      !['end','generate'].includes(entry.action as string)||(amount(entry.costCents)??0n)<=0n)))
+    return fail('Invalid News power spending')
   const cash = amount(g.balance, true), earned = amount(g.lifetimeEarned)
   const giftCents = amount(gifts.cycleGiftCents)
   if (cash === null || earned === null || giftCents === null || cash > earned + giftCents)

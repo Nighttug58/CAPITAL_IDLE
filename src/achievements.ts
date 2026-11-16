@@ -1,7 +1,7 @@
 import type { CapitalState } from './capital.ts'
 import { exactMoneyCents } from './money.ts'
 
-export type AchievementMetric = 'level' | 'clicks' | 'earnings' | 'enterprises' | 'collections' | 'prestiges'
+export type AchievementMetric = 'level' | 'clicks' | 'earnings' | 'enterprises' | 'collections' | 'prestiges' | 'stocks' | 'crypto' | 'memecoins' | 'dividends'
 
 export interface AchievementTier {
   readonly id: string
@@ -22,7 +22,26 @@ export interface AchievementsState {
 }
 
 function tiers(group: string, steps: readonly (readonly [number, number])[]): readonly AchievementTier[] {
-  return steps.map(([target, dollars]) => ({
+  const values = new Map(steps)
+  const last = steps[steps.length - 1]!
+  if (group === 'enterprises' || group === 'collections') {
+    const limit = group === 'enterprises' ? 20 : 100
+    for(let target=1;target<=limit;target++){
+      if(values.has(target))continue
+      const upper=steps.find(([n])=>n>target)
+      const lower=steps.filter(([n])=>n<target).at(-1) ?? [0,0]
+      const reward=upper ? lower[1]+(upper[1]-lower[1])*(target-lower[0])/(upper[0]-lower[0])
+        : last[1]*target/last[0]
+      values.set(target,Math.floor(reward))
+    }
+  } else {
+    for(let i=1;i<=40;i++){
+      const factor=group==='prestiges'||group==='level'?1+i/5:1.35**i
+      const target=Math.ceil(last[0]*factor)
+      values.set(target,Math.floor(last[1]*Math.sqrt(factor)))
+    }
+  }
+  return [...values].sort((a,b)=>a[0]-b[0]).map(([target,dollars])=>({
     id: group + '-' + target, target, rewardCents: dollars * 100,
   }))
 }
@@ -41,6 +60,12 @@ export const ACHIEVEMENTS: readonly AchievementGroup[] = [
     unit: 'objets', tiers: tiers('collections', [[1, 1_500], [10, 15_000], [25, 150_000], [50, 500_000]]) },
   { id: 'prestiges', title: 'Légende du capital', description: 'Nombre total de cycles Prestige terminés.',
     unit: 'Prestiges', tiers: tiers('prestiges', [[1, 100_000], [3, 500_000], [5, 2_000_000], [10, 5_000_000]]) },
+  ...(['stocks','crypto','memecoins','dividends'] as const).map(id=>({
+    id,title:{stocks:'Plus-values en actions',crypto:'Plus-values en cryptos',memecoins:'Plus-values en memecoins',dividends:'Revenus de dividendes'}[id],
+    description:id==='dividends'?'Dividendes encaissés dans ce cycle.':'Bénéfices des ventes gagnantes dans ce cycle, après frais et bonus.',
+    unit:'$',tiers:tiers(id,[[100,25],[1000,150],[10000,1000],[100000,5000],[1000000,25000]])
+  })),
+
 ]
 const IDS = new Set(ACHIEVEMENTS.flatMap(group => group.tiers.map(tier => tier.id)))
 
@@ -72,6 +97,7 @@ export function restoreAchievementsState(raw: unknown): AchievementsState {
 
 export function achievementProgress(state: CapitalState, metric: AchievementMetric): number {
   switch (metric) {
+    case 'stocks': case 'crypto': case 'memecoins': case 'dividends': return state.stats.earnedBySource[metric]
     case 'level': return Math.max(state.ascension.progress.highestFameAwardedLevel, state.prestige.lastAwardedLevel)
     case 'clicks': return state.stats.clickCount
     case 'earnings': return state.game.lifetimeEarned
@@ -103,7 +129,16 @@ export function getAchievementOffers(state: CapitalState): AchievementOffer[] {
   }))
 }
 export function getClaimableAchievementCount(state: CapitalState): number {
-  return getAchievementOffers(state).filter(offer => offer.claimable).length
+  const claimed=new Set(state.achievements.claimedIds)
+  let count=0
+  for(const group of ACHIEVEMENTS){
+    const progress=achievementProgress(state,group.id)
+    for(const tier of group.tiers){
+      if(tier.target>progress)break
+      if(!claimed.has(tier.id))count++
+    }
+  }
+  return count
 }
 
 export type AchievementClaimResult =

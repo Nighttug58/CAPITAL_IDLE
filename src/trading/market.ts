@@ -62,7 +62,7 @@ const REGIMES = ['steady', 'bull', 'bear', 'frenzy'] as const satisfies readonly
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value))
 
-function createRandom(seed: number) {
+export function createRandom(seed: number) {
   // xorshift32 : le seul état aléatoire est la graine persistée.
   let value = seed >>> 0 || 1
   return {

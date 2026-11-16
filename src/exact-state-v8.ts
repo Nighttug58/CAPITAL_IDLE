@@ -122,6 +122,7 @@ export interface V8Achievements extends Omit<AchievementsState,'cycleGiftCents'>
   cycleGiftCents: ExactAmount
 }
 export interface V8CapitalState extends Omit<CapitalState,'version'|'game'|'trading'|'enterprises'|'fiscal'|'stats'|'prestige'|'ascension'|'achievements'> {
+  newsPowers?: { count:number; spentCents:string; recent:readonly {eventId:string; action:"generate"|"end"; at:number; costCents:string}[] }
   version: 8
   game: V8GameState
   trading: V8TradingState

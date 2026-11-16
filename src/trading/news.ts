@@ -155,7 +155,7 @@ function newsInterval(next: () => number, frequency = 1): number {
   const base = randomInt(next, MIN_NEWS_INTERVAL_MS / TICK_MS, MAX_NEWS_INTERVAL_MS / TICK_MS) * TICK_MS
   return Math.max(TICK_MS, Math.ceil(base / safe / TICK_MS) * TICK_MS)
 }
-function createEvent(at: number, next: () => number, news: readonly MarketNews[], options: NewsClockOptions = {}): MarketNews {
+export function createEvent(at: number, next: () => number, news: readonly MarketNews[], options: NewsClockOptions = {}): MarketNews {
   const recent = new Set(news.slice(-3).map((entry) => entry.templateId))
   const choices = DRAWABLE_NEWS_TEMPLATES.filter((entry) => !recent.has(entry.id))
   const template = choices[Math.floor(next() * choices.length)]!
@@ -202,7 +202,7 @@ export function advanceNewsTick(
   let upcoming = eager && options.upcomingNews && !isGlobalBearishNews(options.upcomingNews)
     ? options.upcomingNews : undefined
   const events = news.filter((event) => !isGlobalBearishNews(event)).map((event) =>
-    event.phase === 'rumor' && event.resolutionAt !== undefined && at >= event.resolutionAt
+    !event.manuallyEnded && event.phase === 'rumor' && event.resolutionAt !== undefined && at >= event.resolutionAt
       ? { ...event, phase: event.resolution ?? 'confirmed' } : event)
 
   // A preselected item consumes its randomness only when scheduled, so

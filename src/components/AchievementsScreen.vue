@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ back: [] }>()
 const backButton = ref<HTMLButtonElement | null>(null)
+const expanded=ref<string[]>([])
 const notice = ref('')
 const noticeError = ref(false)
 const offers = computed(() => getAchievementOffers(props.state))
@@ -62,7 +63,7 @@ onMounted(() => { void nextTick(() => backButton.value?.focus()) })
           <strong>{{ target(group.progress, group.unit) }}</strong>
         </div>
         <div class="achievements-tiers">
-          <article v-for="offer in group.tiers" :key="offer.id" class="achievement-tier"
+          <article v-for="offer in (expanded.includes(group.id) ? group.tiers : group.tiers.slice(0,3))" :key="offer.id" class="achievement-tier"
             :class="{ 'is-claimed': offer.claimed, 'is-ready': offer.claimable }" :data-achievement="offer.id">
             <div class="achievement-tier-info">
               <span class="achievement-target">{{ target(offer.target, group.unit) }}</span>
@@ -82,6 +83,10 @@ onMounted(() => { void nextTick(() => backButton.value?.focus()) })
             </span>
           </article>
         </div>
+        <button type="button" class="achievement-claim" :aria-expanded="expanded.includes(group.id)"
+          @click="expanded=expanded.includes(group.id)?expanded.filter(id=>id!==group.id):[...expanded,group.id]">
+          {{ expanded.includes(group.id) ? 'Réduire' : 'Voir les '+ group.tiers.length +' paliers' }}
+        </button>
       </section>
       <p class="achievements-footnote">Un cadeau se réclame une seule fois, même après un Prestige. Il ajoute du cash sans générer d’XP, de Fame ou de taxe. Les clics, revenus et entreprises concernent le cycle actuel ; le record de niveau, les collections et les Prestiges survivent aux cycles.</p>
     </div>

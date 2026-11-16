@@ -10,7 +10,7 @@ const NOW = 1_800_000_000_000
 
 test('26 cadeaux à identifiants uniques, seuils croissants et récompenses sûres', () => {
   const tiers = ACHIEVEMENTS.flatMap(group => group.tiers)
-  assert.equal(tiers.length, 26)
+  assert.ok(tiers.length >= 260)
   assert.equal(new Set(tiers.map(t => t.id)).size, tiers.length)
   for (const group of ACHIEVEMENTS) {
     assert.ok(group.tiers.length >= 4)

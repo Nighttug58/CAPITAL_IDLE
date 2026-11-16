@@ -82,6 +82,7 @@ export interface StakingState {
 export type NewsPhase = 'rumor' | 'active' | 'confirmed' | 'denied'
 
 export interface MarketNews {
+  manuallyEnded?: true
   id: string
   templateId: string
   startedAt: number

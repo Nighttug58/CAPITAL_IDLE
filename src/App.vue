@@ -10,6 +10,7 @@ import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoCli
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
  v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAchievement} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
+import {buyNewsPower,newsPowerCost} from './news-powers.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
@@ -415,6 +416,11 @@ function executePrestigePurchase(id:string,expectedLevel:number):AscensionPurcha
     remainingPoints:Number(v(next.ascension.progress.availablePoints)>BigInt(Number.MAX_SAFE_INTEGER)?
       BigInt(Number.MAX_SAFE_INTEGER):v(next.ascension.progress.availablePoints))}}
 }
+function purchaseNews(id:string|null,count:number,quoted:bigint):boolean {
+  if(loadBlocked.value || newsPowerCost(exact.value,id!==null)!==quoted)return false
+  const next=buyNewsPower(exact.value,id,count,Date.now())
+  return !!next && replaceWholeSaveExact(next)
+}
 function executePrestigeCycle():AscensionResult{
   if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
   const at=Date.now()
@@ -667,7 +673,7 @@ onUnmounted(() => {
       :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
       @back="returnHomeFromPrestige" />
-    <TradingScreen v-show="page === 'trading'" :state="capital"
+    <TradingScreen :purchase-news="purchaseNews" v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" />

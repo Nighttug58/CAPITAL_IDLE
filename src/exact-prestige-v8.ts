@@ -63,6 +63,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   delete previousPrestige.xpRebase
   delete previousPrestige.xpRebaseV4
   const result:V8CapitalState={...fresh,
+    ...(state.newsPowers?{newsPowers:state.newsPowers}:{}),
     prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
       experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
       fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),

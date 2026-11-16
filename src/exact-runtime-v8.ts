@@ -344,6 +344,7 @@ export function v8BuyCollection(state: V8CapitalState, id: string): V8CapitalSta
 
 function claimProgress(state: V8CapitalState, metric: AchievementMetric): bigint {
   switch(metric) {
+    case 'stocks': case 'crypto': case 'memecoins': case 'dividends': return v(state.stats.earnedBySource[metric])/100n
     case 'level': return BigInt(Math.max(state.ascension.progress.highestFameAwardedLevel,state.prestige.lastAwardedLevel))
     case 'clicks': return BigInt(state.stats.clickCount)
     case 'earnings': return v(state.game.lifetimeEarned) / 100n

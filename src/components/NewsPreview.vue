@@ -23,6 +23,7 @@ const entries = computed(() =>
       <span>{{ news.filter((event) => event.endsAt > now).length }} EN COURS</span>
     </div>
     <div class="market-list-scroll news-scroll">
+      <slot />
       <div v-if="upcoming" class="news-future-preview" :class="'news-' + upcoming.presentation.direction"
         aria-label="Vision anticipée">
         <span>VISION ANTICIPÉE · DANS {{ upcoming.secondsRemaining }} s</span>
@@ -44,7 +45,7 @@ const entries = computed(() =>
         <div class="news-preview-meta">
           <span>{{ entry.presentation!.category.toUpperCase() }}</span>
           <span :class="entry.event.endsAt > now ? 'news-active' : 'news-ended'">
-            {{ entry.event.endsAt > now ? 'ACTIF · ' + formatRemaining(entry.event.endsAt, now) : 'TERMINÉ' }}
+            {{ entry.event.manuallyEnded ? 'Terminée manuellement' : entry.event.endsAt > now ? 'ACTIF · ' + formatRemaining(entry.event.endsAt, now) : 'TERMINÉ' }}
           </span>
         </div>
         <strong>{{ entry.presentation!.headline }}</strong>

@@ -56,9 +56,10 @@ const sign = (value: number) => value > 0 ? 'news-index-positive' : value < 0 ? 
     <div v-if="detail && template" class="trading-modal-scroll news-detail-content" role="region" aria-label="Contenu de l’actualité" tabindex="0">
       <div class="news-detail-meta">
         <span>{{ reliability }}</span>
-        <span>{{ event.endsAt > now ? 'Encore ' + formatRemaining(event.endsAt, now) : 'Impact terminé' }}</span>
+        <span>{{ event.manuallyEnded ? 'Terminée manuellement' : event.endsAt > now ? 'Encore ' + formatRemaining(event.endsAt, now) : 'Impact terminé' }}</span>
       </div>
       <h3>{{ detail.headline }}</h3>
+      <slot />
       <p>{{ detail.description }}</p>
       <section class="news-impact-panel" aria-label="Impact chiffré de la News">
         <div class="news-impact-panel-head">
