@@ -139,7 +139,7 @@ test('replayed levels grant Fame again once per new cycle, without collection do
   const collectionPurchase=v8BuyCollection(rewarded,'watches-01')
   assert.ok(collectionPurchase)
   if(!collectionPurchase)return
-  assert.equal(collectionPurchase.prestige.cycleCollectionFameMicros,'10000000')
+  assert.equal(collectionPurchase.prestige.cycleCollectionFameMicros,'30000000')
   assert.equal(v8BuyCollection(collectionPurchase,'watches-01'),null)
 })
 

@@ -9,7 +9,7 @@ import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { getExactLevel } from './exact-levels.ts'
 import { multiplyRatio } from './large-numbers.ts'
 import { getClickValue, UPGRADES } from './game.ts'
-import { FAME_BOOST_BPS_PER_LEVEL, FAME_BOOST_IDS, getCollectionSlot,
+import { FAME_BOOST_BPS_PER_LEVEL, FAME_BOOST_IDS, currentCollectionId, getCollectionSlot,
   getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
@@ -316,17 +316,22 @@ export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgrade
   }
 }
 
+export function v8CollectionReward(state: V8CapitalState, fame: number): bigint {
+  const rate = getRewardRateUnits(v8BonusBasisPoints(state, 'fame'))
+  if (rate === null) throw new RangeError('Invalid Fame bonus')
+  return multiplyRatio(BigInt(fame) * FAME_MICROS, rate, TOTAL_RATE_DENOM)
+}
+
 export function v8BuyCollection(state: V8CapitalState, id: string): V8CapitalState | null {
-  const item = getCollectionSlot(id)
-  if (!item || state.prestige.ownedCollectionIds.includes(id) || v(state.game.balance) < BigInt(item.priceCents)) return null
-  const rawFame = BigInt(item.fame) * FAME_MICROS
-  const fameRate = getRewardRateUnits(v8BonusBasisPoints(state,'fame'))
-  if (fameRate === null) return null
-  const gained = multiplyRatio(rawFame, fameRate, TOTAL_RATE_DENOM)
+  const key = currentCollectionId(id)
+  const item = getCollectionSlot('v2:' + key)
+  if (!item || state.prestige.ownedCollectionIds.some(owned => currentCollectionId(owned) === key) ||
+      v(state.game.balance) < BigInt(item.priceCents)) return null
+  const gained = v8CollectionReward(state, item.fame)
   return { ...state,
     game:{ ...state.game, balance:s(v(state.game.balance) - BigInt(item.priceCents)) },
     prestige:{ ...state.prestige,
-      ownedCollectionIds:[...state.prestige.ownedCollectionIds, id],
+      ownedCollectionIds:[...state.prestige.ownedCollectionIds, item.id],
       fameMicros:s(v(state.prestige.fameMicros) + gained),
       lifetimeFameMicros:s(v(state.prestige.lifetimeFameMicros) + gained),
       collectionFameMicros:s(v(state.prestige.collectionFameMicros) + gained),

@@ -11,7 +11,7 @@ import { ascensionSpentPoints } from './ascension/catalog.ts'
 import { getAsset, ASSETS } from './trading/catalog.ts'
 import { getNewsTemplate } from './trading/news.ts'
 import { getExactLevel, getExactV3Level, rebaseV3ExperienceCents } from './exact-levels.ts'
-import { getCollectionSlot } from './prestige/catalog.ts'
+import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot } from './prestige/catalog.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
 
@@ -135,8 +135,8 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
       seen.add(order.id)
     }
   }
-  if(!object(p.boosts)||!Array.isArray(p.ownedCollectionIds)||p.ownedCollectionIds.length>50||
-    new Set(p.ownedCollectionIds).size!==p.ownedCollectionIds.length||
+  if(!object(p.boosts)||!Array.isArray(p.ownedCollectionIds)||p.ownedCollectionIds.length>CURRENT_COLLECTION_SLOTS.length||
+    new Set(p.ownedCollectionIds.map(x=>typeof x === 'string' ? currentCollectionId(x) : x)).size!==p.ownedCollectionIds.length||
     !p.ownedCollectionIds.every(x=>typeof x==='string'&&getCollectionSlot(x)))return false
   if(!safe(p.experienceCarryBps)||p.experienceCarryBps>=10_000||
     !safe(p.clickCarryBps)||p.clickCarryBps>=10_000||

@@ -193,6 +193,21 @@ export const COLLECTION_SLOTS: readonly CollectionPriceSlot[] = Object.freeze(
 )
 
 const slotsById = new Map<string, CollectionPriceSlot>(COLLECTION_SLOTS.map((slot) => [slot.id, slot]))
+// A versioned acquisition ID keeps the original price, Fame and bonus of each receipt.
+export const currentCollectionId = (id: string) => id.replace(/^v2:/, '')
+export const CURRENT_COLLECTION_SLOTS = Object.freeze(COLLECTION_SLOTS.flatMap(slot => {
+  const current = { ...slot, id: 'v2:' + slot.id, priceCents: slot.priceCents * 2,
+    fame: slot.fame * 3, rank: slot.rank * 2 - 1 }
+  const nextPrice = COLLECTION_PRICES_DOLLARS[slot.category][slot.rank]
+  const extra = { ...current, id: 'v2:' + slot.category + '-extra-' + slot.rank,
+    rank: current.rank + 1, priceCents: nextPrice === undefined ? current.priceCents * 10
+      : (current.priceCents + nextPrice * 200) / 2,
+    fame: slot.rank === 10 ? current.fame * 3
+      : Math.round((current.fame + COLLECTION_RANK_REWARDS[slot.rank]!.fame * 3) / 2) }
+  return [Object.freeze(current), Object.freeze(extra)]
+}))
+for (const slot of CURRENT_COLLECTION_SLOTS) slotsById.set(slot.id, slot)
+
 export function getCollectionSlot(id: string): CollectionPriceSlot | undefined {
   return slotsById.get(id)
 }

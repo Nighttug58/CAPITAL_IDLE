@@ -1,5 +1,5 @@
 import {readV8LegacyUI} from './v8-ui-test-helper.ts'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import App from '../App.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
@@ -84,7 +84,9 @@ describe('Prestige passe 6 — contrôles des automatismes',()=>{
     expect(stored().ascension.run.automation.allowedAssetIds.length).toBe(1)
   })
 
-  it('ordres : déblocage, formulaire, annulation et solde intact',async()=>{
+  it('ordres : déblocage, formulaire, annulation et solde intact',async({onTestFinished})=>{
+    vi.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000)
+    onTestFinished(() => vi.restoreAllMocks())
     const {wrapper,stored}=mountState(withPP())
     await prestige(wrapper)
     await wrapper.find('.ascension-upgrade[data-upgrade="automatic-orders"] .ascension-buy').trigger('click')

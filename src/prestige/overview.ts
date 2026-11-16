@@ -1,5 +1,5 @@
 import type { CapitalState } from '../capital.ts'
-import { FAME_BOOSTS, FAME_BOOST_BPS_PER_LEVEL } from './catalog.ts'
+import { CURRENT_COLLECTION_SLOTS, FAME_BOOSTS, FAME_BOOST_BPS_PER_LEVEL } from './catalog.ts'
 import { getAbsolutePrestigeStatus } from './absolute.ts'
 import { getBonusBreakdown } from './bonuses.ts'
 import { FAME_MICROS } from './state.ts'
@@ -24,7 +24,7 @@ export function getFameStatsOverview(state: Pick<CapitalState, 'prestige'>) {
     fromCollections: p.collectionFameMicros / FAME_MICROS,
     spent: (p.lifetimeFameMicros - p.fameMicros) / FAME_MICROS,
     ownedCollections: p.ownedCollectionIds.length,
-    totalCollections: 50,
+    totalCollections: CURRENT_COLLECTION_SLOTS.length,
     absolute,
     boosts: FAME_BOOSTS.map((boost): FameBonusOverview => {
       const breakdown = getBonusBreakdown(state, boost.id)

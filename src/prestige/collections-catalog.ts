@@ -1,5 +1,5 @@
 import {
-  COLLECTION_CATEGORIES, COLLECTION_SLOTS,
+  COLLECTION_CATEGORIES, COLLECTION_SLOTS, CURRENT_COLLECTION_SLOTS, getCollectionSlot,
   type CollectionCategoryId, type CollectionPriceSlot,
 } from './catalog.ts'
 
@@ -96,6 +96,75 @@ export const COLLECTION_ITEMS: readonly CollectionItem[] = Object.freeze(COLLECT
     visualTag: categoryVisuals[slot.category],
   })
 }))
+const extraDescriptions = {
+  watches: [
+    {"name": "Montre de gare à double cadran", "description": "Deux cadrans opposés permettaient de lire l’heure depuis les deux quais."},
+    {"name": "Chronographe de régate", "description": "Un compte à rebours coloré marque les minutes précédant le départ."},
+    {"name": "Heure sautante en émail", "description": "Un disque chiffré saute à chaque heure sous un guichet en émail."},
+    {"name": "Montre à disque lunaire", "description": "Une lune gravée tourne sous un ciel en aventurine."},
+    {"name": "Pendule de bord en acajou", "description": "Son coffret suspendu sur cardan garde le cadran horizontal en mer."},
+    {"name": "Tourbillon à cage inclinée", "description": "La cage ajourée tourne en biais sous un pont poli."},
+    {"name": "Répétition à timbres cathédrale", "description": "Deux longs timbres enroulés autour du mouvement prolongent la sonnerie."},
+    {"name": "Régulateur sidéral", "description": "Une aiguille indique le passage des étoiles au méridien."},
+    {"name": "Horloge à équation du temps", "description": "Un cadran secondaire compare le temps solaire au temps moyen."},
+    {"name": "Planétaire mécanique de Genève", "description": "Un train de roues miniature reproduit les orbites des planètes."},
+  ],
+  autos: [
+    {"name": "Cyclecar à deux places", "description": "Une carrosserie étroite abrite deux sièges disposés en tandem."},
+    {"name": "Coupé à carrosserie aluminium", "description": "Les panneaux martelés à la main conservent leurs rivets apparents."},
+    {"name": "Speedster des lacs", "description": "Un pare-brise bas épouse le profil des deux baquets."},
+    {"name": "Barquette de course de côte", "description": "Une carrosserie ouverte et légère recouvre le châssis court."},
+    {"name": "Groupe B à moteur central", "description": "Le moteur se loge derrière les sièges sous un capot à persiennes."},
+    {"name": "Prototype des 24 Heures", "description": "Ses phares additionnels et son réservoir à remplissage rapide témoignent des relais de nuit."},
+    {"name": "GT à châssis titane", "description": "Les soudures du châssis restent visibles derrière les portes papillon."},
+    {"name": "Flèche des records", "description": "La carrosserie fuselée enveloppe les roues pour les tentatives de vitesse."},
+    {"name": "Monoplace à six roues", "description": "Quatre petites roues directrices se partagent le train avant."},
+    {"name": "Collection des douze prototypes", "description": "Douze voitures d’essai retracent les étapes de développement d’une même lignée."},
+  ],
+  paintings: [
+    {"name": "Étude au fusain sur papier bleu", "description": "Quelques traits de fusain et des rehauts blancs dessinent un visage de profil."},
+    {"name": "Les Barques de l’aube", "description": "Des coques ocre se reflètent sur une eau encore grise."},
+    {"name": "Portrait au miroir", "description": "Le modèle apparaît de face dans le miroir et de dos au premier plan."},
+    {"name": "Les Serres sous la pluie", "description": "Des gouttes de pluie fractionnent les couleurs sous les verrières."},
+    {"name": "Canal sous la neige", "description": "Une ligne de péniches sombres traverse la toile presque blanche."},
+    {"name": "Le Théâtre désert", "description": "La lumière de service éclaire une scène vide et ses décors roulés."},
+    {"name": "Fresque des navigateurs", "description": "Une carte maritime peinte relie les personnages d’un même équipage."},
+    {"name": "Triptyque aux feuilles d’or", "description": "Trois panneaux sur bois composent un paysage continu sur fond doré."},
+    {"name": "La Galerie des saisons", "description": "Quatre grandes huiles suivent le même jardin du gel à la récolte."},
+    {"name": "Cycle des douze constellations", "description": "Douze toiles de nuit dessinent ensemble le ciel d’une année."},
+  ],
+  antiquities: [
+    {"name": "Fibule en bronze", "description": "Une spirale de bronze forme le ressort de cette agrafe de vêtement."},
+    {"name": "Sceau du marchand", "description": "La matrice gravée imprime une marque de cargaison dans la cire."},
+    {"name": "Coupe aux dauphins", "description": "Deux dauphins modelés forment les anses de la coupe."},
+    {"name": "Tablette des astronomes", "description": "Des colonnes de signes consignent une série d’observations lunaires."},
+    {"name": "Masque funéraire doré", "description": "Une feuille d’or épouse les reliefs du visage sculpté."},
+    {"name": "Reliquaire en cristal de roche", "description": "Une capsule de quartz taillé repose dans une monture ouvragée."},
+    {"name": "Globe céleste damasquiné", "description": "Des fils d’argent incrustés dessinent les constellations sur la sphère."},
+    {"name": "Atlas des routes de soie", "description": "Les feuillets aquarellés indiquent cols, oasis et étapes caravanières."},
+    {"name": "Portail du palais de jade", "description": "Deux vantaux sculptés composent une scène de procession."},
+    {"name": "Salle des mosaïques impériales", "description": "Des panneaux de tesselles assemblés restituent le sol complet d’une salle de réception."},
+  ],
+  jewelry: [
+    {"name": "Broche feuille de ginkgo", "description": "Les nervures de la feuille sont gravées une à une dans le métal."},
+    {"name": "Boucles d’oreilles en opale", "description": "Deux cabochons assortis renvoient des éclats bleus et verts."},
+    {"name": "Bague à grenat étoilé", "description": "Une étoile à six branches apparaît sur la pierre sous une lumière directe."},
+    {"name": "Collier de corail sculpté", "description": "Les perles sculptées alternent boutons de rose et feuilles."},
+    {"name": "Peigne de jade impérial", "description": "Les dents et la poignée ajourée ont été taillées dans un seul bloc."},
+    {"name": "Sautoir aux perles noires", "description": "Un fil de perles sombres se termine par un pompon articulé."},
+    {"name": "Aigrette en diamants jaunes", "description": "Une monture souple fait vibrer les pierres au moindre mouvement."},
+    {"name": "Diadème de spinelles", "description": "Des spinelles rouges dessinent une ligne de fleurs ouvertes."},
+    {"name": "Pectoral aux sept émeraudes", "description": "Sept pierres étagées sont reliées par des charnières dissimulées."},
+    {"name": "Parure du diamant boréal", "description": "Collier, broche et pendants reprennent la même taille autour d’un diamant bleu."},
+  ],
+} as const
+
+export const CURRENT_COLLECTION_ITEMS = CURRENT_COLLECTION_SLOTS.map(slot => {
+  const index = Math.floor((slot.rank - 1) / 2)
+  const copy = slot.rank % 2 ? descriptions[slot.category][index]! :
+    extraDescriptions[slot.category][index]!
+  return { ...slot, ...copy, visualTag: categoryVisuals[slot.category] }
+})
 const itemById = new Map<string, CollectionItem>(COLLECTION_ITEMS.map((item) => [item.id, item]))
 const itemsByCategory = Object.freeze(Object.fromEntries(COLLECTION_CATEGORIES.map(({ id }) => [
   id, Object.freeze(COLLECTION_ITEMS.filter((item) => item.category === id)),
@@ -113,7 +182,7 @@ export function getCollectionItemsByCategory(category: string): readonly Collect
 export function getCollectionBookValueCents(ownedIds: readonly string[]): number | null {
   let total = 0
   for (const id of ownedIds) {
-    const item = getCollectionItem(id)
+    const item = getCollectionSlot(id)
     if (!item || !Number.isSafeInteger(total + item.priceCents)) return null
     total += item.priceCents
   }

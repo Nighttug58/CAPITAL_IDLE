@@ -98,3 +98,22 @@ test('V8 fame, permanent collections, early tax and achievement purchases remain
   assert.ok(claimed)
   assert.ok(valid(claimed!).valid,valid(claimed!).reason)
 })
+
+test('collection expansion keeps acquisition values and validates a complete collection', async () => {
+  const { CURRENT_COLLECTION_SLOTS, currentCollectionId } = await import('./prestige/catalog.ts')
+  const { getCollectionBookValueCents } = await import('./prestige/collections-catalog.ts')
+  let state = addCash(createV8CapitalState(now), 10n ** 20n)
+  const initial = v(state.game.balance)
+  for (const slot of CURRENT_COLLECTION_SLOTS) {
+    const bought = v8BuyCollection(state, slot.id)
+    assert.ok(bought)
+    assert.equal(v(state.game.balance) - v(bought.game.balance), BigInt(slot.priceCents))
+    assert.equal(v8BuyCollection(bought, currentCollectionId(slot.id)), null)
+    state = bought
+  }
+  assert.equal(state.prestige.ownedCollectionIds.length, 100)
+  assert.equal(getCollectionBookValueCents(state.prestige.ownedCollectionIds), Number(initial - v(state.game.balance)))
+  assert.equal(getCollectionBookValueCents(['watches-01']), 250_000)
+  assert.equal(getCollectionBookValueCents(['v2:watches-01']), 500_000)
+  assert.ok(valid(JSON.parse(JSON.stringify(state))).valid)
+})

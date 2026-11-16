@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import type { CapitalState } from '../capital.ts'
+import { formatCompactUnits } from '../large-numbers.ts'
+import type { V8CapitalState } from '../exact-state-v8.ts'
+import { CURRENT_COLLECTION_ITEMS } from '../prestige/collections-catalog.ts'
+import { currentCollectionId, getCollectionSlot } from '../prestige/catalog.ts'
+import { v8CollectionReward } from '../exact-runtime-v8.ts'
 import { COLLECTION_CATEGORIES, FAME_BOOSTS, type CollectionCategoryId } from '../prestige/catalog.ts'
 import {
-  getCollectionOffer, getCollectionOffersByCategory, getCollectionProgress,
   type CollectionPurchase, type CollectionPurchaseError,
 } from '../prestige/collections.ts'
 import { FAME_MICROS } from '../prestige/state.ts'
 
 const props = defineProps<{
-  state: CapitalState
+  state: V8CapitalState
   purchaseCollection: (id: string) => CollectionPurchase
 }>()
 
@@ -27,15 +30,21 @@ const percentage = (bps: number) => numbers.format(bps / 100) + ' %'
 const iconByCategory: Record<CollectionCategoryId, string> = {
   watches: '⌚', autos: '🏎', paintings: '▣', antiquities: '🏺', jewelry: '◆',
 }
-const rows = computed(() => getCollectionOffersByCategory(props.state, category.value))
-const progress = computed(() => getCollectionProgress(props.state))
-const ownedCount = computed(() => props.state.prestige.ownedCollectionIds.length)
-const selectedOffer = computed(() => selectedId.value === null ? null : getCollectionOffer(props.state, selectedId.value))
+const holdings = computed(() => new Map(props.state.prestige.ownedCollectionIds.map(id => [currentCollectionId(id), id])))
+const rows = computed(() => CURRENT_COLLECTION_ITEMS.filter(item => item.category === category.value).map(item => {
+  const receipt = holdings.value.get(currentCollectionId(item.id))
+  const paid = receipt ? getCollectionSlot(receipt) : undefined
+  return { item: paid ? { ...item, priceCents: paid.priceCents, fame: paid.fame } : item,
+    owned: !!receipt, canAfford: !receipt && BigInt(props.state.game.balance) >= BigInt(item.priceCents),
+    awardedFameMicros: paid ? null : Number(v8CollectionReward(props.state, item.fame)) }
+}))
+const ownedCount = computed(() => holdings.value.size)
+const selectedOffer = computed(() => rows.value.find(row => row.item.id === selectedId.value))
 const selectedItem = computed(() => selectedOffer.value?.item ?? null)
 const selectedBonusName = computed(() =>
   FAME_BOOSTS.find((boost) => boost.id === selectedItem.value?.boostId)?.label ?? '',
 )
-const categoryProgress = computed(() => progress.value.find((value) => value.category === category.value))
+const categoryOwned = computed(() => rows.value.filter(row => row.owned).length)
 const requiresConfirmation = computed(() => (selectedItem.value?.priceCents ?? 0) >= 100_000_000)
 
 const errors: Record<CollectionPurchaseError, string> = {
@@ -124,13 +133,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       </div>
       <div class="collection-hero-progress">
         <span>ACQUIS</span>
-        <strong>{{ ownedCount }} <small>/ 50</small></strong>
+        <strong>{{ ownedCount }} <small>/ {{ CURRENT_COLLECTION_ITEMS.length }}</small></strong>
       </div>
     </header>
 
     <div class="collection-summary">
-      <div><span>GOLD DISPONIBLE</span><strong>{{ money(state.game.balance * 100) }}</strong></div>
-      <div><span>FAME DISPONIBLE</span><strong class="collection-fame-balance">✦ {{ fame(state.prestige.fameMicros) }}</strong></div>
+      <div><span>GOLD DISPONIBLE</span><strong>{{ formatCompactUnits(BigInt(state.game.balance), 2, '$') }}</strong></div>
+      <div><span>FAME DISPONIBLE</span><strong class="collection-fame-balance">✦ {{ formatCompactUnits(BigInt(state.prestige.fameMicros), 6, '') }}</strong></div>
     </div>
 
     <div class="collection-tabs" role="tablist" aria-label="Catégories de collection">
@@ -147,7 +156,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
     </div>
     <div class="collection-category-line">
       <span>{{ COLLECTION_CATEGORIES.find((entry) => entry.id === category)?.label }}</span>
-      <span>{{ categoryProgress?.owned ?? 0 }} / 10 pièces</span>
+      <span>{{ categoryOwned }} / {{ rows.length }} pièces</span>
     </div>
 
     <div :id="'collection-items-' + category" class="collection-list-scroll" role="tabpanel"
@@ -179,7 +188,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
         aria-labelledby="collection-detail-title" @keydown="trapFocus">
         <header class="prestige-dialog-head">
           <div class="prestige-dialog-heading">
-            <span class="prestige-eyebrow">OBJET {{ selectedItem.rank }} / 10 · {{ COLLECTION_CATEGORIES.find((entry) => entry.id === selectedItem?.category)?.label }}</span>
+            <span class="prestige-eyebrow">OBJET {{ selectedItem.rank }} / {{ rows.length }} · {{ COLLECTION_CATEGORIES.find((entry) => entry.id === selectedItem?.category)?.label }}</span>
             <h2 id="collection-detail-title">{{ selectedItem.name }}</h2>
           </div>
           <button ref="closeButton" type="button" class="prestige-close" aria-label="Fermer les détails de l'objet"
@@ -193,7 +202,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <p class="collection-detail-description">{{ selectedItem.description }}</p>
           <div class="collection-detail-data">
             <div><span>PRIX EN GOLD</span><strong>{{ money(selectedItem.priceCents) }}</strong></div>
-            <div><span>FAME OBTENUE</span><strong class="collection-fame-balance">✦ +{{ selectedOffer.awardedFameMicros === null ? selectedItem.fame : fame(selectedOffer.awardedFameMicros) }}</strong></div>
+            <div><span>{{ selectedOffer.owned ? 'FAME DE BASE' : 'FAME À RECEVOIR' }}</span><strong class="collection-fame-balance">✦ +{{ selectedOffer.awardedFameMicros === null ? selectedItem.fame : fame(selectedOffer.awardedFameMicros) }}</strong></div>
             <div><span>BONUS PERMANENT</span><strong>+{{ percentage(selectedItem.bonusBps) }} · {{ selectedBonusName }}</strong></div>
           </div>
           <p class="collection-detail-note">Achat unique, permanent et non revendable. La Fame est attribuée au moment de l'achat.</p>

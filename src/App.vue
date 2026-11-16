@@ -13,7 +13,7 @@ import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
-import {getCollectionItem} from './prestige/collections-catalog.ts'
+
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {nextAscensionCost} from './ascension/catalog.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
@@ -191,9 +191,8 @@ function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase
 function executeCollectionPurchase(id: string): CollectionPurchase {
   if (loadBlocked.value) return {ok:false,state:capital.value,error:'invalid-state'}
   settleEconomyNow()
-  const item = getCollectionItem(id)
   const slot = getCollectionSlot(id)
-  if (!item || !slot) return {ok:false,state:capital.value,error:'unknown-item'}
+  if (!slot) return {ok:false,state:capital.value,error:'unknown-item'}
   const oldFame=v(exact.value.prestige.fameMicros)
   const next = v8BuyCollection(exact.value,id)
   if (!next) return {ok:false,state:capital.value,error:'insufficient-funds'}
@@ -201,7 +200,7 @@ function executeCollectionPurchase(id: string): CollectionPurchase {
   persist()
   const state=capital.value
   return {ok:true,state,receipt:{itemId:id,category:slot.category,
-    priceCents:slot.priceCents,baseFame:item.fame,
+    priceCents:slot.priceCents,baseFame:slot.fame,
     awardedFameMicros:Number(v(next.prestige.fameMicros)-oldFame),
     boostId:slot.boostId,bonusBps:slot.bonusBps,
     remainingCashCents:approximateMoneyCents(v(next.game.balance))*100,
@@ -739,7 +738,7 @@ onUnmounted(() => {
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
     <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" />
-    <CollectionScreen v-if="page === 'collection'" :state="capital" :purchase-collection="executeCollectionPurchase" />
+    <CollectionScreen v-if="page === 'collection'" :state="exact" :purchase-collection="executeCollectionPurchase" />
     <StatsScreen v-show="page === 'stats'" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
