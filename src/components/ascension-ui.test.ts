@@ -40,7 +40,7 @@ describe('Prestige économique — page et boutique', () => {
     const { wrapper } = mountState(fixture())
     const nav = wrapper.findAll('.bottom-nav button')
     expect(nav.map(button => button.text())).toEqual([
-      'Accueil', 'Trading', 'Entreprises', 'Collection', 'Stats',
+      'Accueil', 'Trading', 'Entreprises', 'Collection', '', 'Stats',
     ])
     expect(wrapper.find('.prestige-launch').exists()).toBe(true)
     await wrapper.find('.prestige-launch').trigger('click')
@@ -52,7 +52,7 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.findAll('.ascension-upgrade button.ascension-buy:disabled')).toHaveLength(11)
     expect(wrapper.find('.ascension-panel-title').text()).toContain('PP')
     expect(wrapper.find('.home-screen').isVisible()).toBe(false)
-    expect(wrapper.findAll('.bottom-nav button').at(-1)?.text()).toBe('Stats')
+    expect(wrapper.findAll('.bottom-nav button')[5]?.text()).toBe('Stats')
     await nextTick()
     const back = wrapper.find('.ascension-return')
     expect(document.activeElement).toBe(back.element)

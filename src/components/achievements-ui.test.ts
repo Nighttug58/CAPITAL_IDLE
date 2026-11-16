@@ -5,6 +5,7 @@ import { nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
 import App from '../App.vue'
 import { createCapitalState } from '../capital.ts'
+import { getAchievementOffers } from '../achievements.ts'
 import { prepareV8SaveImport } from '../exact-persistence-v8.ts'
 
 const mounted: VueWrapper[] = []
@@ -78,10 +79,12 @@ describe('Achievements : navigation et récompenses groupées', () => {
     const {wrapper,read}=start(saved)
     await wrapper.find('.achievements-launch').trigger('click')
     const button=wrapper.find('.achievements-claim-all')
+    const unlocks=getAchievementOffers(read()).filter(offer=>offer.claimable)
+    const expectedCash=1_500+unlocks.reduce((sum,offer)=>sum+offer.rewardCents,0)/100
     expect(button.attributes('disabled')).toBeUndefined()
     await button.trigger('click')
     await nextTick()
-    expect(read().game.balance).toBe(1_850) // +100 clics, +250 revenus
+    expect(read().game.balance).toBe(expectedCash)
     expect(read().achievements.claimedIds).toEqual(expect.arrayContaining(['clicks-100','earnings-1000']))
     expect(button.attributes('disabled')).toBeDefined()
     expect(prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!,Date.now()).ok).toBe(true)
