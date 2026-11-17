@@ -36,7 +36,7 @@ function withRanks(state:ReturnType<typeof createV8CapitalState>,ranks:Record<st
   return {...state,ascension:{...state.ascension,progress:{...previous,
     transcendentV1:section,availablePoints:(BigInt(previous.availablePoints)-(newCost!-oldCost!)).toString()}}}
 }
-test('Ten PP branches, six activatable economic upgrades; capital reserved, seven-branch prices immutable',()=>{
+test('Ten PP branches, seven purchasable main branches, seven-branch prices immutable',()=>{
   assert.equal(TRANSCENDENT_MAIN_IDS.length,7)
   assert.equal(TRANSCENDENT_MAIN_PRESENTATION.length,7)
   assert.equal(TRANSCENDENT_NEWS_IDS.length,3)
@@ -46,7 +46,7 @@ test('Ten PP branches, six activatable economic upgrades; capital reserved, seve
   const ready=cycle()
   for(const id of TRANSCENDENT_MAIN_IDS){
     const first=v8BuyTranscendent(ready,id,0)
-    assert.equal(first!==null,id!=='starting-capital',id)
+    assert.ok(first!==null,id)
     if(first){
       assert.equal(first.ascension.progress.transcendentV1?.levels[id],1)
       assert.equal(BigInt(first.ascension.progress.availablePoints),BigInt(ready.ascension.progress.availablePoints)-1000n)
@@ -58,8 +58,11 @@ test('Ten PP branches, six activatable economic upgrades; capital reserved, seve
     }
   }
   assert.equal(v8BuyTranscendent(ready,'unknown' as 'empire',0),null)
-  assert.equal(v8BuyTranscendent(ready,'starting-capital',0),null)
-  assert.equal(pendingStartingCapitalCents(),0n)
+  assert.equal(pendingStartingCapitalCents(ready.ascension.progress),0n)
+  const purchased=v8BuyTranscendent(ready,'starting-capital',0)!
+  assert.ok(purchased)
+  assert.equal(pendingStartingCapitalCents(purchased.ascension.progress),1_000_000n)
+  assert.equal(purchased.game.balance,ready.game.balance)
   assert.equal(v8BuyTranscendent(ready,'news-power',0)?.ascension.progress.transcendentV1?.levels['news-power'],1)
   assert.equal(v8BuyTranscendentNews(ready,'empire' as 'news-power',0),null)
   const future=withRanks(ready,{empire:1000})

@@ -1,6 +1,7 @@
 import { prestigeShop, prestigeSpent, prestigePoints } from './ascension/v2.ts'
 import { transcendentSpent } from './ascension/transcendent-v1.ts'
 import { TRANSCENDENT_MAX_LEVEL } from './ascension/transcendent-v1.ts'
+import { startingCapitalCents } from './ascension/starting-capital-v1.ts'
 import { isValidMarketBoundary } from './trading/market.ts'
 /**
  * Strict V8 serialization contract. No BigInt is ever written to JSON; all
@@ -121,6 +122,7 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
       key=>typeof (run.automation as Dict)[key]==='boolean'))return false
   // Missing means an old, still-valid V8 save: treat as level 0.
   if(run.autoClickLevel!==undefined && (!safe(run.autoClickLevel)||run.autoClickLevel>20))return false
+  if(run.startingCapitalGrantedCents!==undefined && amount(run.startingCapitalGrantedCents)===null)return false
   if(run.lastAutomationAtRealMs!==undefined && !safe(run.lastAutomationAtRealMs))return false
   if(run.marketOrders!==undefined){
     if(!Array.isArray(run.marketOrders)||run.marketOrders.length>24||
@@ -169,8 +171,11 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     return fail('Invalid News power spending')
   const cash = amount(g.balance, true), earned = amount(g.lifetimeEarned)
   const giftCents = amount(gifts.cycleGiftCents)
-  if (cash === null || earned === null || giftCents === null || cash > earned + giftCents)
-    return fail('Cash / lifetime earnings / gifts inconsistent')
+  const grantField=(a.run as Dict).startingCapitalGrantedCents
+  const grantCents=grantField===undefined?0n:amount(grantField)
+  if (cash === null || earned === null || giftCents === null || grantCents === null ||
+      cash > earned + giftCents + grantCents)
+    return fail('Cash / lifetime earnings / gifts / starting capital inconsistent')
   if (!object(f.dueBySourceCents) || !object(f.paidBySourceCents)) return fail('Missing tax ledgers')
   for (const [totalKey, bySourceKey] of [
     ['taxesDueCents','dueBySourceCents'], ['taxesPaidCents','paidBySourceCents'],
@@ -256,6 +261,8 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   if (!Array.isArray(progress.history) || typeof progress.prestigeCount !== 'number' ||
       !Number.isSafeInteger(progress.prestigeCount) || progress.prestigeCount < 0)
     return fail('Missing prestige history')
+  if(grantCents>0n && progress.prestigeCount===0)
+    return fail('Starting capital granted without Prestige cycle')
   if(progress.shopVersion===2){
     const ranks=progress.upgradeLevels as Record<string,number>
     const legacy=progress.legacyRanks as Record<string,number>
@@ -269,6 +276,25 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
       return fail('Invalid prestige history')
     const total=amount(item.earnedPoints)!
     const worth=amount(item.eligibleWorthCents)!
+    // New receipts attest the purchased rank and its exact grant. Older V3
+    // receipts have neither field and always represent a zero grant.
+    const hasRank=Object.hasOwn(item,'startingCapitalLevelAtCycle')
+    const hasAmount=Object.hasOwn(item,'startingCapitalGrantedCents')
+    let historicalGrant=0n
+    if(hasRank!==hasAmount)return fail('Incomplete starting capital receipt')
+    if(hasRank){
+      const rank=item.startingCapitalLevelAtCycle
+      const granted=amount(item.startingCapitalGrantedCents)
+      if(item.formulaVersion!==3 || !safe(rank)||rank>TRANSCENDENT_MAX_LEVEL||
+         granted===null||startingCapitalCents(rank)!==granted||
+         !object(progress.transcendentV1)||!object(progress.transcendentV1.levels)||
+         !safe(progress.transcendentV1.levels['starting-capital'])||
+         rank>progress.transcendentV1.levels['starting-capital'])
+        return fail('Invalid starting capital receipt')
+      historicalGrant=granted
+    }
+    if(index===progress.history.length-1 && historicalGrant!==grantCents)
+      return fail('Starting capital witness disagrees with last cycle')
     if(item.formulaVersion===3){
       const base=amount(item.basePoints)
       const heritage=item.heritageLevelAtCycle
@@ -293,6 +319,8 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
       return fail('Invalid historical Prestige reward')
     pointsInHistory+=total
   }
+  if(progress.history.length===0 && grantCents!==0n)
+    return fail('Starting capital without historical receipt')
   if(pointsInHistory>lifetimePP||
     (progress.prestigeCount<=100 && pointsInHistory!==lifetimePP))
     return fail('Prestige lifetime reward ledger mismatch')

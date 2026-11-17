@@ -47,7 +47,7 @@ describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
     expect(page.findAll('[data-transcendent]')).toHaveLength(10)
     expect(page.findAll('.transcendent-main button.ascension-buy:disabled')).toHaveLength(7)
     expect(page.findAll('.transcendent-news button.ascension-buy:disabled')).toHaveLength(3)
-    expect(page.find('[data-transcendent="starting-capital"] .ascension-upgrade-cost').text()).toContain('PASSE 5')
+    expect(page.find('[data-transcendent="starting-capital"] .ascension-upgrade-cost').text()).toContain("1'000 PP")
     expect(page.find('[data-transcendent="starting-capital"] button').attributes('disabled')).toBeDefined()
     expect(page.find('.ascension-summary').text()).toContain('10 000')
     await nextTick()
@@ -92,7 +92,7 @@ describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
     const reopened=await toTranscendent(revived)
     expect(reopened.find('[data-transcendent="empire"] .ascension-upgrade-level').text()).toContain('2/1000')
   })
-  it('les bonus News restent achetables dans le Shop dédié ; capital bloqué même avec les PP',async()=>{
+  it('les bonus News et Capital de départ sont achetables avec les PP, mais sans cash immédiat',async()=>{
     const {wrapper,exact}=start(3)
     const page=await toTranscendent(wrapper)
     const news=page.find('[data-transcendent="news-duration"]')
@@ -101,8 +101,14 @@ describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
     await nextTick()
     expect(saved().ascension.progress.transcendentV1.levels['news-duration']).toBe(1)
     expect(BigInt(saved().ascension.progress.availablePoints)).toBe(BigInt(exact.ascension.progress.availablePoints)-1000n)
-    expect(page.find('[data-transcendent="starting-capital"] button.ascension-buy').attributes('disabled')).toBeDefined()
-    expect(saved().ascension.progress.transcendentV1.levels['starting-capital']).toBe(0)
+    const capital=page.find('[data-transcendent="starting-capital"]')
+    expect(capital.find('button.ascension-buy').attributes('disabled')).toBeUndefined()
+    const cashBefore=saved().game.balance
+    await capital.find('button.ascension-buy').trigger('click')
+    await nextTick()
+    expect(saved().ascension.progress.transcendentV1.levels['starting-capital']).toBe(1)
+    expect(saved().game.balance).toBe(cashBefore)
+    expect(capital.text()).toContain('10.00K')
   })
   it('bloque le niveau non débloqué et lève la modale via Escape',async()=>{
     const {wrapper}=start(2)

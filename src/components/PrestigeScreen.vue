@@ -4,6 +4,7 @@ import type { CapitalState } from '../capital.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { prestigeShop,prestigeCost,MIN_LEVEL as ASCENSION_MIN_LEVEL,MIN_WORTH_CENTS } from '../ascension/v2.ts'
 import { v8EligiblePrestigeWorthCents, v8PrestigeRewardPreview } from '../exact-prestige-v8.ts'
+import { pendingStartingCapitalCents } from '../ascension/transcendent-v1.ts'
 import { getExactLevel } from '../exact-levels.ts'
 import { formatCompactUnits } from '../large-numbers.ts'
 const ASCENSION_MIN_WORTH_USD=Number(MIN_WORTH_CENTS)/100
@@ -42,6 +43,7 @@ const fmt = (value: number|bigint|string) => integer.format(typeof value === "st
 const worth = computed(() => v8EligiblePrestigeWorthCents(props.exact))
 const level = computed(() => getExactLevel(BigInt(props.exact.prestige.experienceCents)))
 const pointPreview = computed(() => v8PrestigeRewardPreview(props.exact,worth.value,level.value).earned)
+const nextCycleCapital = computed(() => pendingStartingCapitalCents(props.exact.ascension.progress))
 const progress = computed(() => props.exact.ascension.progress)
 const currentSpeed = computed(() => marketSpeed(props.state))
 const unlockedSpeedLevel = computed(() => progress.value.upgradeLevels['time-accelerator'])
@@ -233,6 +235,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           <span :style="{ width: worthProgress + '%' }"></span>
         </div>
         <p class="ascension-help">Aucun paiement manuel nécessaire : les taxes dues sont prélevées à la confirmation. Elles sont déjà déduites du patrimoine servant au calcul des PP. Le calendrier fiscal de 72 h réelles continue sans remise à zéro.</p>
+        <p class="ascension-help">Capital de départ au prochain cycle : <strong>{{ formatCompactUnits(nextCycleCapital) }}</strong>. La dotation n'accorde aucun XP, Fame ou PP, et son principal n'est pas éligible au Prestige suivant.</p>
         <button type="button" class="ascension-reset-launch" :disabled="!affordPrestige || busy"
           @click="openConfirmation">
           {{ affordPrestige ? 'EFFECTUER LE PRESTIGE' : 'PRESTIGE VERROUILLÉ' }}
@@ -270,7 +273,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           <div><span class="ascension-eyebrow">PRESTIGE TRANSCENDANT · NEWS</span><h2>News avancées en PP</h2></div>
           <span>{{ advancedNewsSum }} / {{ TRANSCENDENT_MAX_LEVEL*3 }}</span>
         </div>
-        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les six branches économiques sont aussi disponibles dans la boutique Transcendant dédiée. Le Capital de départ arrive en passe 5.</p>
+        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les six branches économiques sont aussi disponibles dans la boutique Transcendant dédiée. Le Capital de départ est désormais disponible dans la boutique Transcendant.</p>
         <div class="ascension-news-effective" aria-label="Effets actuels sur les news">
           <span>Puissance <strong>×{{ newsModifiers.impactMultiplier.toFixed(2) }}</strong></span>
           <span>Rampe <strong>{{ (newsModifiers.rampFraction*100).toFixed(2) }} %</strong></span>

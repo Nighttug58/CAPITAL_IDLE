@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passes 1 à 4 validées (4/8)** au 17 novembre 2026. Les passes 5 à 8 restent à faire. Les six bonus économiques Transcendant sont actifs, la septième branche Capital de départ est préparée mais non achetable avant la passe 5.
+**État :** passe 0.5 validée ; **passes 1 à 5 validées (5/8)** au 17 novembre 2026. Les passes 6 à 8 restent à faire. Les sept branches Transcendant sont désormais achetables, le Capital de départ est réellement attribué après Prestige et son principal exclu des PP futurs.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -243,6 +243,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** tous les paliers, interpolation monotone, Prestige niveau 149 vs 150 et seuil 10 milliards, cash après taxes, absence de faux XP/Fame/revenu fiscal, histoire PP exacte, placement en bourse/entreprises sans double assiette, édition/import forge du témoin, reset effectué deux fois sans double crédit, transaction échouée intacte. `npm run verify:release` ; commit passe 5 uniquement.
 
+**Suivi — passe 5 validée (17/11/2026) :** 7e branche `starting-capital` déverrouillée dans la page Prestige Transcendant, toujours sur 1 000 rangs et tarifs PP quadratiques V1, sans crédit au moment de l'achat. Barème permanent de 0 à 1 000 interpolé linéairement en centimes BigInt (10 000 $ au rang 1, 1 Qa $ au rang 1 000). À chaque **nouveau** Prestige réussi, après impôts et attribution PP, un seul reset atomique crédite le cash du nouveau cycle ; aucun XP, Fame, gains statistiques, achievements, impôts ou PP gratuits. Le patrimoine PP suivant exclut le **principal de dotation de toutes les classes d'actifs** (cash, portefeuille et entreprises), pas les revenus/plus-values issus de ce capital. Ajout du témoin V8 facultatif `ascension.run.startingCapitalGrantedCents` et de deux champs immuables aux **nouveaux** reçus Prestige V3 (`startingCapitalLevelAtCycle`, `startingCapitalGrantedCents`) ; validateur exige le tarif exact du rang, une provenance dans le dernier reçu, et une borne cash incluant le seul témoin courant. Les anciennes sauvegardes V8 et anciens reçus V2/V3 sans champs restent valides avec un **grant implicite de zéro**, sans réécriture ni crédit rétroactif ; export/import et migration idempotents. Tests : paliers 0–1 000 et interpolations, crédits au reset, niveaux et seuil PP, taxes, portefeuille et entreprises, achat stale, sauvegardes forgées/reçus incomplets et reloads. Validation indépendante : **402 tests métier, 102 tests UI, TypeScript et build Vite verts** avec `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44195967263)). Workflow temporaire exclu de `main` ; **passe 6 non commencée**.
+
 ### Passe 6 — Collections V3 : raretés, bonus de set et Musée impérial
 
 **Objectif.** Faire des 100 objets un pilier majeur de progression tout en conservant les anciennes possessions.
@@ -296,9 +298,9 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 2 | Modales Trading compactes + détails visibles | ✅ Terminé |
 | 3 | News avancées PP + commandes manuelles au Prestige 3 | ✅ Terminé |
 | 4 | Transcendant Shop, 6 branches actives + Capital préparé pour passe 5, 1 000 niveaux | ✅ Terminé |
-| 5 | Capital de départ attribué au reset | ☐ À faire |
+| 5 | Capital de départ attribué au reset | ✅ Terminé |
 | 6 | Collections V3 + Musée impérial | ☐ À faire |
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage actualisé (17/11/2026) :** les passes **0.5 et 1 à 4** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 5** (dotation de Capital de départ au reset), avec validation complète et commit avant la passe 6. Les passes 5 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage actualisé (17/11/2026) :** les passes **0.5 et 1 à 5** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 6** (Collections V3, raretés, bonus de catégories et Musée impérial), avec validation complète et commit avant la passe 7. Les passes 6 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.

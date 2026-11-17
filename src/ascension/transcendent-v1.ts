@@ -1,9 +1,10 @@
 /**
  * Transcendent PP Shop V1. Six core bonus branches and three News branches
- * can be purchased from Prestige 3. Starting capital is reserved for pass 5.
+ * can be purchased from Prestige 3. Starting capital is active from pass 5.
  * All prices and balances use exact BigInt PP; saves store integer ranks only.
  */
 import type { V8CapitalState } from '../exact-state-v8.ts'
+import { startingCapitalCents } from './starting-capital-v1.ts'
 
 export const TRANSCENDENT_NEWS_IDS = [
   'news-power', 'news-intensity', 'news-duration',
@@ -32,7 +33,7 @@ export const TRANSCENDENT_MAIN_PRESENTATION: ReadonlyArray<{
   {id:'xp',name:'Savoir absolu',description:'Augmente l’XP gagnée lors des revenus éligibles, sans créer de cash.',effect:'+0,2 point % par rang · max +200 %'},
   {id:'fame',name:'Influence mondiale',description:'Augmente uniquement la Fame nouvellement obtenue en franchissant des niveaux.',effect:'+0,2 point % par rang · max +200 %'},
   {id:'heritage',name:'Héritage Prestige',description:'Bonifie les PP des prochains cycles. Chaque reçu mémorise le rang appliqué.',effect:'+0,1 point % par rang · max +100 %'},
-  {id:'starting-capital',name:'Capital de départ',description:'Septième branche préparée, dotation non encore disponible.',effect:'Disponible à la passe 5 — aucune dépense possible actuellement'},
+  {id:'starting-capital',name:'Capital de départ',description:'Commence chaque nouveau cycle Prestige avec du cash non taxable, sans XP, Fame ou PP gratuits.',effect:'Dotation permanente après Prestige · jusqu’à 1 Qa $'},
 ]
 
 export interface TranscendentShopV1 {
@@ -72,8 +73,6 @@ export function transcendentSpent(section:unknown):bigint|null {
   for(const id of TRANSCENDENT_IDS){
     const rank=ranks[id]
     if(!Number.isSafeInteger(rank)||typeof rank!=='number'||rank<0||rank>TRANSCENDENT_MAX_LEVEL)return null
-    // Pass 5 owns the seventh main branch: no spending/levels before activation.
-    if(id==='starting-capital' && rank!==0)return null
     const spent=transcendentSpentThrough(rank)
     if(spent===null)return null
     total+=spent
@@ -94,7 +93,7 @@ export function migrateTranscendentV1(state:V8CapitalState):V8CapitalState {
 export function v8BuyTranscendent(
   state:V8CapitalState,id:TranscendentId,expectedRank:number,
 ):V8CapitalState|null {
-  if(!TRANSCENDENT_IDS.includes(id) || id==='starting-capital' ||
+  if(!TRANSCENDENT_IDS.includes(id) ||
     state.ascension.progress.shopVersion!==2 ||
     state.ascension.progress.prestigeCount<3)return null
   const progress=state.ascension.progress
@@ -133,8 +132,12 @@ export function transcendentHeritageBps(
   return 10_000+transcendentLevel(progress,'heritage')*10+
     (museumComplete?2_500:0)
 }
-/** Capital of the next cycle has no effect before its pass-5 implementation. */
-export function pendingStartingCapitalCents():bigint {return 0n}
+/** Preview only; purchase, import and reload never mint cash. */
+export function pendingStartingCapitalCents(
+  progress:{readonly transcendentV1?:TranscendentShopV1},
+):bigint {
+  return startingCapitalCents(transcendentLevel(progress,'starting-capital'))??0n
+}
 /** Deterministic force, envelope and duration multipliers, safe up to rank 1000. */
 export function transcendentNewsModifiers(
   progress:{readonly transcendentV1?:TranscendentShopV1},

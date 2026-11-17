@@ -61,7 +61,7 @@ test('Transcendent schema: 10 canonical IDs, six core and 3 News branches enable
   assert.equal(sum,3454210000n)
   assert.equal(transcendentSpent({...zero,version:2}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,empire:1}}),1000n)
-  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'starting-capital':1}}),null)
+  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'starting-capital':1}}),1000n)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':1001}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':-1}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':1.2}}),null)
@@ -121,6 +121,12 @@ test('Legacy V8 loads, migrates once with backup, exports, imports idempotently 
   const state=seeded(3)
   const old=JSON.parse(JSON.stringify(state))
   delete old.ascension.progress.transcendentV1
+  // A genuinely pre-Transcendent V8 snapshot also predates the grant receipts.
+  delete old.ascension.run.startingCapitalGrantedCents
+  for (const receipt of old.ascension.progress.history) {
+    delete receipt.startingCapitalLevelAtCycle
+    delete receipt.startingCapitalGrantedCents
+  }
   const original=JSON.stringify(old)
   const {entries,storage}=store()
   entries.set(V8_STORAGE_KEY,original)

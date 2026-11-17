@@ -9,7 +9,7 @@ import {getAsset} from './trading/catalog.ts'
 import {v8AdvanceFiscalEconomy,v8PayTaxes} from './exact-runtime-v8.ts'
 import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
-import {transcendentLevel,transcendentHeritageBps} from './ascension/transcendent-v1.ts'
+import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} from './ascension/transcendent-v1.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
@@ -25,7 +25,9 @@ export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
     gross+=priceCents.grossCents
   }
   for(const company of Object.values(state.enterprises.owned))gross+=v(company.investedCents)
-  return gross
+  // One economy-wide exclusion, independent of cash/portfolio/business form.
+  // Only gains above the initial principal become PP-eligible.
+  return gross-v(state.ascension.run.startingCapitalGrantedCents??'0')
 }
 
 /** Preview uses exact PP values and applies only the owned Heritage rank.
@@ -61,6 +63,8 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   const reward=v8PrestigeRewardPreview(afterTax,eligible,level)
   const earnedPoints=reward.earned
   const progress=afterTax.ascension.progress
+  const startingCapitalLevelAtCycle=transcendentLevel(progress,'starting-capital')
+  const grant=pendingStartingCapitalCents(progress)
   const nextCycle=progress.prestigeCount+1
   if(!Number.isSafeInteger(nextCycle))return{ok:false,reason:'cycle-overflow'}
   const nextProgress={...progress,
@@ -70,7 +74,8 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
     history:[...progress.history,{formulaVersion:3 as const,cycle:nextCycle,completedAtRealMs:at,
       eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level,
       basePoints:s(reward.base),heritageLevelAtCycle:reward.heritageLevelAtCycle,
-      museumCompleteAtCycle:reward.museumCompleteAtCycle,bonusBps:reward.bonusBps}]
+      museumCompleteAtCycle:reward.museumCompleteAtCycle,bonusBps:reward.bonusBps,
+      startingCapitalLevelAtCycle,startingCapitalGrantedCents:s(grant)}]
       .slice(-MAX_ASCENSION_HISTORY),
   }
   const fresh=createV8CapitalState(at)
@@ -78,13 +83,15 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   delete previousPrestige.xpRebase
   delete previousPrestige.xpRebaseV4
   const result:V8CapitalState={...fresh,
+    game:{...fresh.game,balance:s(grant)},
     ...(state.newsPowers?{newsPowers:state.newsPowers}:{}),
     prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
       experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
       fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),
       cycleEarnedFameMicros:'0',cycleLevelFameMicros:'0',cycleCollectionFameMicros:'0'},
     fiscal:afterTax.fiscal,
-    ascension:{...fresh.ascension,progress:nextProgress},
+    ascension:{...fresh.ascension,progress:nextProgress,
+      run:{...fresh.ascension.run,startingCapitalGrantedCents:s(grant)}},
     achievements:{claimedIds:[...afterTax.achievements.claimedIds],cycleGiftCents:'0'},
   }
   return{ok:true,state:result,earnedPoints,cycle:nextCycle,worthCents:eligible}
