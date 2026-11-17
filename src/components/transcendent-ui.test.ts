@@ -49,7 +49,7 @@ describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
     expect(page.findAll('.transcendent-news button.ascension-buy:disabled')).toHaveLength(3)
     expect(page.find('[data-transcendent="starting-capital"] .ascension-upgrade-cost').text()).toContain("1'000 PP")
     expect(page.find('[data-transcendent="starting-capital"] button').attributes('disabled')).toBeDefined()
-    expect(page.find('.ascension-summary').text()).toContain("10'000")
+    expect(page.find('.ascension-summary').text()).toContain('10 000')
     await nextTick()
     expect(document.activeElement).toBe(page.find('.ascension-return').element)
     await page.find('button.ascension-return').trigger('click')
