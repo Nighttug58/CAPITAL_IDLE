@@ -1,0 +1,19 @@
+name: Verify pass 3 advanced News PP
+on:
+  push:
+    branches: [verify/pass3-news-pp-20261117]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify release
+        run: npm run verify:release
