@@ -16,7 +16,7 @@ import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { getAsset } from './trading/catalog.ts'
 import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
   divideCostBasis } from './exact-trading.ts'
-import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, isEnterpriseUnlocked }
+import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, getEnterpriseUpgradeBatchCostCentsExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
 import { getV2NextFameBoostCost as fameCost } from './prestige/catalog.ts'
@@ -126,6 +126,45 @@ export function v8UpgradeClick(state: V8CapitalState): V8CapitalState | null {
   if (!next || level < next.requiredLevel || cost === null || v(state.game.balance) < cost) return null
   return { ...state, game: { ...state.game, balance: s(v(state.game.balance) - cost),
     purchasedUpgrades: state.game.purchasedUpgrades + 1 } }
+}
+
+
+/** Immutable dollar-price prefix for O(log 999) MAX quotes. */
+const clickCostPrefix: readonly bigint[] = (() => {
+  const sums: bigint[] = [0n]
+  for (const row of UPGRADES) sums.push(sums[sums.length - 1]! + BigInt(row.price) * 100n)
+  return sums
+})()
+export interface V8ClickMaxQuote {
+  readonly levelsBought: number
+  readonly targetLevel: number
+  readonly costCents: bigint
+}
+export function quoteV8ClickMax(state: V8CapitalState): V8ClickMaxQuote | null {
+  const current = state.game.purchasedUpgrades
+  if (!Number.isSafeInteger(current) || current < 0 || current >= UPGRADES.length) return null
+  const budget = v(state.game.balance)
+  if (budget < 0n) return null
+  const level = getExactLevel(v(state.prestige.experienceCents))
+  let low = current, high = UPGRADES.length
+  while (low < high) {
+    const mid = low + Math.ceil((high - low) / 2)
+    if (clickCostPrefix[mid]! - clickCostPrefix[current]! <= budget &&
+        UPGRADES[mid - 1]!.requiredLevel <= level) low = mid
+    else high = mid - 1
+  }
+  if (low === current) return null
+  return {levelsBought:low-current,targetLevel:low,
+    costCents:clickCostPrefix[low]!-clickCostPrefix[current]!}
+}
+/** The rank supplied by the UI prevents duplicate purchases against stale state. */
+export function v8UpgradeClickMax(state: V8CapitalState, expectedLevel: number): V8CapitalState | null {
+  if (state.game.purchasedUpgrades !== expectedLevel) return null
+  const quote = quoteV8ClickMax(state)
+  if (!quote) return null
+  return {...state,game:{...state.game,
+    balance:s(v(state.game.balance)-quote.costCents),
+    purchasedUpgrades:quote.targetLevel}}
 }
 
 export type V8TradeResult =
@@ -421,6 +460,63 @@ export function v8BuyEnterprise(state: V8CapitalState, id: string, at: number, u
     }},
   }
   return {ok:true,state:updated,costCents:cost}
+}
+
+
+export interface V8EnterpriseMaxQuote {
+  readonly previousLevel: number
+  readonly targetLevel: number
+  readonly levelsBought: number
+  readonly costCents: bigint
+}
+/** Pure exact preview including initial acquisition when not owned. */
+export function quoteV8EnterpriseMax(state: V8CapitalState, id: string): V8EnterpriseMaxQuote | null {
+  const business = getEnterprise(id)
+  if (!business) return null
+  const current = state.enterprises.owned[id]?.level ?? 0
+  const max = Number.MAX_SAFE_INTEGER - 1
+  if (!Number.isSafeInteger(current) || current < 0 || current >= max) return null
+  if (current === 0 && !isEnterpriseUnlocked(id,getExactLevel(v(state.prestige.experienceCents)))) return null
+  const budget = v(state.game.balance)
+  const acquisition = current === 0 ? BigInt(business.purchaseCostCents) : 0n
+  const start = Math.max(1,current)
+  const costTo = (target: number) => acquisition +
+    getEnterpriseUpgradeBatchCostCentsExact(id,start,target)!
+  if (budget < costTo(current + 1)) return null
+  let low = current + 1, high = max
+  while (low < high) {
+    const mid = low + Math.ceil((high-low)/2)
+    if (costTo(mid) <= budget) low = mid
+    else high = mid - 1
+  }
+  return {previousLevel:current,targetLevel:low,
+    levelsBought:low-current,costCents:costTo(low)}
+}
+export type V8EnterpriseMaxPurchase =
+  | {ok:true;state:V8CapitalState;costCents:bigint;levelsBought:number}
+  | {ok:false;reason:string}
+/** Settle the enterprise/fiscal clock and buy in one V8 mutation/save. */
+export function v8BuyEnterpriseMax(
+  state: V8CapitalState,id: string,at: number,expectedLevel: number,
+): V8EnterpriseMaxPurchase {
+  const business = getEnterprise(id)
+  if (!business) return {ok:false,reason:'unknown-enterprise'}
+  const previous = state.enterprises.owned[id]
+  if ((previous?.level??0)!==expectedLevel) return {ok:false,reason:'stale-level'}
+  if (!Number.isSafeInteger(at) || at<state.enterprises.lastAccruedAt ||
+      at<state.fiscal.periodStartedAt) return {ok:false,reason:'invalid-clock'}
+  const settled = v8AdvanceFiscalEconomy(state,at)
+  if (settled.enterprises.lastAccruedAt!==at) return {ok:false,reason:'money-overflow'}
+  if (!previous && !isEnterpriseUnlocked(id,getExactLevel(v(settled.prestige.experienceCents))))
+    return {ok:false,reason:'level-locked'}
+  const quote = quoteV8EnterpriseMax(settled,id)
+  if (!quote) return {ok:false,reason:(previous?.level??0)>=Number.MAX_SAFE_INTEGER-1?'max-level':'insufficient-funds'}
+  const invested = previous ? v(previous.investedCents) : 0n
+  const updated: V8CapitalState = {...settled,
+    game:{...settled.game,balance:s(v(settled.game.balance)-quote.costCents)},
+    enterprises:{...settled.enterprises,owned:{...settled.enterprises.owned,
+      [id]:{level:quote.targetLevel,investedCents:s(invested+quote.costCents)}}}}
+  return {ok:true,state:updated,costCents:quote.costCents,levelsBought:quote.levelsBought}
 }
 
 /**

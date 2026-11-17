@@ -8,7 +8,8 @@ import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
- v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAvailableAchievements} from './exact-runtime-v8.ts'
+ v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAvailableAchievements,
+ quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
@@ -71,6 +72,8 @@ const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value &&
   v(exact.value.game.balance) >= BigInt(nextUpgrade.value.price)*100n)
+const clickMaxQuote = computed(() => quoteV8ClickMax(exact.value))
+const clickMaxNotice = ref('')
 const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * getBonusMultiplier(capital.value, 'click'))
 const autoClickLevel = computed(() => getDollarAutoClickLevel(exact.value))
 const autoClickCost = computed(() => dollarAutoClickPriceCents(autoClickLevel.value))
@@ -234,7 +237,15 @@ function removeFloatingGain(id: number) {
 function buy() {
   if (loadBlocked.value) return
   const next = v8UpgradeClick(exact.value)
-  if (next) {syncExactState(next); persist()}
+  if (next) {clickMaxNotice.value='';syncExactState(next); persist()}
+}
+function buyClickMax() {
+  if (loadBlocked.value) return
+  const quote=clickMaxQuote.value
+  if (!quote) return
+  const next=v8UpgradeClickMax(exact.value,exact.value.game.purchasedUpgrades)
+  if (!next || !replaceWholeSaveExact(next)) return
+  clickMaxNotice.value=`+${quote.levelsBought} niveaux pour ${formatCompactUnits(quote.costCents,2,'$')}`
 }
 function buyAutoClick() {
   if (loadBlocked.value) return
@@ -298,6 +309,15 @@ function executeStaking(action:'deposit'|'withdraw',id:string,quantity:number):S
     return{ok:false,state:capital.value,error}}
   if(!replaceWholeSaveExact(changed.state))return{ok:false,state:capital.value,error:'storage-error'}
   return {ok:true,state:capital.value,receipt:{assetId:id,action,quantity,unlockAt:changed.unlockAt}}
+}
+function executeEnterpriseMax(id:string,expectedLevel:number) {
+  if(loadBlocked.value)return{ok:false as const,error:'money-overflow' as const}
+  const result=v8BuyEnterpriseMax(exact.value,id,Date.now(),expectedLevel)
+  if(!result.ok)return{ok:false as const,error:result.reason as Exclude<EnterpriseResult,{ok:true}>['error']|'stale-level'}
+  if(!replaceWholeSaveExact(result.state))return{ok:false as const,error:'money-overflow' as const}
+  marketRuntime?.wake()
+  return{ok:true as const,level:result.state.enterprises.owned[id]!.level,
+    levelsBought:result.levelsBought,costCents:result.costCents.toString()}
 }
 function executeEnterprise(action:EnterpriseAction,id:string):EnterpriseResult{
   if(loadBlocked.value)return{ok:false,state:capital.value,error:'money-overflow'}
@@ -589,11 +609,20 @@ onUnmounted(() => {
                 <template v-if="nextUpgrade"> · → <span class="home-upgrade-increment">{{ formatMoney(nextGain) }}</span></template>
                 <template v-else> · Niveau maximal</template>
               </small>
+              <small v-if="clickMaxNotice" class="home-click-max-notice" role="status">{{ clickMaxNotice }}</small>
             </div>
-            <button class="upgrade-button home-upgrade-buy" type="button" :disabled="loadBlocked || !upgradeAffordable" @click="buy">
-              <span>{{ !nextUpgrade ? 'MAX' : !upgradeUnlocked ? 'Niv. ' + nextUpgrade.requiredLevel : 'Améliorer' }}</span>
-              <strong v-if="nextUpgrade">{{ formatCompactUnits(BigInt(nextUpgrade.price)*100n) }}</strong>
-            </button>
+            <div class="home-click-actions">
+              <button class="upgrade-button home-upgrade-buy" type="button" :disabled="loadBlocked || !upgradeAffordable"
+                aria-label="Acheter un niveau de clic" @click="buy">
+                <span>{{ !nextUpgrade ? 'TERMINÉ' : !upgradeUnlocked ? 'Niv. ' + nextUpgrade.requiredLevel : '+1' }}</span>
+                <strong v-if="nextUpgrade">{{ formatCompactUnits(BigInt(nextUpgrade.price)*100n) }}</strong>
+              </button>
+              <button class="home-click-max" type="button" :disabled="loadBlocked || !clickMaxQuote"
+                :title="clickMaxQuote ? '+' + clickMaxQuote.levelsBought + ' niveaux pour ' + formatCompactUnits(clickMaxQuote.costCents,2,'$') : 'Aucun niveau achetable'"
+                aria-label="Acheter le maximum de niveaux de clic" @click="buyClickMax">
+                <span>MAX</span><strong v-if="clickMaxQuote">+{{ clickMaxQuote.levelsBought }}</strong>
+              </button>
+            </div>
           </div>
           <div class="home-upgrade-row" aria-label="Amélioration Auto Click">
             <span class="home-upgrade-symbol home-upgrade-auto-symbol" aria-hidden="true">
@@ -653,7 +682,7 @@ onUnmounted(() => {
     <TradingScreen :purchase-news="purchaseNews" v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
-    <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" />
+    <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
     <CollectionScreen v-if="page === 'collection'" :state="exact" :purchase-collection="executeCollectionPurchase" />
     <StatsScreen v-show="page === 'stats'" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />

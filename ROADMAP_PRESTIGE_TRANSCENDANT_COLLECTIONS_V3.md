@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 à faire, puis 0/8 passes principales engagées — **document de conception uniquement**. Aucune fonctionnalité de cette roadmap n'est implémentée par sa création.
+**État :** passe 0.5 validée ; **passe 1 validée (1/8)** au 17 novembre 2026. Les passes 2 à 8 restent à faire. La documentation initiale ci-dessous conserve le cahier des charges des passes suivantes.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -179,6 +179,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** comparaison MAX avec achats +1 séquentiels sur petits cas ; exactitude des arrondis 19→20→21, plafond clic, niveau bloquant, cash exactement égal/insuffisant, niveaux entreprises 1/20/21/1000/1 000 000, BigInt >10^100, monotonie prix, aucun gel UI, double clic, rechargement et sauvegarde refusée sans débit. Tests responsive sur 360/390/768 px. `npm run verify:release` vert ; commit **passe 1 uniquement**.
 
+**Suivi — passe 1 validée (17/11/2026) :** préfixe de coûts des 999 achats de clic, recherche dichotomique par niveau joueur et cash exact, achats d'entreprises sans boucle par niveau avec sommes polynomiales et correction d'arrondi périodique (200 rangs), contrôle des rangs attendus, achat MAX atomique en V8, interface +1/MAX et preview du coût. Validation indépendante sur branche de test : **383 tests métier, 90 tests UI, TypeScript + Vite réussis** avec `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44155019569)). Les scripts temporaires de validation ne sont pas publiés sur `main`.
+
 ### Passe 2 — Modales Trading compactes, graphique intact, détails permanents
 
 **Objectif.** Réduire la hauteur inutile des modales actions/cryptos/memecoins sans rapetisser le graphique ni perdre les ordres.
@@ -283,8 +285,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 | Passe | Objet | État |
 | ---: | --- | --- |
-| **0.5** | Billet animé en continu, 12 fps constants, indépendant des clics | ☐ À faire en premier |
-| 1 | MAX clic + MAX entreprises | ☐ À faire |
+| **0.5** | Billet animé en continu, 12 fps constants, indépendant des clics | ✅ Terminé |
+| 1 | MAX clic + MAX entreprises | ✅ Terminé |
 | 2 | Modales Trading compactes + détails visibles | ☐ À faire |
 | 3 | News avancées PP + commandes manuelles au Prestige 3 | ☐ À faire |
 | 4 | Transcendant Shop, 7 branches 1 000 niveaux | ☐ À faire |
@@ -293,4 +295,4 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage :** rien au-delà de la présente documentation. Au prochain message « Next », inspecter de nouveau `main`, exécuter **uniquement passe 0.5**, lancer vérifications, puis fournir commit et proposition de passer à la passe 1. Après validation de la 0.5, les huit passes numérotées 1 à 8 restent inchangées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage actualisé (17/11/2026) :** les passes **0.5 et 1** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 2** (modales Trading), avec vérification et commit avant toute passe 3. Les passes 3 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.

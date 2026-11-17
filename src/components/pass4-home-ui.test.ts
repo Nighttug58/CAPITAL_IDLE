@@ -7,6 +7,7 @@ import App from '../App.vue'
 import { createV8CapitalState, getExactAmount as cents } from '../exact-state-v8.ts'
 import { V8_STORAGE_KEY, saveV8CapitalState } from '../exact-persistence-v8.ts'
 import { dollarAutoClickPriceCents, buyDollarAutoClick } from '../dollar-autoclick-v8.ts'
+import { v8CreditIncome, quoteV8ClickMax } from '../exact-runtime-v8.ts'
 import { readV8Raw } from './v8-ui-test-helper.ts'
 
 const mounted:VueWrapper[]=[]
@@ -172,5 +173,42 @@ describe('Pass 0.5 — continuous fixed-speed 48-frame banknotes', () => {
       vi.unstubAllGlobals()
     }
     expect(pending.size).toBe(0)
+  })
+})
+
+
+describe('Pass 1 — MAX purchase on the home page',()=>{
+  it('shows +1 and MAX, buys all affordable click upgrades in one verified V8 write',async()=>{
+    const initial=v8CreditIncome(createV8CapitalState(Date.now()),'clicks',10n**20n)
+    expect(saveV8CapitalState(localStorage,initial)).toBe(true)
+    const quote=quoteV8ClickMax(initial)!
+    const wrapper=start()
+    const max=wrapper.find('.home-click-max')
+    expect(max.exists()).toBe(true)
+    expect(max.attributes('disabled')).toBeUndefined()
+    expect(max.text()).toContain('MAX')
+    expect(wrapper.find('.home-click-actions .home-upgrade-buy').text()).toContain('+1')
+    expect(max.attributes('title')).toContain(String(quote.levelsBought))
+    const writes=vi.spyOn(Storage.prototype,'setItem')
+    await max.trigger('click')
+    await nextTick()
+    const saved=readV8Raw()
+    expect(saved.game.purchasedUpgrades).toBe(quote.targetLevel)
+    expect(cents(saved.game.balance)).toBe(cents(initial.game.balance)-quote.costCents)
+    expect(saved.prestige.experienceCents).toBe(initial.prestige.experienceCents)
+    const snapshots=writes.mock.calls.filter(([key])=>key===V8_STORAGE_KEY)
+      .map(([,payload])=>JSON.parse(payload))
+    expect(snapshots.some(s=>s.game.purchasedUpgrades===quote.targetLevel)).toBe(true)
+    expect(snapshots.every(s=>[0,quote.targetLevel].includes(s.game.purchasedUpgrades))).toBe(true)
+    expect(wrapper.find('.home-click-max-notice').text()).toContain(String(quote.levelsBought))
+    expect(max.attributes('disabled')).toBeDefined()
+    writes.mockRestore()
+  })
+  it('disables both buttons if the next level is player-locked despite cash',()=>{
+    const base=wealthy()
+    const wrapper=start()
+    expect(base.game.balance).not.toBe('0')
+    expect(wrapper.find('.home-click-max').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.home-click-actions .home-upgrade-buy').attributes('disabled')).toBeDefined()
   })
 })
