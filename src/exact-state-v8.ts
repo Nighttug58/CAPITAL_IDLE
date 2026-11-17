@@ -99,6 +99,9 @@ export interface V8CycleSummary extends Omit<AscensionCycleSummary,'eligibleWort
   heritageLevelAtCycle?: number
   museumCompleteAtCycle?: boolean
   bonusBps?: number
+  /** Optional on old V3 receipts; new receipts attest the grant. */
+  startingCapitalLevelAtCycle?: number
+  startingCapitalGrantedCents?: ExactAmount
 }
 export interface V8AscensionProgress extends Omit<AscensionProgress,'availablePoints'|'lifetimePoints'|'history'> {
   availablePoints: ExactAmount
@@ -115,6 +118,8 @@ export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {
 export interface V8AscensionRun extends Omit<AscensionRunState,'automation'|'marketOrders'> {
   /** Auto Click purchased in dollars for this cycle (missing in older V8 saves = 0). */
   autoClickLevel?: number
+  /** Absent in pre-pass-5 V8 means exactly zero. */
+  startingCapitalGrantedCents?: ExactAmount
   automation?: Omit<AscensionRunState['automation'],'maxOrderCents'|'cashReserveCents'|'enterpriseBudgetCents'> & {
     maxOrderCents: ExactAmount
     cashReserveCents: ExactAmount
