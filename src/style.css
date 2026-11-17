@@ -1678,3 +1678,18 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 @media (max-height:570px) {
   .app-shell .trading-modal.trading-asset-modal {height:100%}
 }
+
+/* Pass 3: advanced News PP upgrades reuse regular Prestige shop controls. */
+.ascension-transcendent-news {margin:18px 0 20px}
+.ascension-transcendent-news>.ascension-help {margin:0 0 10px;font-size:11px;line-height:1.45;color:#aebfb2}
+.ascension-news-effective {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+.ascension-news-effective>span {display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;
+  padding:9px 5px;border:1px solid #40564a;border-radius:8px;background:#1d3029;
+  color:#afd0bc;font-size:10px;text-align:center}
+.ascension-news-effective strong {color:#e5f0db;font-size:13px;font-variant-numeric:tabular-nums}
+.ascension-transcendent-news .ascension-upgrade {margin:0 0 8px}
+@media(max-width:390px) {
+  .ascension-news-effective {gap:4px}
+  .ascension-news-effective>span {padding:7px 3px;font-size:9px}
+  .ascension-news-effective strong {font-size:11px}
+}
