@@ -1,5 +1,6 @@
 import { prestigeShop, prestigeSpent, prestigePoints } from './ascension/v2.ts'
 import { transcendentSpent } from './ascension/transcendent-v1.ts'
+import { TRANSCENDENT_MAX_LEVEL } from './ascension/transcendent-v1.ts'
 import { isValidMarketBoundary } from './trading/market.ts'
 /**
  * Strict V8 serialization contract. No BigInt is ever written to JSON; all
@@ -268,7 +269,22 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
       return fail('Invalid prestige history')
     const total=amount(item.earnedPoints)!
     const worth=amount(item.eligibleWorthCents)!
-    if(item.formulaVersion===2){
+    if(item.formulaVersion===3){
+      const base=amount(item.basePoints)
+      const heritage=item.heritageLevelAtCycle
+      const museum=item.museumCompleteAtCycle
+      const bonusBps=item.bonusBps
+      if(progress.shopVersion!==2 || !safe(item.completedAtRealMs)||
+        !safe(item.levelAtCompletion)||item.levelAtCompletion<150 ||
+        base===null || base===0n || base!==prestigePoints(worth,item.levelAtCompletion)||
+        !safe(heritage)||heritage>TRANSCENDENT_MAX_LEVEL ||
+        (progress.transcendentV1!==undefined &&
+          heritage>(progress.transcendentV1 as {levels:{heritage:number}}).levels.heritage) ||
+        museum!==false || !safe(bonusBps) ||
+        bonusBps!==10_000+heritage*10 ||
+        total!==base*BigInt(bonusBps)/10_000n)
+        return fail('Invalid Prestige V3 reward')
+    } else if(item.formulaVersion===2){
       if(progress.shopVersion!==2 || !safe(item.completedAtRealMs) || !safe(item.levelAtCompletion) || total===0n || prestigePoints(worth,item.levelAtCompletion)!==total)return fail('Invalid Prestige V2 reward')
     } else if(item.formulaVersion!==undefined || !safe(item.levelAtCompletion)||item.levelAtCompletion<100||
       !safe(item.completedAtRealMs)||worth<10_000_000_000n||

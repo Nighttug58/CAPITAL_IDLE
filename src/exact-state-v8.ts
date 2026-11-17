@@ -91,9 +91,14 @@ export interface V8PrestigeState extends Omit<PrestigeState,
   xpRebase?: { readonly fromCents: ExactAmount; readonly toCents: ExactAmount }
 }
 export interface V8CycleSummary extends Omit<AscensionCycleSummary,'eligibleWorthCents'|'earnedPoints'> {
-  formulaVersion?: 2
+  formulaVersion?: 2 | 3
   eligibleWorthCents: ExactAmount
   earnedPoints: ExactAmount
+  /** Historical V3 receipt: original V2 reward and purchased ranks AT this cycle. */
+  basePoints?: ExactAmount
+  heritageLevelAtCycle?: number
+  museumCompleteAtCycle?: boolean
+  bonusBps?: number
 }
 export interface V8AscensionProgress extends Omit<AscensionProgress,'availablePoints'|'lifetimePoints'|'history'> {
   availablePoints: ExactAmount

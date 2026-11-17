@@ -9,6 +9,7 @@ import {getAsset} from './trading/catalog.ts'
 import {v8AdvanceFiscalEconomy,v8PayTaxes} from './exact-runtime-v8.ts'
 import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
+import {transcendentLevel,transcendentHeritageBps} from './ascension/transcendent-v1.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
@@ -27,6 +28,17 @@ export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
   return gross
 }
 
+/** Preview uses exact PP values and applies only the owned Heritage rank.
+ * Museum contribution stays zero until the Collections V3 implementation.
+ */
+export function v8PrestigeRewardPreview(state:V8CapitalState,worth:bigint,level:number){
+  const base=previewV8PrestigePoints(worth,level)
+  const heritageLevelAtCycle=transcendentLevel(state.ascension.progress,'heritage')
+  const museumCompleteAtCycle=false
+  const bonusBps=transcendentHeritageBps(state.ascension.progress,museumCompleteAtCycle)
+  const earned=base*BigInt(bonusBps)/10_000n
+  return {base,earned,bonusBps,heritageLevelAtCycle,museumCompleteAtCycle}
+}
 export type V8PrestigeResult =
   | {ok:true;state:V8CapitalState;earnedPoints:bigint;cycle:number;worthCents:bigint}
   | {ok:false;reason:string}
@@ -46,7 +58,8 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   if(level<MIN_LEVEL)return{ok:false,reason:'insufficient-level'}
   const eligible=v8EligiblePrestigeWorthCents(afterTax)
   if(eligible<MIN_WORTH_CENTS)return{ok:false,reason:'insufficient-worth'}
-  const earnedPoints=previewV8PrestigePoints(eligible,level)
+  const reward=v8PrestigeRewardPreview(afterTax,eligible,level)
+  const earnedPoints=reward.earned
   const progress=afterTax.ascension.progress
   const nextCycle=progress.prestigeCount+1
   if(!Number.isSafeInteger(nextCycle))return{ok:false,reason:'cycle-overflow'}
@@ -54,8 +67,10 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
     availablePoints:s(v(progress.availablePoints)+earnedPoints),
     lifetimePoints:s(v(progress.lifetimePoints)+earnedPoints),
     prestigeCount:nextCycle,
-    history:[...progress.history,{formulaVersion:2 as const,cycle:nextCycle,completedAtRealMs:at,
-      eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level}]
+    history:[...progress.history,{formulaVersion:3 as const,cycle:nextCycle,completedAtRealMs:at,
+      eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level,
+      basePoints:s(reward.base),heritageLevelAtCycle:reward.heritageLevelAtCycle,
+      museumCompleteAtCycle:reward.museumCompleteAtCycle,bonusBps:reward.bonusBps}]
       .slice(-MAX_ASCENSION_HISTORY),
   }
   const fresh=createV8CapitalState(at)

@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { prestigeShop,prestigeCost,prestigePoints,MIN_LEVEL as ASCENSION_MIN_LEVEL,MIN_WORTH_CENTS } from '../ascension/v2.ts'
-import { v8EligiblePrestigeWorthCents } from '../exact-prestige-v8.ts'
+import { v8EligiblePrestigeWorthCents, v8PrestigeRewardPreview } from '../exact-prestige-v8.ts'
 import { getExactLevel } from '../exact-levels.ts'
 import { formatCompactUnits } from '../large-numbers.ts'
 const ASCENSION_MIN_WORTH_USD=Number(MIN_WORTH_CENTS)/100
@@ -40,7 +40,7 @@ const fmt = (value: number|bigint|string) => integer.format(typeof value === "st
 
 const worth = computed(() => v8EligiblePrestigeWorthCents(props.exact))
 const level = computed(() => getExactLevel(BigInt(props.exact.prestige.experienceCents)))
-const pointPreview = computed(() => prestigePoints(worth.value, level.value))
+const pointPreview = computed(() => v8PrestigeRewardPreview(props.exact,worth.value,level.value).earned)
 const progress = computed(() => props.exact.ascension.progress)
 const currentSpeed = computed(() => marketSpeed(props.state))
 const unlockedSpeedLevel = computed(() => progress.value.upgradeLevels['time-accelerator'])

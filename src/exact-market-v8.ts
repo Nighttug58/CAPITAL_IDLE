@@ -5,7 +5,7 @@ import type { V8CapitalState, V8TradingState } from './exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { quoteToExactFraction } from './exact-trading.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
-import { v8BonusBasisPoints, v8CreditIncome, v8AdvanceFiscalEconomy } from './exact-runtime-v8.ts'
+import { v8EarningBonusBps, v8CreditIncome, v8AdvanceFiscalEconomy } from './exact-runtime-v8.ts'
 import { advanceMarketTick, MARKET_TICK_MS, createRandom } from './trading/market.ts'
 import { createEvent, getNewsDirection, isGlobalBearishNews, trimNews } from './trading/news.ts'
 import type { TradingState } from './trading/types.ts'
@@ -95,7 +95,7 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
     })
     trading = {...trading,seed:random.seed(),news:trimNews([...liveNews,emergency],at)}
   }
-  const bonus=getRewardRateUnits(v8BonusBasisPoints(state,'dividend'))
+  const bonus=getRewardRateUnits(v8EarningBonusBps(state,'dividend'))
   if(bonus===null)throw new RangeError('Invalid dividend bonus')
   const carry=trading.dividendCarryPicoCents!==undefined?v(trading.dividendCarryPicoCents):
     BigInt(Math.round(trading.dividendCarry*Number(PICO_CENTS)))
