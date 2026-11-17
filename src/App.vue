@@ -18,7 +18,8 @@ import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from './bill-animation.ts'
 import {
   getClickValue,
   MAX_CLICK_LEVEL,
@@ -88,37 +89,36 @@ const boostDialog = ref<HTMLDialogElement | null>(null)
 const clickBoosts = computed(() => getBonusBreakdown(capital.value, 'click'))
 const tapAnimationId = ref(0)
 const spinFrame = ref(0)
-let spinPhase = 0
-let spinStreak = 0
-let lastPaidTap = -Infinity
 let spinRequest = 0
-let spinFrom = 0
-let spinTarget = 0
-let spinStarted = 0
-let spinDuration = 0
+let spinStartedAt: number | null = null
+let spinElapsedMs = 0
+let reducedMotion: MediaQueryList | null = null
 
-function paintBundle(now: number) {
-  const progress = Math.max(0, Math.min(1, (now - spinStarted) / spinDuration))
-  spinPhase = spinFrom + (spinTarget - spinFrom) * progress
-  spinFrame.value = Math.floor(spinPhase) % 48
-  return progress
-}
+/** A single wall-clock-driven 12 fps loop: clicks and economy never touch it. */
 function animateBundle(now: number) {
-  spinRequest = paintBundle(now) < 1 ? requestAnimationFrame(animateBundle) : 0
+  spinRequest = 0
+  if (document.hidden || page.value !== 'home' || reducedMotion?.matches) return
+  if (spinStartedAt === null) spinStartedAt = now - spinElapsedMs
+  spinElapsedMs = Math.max(0, now - spinStartedAt) % BANKNOTE_CYCLE_MS
+  const frame = banknoteFrameAtElapsedMs(spinElapsedMs)
+  if (spinFrame.value !== frame) spinFrame.value = frame
+  spinRequest = requestAnimationFrame(animateBundle)
 }
-function advanceBundle(now: number) {
-  const interval = now - lastPaidTap
-  spinStreak = interval > 1000 ? 1 : Math.min(100, spinStreak + 1)
-  lastPaidTap = now
-  if (spinRequest) {
-    cancelAnimationFrame(spinRequest)
-    paintBundle(now)
+function stopBundleAnimation() {
+  if (spinRequest) cancelAnimationFrame(spinRequest)
+  spinRequest = 0
+  spinStartedAt = null
+}
+function syncBundleAnimation() {
+  if (document.hidden || page.value !== 'home' || reducedMotion?.matches) {
+    stopBundleAnimation()
+    if (reducedMotion?.matches) {
+      spinElapsedMs = 0
+      spinFrame.value = 0
+    }
+    return
   }
-  spinTarget += 1 + 4 * (spinStreak - 1) / 99
-  spinFrom = Math.min(spinTarget, spinPhase + 1)
-  spinStarted = now
-  spinDuration = Math.min(120, Math.max(48, interval))
-  animateBundle(now)
+  if (!spinRequest) spinRequest = requestAnimationFrame(animateBundle)
 }
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createV8MarketRuntime> | null = null
@@ -224,7 +224,6 @@ function click(event: MouseEvent) {
   const x=Math.max(19,Math.min(81,(pointerX/Math.max(bounds.width,1))*100))
   const y=Math.max(24,Math.min(74,(pointerY/Math.max(bounds.height,1))*100))
   floatingGains.value=[...floatingGains.value.slice(-11),{id:++nextGainId,amount:gained,x,y}]
-  advanceBundle(performance.now())
   tapAnimationId.value++
 }
 
@@ -365,9 +364,6 @@ function replaceWholeSaveExact(next:V8CapitalState):boolean {
   loadError.value=''
   syncExactState(next)
   floatingGains.value=[]
-  cancelAnimationFrame(spinRequest)
-  spinFrame.value=spinPhase=spinTarget=spinStreak=spinRequest=0
-  lastPaidTap=-Infinity
   tapAnimationId.value=0
   nextGainId=0
   activeSince=document.hidden?null:Date.now()
@@ -501,12 +497,20 @@ onMounted(() => {
 
   document.addEventListener('fullscreenchange', syncFullscreen)
   document.addEventListener('visibilitychange', syncMarketVisibility)
+  document.addEventListener('visibilitychange', syncBundleAnimation)
+  reducedMotion = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
+  reducedMotion?.addEventListener('change', syncBundleAnimation)
+  syncBundleAnimation()
   window.addEventListener('pagehide', syncMarketPageHide)
   window.addEventListener('pageshow', syncMarketPageShow)
 })
 
+watch(page, syncBundleAnimation, { flush: 'post' })
+
 onUnmounted(() => {
-  cancelAnimationFrame(spinRequest)
+  stopBundleAnimation()
+  reducedMotion?.removeEventListener('change', syncBundleAnimation)
+  document.removeEventListener('visibilitychange', syncBundleAnimation)
   document.removeEventListener('fullscreenchange', syncFullscreen)
   document.removeEventListener('visibilitychange', syncMarketVisibility)
   window.removeEventListener('pagehide', syncMarketPageHide)
