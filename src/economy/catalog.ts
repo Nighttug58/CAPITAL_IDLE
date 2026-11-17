@@ -201,3 +201,53 @@ export function getNextEnterpriseMilestone(level: number): EnterpriseMilestone |
   const next = (Math.floor(level / CONTINUOUS_MILESTONE_STEP) + 1) * CONTINUOUS_MILESTONE_STEP
   return Number.isSafeInteger(next) && next > level ? getEnterpriseMilestone(next) : null
 }
+
+
+/**
+ * Sum individually rounded enterprise upgrades exactly, without one loop per
+ * level. The quadratic tier has a modulo-400 correction repeating every 200
+ * levels, so a constant-size prefix makes huge purchases O(1).
+ */
+const upgradeResidueCache = new Map<string, { anchor: bigint; prefix: readonly bigint[] }>()
+const ROUND_DENOMINATOR = 400n
+const PRICE_PERIOD = 200n
+function upgradeResidues(id: string): { anchor: bigint; prefix: readonly bigint[] } {
+  const cached = upgradeResidueCache.get(id)
+  if (cached) return cached
+  const anchor = getEnterpriseUpgradeCostCentsExact(id, 20)!
+  const prefix: bigint[] = [0n]
+  for (let n = 0n; n < PRICE_PERIOD; n++) {
+    const remainder = anchor * n * n % ROUND_DENOMINATOR
+    const correction = (remainder >= 200n ? ROUND_DENOMINATOR : 0n) - remainder
+    prefix.push(prefix[prefix.length - 1]! + correction)
+  }
+  const result = { anchor, prefix }
+  upgradeResidueCache.set(id, result)
+  return result
+}
+function squaresBefore(end: bigint): bigint {
+  return (end - 1n) * end * (2n * end - 1n) / 6n
+}
+function correctionsBefore(end: bigint, prefix: readonly bigint[]): bigint {
+  return end / PRICE_PERIOD * prefix[200]! + prefix[Number(end % PRICE_PERIOD)]!
+}
+export function getEnterpriseUpgradeBatchCostCentsExact(
+  id: string, fromLevel: number, toLevel: number,
+): bigint | null {
+  if (!getEnterprise(id) || !Number.isSafeInteger(fromLevel) ||
+      !Number.isSafeInteger(toLevel) || fromLevel < 1 ||
+      toLevel < fromLevel || toLevel >= Number.MAX_SAFE_INTEGER) return null
+  if (toLevel === fromLevel) return 0n
+  let total = 0n
+  for (let level = fromLevel; level < Math.min(toLevel, 20); level++)
+    total += getEnterpriseUpgradeCostCentsExact(id, level)!
+  const first = Math.max(fromLevel, 20)
+  if (first < toLevel) {
+    const a = BigInt(first), b = BigInt(toLevel)
+    const { anchor, prefix } = upgradeResidues(id)
+    const squareTotal = squaresBefore(b) - squaresBefore(a)
+    const corrections = correctionsBefore(b, prefix) - correctionsBefore(a, prefix)
+    total += (anchor * squareTotal + corrections) / ROUND_DENOMINATOR
+  }
+  return total
+}
