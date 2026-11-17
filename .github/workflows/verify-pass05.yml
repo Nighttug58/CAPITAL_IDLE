@@ -1,0 +1,19 @@
+name: Verify pass 0.5 on isolated branch
+on:
+  push:
+    branches: [verify/pass05-banknotes-20261117]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Verify release
+        run: npm run verify:release

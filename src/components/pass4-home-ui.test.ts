@@ -1,4 +1,5 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+import { BANKNOTE_FPS, BANKNOTE_FRAME_COUNT, BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from '../bill-animation.ts'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { readFileSync } from 'node:fs'
@@ -93,5 +94,83 @@ describe('Pass 4 — compact home and dollar Auto Click',()=>{
     expect(css).toContain('@media(max-width:390px)')
     expect(css).toContain('@media(prefers-reduced-motion:reduce)')
     expect(css).toContain('.home-xp-fill {transition:none;box-shadow:none}')
+  })
+})
+
+describe('Pass 0.5 — continuous fixed-speed 48-frame banknotes', () => {
+  it('maps elapsed time to exactly 12 fps, regardless of display refresh or tap frequency', () => {
+    expect(BANKNOTE_FPS).toBe(12)
+    expect(BANKNOTE_FRAME_COUNT).toBe(48)
+    expect(BANKNOTE_CYCLE_MS).toBe(4000)
+    expect(banknoteFrameAtElapsedMs(0)).toBe(0)
+    expect(banknoteFrameAtElapsedMs(82)).toBe(0)
+    expect(banknoteFrameAtElapsedMs(84)).toBe(1)
+    expect(banknoteFrameAtElapsedMs(250)).toBe(3)
+    expect(banknoteFrameAtElapsedMs(1000)).toBe(12)
+    expect(banknoteFrameAtElapsedMs(3999)).toBe(47)
+    expect(banknoteFrameAtElapsedMs(4000)).toBe(0)
+    expect(banknoteFrameAtElapsedMs(8084)).toBe(1)
+    expect(banknoteFrameAtElapsedMs(-1)).toBe(0)
+    expect(banknoteFrameAtElapsedMs(Number.POSITIVE_INFINITY)).toBe(0)
+  })
+
+  it('animates without taps and does not accelerate or duplicate the animation loop on paid taps', async () => {
+    const pending = new Map<number, FrameRequestCallback>()
+    let nextHandle = 0
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      const handle = ++nextHandle
+      pending.set(handle, callback)
+      return handle
+    })
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => { pending.delete(handle) })
+    const advance = (timestamp: number) => {
+      const job = pending.entries().next().value
+      expect(job, 'a single active animation frame should exist').toBeDefined()
+      const [handle, callback] = job as [number, FrameRequestCallback]
+      pending.delete(handle)
+      callback(timestamp)
+      expect(pending.size).toBe(1)
+    }
+    let wrapper: VueWrapper | null = null
+    try {
+      wrapper = start()
+      const frameStyle = () => wrapper!.find('.banknotes').attributes('style')
+      expect(pending.size).toBe(1)
+      expect(frameStyle()).toContain('0% 0%')
+      advance(1000)
+      advance(1084)
+      await nextTick()
+      expect(frameStyle()).toContain((100 / 7) + '% 0%')
+
+      const storage = vi.spyOn(Storage.prototype, 'setItem')
+      advance(1168)
+      await nextTick()
+      expect(storage).not.toHaveBeenCalled()
+      expect(frameStyle()).toContain((200 / 7) + '% 0%')
+
+      await wrapper.find('.tap-zone').trigger('click')
+      expect(wrapper.findAll('.floating-gain').length).toBeGreaterThan(0)
+      expect(pending.size).toBe(1)
+      expect(frameStyle()).toContain((200 / 7) + '% 0%')
+      advance(1251)
+      await nextTick()
+      expect(frameStyle()).toContain((300 / 7) + '% 0%')
+      expect(pending.size).toBe(1)
+
+      await wrapper.findAll('.bottom-nav button')[1]!.trigger('click')
+      await nextTick()
+      expect(pending.size).toBe(0)
+      await wrapper.findAll('.bottom-nav button')[0]!.trigger('click')
+      await nextTick()
+      expect(pending.size).toBe(1)
+    } finally {
+      if (wrapper) {
+        wrapper.unmount()
+        mounted.splice(mounted.indexOf(wrapper), 1)
+      }
+      vi.restoreAllMocks()
+      vi.unstubAllGlobals()
+    }
+    expect(pending.size).toBe(0)
   })
 })
