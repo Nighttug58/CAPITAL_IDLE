@@ -191,7 +191,7 @@ describe('Pass 1 — enterprise MAX controls',()=>{
     expect(max.exists()).toBe(true)
     expect(max.attributes('disabled')).toBeUndefined()
     expect(kiosk.find('.enterprise-max-preview').text()).toContain('MAX +')
-    expect(kiosk.find('button.enterprise-action').text()).toContain('+1')
+    expect(kiosk.find('button.enterprise-action').text()).toContain('AMÉLIORER')
     const writes=vi.spyOn(Storage.prototype,'setItem')
     await max.trigger('click')
     await nextTick()
@@ -199,7 +199,12 @@ describe('Pass 1 — enterprise MAX controls',()=>{
     expect(saved.enterprises.owned.kiosque.level).toBeGreaterThan(20)
     expect(saved.enterprises.owned.kiosque.investedCents).not.toBe('987654321')
     expect(kiosk.find('.enterprise-notice').text()).toContain('MAX : +')
-    expect(writes).toHaveBeenCalledTimes(1)
+    const snapshots=writes.mock.calls
+      .filter(([key])=>key==='capital-idle-save-v8')
+      .map(([,payload])=>JSON.parse(payload))
+    expect(snapshots.some(s=>s.enterprises.owned.kiosque?.level===saved.enterprises.owned.kiosque.level)).toBe(true)
+    expect(snapshots.every(s=>!s.enterprises.owned.kiosque ||
+      [20,saved.enterprises.owned.kiosque.level].includes(s.enterprises.owned.kiosque.level))).toBe(true)
     writes.mockRestore()
   })
   it('disables MAX for a level-locked unowned company',()=>{

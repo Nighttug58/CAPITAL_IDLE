@@ -229,7 +229,7 @@ function takeAction(id: string, alreadyOwned: boolean) {
                 :aria-label="`${item.owned ? 'Améliorer' : 'Acheter'} ${item.name} (+1)`"
                 @click="takeAction(item.id, item.owned)"
               >
-                {{ item.owned ? '+1' : item.unlocked ? 'ACHETER' : `NIV. ${item.requiredPlayerLevel}` }}
+                {{ item.owned ? 'AMÉLIORER' : item.unlocked ? 'ACHETER' : `NIV. ${item.requiredPlayerLevel}` }}
               </button>
               <button class="enterprise-max-action" type="button"
                 :disabled="!item.maxQuote" :aria-label="'Acheter MAX pour ' + item.name"
