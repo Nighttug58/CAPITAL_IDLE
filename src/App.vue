@@ -85,6 +85,7 @@ const missingAutoClickCash = computed(() => autoClickCost.value===null ? null
 const page = ref<'home' | 'fame' | 'prestige' | 'transcendent' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
+const focusTranscendentReturn=ref(false)
 const achievementsLaunch = ref<HTMLButtonElement | null>(null)
 const claimableAchievements = computed(() => getClaimableAchievementCount(capital.value))
 const isFullscreen = ref(false)
@@ -162,12 +163,13 @@ function claimAchievementRewards(groupId?: AchievementMetric): AchievementBatchR
     : {ok:false,error:'storage-error'}
 }
 function openPrestige() {
+  focusTranscendentReturn.value=false
   page.value = 'prestige'
 }
 function openTranscendentShop() { page.value='transcendent' }
 function returnToPrestige() {
+  focusTranscendentReturn.value=true
   page.value='prestige'
-  void nextTick(()=>document.querySelector<HTMLButtonElement>('.transcendent-launch')?.focus())
 }
 function executeTranscendentPurchase(id:TranscendentId,expectedRank:number,quoted:bigint):boolean {
   if(loadBlocked.value || transcendentNextCost(expectedRank)!==quoted)return false
@@ -175,6 +177,7 @@ function executeTranscendentPurchase(id:TranscendentId,expectedRank:number,quote
   return !!next && replaceWholeSaveExact(next)
 }
 function returnHomeFromPrestige() {
+  focusTranscendentReturn.value=false
   page.value = 'home'
   void nextTick(() => prestigeLaunch.value?.focus())
 }
@@ -692,7 +695,7 @@ onUnmounted(() => {
       :claim-rewards="claimAchievementRewards" @back="returnHomeFromAchievements" />
     <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
-    <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital"
+    <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital" :focus-transcendent-on-mount="focusTranscendentReturn"
       :purchase-upgrade="executePrestigePurchase" :purchase-news-upgrade="executeTranscendentNewsPurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
       @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />

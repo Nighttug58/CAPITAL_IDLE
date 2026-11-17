@@ -17,6 +17,7 @@ import { TRANSCENDENT_MAX_LEVEL, TRANSCENDENT_NEWS_PRESENTATION, transcendentLev
 const props = defineProps<{
   exact: V8CapitalState
   state: CapitalState
+  focusTranscendentOnMount?:boolean
   purchaseUpgrade: (id: string, currentLevel: number) => AscensionPurchase
   purchaseNewsUpgrade?: (id:TranscendentNewsId,currentRank:number,quotedCost:bigint)=>boolean
   performCycle: () => AscensionResult
@@ -183,7 +184,9 @@ function keyboard(event: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', keyboard)
-  void nextTick(() => returnButton.value?.focus())
+  void nextTick(() => (props.focusTranscendentOnMount
+    ? document.querySelector<HTMLButtonElement>('.transcendent-launch')
+    : returnButton.value)?.focus())
 })
 onUnmounted(() => window.removeEventListener('keydown', keyboard))
 </script>
