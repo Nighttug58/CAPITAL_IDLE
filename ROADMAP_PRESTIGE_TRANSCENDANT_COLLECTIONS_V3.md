@@ -3,9 +3,9 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** 0/8 passes engagées — **document de conception uniquement**. Aucune fonctionnalité de cette roadmap n'est implémentée par sa création.
+**État :** passe 0.5 à faire, puis 0/8 passes principales engagées — **document de conception uniquement**. Aucune fonctionnalité de cette roadmap n'est implémentée par sa création.
 
-> **Contrat de conduite :** chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
+> **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
 ## A. Audit du code existant — constats vérifiés
 
@@ -20,6 +20,7 @@
 ### A2. Achats MAX / interface Trading
 
 - Clic : `src/App.vue` → `v8UpgradeClick` (`src/exact-runtime-v8.ts`), un niveau par opération ; grille pré-calculée `UPGRADES` et limite `MAX_CLICK_LEVEL=1000` dans `src/game.ts`. Le niveau joueur limite les paliers accessibles.
+- **Animation des billets à corriger avant les achats MAX** : `src/App.vue` anime actuellement le sprite `src/assets/lira-frames.webp` (8 colonnes × 6 lignes = **48 frames**) avec `spinStreak`, `lastPaidTap`, `spinTarget`, `spinDuration`, `advanceBundle` et `requestAnimationFrame`. Chaque clic rémunéré relance/accélère la rotation, et `replaceWholeSaveExact` réinitialise aussi le sprite. Cet accouplement clic–animation crée des à-coups à haute cadence : la **passe 0.5** introduira une animation continue à vitesse fixe, autonome du clic et des écritures de sauvegarde ; la rémunération et les textes flottants resteront fonctionnels.
 - Entreprises : 20 entreprises ; `src/components/EnterpriseScreen.vue` → `src/App.vue` → `v8BuyEnterprise` ; achat initial puis progression sans plafond métier fixe. Coût historique sur les premiers niveaux, formule **quadratique après 20** dans `src/economy/catalog.ts` ; revenus polynomiaux et milestones continus. Les niveaux sont des `Number` entiers sûrs, le coût/solde en `BigInt`. Aujourd'hui un seul niveau est acheté par clic.
 - Trading : `src/components/TradingScreen.vue` présente `AssetDialog.vue` et `MarketChart.vue`. Dans `AssetDialog.vue`, le graphique est déjà bien dimensionné ; l'élément HTML `<details>` « Détails du marché et actualités » masque encore prix min/max, quantité possédée et news associées. Style mixte `src/style.css` + style local de la modale.
 
@@ -139,7 +140,29 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 9. Les caches/projections V7 avec saturation à `Number.MAX_SAFE_INTEGER` ne peuvent jamais alimenter une opération PP/Fame/cash ; pour le nouveau Shop, les panels doivent lire les montants V8 exacts et les formater via `src/large-numbers.ts`.
 10. Scénarios requis : sauvegarde V8 actuelle (sans section), V8 migrée une fois/deux fois, V7 importée, anciens achats Fame/Prestige/Collections, PP >10^30, dollars >10^100, fatigue du stockage, export/import JSON, tentative de fraude du ledger, historique >100 Prestiges (fenêtre historique), sauvegarde malformée sans reset silencieux.
 
-## E. Programme d'exécution — exactement huit passes
+## E. Programme d'exécution — passe préparatoire 0.5 puis exactement huit passes principales
+
+### Passe 0.5 — Animation du billet fixe, fluide et continue (correctif préalable)
+
+**Objectif.** Le sprite du billet doit tourner **en continu à une vitesse visuelle fixe**, dès l'affichage du jeu, sans dépendre du nombre de clics ni s'accélérer aux rafales. Cette passe est un correctif autonome, **à exécuter et valider avant la passe 1**, sans toucher aux autres systèmes.
+
+**Audit ciblé :** `src/App.vue` (fonctions `paintBundle`, `animateBundle`, `advanceBundle`, champs `spinStreak`/`spinTarget`/`spinDuration`, `click`, `replaceWholeSaveExact`, `onMounted`/`onUnmounted`), `src/style.css` (règles `.banknotes`, `.bundle-shadow`, `prefers-reduced-motion`), `src/assets/lira-frames.webp` (48 images, planche 8×6), tests UI `src/components/pass4-home-ui.test.ts` et éventuels tests dédiés à ajouter.
+
+**Travaux à effectuer :**
+- Remplacer le pilotage par clic par **une seule horloge d'animation indépendante** : cible **12 frames/s** (une frame visuelle toutes les **83⅓ ms**), séquence 0 → 47 → 0 en boucle, fréquence **constante** même avec 0, 1 ou 100 clics/s. Conserver l'image et sa mise à l'échelle 8×6, sans altérer les textures ni la taille du billet.
+- Utiliser une horloge monotone de type `performance.now()` avec index discret calculé depuis le **temps écoulé** (`floor(elapsedMs * 12/1000) % 48`), via une boucle `requestAnimationFrame` unique (ou CSS `steps` si réellement plus robuste et équivalent). **Ne pas incrémenter la frame à chaque rAF** : la cadence doit rester identique sur écrans 60/90/120 Hz, sur mobiles puissants et après ralentissement du rendu.
+- Lancer le mouvement lorsque le billet est visible ; suspendre proprement lorsque l'onglet est caché ou que la page Accueil n'est pas affichée, reprendre à vitesse normale sans rattrapage accéléré. Arrêter la boucle à la destruction du composant ; prévenir toute boucle rAF/timer doublée après navigation, relance ou rechargement.
+- Détacher totalement les frames, la vitesse et la phase de l'événement `click`, des rafales, de l'Auto Click et de la sauvegarde V8. **Supprimer les réinitialisations du sprite dans `replaceWholeSaveExact`**. L'animation **n'écrit jamais en localStorage** et ne dépend pas du tick économique.
+- Préserver intégralement la logique des revenus par clic, de l'Auto Click, des taxes/XP/Fame/PP, de la confirmation de clic et du texte flottant. Les éventuels effets visuels d'appui/ombre peuvent rester très courts, **mais n'ont aucun effet sur la lecture des 48 frames**.
+- Accessibilité/performance : respecter `prefers-reduced-motion: reduce` (frame fixe ou alternative minimale), ne pas forcer le CPU en arrière-plan et éviter toute allocation/écriture Vue inutile lorsque l'index de frame n'a pas changé. Garder la compatibilité tactile et clavier.
+
+**Tests de sortie / critères d'acceptation :**
+1. Le billet s'anime même sans clic, à environ **12 frames/s**, avec boucle régulière des 48 frames ; il ne s'arrête pas après un clic.
+2. Cliquer lentement, rapidement, maintenir une cadence élevée et activer Auto Click **ne modifie jamais** la cadence ni l'ordre des frames ; ne déclenche pas une deuxième boucle.
+3. Les gains exacts cash/XP/Fame et les textes flottants restent fonctionnels ; aucune écriture de sauvegarde due à l'animation seule.
+4. Navigation Accueil → Trading → Accueil, onglet caché/réaffiché, reset/import/reload et fermeture du composant : pas de blocage, saut disproportionné, double boucle ni fuite de listeners/timers.
+5. `prefers-reduced-motion`, smartphone Samsung/navigateurs Android et écran 60/90/120 Hz : comportement cohérent et dégradation gracieuse. Vérifier dans un navigateur réel si disponible, sinon le préciser.
+6. **`npm run verify:release`** (tests Node + UI + build) vert ; commit **passe 0.5 uniquement**. Ne pas commencer la passe 1.
 
 ### Passe 1 — Achats MAX clic et entreprises
 
@@ -250,7 +273,7 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 - Audit transversal achats MAX → trading/news → PP → Prestige → dotation → collections → Fame → Prestige ultime ; vérifier notamment l'ordre des bonus, la taxe, le rattrapage offline, les soldes négatifs, les ordres, le staking, le cycle et les mutations sur sauvegarde.
 - Mesurer les performances (achats MAX à hauts niveaux, 100 collections dans le tick, achats/affichages 10 ×1000, 10^100 montants, navigateur mobile). Ajuster si nécessaire **sans changer les règles produit** ou casser les sauvegardes ; documenter les compromis de performance.
 - Construire une matrice d'import/export : nouvelles parties, anciennes sauvegardes V8 avec/sans `transcendentV1`, imports historiques, grosses fortunes et toutes les preuves des achats ; tester les corruptions, échecs d'écriture, valeurs limites, recharge dans l'ordre aléatoire.
-- Tester réellement l'UI dans un navigateur si l'outillage le permet : 360/390/768 px, desktop, paysage, scroll, focus, modales, boutons MAX, formes de nombres, interactions pendant live news / dernier événement actif. Si navigateur indisponible, le signaler et ne pas prétendre l'avoir testé.
+- Tester réellement l'UI dans un navigateur si l'outillage le permet : 360/390/768 px, desktop, paysage, scroll, focus, modales, boutons MAX, animation autonome du billet (sans clic/rafale/Auto Click, 12 fps), formes de nombres, interactions pendant live news / dernier événement actif. Si navigateur indisponible, le signaler et ne pas prétendre l'avoir testé.
 - Mettre à jour `README.md` (déblocages ordinaires ≤Prestige 3, pouvoirs news au 3, 10 branches PP avancées, collections 100/100, Fame cap, dotation, sauvegarde) et corriger textes obsolètes **dans cette passe seulement**.
 - Exécuter `npm run verify:release` ; puis `npm run build:root` afin de compiler les artefacts de site et vérifier le déploiement GitHub Pages. Commit seulement si build/tests verts. Publier le bilan de fichiers, tests, risques résiduels et preuve de déploiement ; en cas d'échec, corriger avant toute déclaration de succès.
 
@@ -260,6 +283,7 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 | Passe | Objet | État |
 | ---: | --- | --- |
+| **0.5** | Billet animé en continu, 12 fps constants, indépendant des clics | ☐ À faire en premier |
 | 1 | MAX clic + MAX entreprises | ☐ À faire |
 | 2 | Modales Trading compactes + détails visibles | ☐ À faire |
 | 3 | News avancées PP + commandes manuelles au Prestige 3 | ☐ À faire |
@@ -269,4 +293,4 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage :** rien au-delà de la présente documentation. Au prochain message « Next », inspecter de nouveau `main`, exécuter **uniquement passe 1**, lancer vérifications, puis fournir commit et proposition de passer à la passe 2. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage :** rien au-delà de la présente documentation. Au prochain message « Next », inspecter de nouveau `main`, exécuter **uniquement passe 0.5**, lancer vérifications, puis fournir commit et proposition de passer à la passe 1. Après validation de la 0.5, les huit passes numérotées 1 à 8 restent inchangées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
