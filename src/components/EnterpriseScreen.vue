@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { getLevel } from '../game.ts'
+import { getExactLevel } from '../exact-levels.ts'
 import { getBonusMultiplier } from '../prestige/bonuses.ts'
 import {
   ENTERPRISES, ENTERPRISE_CATEGORIES, ENTERPRISE_MILESTONES,
@@ -16,13 +17,16 @@ import {
 } from '../economy/enterprises.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount } from '../exact-state-v8.ts'
-import { v8BonusBasisPoints } from '../exact-runtime-v8.ts'
+import { v8BonusBasisPoints, quoteV8EnterpriseMax } from '../exact-runtime-v8.ts'
 import { formatCompactUnits } from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
   exactState?: V8CapitalState
   executeEnterprise: (action: EnterpriseAction, id: string) => EnterpriseResult
+  executeEnterpriseMax?: (id: string, expectedLevel: number) =>
+    | {ok:true;level:number;levelsBought:number;costCents:string}
+    | {ok:false;error:EnterpriseError|'stale-level'}
 }>()
 
 const categories: readonly EnterpriseCategory[] = ['small', 'local', 'services', 'industry', 'major']
@@ -40,7 +44,9 @@ function enterpriseMultiplier(): bigint {
 const adjustedMicro = (raw: bigint) => raw * enterpriseMultiplier() / 1_000_000n
 
 const notice = ref<{ id: string; message: string; error: boolean } | null>(null)
-const playerLevel = computed(() => getLevel(props.state.prestige.experienceCents / 100))
+const playerLevel = computed(() => props.exactState
+  ? getExactLevel(getExactAmount(props.exactState.prestige.experienceCents))
+  : getLevel(props.state.prestige.experienceCents / 100))
 const acquiredCount = computed(() => Object.keys(props.state.enterprises.owned).length)
 const incomePerSecond = computed(() => {
   if (!props.exactState) return rate(getTotalEnterpriseIncomeMicrosPerSecond(props.state) * getBonusMultiplier(props.state, 'enterprise'))
@@ -54,8 +60,9 @@ const rows = computed(() => ENTERPRISES.map((enterprise) => {
   const holding = props.exactState?.enterprises.owned[enterprise.id] ?? props.state.enterprises.owned[enterprise.id]
   const owned = !!holding
   const level = holding?.level ?? 0
-  const unlocked = isEnterpriseUnlocked(enterprise.id, playerLevel.value)
-  const priceExact = owned ? getEnterpriseUpgradeCostCentsExact(enterprise.id, level)
+  const unlocked = owned || isEnterpriseUnlocked(enterprise.id, playerLevel.value)
+  const priceExact = level >= Number.MAX_SAFE_INTEGER-1 ? null :
+    owned ? getEnterpriseUpgradeCostCentsExact(enterprise.id, level)
     : BigInt(enterprise.purchaseCostCents)
   const canPurchase = unlocked && priceExact !== null && (props.exactState
     ? getExactAmount(props.exactState.game.balance) >= priceExact
@@ -68,6 +75,8 @@ const rows = computed(() => ENTERPRISES.map((enterprise) => {
   const nextIncomeText = !owned ? null : props.exactState
     ? nextIncomeExact === null ? null : exactRate(adjustedMicro(nextIncomeExact))
     : rate((getEnterpriseIncomeMicrosPerSecond(enterprise.id, level + 1) ?? 0) * multiplier)
+  const maxQuote = props.exactState && props.executeEnterpriseMax
+    ? quoteV8EnterpriseMax(props.exactState, enterprise.id) : null
   const nextMilestone = getNextEnterpriseMilestone(level)
   const previousMilestone = level <= 20
     ? ENTERPRISE_MILESTONES.filter(m => m.level <= level).at(-1)?.level ?? 0
@@ -79,7 +88,7 @@ const rows = computed(() => ENTERPRISES.map((enterprise) => {
     nextPriceText: priceExact === null ? 'NIVEAU INVALIDE' : props.exactState
       ? exactMoney(priceExact) : money(Number(priceExact) / 100),
     incomeText, nextIncomeText,
-    activeMilestone: getEnterpriseMilestone(level), canPurchase,
+    activeMilestone: getEnterpriseMilestone(level), canPurchase, maxQuote,
   }
 }))
 
@@ -100,6 +109,19 @@ const errorMessages: Record<EnterpriseError, string> = {
   'money-overflow': 'Montant hors limites : opération annulée.',
 }
 
+function takeMax(id:string,expectedLevel:number) {
+  const result=props.executeEnterpriseMax?.(id,expectedLevel)
+  if(!result)return
+  if(result.ok){
+    notice.value={id,
+      message:'MAX : +' + result.levelsBought + ' niveau(x) pour ' +
+        exactMoney(BigInt(result.costCents)) + ' · niveau ' + result.level + '.',
+      error:false}
+  }else{
+    notice.value={id,message:result.error==='stale-level'
+      ? 'Le niveau a changé. Réessayez.' : errorMessages[result.error],error:true}
+  }
+}
 function takeAction(id: string, alreadyOwned: boolean) {
   const result = props.executeEnterprise(alreadyOwned ? 'upgrade' : 'buy', id)
   if (result.ok) {
@@ -195,16 +217,25 @@ function takeAction(id: string, alreadyOwned: boolean) {
             <div class="enterprise-next-price">
               <span>{{ item.owned ? 'PROCHAINE AMÉLIORATION' : 'PRIX D’ACHAT' }}</span>
               <strong>{{ item.nextPriceText }}</strong>
+              <small v-if="item.maxQuote" class="enterprise-max-preview">
+                MAX +{{ item.maxQuote.levelsBought }} · {{ exactMoney(item.maxQuote.costCents) }}
+              </small>
             </div>
-            <button
-              class="enterprise-action"
-              type="button"
-              :disabled="!item.canPurchase"
-              :aria-label="`${item.owned ? 'Améliorer' : 'Acheter'} ${item.name}`"
-              @click="takeAction(item.id, item.owned)"
-            >
-              {{ item.owned ? 'AMÉLIORER' : item.unlocked ? 'ACHETER' : `NIV. ${item.requiredPlayerLevel}` }}
-            </button>
+            <div class="enterprise-actions">
+              <button
+                class="enterprise-action"
+                type="button"
+                :disabled="!item.canPurchase"
+                :aria-label="`${item.owned ? 'Améliorer' : 'Acheter'} ${item.name} (+1)`"
+                @click="takeAction(item.id, item.owned)"
+              >
+                {{ item.owned ? '+1' : item.unlocked ? 'ACHETER' : `NIV. ${item.requiredPlayerLevel}` }}
+              </button>
+              <button class="enterprise-max-action" type="button"
+                :disabled="!item.maxQuote" :aria-label="'Acheter MAX pour ' + item.name"
+                :title="item.maxQuote ? '+' + item.maxQuote.levelsBought + ' niveaux pour ' + exactMoney(item.maxQuote.costCents) : 'Aucun niveau achetable'"
+                @click="takeMax(item.id, item.level)">MAX</button>
+            </div>
           </div>
 
           <p
