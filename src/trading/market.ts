@@ -235,6 +235,7 @@ export interface MarketTickOptions {
   readonly speed?: number
   readonly updateDividends?: boolean
   readonly newsStrength?: number
+  readonly newsRampFraction?: number
   readonly news?: NewsClockOptions
 }
 export function advanceMarketTick(state: TradingState, recordHistory = true, options: MarketTickOptions = {}): TradingState {
@@ -248,7 +249,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true, opt
   const events = advanceNewsTick(state.news, state.nextNewsAt, state.lastTickAt, at, () => random.next(),
     options.news ? { ...options.news, upcomingNews: state.upcomingNews } : {})
   const strength = options.newsStrength ?? 1
-  const pressure = getNewsPressure(events.news, at, strength)
+  const pressure = getNewsPressure(events.news, at, strength, options.newsRampFraction)
   const speed = Math.max(1, Math.min(5, options.speed ?? 1))
   const currentQuotes = Object.keys(state.quotes).length === 0
     ? createInitialQuotes(state.lastTickAt)

@@ -2,6 +2,7 @@ import type { CapitalState } from '../capital.ts'
 import { ASSETS } from '../trading/catalog.ts'
 import { getNewsPresentation, isGlobalBearishNews } from '../trading/news.ts'
 import type { AscensionSpeed } from './contracts.ts'
+import { transcendentNewsModifiers, type TranscendentShopV1 } from './transcendent-v1.ts'
 
 export const MARKET_SPEEDS = [1, 1.5, 2, 3, 4, 5] as const
 export const FRENZY_ACTIVE_MS = 60_000
@@ -69,9 +70,13 @@ export function activateMarketFrenzy(state: CapitalState, at: number): MarketAct
 
 export function marketNewsEffects(state: CapitalState, realAt: number) {
   const levels = state.ascension.progress.upgradeLevels
+  // V7 projection is display-only, but retains V8's advanced ranks by spread.
+  const advanced=transcendentNewsModifiers(state.ascension.progress as
+    typeof state.ascension.progress & {transcendentV1?:TranscendentShopV1})
   return {
-    durationMultiplier: 1 + 0.25 * levels['news-duration'],
-    impactMultiplier: (1 + 0.25 * levels['news-impact']) * (frenzyActive(state, realAt) ? 1.5 : 1),
+    durationMultiplier: 1 + 0.25 * levels['news-duration'] + advanced.durationAdditional,
+    impactMultiplier: (1 + 0.25 * levels['news-impact'] + advanced.powerAdditional) * (frenzyActive(state, realAt) ? 1.5 : 1),
+    rampFraction: advanced.rampFraction,
     frequencyMultiplier: 1 + 0.05 * levels['news-frequency'],
     propagateSingle: levels['news-propagation'] > 0,
   }

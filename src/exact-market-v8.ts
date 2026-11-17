@@ -11,6 +11,7 @@ import { createEvent, getNewsDirection, isGlobalBearishNews, trimNews } from './
 import type { TradingState } from './trading/types.ts'
 import { ASSETS } from './trading/catalog.ts'
 import { MARKET_SPEEDS, FRENZY_ACTIVE_MS } from './ascension/market-effects.ts'
+import { transcendentNewsModifiers } from './ascension/transcendent-v1.ts'
 
 const YEAR_SECONDS = 86_400n
 const PICO_CENTS = 1_000_000_000_000n
@@ -21,9 +22,11 @@ export function v8MarketNewsEffects(state:V8CapitalState,at:number){
   const levels=state.ascension.progress.upgradeLevels
   const frenzyEnds=state.ascension.run.frenzyEndsAtRealMs??0
   const frenzy=levels['market-frenzy']>0 && at>=frenzyEnds-FRENZY_ACTIVE_MS && at<frenzyEnds
+  const advanced=transcendentNewsModifiers(state.ascension.progress)
   return {
-    durationMultiplier:1+.25*levels['news-duration'],
-    impactMultiplier:(1+.25*levels['news-impact'])*(frenzy?1.5:1),
+    durationMultiplier:1+.25*levels['news-duration']+advanced.durationAdditional,
+    impactMultiplier:(1+.25*levels['news-impact']+advanced.powerAdditional)*(frenzy?1.5:1),
+    rampFraction:advanced.rampFraction,
     frequencyMultiplier:1+.05*levels['news-frequency'],
     propagateSingle:levels['news-propagation']>0,
   }
@@ -73,6 +76,7 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
       updateDividends:Math.floor((at-origin)/MARKET_TICK_MS)>
         Math.floor((Math.max(origin,trading.lastTickAt)-origin)/MARKET_TICK_MS),
       newsStrength:effects.impactMultiplier,
+      newsRampFraction:effects.rampFraction,
       news:{durationMultiplier:effects.durationMultiplier,frequencyMultiplier:effects.frequencyMultiplier,
         propagateSingle:effects.propagateSingle,eager:true},
     })
