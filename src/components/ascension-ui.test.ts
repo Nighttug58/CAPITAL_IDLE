@@ -6,6 +6,10 @@ import { readFileSync } from 'node:fs'
 import App from '../App.vue'
 import { createCapitalState, type CapitalState } from '../capital.ts'
 import { performPrestige } from '../ascension/engine.ts'
+import { createV8CapitalState } from '../exact-state-v8.ts'
+import { v8PerformPrestige } from '../exact-prestige-v8.ts'
+import { v8CreditIncome } from '../exact-runtime-v8.ts'
+import { V8_STORAGE_KEY, saveV8CapitalState } from '../exact-persistence-v8.ts'
 
 const STORAGE = 'capital-idle-save-v7'
 const mounted: VueWrapper[] = []
@@ -47,9 +51,10 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.find('.ascension-screen').exists()).toBe(true)
     expect(wrapper.find('.ascension-screen').attributes('aria-label')).toBe('Boutique Prestige')
     expect(wrapper.find('.ascension-screen h1').text()).toBe('Prestige')
-    expect(wrapper.findAll('.ascension-upgrade')).toHaveLength(11)
+    expect(wrapper.findAll('.ascension-category .ascension-upgrade')).toHaveLength(11)
+    expect(wrapper.findAll('.ascension-transcendent-news .ascension-upgrade')).toHaveLength(3)
     expect(wrapper.findAll('.ascension-category')).toHaveLength(4)
-    expect(wrapper.findAll('.ascension-upgrade button.ascension-buy:disabled')).toHaveLength(11)
+    expect(wrapper.findAll('.ascension-category .ascension-upgrade button.ascension-buy:disabled')).toHaveLength(11)
     expect(wrapper.find('.ascension-panel-title').text()).toContain('PP')
     expect(wrapper.find('.home-screen').isVisible()).toBe(false)
     expect(wrapper.findAll('.bottom-nav button')[5]?.text()).toBe('Stats')
@@ -97,7 +102,7 @@ describe('Prestige économique — page et boutique', () => {
     const migratedPrestige = saved().prestige
     const migratedProgress = saved().ascension.progress
     await wrapper.find('.prestige-launch').trigger('click')
-    expect(wrapper.findAll('.ascension-buy:disabled')).toHaveLength(11)
+    expect(wrapper.findAll('.ascension-category .ascension-buy:disabled')).toHaveLength(11)
     // The live runtime legitimately advances enterprise/market real clocks.
     // A rejected PP purchase must preserve the actual economic balances and
     // permanent progression, not freeze all clock timestamps in the browser.
@@ -172,5 +177,60 @@ describe('Prestige économique — page et boutique', () => {
     expect(css).toContain('.ascension-confirm-body { min-height:0; overflow-y:auto;')
     expect(css).toContain('.prestige-launch {')
     expect(css).toContain('@media(max-width:380px)')
+  })
+})
+
+
+describe('Passe 3 — News avancées PP au Prestige 3',()=>{
+  it('présente trois améliorations indépendantes et les verrouille avant le Prestige 3',async()=>{
+    const {wrapper}=mountState(fixture(true))
+    await wrapper.find('.prestige-launch').trigger('click')
+    const cards=wrapper.findAll('.ascension-transcendent-news .ascension-upgrade')
+    expect(cards).toHaveLength(3)
+    expect(cards.map(card=>card.attributes('data-news-upgrade'))).toEqual([
+      'news-power','news-intensity','news-duration',
+    ])
+    for(const card of cards){
+      expect(card.find('.ascension-upgrade-level').text()).toContain('0/1000')
+      expect(card.find('button.ascension-buy').attributes('disabled')).toBeDefined()
+      expect(card.find('button.ascension-buy').text()).toContain('PRESTIGE 3')
+    }
+    expect(wrapper.find('.ascension-news-effective').text()).toContain('Puissance')
+    expect(wrapper.find('.ascension-news-effective').text()).toContain('Rampe')
+    expect(wrapper.find('.ascension-news-effective').text()).toContain('Durée future')
+  })
+  it('achète le rang PP News et le conserve sur recharge sans toucher au shop classique',async()=>{
+    const at=Date.now()
+    let exact=createV8CapitalState(at)
+    for(let i=0;i<3;i++){
+      exact=v8CreditIncome(exact,'clicks',10n**40n)
+      const cycle=v8PerformPrestige(exact,at)
+      expect(cycle.ok).toBe(true)
+      if(!cycle.ok)throw Error('Prestige test fixture')
+      exact=cycle.state
+    }
+    expect(saveV8CapitalState(localStorage,exact)).toBe(true)
+    const wrapper=mount(App,{attachTo:document.body})
+    mounted.push(wrapper)
+    await wrapper.find('.prestige-launch').trigger('click')
+    const power=wrapper.find('.ascension-upgrade[data-news-upgrade="news-power"]')
+    const buy=power.find('button.ascension-buy')
+    expect(buy.attributes('disabled')).toBeUndefined()
+    expect(power.find('.ascension-upgrade-cost').text()).toContain('1')
+    const before=BigInt(exact.ascension.progress.availablePoints)
+    await buy.trigger('click')
+    await nextTick()
+    expect(power.find('.ascension-upgrade-level').text()).toContain('1/1000')
+    const saved=JSON.parse(localStorage.getItem(V8_STORAGE_KEY)!)
+    expect(saved.ascension.progress.transcendentV1.levels['news-power']).toBe(1)
+    expect(BigInt(saved.ascension.progress.availablePoints)).toBe(before-1000n)
+    expect(saved.ascension.progress.upgradeLevels).toEqual(exact.ascension.progress.upgradeLevels)
+    expect(saved.prestige.fameMicros).toBe(exact.prestige.fameMicros)
+    wrapper.unmount()
+    mounted.splice(mounted.indexOf(wrapper),1)
+    const restored=mount(App,{attachTo:document.body})
+    mounted.push(restored)
+    await restored.find('.prestige-launch').trigger('click')
+    expect(restored.find('[data-news-upgrade="news-power"] .ascension-upgrade-level').text()).toContain('1/1000')
   })
 })
