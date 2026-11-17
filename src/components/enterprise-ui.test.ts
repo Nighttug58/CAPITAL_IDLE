@@ -10,7 +10,9 @@ import {
   buyEnterprise, upgradeEnterprise,
   type EnterpriseAction, type EnterpriseResult,
 } from '../economy/enterprises.ts'
-import { getEnterpriseUpgradeCostCents } from '../economy/catalog.ts'
+import { getEnterpriseUpgradeCostCents, getEnterpriseUpgradeBatchCostCentsExact } from '../economy/catalog.ts'
+import { createV8CapitalState } from '../exact-state-v8.ts'
+import { saveV8CapitalState } from '../exact-persistence-v8.ts'
 
 const START = 1_800_000_000_000
 const mounted: VueWrapper[] = []
@@ -168,4 +170,48 @@ it('V8 enterprise screen displays and upgrades a level 1000 company with huge ex
   await nextTick()
   expect(wrapper.find('.stats-income-value').text()).not.toContain('Infinity')
   expect(wrapper.find('.stats-income-value').text()).toMatch(/[A-Z] \$\/s/)
+})
+
+
+describe('Pass 1 — enterprise MAX controls',()=>{
+  it('shows a MAX button and exact cost preview, buys levels with one verified save',async()=>{
+    const now=Date.now()
+    const base=createV8CapitalState(now)
+    const budget=getEnterpriseUpgradeBatchCostCentsExact('kiosque',20,25)!
+    const state={...base,game:{...base.game,balance:budget.toString(),
+      lifetimeEarned:(10n**25n).toString()},
+      enterprises:{...base.enterprises,owned:{kiosque:{level:20,investedCents:'987654321'}}}}
+    expect(saveV8CapitalState(localStorage,state)).toBe(true)
+    const wrapper=mount(App,{attachTo:document.body})
+    mounted.push(wrapper)
+    await wrapper.findAll('.bottom-nav button')[2]!.trigger('click')
+    await nextTick()
+    const kiosk=wrapper.find('.enterprise-card')
+    const max=kiosk.find('.enterprise-max-action')
+    expect(max.exists()).toBe(true)
+    expect(max.attributes('disabled')).toBeUndefined()
+    expect(kiosk.find('.enterprise-max-preview').text()).toContain('MAX +')
+    expect(kiosk.find('button.enterprise-action').text()).toContain('+1')
+    const writes=vi.spyOn(Storage.prototype,'setItem')
+    await max.trigger('click')
+    await nextTick()
+    const saved=JSON.parse(localStorage.getItem('capital-idle-save-v8')!)
+    expect(saved.enterprises.owned.kiosque.level).toBeGreaterThan(20)
+    expect(saved.enterprises.owned.kiosque.investedCents).not.toBe('987654321')
+    expect(kiosk.find('.enterprise-notice').text()).toContain('MAX : +')
+    expect(writes).toHaveBeenCalledTimes(1)
+    writes.mockRestore()
+  })
+  it('disables MAX for a level-locked unowned company',()=>{
+    const wrapper=mount(App,{attachTo:document.body})
+    mounted.push(wrapper)
+    const card=wrapper.find('.enterprise-card')
+    expect(card.find('.enterprise-max-action').attributes('disabled')).toBeDefined()
+  })
+  it('contains responsive paired controls for 360px viewports',()=>{
+    const css=readFileSync('src/style.css','utf8')
+    expect(css).toContain('.enterprise-max-action')
+    expect(css).toContain('.home-click-max')
+    expect(css).toContain('.enterprise-card-footer {flex-wrap:wrap}')
+  })
 })
