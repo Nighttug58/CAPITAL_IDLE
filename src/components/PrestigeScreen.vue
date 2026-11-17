@@ -234,8 +234,8 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           :aria-valuenow="Math.round(worthProgress)" aria-valuemin="0" aria-valuemax="100">
           <span :style="{ width: worthProgress + '%' }"></span>
         </div>
-        <p class="ascension-help">Capital de départ au prochain cycle : <strong>{{ formatCompactUnits(nextCycleCapital) }}</strong>. La dotation n'accorde aucun XP, Fame ou PP, et son principal n'est pas éligible au Prestige suivant.</p>
         <p class="ascension-help">Aucun paiement manuel nécessaire : les taxes dues sont prélevées à la confirmation. Elles sont déjà déduites du patrimoine servant au calcul des PP. Le calendrier fiscal de 72 h réelles continue sans remise à zéro.</p>
+        <p class="ascension-help">Capital de départ au prochain cycle : <strong>{{ formatCompactUnits(nextCycleCapital) }}</strong>. La dotation n'accorde aucun XP, Fame ou PP, et son principal n'est pas éligible au Prestige suivant.</p>
         <button type="button" class="ascension-reset-launch" :disabled="!affordPrestige || busy"
           @click="openConfirmation">
           {{ affordPrestige ? 'EFFECTUER LE PRESTIGE' : 'PRESTIGE VERROUILLÉ' }}
