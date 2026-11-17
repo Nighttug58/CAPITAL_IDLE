@@ -174,7 +174,7 @@ test('V8 engine: advanced force, intensity and duration affect positive and nega
   const before=getNewsEnvelope(event,NOW+15_000,0.2)
   const faster=getNewsEnvelope(event,NOW+15_000,effective.rampFraction)
   assert.ok(faster>before)
-  assert.equal(faster,1)
+  assert.ok(Math.abs(faster-1)<1e-12,'the peak is reached at 5% of news lifetime')
   const baseUp=getNewsPressure([event],NOW+15_000,1,0.2)
   const ampUp=getNewsPressure([event],NOW+15_000,6,effective.rampFraction)
   const baseDown=getNewsPressure([bad],NOW+15_000,1,0.2)
