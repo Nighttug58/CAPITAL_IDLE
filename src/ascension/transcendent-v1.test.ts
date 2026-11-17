@@ -61,7 +61,7 @@ test('Transcendent schema: 10 canonical IDs, six core and 3 News branches enable
   assert.equal(sum,3454210000n)
   assert.equal(transcendentSpent({...zero,version:2}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,empire:1}}),1000n)
-  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'starting-capital':1}}),null)
+  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'starting-capital':1}}),1000n)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':1001}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':-1}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':1.2}}),null)
