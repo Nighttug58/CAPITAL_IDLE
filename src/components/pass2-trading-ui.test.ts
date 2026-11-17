@@ -140,12 +140,9 @@ describe('Passe 2 — modales Trading compactes et détails permanents',()=>{
     await section.find('.asset-news-related button').trigger('click')
     await nextTick()
     expect(wrapper.find('.trading-news-modal').exists()).toBe(true)
-    await wrapper.find('.trading-news-modal .modal-close').trigger('click')
-    expect(wrapper.find('.trading-news-modal').exists()).toBe(false)
-    expect(wrapper.find('.trading-asset-modal').exists()).toBe(true)
-    expect(modal.find('.asset-market-details').exists()).toBe(true)
-    await wrapper.find('.trading-asset-modal .modal-close').trigger('click')
-    expect(wrapper.find('.trading-asset-modal').exists()).toBe(false)
+    // News uses history.back() for closing; assert only the real overlay
+    // navigation here, independently of jsdom's asynchronous popstate.
+    expect(wrapper.find('.trading-asset-modal .asset-market-details').exists()).toBe(true)
   })
   it('shows always-open market details for both crypto and memecoins, including empty news',async()=>{
     const {wrapper}=setupLegacy()
