@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passe 1 validée (1/8)** au 17 novembre 2026. Les passes 2 à 8 restent à faire. La documentation initiale ci-dessous conserve le cahier des charges des passes suivantes.
+**État :** passe 0.5 validée ; **passes 1 et 2 validées (2/8)** au 17 novembre 2026. Les passes 3 à 8 restent à faire. Le reste de la documentation conserve le cahier des charges des passes suivantes.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -194,6 +194,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** comparaisons dimensions graphiques avant/après (ou assertions CSS/DOM déterministes), aucun débordement X/Y bloquant, champs accessibles après scroll, stabilité achat/vente et news, clavier, mobile. `npm run verify:release` ; commit passe 2 uniquement.
 
+**Suivi — passe 2 validée (17/11/2026) :** modales actions, cryptomonnaies et memecoins compactées par CSS ciblé ; restauration du défilement **interne** sans affecter les News ; ancien bouton `<details>` supprimé au profit d'une section permanente min/max/détention/news liées ; dimensions et fichier `MarketChart.vue` inchangés. Tests de rendu, interactions achat/vente, navigation vers News, clavier/Escape, styles mobiles et paysage. Validation sur branche isolée : **383 tests métier, 95 tests UI, TypeScript/Vite réussis**, avec `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44162811916)). Le workflow temporaire n'est pas fusionné sur `main`.
+
 ### Passe 3 — PP news avancées et pouvoirs manuels accessibles au Prestige 3
 
 **Objectif.** Installer le socle **commun des dix branches Transcendant** et rendre utilisables les **trois branches news** (Puissance, Intensité, Durée).
@@ -287,7 +289,7 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | ---: | --- | --- |
 | **0.5** | Billet animé en continu, 12 fps constants, indépendant des clics | ✅ Terminé |
 | 1 | MAX clic + MAX entreprises | ✅ Terminé |
-| 2 | Modales Trading compactes + détails visibles | ☐ À faire |
+| 2 | Modales Trading compactes + détails visibles | ✅ Terminé |
 | 3 | News avancées PP + commandes manuelles au Prestige 3 | ☐ À faire |
 | 4 | Transcendant Shop, 7 branches 1 000 niveaux | ☐ À faire |
 | 5 | Capital de départ attribué au reset | ☐ À faire |
@@ -295,4 +297,4 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage actualisé (17/11/2026) :** les passes **0.5 et 1** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 2** (modales Trading), avec vérification et commit avant toute passe 3. Les passes 3 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage actualisé (17/11/2026) :** les passes **0.5, 1 et 2** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 3** (news avancées PP et pouvoirs manuels au Prestige 3), avec vérification et commit avant la passe 4. Les passes 3 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
