@@ -26,11 +26,11 @@ const transcendentSpentPP=computed(()=>transcendentSpent(progress.value.transcen
 const totalRanks=computed(()=>[...TRANSCENDENT_MAIN_PRESENTATION,...TRANSCENDENT_NEWS_PRESENTATION]
   .reduce((total,row)=>total+transcendentLevel(progress.value,row.id),0))
 const heritageBps=computed(()=>transcendentHeritageBps(progress.value))
-const startingCapitalPreview=computed(()=>pendingStartingCapitalCents())
+const startingCapitalPreview=computed(()=>pendingStartingCapitalCents(progress.value))
 function offer(id:TranscendentId){
   const rank=transcendentLevel(progress.value,id)
-  const locked=id==='starting-capital'
-  const cost=locked?null:transcendentNextCost(rank)
+  const locked=false
+  const cost=transcendentNextCost(rank)
   return {rank,cost,locked,available:progress.value.prestigeCount>=3 &&
     cost!==null&&points.value>=cost}
 }
@@ -94,17 +94,17 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
           </div>
           <div class="ascension-upgrade-effect"><span>{{ row.effect }}</span>
             <span v-if="row.id==='heritage'">PP prochain Prestige : ×{{ (heritageBps/10_000).toFixed(3) }}</span>
-            <span v-else-if="row.locked">Capital prévu : {{ formatCompactUnits(startingCapitalPreview) }}</span>
+            <span v-else-if="row.id==='starting-capital'">Après Prestige : {{ formatCompactUnits(startingCapitalPreview) }}</span>
             <span v-else>Bonus acquis : +{{ (row.rank*(row.id==='empire'?.3:.2)).toFixed(1) }} %</span>
           </div>
           <div class="ascension-upgrade-footer">
             <span class="ascension-upgrade-cost">
-              {{ row.locked?'PASSE 5 · INACTIF':row.cost===null?'TERMINÉ':fmt(row.cost)+' PP · niveau suivant' }}
+              {{ row.cost===null?'TERMINÉ':fmt(row.cost)+' PP · niveau suivant' }}
             </span>
             <button type="button" class="ascension-buy" :disabled="!row.available || busy"
               :aria-label="'Acheter '+row.name+' niveau '+(row.rank+1)"
               @click="purchase(row.id,row.rank,row.cost)">
-              {{ row.locked?'PASSE 5':row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.available?'ACHETER':'PP INSUFF.' }}
+              {{ row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.available?'ACHETER':'PP INSUFF.' }}
             </button>
           </div>
         </article>
@@ -135,7 +135,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
           </div>
         </article>
       </section>
-      <p class="ascension-endnote">PP et achats Transcendant sont conservés lors de tous les Prestiges. Le Capital de départ et le bonus ultime seront activés dans leurs passes respectives.</p>
+      <p class="ascension-endnote">Le Capital de départ n'est attribué qu'après chaque Prestige, sans taxe ni XP, Fame ou PP immédiats. Son principal reste exclu de l'assiette des PP au cycle suivant. Le bonus ultime arrivera plus tard.</p>
     </div>
     <footer class="ascension-footer" aria-live="polite">
       <p v-if="notice" class="ascension-notice transcendent-notice" :class="{'is-error':error}" role="status">{{ notice }}</p>
