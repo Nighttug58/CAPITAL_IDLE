@@ -1,0 +1,128 @@
+import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
+import {mount,type VueWrapper} from '@vue/test-utils'
+import {nextTick} from 'vue'
+import {readFileSync} from 'node:fs'
+import App from '../App.vue'
+import {createV8CapitalState} from '../exact-state-v8.ts'
+import {v8CreditIncome} from '../exact-runtime-v8.ts'
+import {v8PerformPrestige} from '../exact-prestige-v8.ts'
+import {V8_STORAGE_KEY,saveV8CapitalState} from '../exact-persistence-v8.ts'
+const now=1_800_000_000_000
+const mounted:VueWrapper[]=[]
+beforeEach(()=>{localStorage.clear();vi.spyOn(Date,'now').mockReturnValue(now)})
+afterEach(()=>{mounted.splice(0).forEach(x=>x.unmount());vi.restoreAllMocks()})
+function start(cycles=0){
+  let exact=createV8CapitalState(now)
+  for(let i=0;i<cycles;i++){
+    exact=v8CreditIncome(exact,'clicks',10n**40n)
+    const result=v8PerformPrestige(exact,now)
+    expect(result.ok).toBe(true)
+    if(!result.ok)throw Error('cycle test failed')
+    exact=result.state
+  }
+  expect(saveV8CapitalState(localStorage,exact)).toBe(true)
+  const wrapper=mount(App,{attachTo:document.body})
+  mounted.push(wrapper)
+  return {wrapper,exact}
+}
+const saved=()=>JSON.parse(localStorage.getItem(V8_STORAGE_KEY)!)
+async function toTranscendent(wrapper:VueWrapper){
+  await wrapper.find('.prestige-launch').trigger('click')
+  const launch=wrapper.find('button.transcendent-launch')
+  expect(launch.exists()).toBe(true)
+  await launch.trigger('click')
+  await nextTick()
+  const page=wrapper.find('main.transcendent-screen')
+  expect(page.exists()).toBe(true)
+  return page
+}
+describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
+  it('ouvre depuis Prestige, comporte sept branches principales et trois News, garde le focus retour',async()=>{
+    const {wrapper}=start()
+    const page=await toTranscendent(wrapper)
+    expect(page.attributes('aria-label')).toBe('Boutique Prestige Transcendant')
+    expect(page.find('h1').text()).toBe('Prestige Transcendant')
+    expect(page.findAll('.transcendent-main .ascension-upgrade')).toHaveLength(7)
+    expect(page.findAll('.transcendent-news .ascension-upgrade')).toHaveLength(3)
+    expect(page.findAll('[data-transcendent]')).toHaveLength(10)
+    expect(page.findAll('.transcendent-main button.ascension-buy:disabled')).toHaveLength(7)
+    expect(page.findAll('.transcendent-news button.ascension-buy:disabled')).toHaveLength(3)
+    expect(page.find('[data-transcendent="starting-capital"] .ascension-upgrade-cost').text()).toContain('PASSE 5')
+    expect(page.find('[data-transcendent="starting-capital"] button').attributes('disabled')).toBeDefined()
+    expect(page.find('.ascension-summary').text()).toContain('10 000')
+    await nextTick()
+    expect(document.activeElement).toBe(page.find('.ascension-return').element)
+    await page.find('button.ascension-return').trigger('click')
+    await nextTick()
+    expect(wrapper.find('.transcendent-screen').exists()).toBe(false)
+    expect(wrapper.find('.ascension-screen').exists()).toBe(true)
+    expect(document.activeElement).toBe(wrapper.find('.transcendent-launch').element)
+    await wrapper.find('.ascension-return').trigger('click')
+    expect(wrapper.find('.home-screen').isVisible()).toBe(true)
+  })
+  it('achète une branche économique en PP exacts, sans cash ni Fame, en un rang atomique',async()=>{
+    const {wrapper,exact}=start(3)
+    const page=await toTranscendent(wrapper)
+    const offer=page.find('[data-transcendent="empire"]')
+    expect(offer.find('.ascension-upgrade-level').text()).toContain('0/1000')
+    expect(offer.find('.ascension-upgrade-cost').text()).toContain('1')
+    expect(offer.find('.ascension-buy').attributes('disabled')).toBeUndefined()
+    const beforePP=BigInt(exact.ascension.progress.availablePoints)
+    const watch=vi.spyOn(Storage.prototype,'setItem')
+    await offer.find('.ascension-buy').trigger('click')
+    await nextTick()
+    const after=saved()
+    expect(after.ascension.progress.transcendentV1.levels.empire).toBe(1)
+    expect(BigInt(after.ascension.progress.availablePoints)).toBe(beforePP-1000n)
+    expect(after.ascension.progress.lifetimePoints).toBe(exact.ascension.progress.lifetimePoints)
+    expect(after.game.balance).toBe(exact.game.balance)
+    expect(after.prestige.fameMicros).toBe(exact.prestige.fameMicros)
+    expect(offer.find('.ascension-upgrade-level').text()).toContain('1/1000')
+    const snapshots=watch.mock.calls.filter(([key])=>key===V8_STORAGE_KEY)
+      .map(([,body])=>JSON.parse(body))
+    expect(snapshots.some(s=>s.ascension.progress.transcendentV1?.levels.empire===1)).toBe(true)
+    expect(snapshots.every(s=>[0,1].includes(s.ascension.progress.transcendentV1?.levels.empire??0))).toBe(true)
+    watch.mockRestore()
+    await offer.find('.ascension-buy').trigger('click')
+    await nextTick()
+    expect(saved().ascension.progress.transcendentV1.levels.empire).toBe(2)
+    wrapper.unmount();mounted.splice(mounted.indexOf(wrapper),1)
+    const revived=mount(App,{attachTo:document.body})
+    mounted.push(revived)
+    const reopened=await toTranscendent(revived)
+    expect(reopened.find('[data-transcendent="empire"] .ascension-upgrade-level').text()).toContain('2/1000')
+  })
+  it('les bonus News restent achetables dans le Shop dédié ; capital bloqué même avec les PP',async()=>{
+    const {wrapper,exact}=start(3)
+    const page=await toTranscendent(wrapper)
+    const news=page.find('[data-transcendent="news-duration"]')
+    expect(news.find('button.ascension-buy').attributes('disabled')).toBeUndefined()
+    await news.find('button.ascension-buy').trigger('click')
+    await nextTick()
+    expect(saved().ascension.progress.transcendentV1.levels['news-duration']).toBe(1)
+    expect(BigInt(saved().ascension.progress.availablePoints)).toBe(BigInt(exact.ascension.progress.availablePoints)-1000n)
+    expect(page.find('[data-transcendent="starting-capital"] button.ascension-buy').attributes('disabled')).toBeDefined()
+    expect(saved().ascension.progress.transcendentV1.levels['starting-capital']).toBe(0)
+  })
+  it('bloque le niveau non débloqué et lève la modale via Escape',async()=>{
+    const {wrapper}=start(2)
+    const page=await toTranscendent(wrapper)
+    expect(page.find('[data-transcendent="heritage"] .ascension-buy').attributes('disabled')).toBeDefined()
+    window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))
+    await nextTick()
+    expect(wrapper.find('.transcendent-screen').exists()).toBe(false)
+    expect(wrapper.find('.ascension-screen').exists()).toBe(true)
+  })
+  it('préserve le défilement mobile et les focus visibles sans réduire les autres pages',()=>{
+    const css=readFileSync('src/style.css','utf8')
+    expect(css).toContain('.transcendent-screen')
+    expect(css).toContain('.transcendent-launch-panel')
+    expect(css).toContain('.transcendent-launch:focus-visible')
+    expect(css).toContain('@media(max-width:440px)')
+    expect(css).toContain('.ascension-scroll')
+    const vue=readFileSync('src/components/TranscendentShopScreen.vue','utf8')
+    expect(vue).toContain('aria-valuenow')
+    expect(vue).toContain('role="progressbar"')
+    expect(vue).toContain('onUnmounted(()=>window.removeEventListener')
+  })
+})

@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passes 1 à 3 validées (3/8)** au 17 novembre 2026. Les passes 4 à 8 restent à faire. Le reste de la documentation conserve le cahier des charges des passes suivantes.
+**État :** passe 0.5 validée ; **passes 1 à 4 validées (4/8)** au 17 novembre 2026. Les passes 5 à 8 restent à faire. Les six bonus économiques Transcendant sont actifs, la septième branche Capital de départ est préparée mais non achetable avant la passe 5.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -227,6 +227,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** dix branches strictes et leurs prix, 7 branches visibles (et 3 news dans leur section), coût cumulé 24 179 470 000 PP pour les sept, achats et rangs extrêmes, aucune altération des PP acquis antérieurement, staleness/double débit, tous types de revenus isolés, PP héritage sur plusieurs cycles, historiques V2/V3 vérifiés, compatibilité V8 et performance de la page mobile. `npm run verify:release` ; commit passe 4 uniquement.
 
+**Suivi — passe 4 validée (17/11/2026) :** page dédiée Prestige Transcendant accessible depuis Prestige, 10 cartes au total (6 branches économiques actives, 3 news actives, 1 Capital de départ préparée et non achetable avant la passe 5). Prix C(k)/S(n) et ledger PP V8 V1 inchangés, double achat refusé par rang attendu. Bonus appliqués de manière additive et exacte sur le revenu des entreprises (+300 % max), les profits nets positifs de trading (+200 %), les dividendes et récompenses de staking en unités de coins (+200 %), l’XP éligible (+200 %) et la Fame nouvelle (+200 %). Héritage jusqu’à +100 % PP sur les **cycles futurs**, récompenses V3 avec basePoints, heritageLevelAtCycle, museumCompleteAtCycle=false, bonusBps et earnedPoints ; anciens historiques V2 restent validés avec leur ancienne formule. Préparation Capital de départ : **0 $ et aucun crédit** jusqu’à passe 5 ; musée et réserve ultime également inactifs. Tests de fortunes extrêmes, achats, staking, trading perte/profit, impôts, historiques V3, import/export et navigation clavier/mobile. Validation indépendante sur branche isolée : **396 tests métier, 102 tests UI, TypeScript et build Vite verts**, avec `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44173588592)). Workflow de validation temporaire non inclus sur `main`. **Passe 5 non commencée.**
+
 ### Passe 5 — Capital de départ par Prestige
 
 **Objectif.** Activer la septième branche et démarrer chaque Prestige avec une dotation calculée selon son niveau.
@@ -293,10 +295,10 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 1 | MAX clic + MAX entreprises | ✅ Terminé |
 | 2 | Modales Trading compactes + détails visibles | ✅ Terminé |
 | 3 | News avancées PP + commandes manuelles au Prestige 3 | ✅ Terminé |
-| 4 | Transcendant Shop, 7 branches 1 000 niveaux | ☐ À faire |
+| 4 | Transcendant Shop, 6 branches actives + Capital préparé pour passe 5, 1 000 niveaux | ✅ Terminé |
 | 5 | Capital de départ attribué au reset | ☐ À faire |
 | 6 | Collections V3 + Musée impérial | ☐ À faire |
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage actualisé (17/11/2026) :** les passes **0.5, 1, 2 et 3** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 4** (boutique Prestige Transcendant des sept branches principales), avec vérification et commit avant la passe 5. Les passes 4 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage actualisé (17/11/2026) :** les passes **0.5 et 1 à 4** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 5** (dotation de Capital de départ au reset), avec validation complète et commit avant la passe 6. Les passes 5 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.

@@ -13,6 +13,7 @@ import { FAME_BOOST_BPS_PER_LEVEL, FAME_BOOST_IDS, currentCollectionId, getColle
   getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
+import {transcendentEconomicBps} from './ascension/transcendent-v1.ts'
 import { getAsset } from './trading/catalog.ts'
 import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
   divideCostBasis } from './exact-trading.ts'
@@ -43,6 +44,20 @@ export function v8BonusBasisPoints(state: V8CapitalState, id: FameBoostId): numb
   return state.prestige.boosts[id] * FAME_BOOST_BPS_PER_LEVEL * factor + collectionBps
 }
 
+/** Fame and Transcendant additive bonus percentage-points, one application
+ * to each eligible base stream. No premium feeds into a second multiplier.
+ */
+export function v8EarningBonusBps(state:V8CapitalState,id:FameBoostId):number {
+  const base=v8BonusBasisPoints(state,id)
+  switch(id){
+    case 'enterprise': return base+transcendentEconomicBps(state.ascension.progress,'empire')
+    case 'trading': return base+transcendentEconomicBps(state.ascension.progress,'trading')
+    case 'dividend': return base+transcendentEconomicBps(state.ascension.progress,'rentier')
+    case 'xp': return base+transcendentEconomicBps(state.ascension.progress,'xp')
+    case 'fame': return base+transcendentEconomicBps(state.ascension.progress,'fame')
+    default: return base
+  }
+}
 /** Same fractional-cent rounding contract as the existing v7 bonus engine. */
 export function v8BoostCents(amount: bigint, bonusBps: number, carryBps = 0): { amount: bigint; carryBps: number } {
   if (amount < 0n || !Number.isSafeInteger(carryBps) || carryBps < 0 || carryBps >= 10_000) {
@@ -59,7 +74,7 @@ export function v8BoostCents(amount: bigint, bonusBps: number, carryBps = 0): { 
 
 function xpAward(state: V8CapitalState, newCents: bigint): V8CapitalState {
   if (newCents <= 0n) return state
-  const scaled = v8BoostCents(newCents, v8BonusBasisPoints(state, 'xp'), state.prestige.experienceCarryBps)
+  const scaled = v8BoostCents(newCents, v8EarningBonusBps(state, 'xp'), state.prestige.experienceCarryBps)
   const experienceCents = v(state.prestige.experienceCents) + scaled.amount
   const newLevel = getExactLevel(experienceCents)
   const highest = state.ascension.progress.highestFameAwardedLevel
@@ -71,7 +86,7 @@ function xpAward(state: V8CapitalState, newCents: bigint): V8CapitalState {
     BigInt(newLevel) * (BigInt(newLevel) + 1n) -
     BigInt(oldLevel) * (BigInt(oldLevel) + 1n)
   ) / 2n * FAME_MICROS
-  const fameRate = getRewardRateUnits(v8BonusBasisPoints(state, 'fame'))
+  const fameRate = getRewardRateUnits(v8EarningBonusBps(state, 'fame'))
   if (fameRate === null) throw new RangeError('Invalid Fame rate')
   const fameAdded = multiplyRatio(fameBaseMicros, fameRate, TOTAL_RATE_DENOM)
   return {
@@ -246,7 +261,7 @@ export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: st
     [v(current.costBasis),0n] : purchasedHeld === 0n ? [0n,v(current.costBasis)] :
       divideCostBasis(v(current.costBasis), purchasedSold, purchasedHeld)
   const profit = order.proceedsCents - basisSold
-  const boosted = profit > 0n ? v8BoostCents(profit, v8BonusBasisPoints(state,'trading'),
+  const boosted = profit > 0n ? v8BoostCents(profit, v8EarningBonusBps(state,'trading'),
     state.prestige.tradingCarryBps) : null
   const effectiveProfit = boosted?.amount ?? profit
   const bonusCents = effectiveProfit - profit
@@ -357,7 +372,7 @@ export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgrade
 }
 
 export function v8CollectionReward(state: V8CapitalState, fame: number): bigint {
-  const rate = getRewardRateUnits(v8BonusBasisPoints(state, 'fame'))
+  const rate = getRewardRateUnits(v8EarningBonusBps(state, 'fame'))
   if (rate === null) throw new RangeError('Invalid Fame bonus')
   return multiplyRatio(BigInt(fame) * FAME_MICROS, rate, TOTAL_RATE_DENOM)
 }
@@ -532,7 +547,7 @@ export function v8AccrueEnterpriseUntil(state:V8CapitalState, now:number):V8Capi
     const micros=getEnterpriseIncomeMicrosPerSecondExact(id,holding.level)
     if(micros!==null)rate+=micros
   }
-  const nano=(rate*BigInt(elapsed)*BigInt(Math.round((1+v8BonusBasisPoints(state,'enterprise')/10_000)*1_000_000)))/1_000_000n +
+  const nano=(rate*BigInt(elapsed)*BigInt(Math.round((1+v8EarningBonusBps(state,'enterprise')/10_000)*1_000_000)))/1_000_000n +
     (state.enterprises.revenueCarryNanoCents!==undefined ? v(state.enterprises.revenueCarryNanoCents):
       BigInt(Math.round(state.enterprises.revenueCarryCents*10_000_000)))
   const earned=nano/10_000_000n
