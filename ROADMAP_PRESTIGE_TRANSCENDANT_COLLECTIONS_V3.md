@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passes 1 et 2 validées (2/8)** au 17 novembre 2026. Les passes 3 à 8 restent à faire. Le reste de la documentation conserve le cahier des charges des passes suivantes.
+**État :** passe 0.5 validée ; **passes 1 à 3 validées (3/8)** au 17 novembre 2026. Les passes 4 à 8 restent à faire. Le reste de la documentation conserve le cahier des charges des passes suivantes.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -210,6 +210,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** achat max rang news et rangs 0/1/1000, ID inconnu, PP insuffisants, ledger, import old V8 et double clic ; intensité et puissance affectent réellement cours/dividendes positifs ET négatifs, limites de prix, force ≤6, durée ≤3, lecture avant/après ticks, replay offline/reload déterministe, disparition et secours immédiat de la dernière news active, verrous 2/3 des pouvoirs manuels. `npm run verify:release` ; commit passe 3 uniquement.
 
+**Suivi — passe 3 validée (17/11/2026) :** catalogue Transcendant V1 de **10 IDs canoniques** avec schéma V8 optionnel et migration idempotente ; **3 bonus News** achetables en PP sur 1 000 rangs au Prestige 3 (Puissance, Intensité, Durée), **7 futures branches réservées à zéro**. Prix quadratique versionné C(k), ledger PP exact en BigInt vérifié en plus des achats classiques, protections contre double achat et sauvegardes forgées, backup V8 pré-Transcendant. Multiplicateur de news jusqu'à ×6 avec Frénésie, rampe réduite jusqu'à 5 %, futures durées jusqu'à ×3, avec calcul réel dans le marché et affichage dans les modales News. Pouvoirs manuels Générer/Terminer accessibles au **Prestige 3** dans l'UI et la commande métier ; coûts 5/10 % inchangés. Validation indépendante sur branche isolée : **389 tests métier, 97 tests UI, TypeScript et Vite verts** avec `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44169177673)). Le workflow temporaire de vérification est exclu de `main` ; **passe 4 non commencée**.
+
 ### Passe 4 — Prestige Transcendant Shop (sept branches à 1 000 niveaux)
 
 **Objectif.** Ouvrir une **page boutique Transcendant dédiée** et les sept branches principales, réutilisant le socle et les trois branches news de la passe 3.
@@ -290,11 +292,11 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | **0.5** | Billet animé en continu, 12 fps constants, indépendant des clics | ✅ Terminé |
 | 1 | MAX clic + MAX entreprises | ✅ Terminé |
 | 2 | Modales Trading compactes + détails visibles | ✅ Terminé |
-| 3 | News avancées PP + commandes manuelles au Prestige 3 | ☐ À faire |
+| 3 | News avancées PP + commandes manuelles au Prestige 3 | ✅ Terminé |
 | 4 | Transcendant Shop, 7 branches 1 000 niveaux | ☐ À faire |
 | 5 | Capital de départ attribué au reset | ☐ À faire |
 | 6 | Collections V3 + Musée impérial | ☐ À faire |
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage actualisé (17/11/2026) :** les passes **0.5, 1 et 2** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 3** (news avancées PP et pouvoirs manuels au Prestige 3), avec vérification et commit avant la passe 4. Les passes 3 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage actualisé (17/11/2026) :** les passes **0.5, 1, 2 et 3** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 4** (boutique Prestige Transcendant des sept branches principales), avec vérification et commit avant la passe 5. Les passes 4 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.

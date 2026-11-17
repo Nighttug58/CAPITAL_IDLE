@@ -11,7 +11,7 @@ export function newsPowerCost(state:V8CapitalState,end:boolean):bigint {
 }
 export function buyNewsPower(state:V8CapitalState,eventId:string|null,expectedCount:number,at:number):V8CapitalState|null {
   const count=state.newsPowers?.count??0
-  if(count!==expectedCount || !Number.isSafeInteger(count+1) || state.ascension.progress.prestigeCount<(eventId?10:7))return null
+  if(count!==expectedCount || !Number.isSafeInteger(count+1) || state.ascension.progress.prestigeCount<3)return null
   if(!Number.isSafeInteger(at)||at<state.trading.dividendLastPaidAt||at-state.trading.dividendLastPaidAt>=1000)return null
   const cost=newsPowerCost(state,eventId!==null)
   if(cost<=0n||BigInt(state.game.balance)<cost)return null

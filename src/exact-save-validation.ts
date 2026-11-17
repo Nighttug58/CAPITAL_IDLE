@@ -1,4 +1,5 @@
 import { prestigeShop, prestigeSpent, prestigePoints } from './ascension/v2.ts'
+import { transcendentSpent } from './ascension/transcendent-v1.ts'
 import { isValidMarketBoundary } from './trading/market.ts'
 /**
  * Strict V8 serialization contract. No BigInt is ever written to JSON; all
@@ -243,7 +244,12 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
       !object(progress.upgradeLevels)) return fail('Invalid PP ledger')
   if(progress.shopVersion!==undefined && progress.shopVersion!==2)return fail('Unknown Prestige tariff')
   const shopPP = progress.shopVersion===2 ? prestigeSpent(progress.upgradeLevels,progress.legacyRanks) : ascensionSpentPoints(progress.upgradeLevels as Record<string, number>)
-  if (shopPP === null || lifetimePP - availablePP !== BigInt(shopPP)) return fail('PP shop ledger does not balance')
+  // Classic historical ranks and advanced V1 ranks debit the same PP wallet.
+  // An absent V1 section is a valid pre-pass-3 save and costs exactly zero.
+  const advancedPP = progress.transcendentV1===undefined?0n:transcendentSpent(progress.transcendentV1)
+  if (shopPP === null || advancedPP === null ||
+      lifetimePP - availablePP !== BigInt(shopPP) + advancedPP)
+    return fail('PP shop ledger does not balance')
   if(progress.history && Array.isArray(progress.history) && progress.history.length > 100)
     return fail('Prestige history exceeds 100 cycles')
   if (!Array.isArray(progress.history) || typeof progress.prestigeCount !== 'number' ||

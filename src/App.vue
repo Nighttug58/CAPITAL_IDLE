@@ -18,6 +18,7 @@ import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
+import {v8BuyTranscendentNews,transcendentNextCost,type TranscendentNewsId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from './bill-animation.ts'
@@ -432,6 +433,11 @@ function executePrestigePurchase(id:string,expectedLevel:number):AscensionPurcha
     remainingPoints:Number(v(next.ascension.progress.availablePoints)>BigInt(Number.MAX_SAFE_INTEGER)?
       BigInt(Number.MAX_SAFE_INTEGER):v(next.ascension.progress.availablePoints))}}
 }
+function executeTranscendentNewsPurchase(id:TranscendentNewsId,expectedRank:number,quoted:bigint):boolean {
+  if(loadBlocked.value || transcendentNextCost(expectedRank)!==quoted)return false
+  const next=v8BuyTranscendentNews(exact.value,id,expectedRank)
+  return !!next && replaceWholeSaveExact(next)
+}
 function purchaseNews(id:string|null,count:number,quoted:bigint):boolean {
   if(loadBlocked.value || newsPowerCost(exact.value,id!==null)!==quoted)return false
   const next=buyNewsPower(exact.value,id,count,Date.now())
@@ -676,7 +682,7 @@ onUnmounted(() => {
     <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
     <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital"
-      :purchase-upgrade="executePrestigePurchase" :perform-cycle="executePrestigeCycle"
+      :purchase-upgrade="executePrestigePurchase" :purchase-news-upgrade="executeTranscendentNewsPurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
       @back="returnHomeFromPrestige" />
     <TradingScreen :purchase-news="purchaseNews" v-show="page === 'trading'" :state="capital"

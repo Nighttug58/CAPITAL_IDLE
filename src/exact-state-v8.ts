@@ -1,4 +1,5 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
+import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
  * BigInts are materialized only inside transaction functions and never
@@ -99,6 +100,8 @@ export interface V8AscensionProgress extends Omit<AscensionProgress,'availablePo
   lifetimePoints: ExactAmount
   shopVersion?: 2
   legacyRanks?: AscensionProgress['upgradeLevels']
+  /** Versioned exact-PP advanced shop; missing on old V8 saves means zero ranks. */
+  transcendentV1?: TranscendentShopV1
   history: readonly V8CycleSummary[]
 }
 export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {
@@ -149,5 +152,5 @@ export function convertValidatedV7ToV8(source: CapitalState): V8CapitalState {
   const converted = projectValidatedV7ToExactV8(source, decimals)
   const checked = validateExactV8State(converted, decimals)
   if (!checked.valid) throw new Error('V8 conversion invalid: ' + checked.reason)
-  return migratePrestigeShop(migratePreV2V8Save(converted as unknown as V8CapitalState))
+  return migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(converted as unknown as V8CapitalState)))
 }

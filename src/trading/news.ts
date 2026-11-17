@@ -159,7 +159,9 @@ export function createEvent(at: number, next: () => number, news: readonly Marke
   const recent = new Set(news.slice(-3).map((entry) => entry.templateId))
   const choices = DRAWABLE_NEWS_TEMPLATES.filter((entry) => !recent.has(entry.id))
   const template = choices[Math.floor(next() * choices.length)]!
-  const duration = randomInt(next, MIN_NEWS_DURATION_MS / TICK_MS, MAX_NEWS_DURATION_MS / TICK_MS) * TICK_MS * Math.max(1, Math.min(2, options.durationMultiplier ?? 1))
+  // Round new fractional PP multipliers to whole ms; never persist fractional timestamps.
+  const duration = Math.round(randomInt(next, MIN_NEWS_DURATION_MS / TICK_MS, MAX_NEWS_DURATION_MS / TICK_MS)
+    * TICK_MS * Math.max(1, Math.min(3, options.durationMultiplier ?? 1)))
   const resolution = template.rumored ? (next() < 0.65 ? 'confirmed' : 'denied') : undefined
   const resolutionAt = resolution ? at + Math.floor((duration * 0.60) / TICK_MS) * TICK_MS : undefined
   return {
@@ -229,9 +231,10 @@ export function advanceNewsTick(
   }
 }
 
-export function getNewsEnvelope(event: MarketNews, at: number): number {
+export function getNewsEnvelope(event: MarketNews, at: number, rampFraction = 0.2): number {
   if (at <= event.startedAt || at >= event.endsAt) return 0
-  const ramp = Math.max(TICK_MS, (event.endsAt - event.startedAt) * 0.2)
+  const fraction=Number.isFinite(rampFraction)?Math.max(0.05,Math.min(0.2,rampFraction)):0.2
+  const ramp = Math.max(TICK_MS, (event.endsAt - event.startedAt) * fraction)
   return Math.min(1, (at - event.startedAt) / ramp, (event.endsAt - at) / ramp)
 }
 
@@ -240,16 +243,16 @@ export interface NewsPressure {
   readonly dividend: Readonly<Record<string, number>>
 }
 export function getNewsPressure(
-  news: readonly MarketNews[], at: number, strengthMultiplier = 1,
+  news: readonly MarketNews[], at: number, strengthMultiplier = 1, rampFraction = 0.2,
 ): NewsPressure {
   const strength = Number.isFinite(strengthMultiplier)
-    ? Math.max(1, Math.min(3, strengthMultiplier)) : 1
+    ? Math.max(1, Math.min(6, strengthMultiplier)) : 1
   const price: Record<string, number> = {}
   const dividend: Record<string, number> = {}
   for (const event of news) {
     const template = getNewsTemplate(event.templateId)
     if (!template || isGlobalBearishTemplate(template)) continue
-    const envelope = getNewsEnvelope(event, at)
+    const envelope = getNewsEnvelope(event, at, rampFraction)
     if (envelope === 0) continue
     const factor = envelope * event.impact * strength * (event.phase === 'denied' ? -0.65 : 1)
     for (const id of event.affectedAssetIds) {

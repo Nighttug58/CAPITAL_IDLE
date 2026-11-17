@@ -9,6 +9,8 @@ const props = defineProps<{
   news: readonly MarketNews[]
   now: number
   impactMultiplier: number
+  rampFraction?: number
+  durationMultiplier?: number
 }>()
 const emit = defineEmits<{ close: []; 'open-asset': [id: string] }>()
 const detail = computed(() => getNewsPresentation(props.event))
@@ -21,9 +23,9 @@ const reliability = computed(() => props.event.phase === 'rumor' ? 'Rumeur non c
 
 // Réutilise les mêmes fonctions que le moteur : la pression affichée
 // tient compte du temps, des bonus, des démentis et du cumul plafonné.
-const temporalPower = computed(() => getNewsEnvelope(props.event, props.now))
-const ownPressure = computed(() => getNewsPressure([props.event], props.now, props.impactMultiplier))
-const totalPressure = computed(() => getNewsPressure(props.news, props.now, props.impactMultiplier))
+const temporalPower = computed(() => getNewsEnvelope(props.event, props.now, props.rampFraction))
+const ownPressure = computed(() => getNewsPressure([props.event], props.now, props.impactMultiplier, props.rampFraction))
+const totalPressure = computed(() => getNewsPressure(props.news, props.now, props.impactMultiplier, props.rampFraction))
 const affected = computed(() => (detail.value?.affectedAssets ?? []).map(asset => ({
   id: asset.id, symbol: asset.symbol, name: asset.name,
   price: totalPressure.value.price[asset.id] ?? 0,
@@ -72,6 +74,8 @@ const sign = (value: number) => value > 0 ? 'news-index-positive' : value < 0 ? 
           <div class="news-impact-stat"><span>Durée totale</span><strong>{{ number.format(durationMinutes) }} min</strong></div>
           <div class="news-impact-stat"><span>Puissance actuelle</span><strong>{{ percent(temporalPower) }}</strong></div>
           <div class="news-impact-stat"><span>Bonus Prestige / Frénésie</span><strong>{{ factor(impactMultiplier) }}</strong></div>
+          <div v-if="rampFraction!==undefined" class="news-impact-stat"><span>Rampe effective</span><strong>{{ percent(rampFraction) }}</strong></div>
+          <div v-if="durationMultiplier!==undefined" class="news-impact-stat"><span>Bonus durée des nouvelles News</span><strong>{{ factor(durationMultiplier) }}</strong></div>
           <div v-if="ownDividend !== null" class="news-impact-stat"><span>Poids sur les dividendes</span><strong>{{ factor(template.dividendWeight) }}</strong></div>
           <div class="news-impact-stat news-impact-highlight">
             <span>Pression cours de cette News</span><strong :class="sign(ownPrice)">{{ index(ownPrice) }}</strong>

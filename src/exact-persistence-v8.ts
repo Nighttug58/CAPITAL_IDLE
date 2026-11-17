@@ -1,4 +1,5 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
+import { migrateTranscendentV1 } from './ascension/transcendent-v1.ts'
 /**
  * Versioned V8 save persistence. V7 originals are NEVER overwritten before
  * the V8 write has been verified; invalid source material is not reset.
@@ -19,6 +20,7 @@ import {createInitialAscensionState} from './ascension/state.ts'
 export const V8_STORAGE_KEY = 'capital-idle-save-v8'
 export const V8_BACKUP_KEY = 'capital-idle-save-backup-v7'
 export const V8_FAME_REBALANCE_BACKUP_KEY = 'capital-idle-save-backup-v8-pre-fame-rebalance'
+export const V8_TRANSCENDENT_BACKUP_KEY = 'capital-idle-save-backup-v8-pre-transcendent-v1'
 const PREVIOUS_KEYS = [
   'capital-idle-save-v7','capital-idle-save-v6','capital-idle-save-v5','capital-idle-save-v4',
 ] as const
@@ -46,16 +48,20 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
     try{
       const parsed=JSON.parse(previous) as unknown
       if(!validate(parsed))return{ok:false,reason:'invalid-v8'}
-      if((parsed as V8CapitalState).prestige.xpCurveVersion===4 && parsed.ascension.progress.shopVersion===2)
-        return{ok:true,state:parsed as V8CapitalState,origin:'v8'}
-      // Rebalance historical V8 snapshots once. Keep their raw original bytes
-      // and do not replace the active key until the new state is validated.
-      const upgraded=migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState))
+      const current=parsed as V8CapitalState
+      if(current.prestige.xpCurveVersion===4 && current.ascension.progress.shopVersion===2 &&
+         current.ascension.progress.transcendentV1!==undefined)
+        return{ok:true,state:current,origin:'v8'}
+      // Upgrade old saves only after validation, preserving their original bytes.
+      // A V8 already on classic Prestige V2 gets a dedicated PP-shop backup.
+      const v2Current=current.prestige.xpCurveVersion===4 && current.ascension.progress.shopVersion===2
+      const upgraded=migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(current)))
       if(!validate(upgraded))return{ok:false,reason:'invalid-v8'}
       const payload=JSON.stringify(upgraded)
       try {
-        if(storage.getItem(V8_FAME_REBALANCE_BACKUP_KEY)===null)
-          storage.setItem(V8_FAME_REBALANCE_BACKUP_KEY,previous)
+        const backupKey=v2Current?V8_TRANSCENDENT_BACKUP_KEY:V8_FAME_REBALANCE_BACKUP_KEY
+        if(storage.getItem(backupKey)===null)
+          storage.setItem(backupKey,previous)
         storage.setItem(V8_STORAGE_KEY,payload)
         if(storage.getItem(V8_STORAGE_KEY)!==payload){
           storage.setItem(V8_STORAGE_KEY,previous)
@@ -77,10 +83,12 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
       // later successful reloads. Restoring that backup is an explicit action.
       if(key===PREVIOUS_KEYS[0] && storage.getItem(V8_BACKUP_KEY)===null)
         storage.setItem(V8_BACKUP_KEY,raw)
-      const payload=JSON.stringify(migrated.convertedState)
+      const normalized=migrateTranscendentV1(migrated.convertedState as unknown as V8CapitalState)
+      if(!validate(normalized))return{ok:false,reason:'invalid-legacy'}
+      const payload=JSON.stringify(normalized)
       storage.setItem(V8_STORAGE_KEY,payload)
       if(storage.getItem(V8_STORAGE_KEY)!==payload)return{ok:false,reason:'write-failed'}
-      return{ok:true,state:migrated.convertedState as unknown as V8CapitalState,origin:'migrated'}
+      return{ok:true,state:normalized,origin:'migrated'}
     }catch{return{ok:false,reason:'write-failed'}}
   }
   // The original application also supported localStorage V1..V3. Keep that
@@ -158,7 +166,7 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
   if(parsed.version===8){
     if(!validate(parsed))return{ok:false,reason:'invalid-save'}
     try {
-      const upgraded=migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState))
+      const upgraded=migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState)))
       if(!validate(upgraded))return{ok:false,reason:'invalid-save'}
       return{ok:true,state:upgraded,sourceVersion:8}
     } catch { return{ok:false,reason:'invalid-save'} }
@@ -166,8 +174,9 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
   if(![4,5,6,7].includes(parsed.version as number))return{ok:false,reason:'unsupported-version'}
   const migrated=previewV8Migration(JSON.stringify(parsed),now)
   if(!migrated.ok)return{ok:false,reason:'invalid-save'}
-  return{ok:true,state:migrated.convertedState as unknown as V8CapitalState,
-    sourceVersion:migrated.sourceVersion as 4|5|6|7}
+  const normalized=migrateTranscendentV1(migrated.convertedState as unknown as V8CapitalState)
+  if(!validate(normalized))return{ok:false,reason:'invalid-save'}
+  return{ok:true,state:normalized,sourceVersion:migrated.sourceVersion as 4|5|6|7}
 }
 
 export function exportV8Save(state:V8CapitalState,now=Date.now()):string{

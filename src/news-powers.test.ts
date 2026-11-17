@@ -15,7 +15,7 @@ test('ten cycles, news prices and export/import including an interrupted directi
    const cycle=v8PerformPrestige(state,at)
    assert.ok(cycle.ok)
    state=cycle.state
-   if(i<6)assert.equal(buyNewsPower(state,null,0,at),null)
+   if(i<2)assert.equal(buyNewsPower(state,null,0,at),null)
  }
  state=v8CreditIncome(state,'enterprises',10n**104n+1n)
  const cost=newsPowerCost(state,false)

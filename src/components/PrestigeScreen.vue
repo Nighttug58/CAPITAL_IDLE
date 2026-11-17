@@ -11,11 +11,14 @@ import { ASCENSION_CATEGORIES, ASCENSION_PRESENTATION } from '../ascension/prese
 import { type AscensionPurchase, type AscensionShopError } from '../ascension/shop.ts'
 import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
 import { MARKET_SPEEDS, marketSpeed, frenzyActive, type MarketActionResult } from '../ascension/market-effects.ts'
+import { v8MarketNewsEffects } from '../exact-market-v8.ts'
+import { TRANSCENDENT_MAX_LEVEL, TRANSCENDENT_NEWS_PRESENTATION, transcendentLevel, transcendentNextCost, type TranscendentNewsId } from '../ascension/transcendent-v1.ts'
 
 const props = defineProps<{
   exact: V8CapitalState
   state: CapitalState
   purchaseUpgrade: (id: string, currentLevel: number) => AscensionPurchase
+  purchaseNewsUpgrade?: (id:TranscendentNewsId,currentRank:number,quotedCost:bigint)=>boolean
   performCycle: () => AscensionResult
   selectSpeed: (speed: number) => MarketActionResult
   activateFrenzy: () => MarketActionResult
@@ -51,6 +54,14 @@ const totalLevels = activeUpgrades.reduce((sum, item) => sum + item.maxLevel, 0)
 const purchasedLevels = computed(() => activeUpgrades.reduce((sum, item) => sum + progress.value.upgradeLevels[item.id], 0))
 const spentPoints = computed(() => BigInt(progress.value.lifetimePoints) - BigInt(progress.value.availablePoints))
 const toGo = computed(() => totalLevels - purchasedLevels.value)
+const advancedNews = computed(() => TRANSCENDENT_NEWS_PRESENTATION.map(row=>{
+  const rank=transcendentLevel(progress.value,row.id)
+  const cost=transcendentNextCost(rank)
+  return {...row,rank,cost,canBuy:progress.value.prestigeCount>=3 && cost!==null &&
+    BigInt(progress.value.availablePoints)>=cost}
+}))
+const newsModifiers = computed(() => v8MarketNewsEffects(props.exact,props.state.trading.dividendLastPaidAt))
+const advancedNewsSum = computed(() => advancedNews.value.reduce((sum,row)=>sum+row.rank,0))
 const affordPrestige = computed(() => level.value >= ASCENSION_MIN_LEVEL &&
   worth.value !== null && worth.value >= MIN_WORTH_CENTS)
 const worthProgress = computed(() => Math.min(100, Math.max(0, Number(worth.value*100n/MIN_WORTH_CENTS))))
@@ -98,6 +109,17 @@ function buy(id: string, expected: number) {
   } finally { busy.value = false }
 }
 
+function buyNewsAdvanced(id:TranscendentNewsId,expectedRank:number,cost:bigint|null) {
+  if (busy.value || confirming.value || cost===null || !props.purchaseNewsUpgrade)return
+  busy.value=true
+  try{
+    const ok=props.purchaseNewsUpgrade(id,expectedRank,cost)
+    noticeError.value=!ok
+    notice.value=ok
+      ? 'Bonus News '+id+' : niveau '+(expectedRank+1)+' acquis pour '+fmt(cost)+' PP.'
+      : 'Achat refusé : niveau, PP ou sauvegarde indisponibles.'
+  }finally{busy.value=false}
+}
 function changeMarketSpeed(speed: number) {
   if (busy.value || confirming.value) return
   const result = props.selectSpeed(speed)
@@ -229,6 +251,38 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
             :disabled="!hasFrenzy || frenzyRemaining > 0 || busy || confirming"
             @click="launchFrenzy">{{ frenzyOn ? 'ACTIF' : frenzyRemaining > 0 ? frenzyTime + ' min' : 'ACTIVER' }}</button>
         </div>
+      </section>
+
+      <section class="ascension-transcendent-news" aria-label="Bonus News avancés en Points Prestige">
+        <div class="ascension-shop-heading">
+          <div><span class="ascension-eyebrow">PRESTIGE TRANSCENDANT · NEWS</span><h2>News avancées en PP</h2></div>
+          <span>{{ advancedNewsSum }} / {{ TRANSCENDENT_MAX_LEVEL*3 }}</span>
+        </div>
+        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les 7 autres branches Transcendant arriveront en passe 4.</p>
+        <div class="ascension-news-effective" aria-label="Effets actuels sur les news">
+          <span>Puissance <strong>×{{ newsModifiers.impactMultiplier.toFixed(2) }}</strong></span>
+          <span>Rampe <strong>{{ (newsModifiers.rampFraction*100).toFixed(2) }} %</strong></span>
+          <span>Durée future <strong>×{{ newsModifiers.durationMultiplier.toFixed(2) }}</strong></span>
+        </div>
+        <article v-for="row in advancedNews" :key="row.id" class="ascension-upgrade" :data-news-upgrade="row.id">
+          <div class="ascension-upgrade-top">
+            <div><strong>{{ row.name }}</strong><p>{{ row.description }}</p></div>
+            <span class="ascension-upgrade-level">NIV. {{ row.rank }}/{{ TRANSCENDENT_MAX_LEVEL }}</span>
+          </div>
+          <div class="ascension-upgrade-track" role="progressbar" :aria-label="'Niveau de '+row.name"
+            :aria-valuenow="row.rank" aria-valuemin="0" :aria-valuemax="TRANSCENDENT_MAX_LEVEL">
+            <span :style="{width:row.rank/TRANSCENDENT_MAX_LEVEL*100+'%'}"></span>
+          </div>
+          <div class="ascension-upgrade-effect"><span>{{ row.effect }}</span><span>Permanent</span></div>
+          <div class="ascension-upgrade-footer">
+            <span class="ascension-upgrade-cost">{{ row.cost===null?'TERMINÉ':fmt(row.cost)+' PP · prochain niveau' }}</span>
+            <button type="button" class="ascension-buy" :disabled="!row.canBuy || busy || confirming || !purchaseNewsUpgrade"
+              :aria-label="'Acheter '+row.name+' niveau '+(row.rank+1)"
+              @click="buyNewsAdvanced(row.id,row.rank,row.cost)">
+              {{ row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.canBuy?'ACHETER':'PP INSUFF.' }}
+            </button>
+          </div>
+        </article>
       </section>
 
       <section class="ascension-shop-heading" aria-label="Catalogue des améliorations Prestige">
