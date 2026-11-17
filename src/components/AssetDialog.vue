@@ -160,9 +160,7 @@ function submit() {
         <span :class="change === null ? 'market-direction-flat' : change >= 0 ? 'market-direction-up' : 'market-direction-down'">{{ formatChange(change) }} · 1 h</span>
       </div>
       <p v-if="boundaryDescription" class="yield-summary" role="status">{{ boundaryDescription }}</p>
-      <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}
-
-      </div>
+      <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}</div>
       <MarketChart :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
       <div class="asset-order">
         <div class="order-side">
@@ -205,26 +203,26 @@ function submit() {
           {{ activeSide === 'buy' ? 'Confirmer l’achat' : 'Confirmer la vente' }}
         </button>
       </div>
-      <details><summary>Détails du marché et actualités</summary>
-      <div class="asset-detail-grid">
-        <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
-        <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
-        <div><span>Vous détenez</span><strong>{{ fullHolding }}</strong></div>
-      </div>
-      <div v-if="relatedNews.length" class="asset-news-related">
-        <span class="eyebrow">NEWS ASSOCIÉES</span>
-        <button v-for="entry in relatedNews" :key="entry.id" type="button" @click="emit('open-news', entry.id)">
-          {{ getNewsPresentation(entry)?.headline ?? 'Actualité du marché' }} <span>›</span>
-        </button>
-      </div>
-      </details>
+      <section class="asset-market-details" aria-label="Détails du marché et actualités">
+        <h3>Détails du marché et actualités</h3>
+        <div class="asset-detail-grid">
+          <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
+          <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
+          <div><span>Vous détenez</span><strong>{{ fullHolding }}</strong></div>
+        </div>
+        <div class="asset-news-related">
+          <span class="eyebrow">NEWS ASSOCIÉES</span>
+          <button v-for="entry in relatedNews" :key="entry.id" type="button" @click="emit('open-news', entry.id)">
+            {{ getNewsPresentation(entry)?.headline ?? 'Actualité du marché' }} <span aria-hidden="true">›</span>
+          </button>
+          <p v-if="!relatedNews.length" class="asset-news-empty">Aucune actualité associée.</p>
+        </div>
+      </section>
     </div>
   </section>
 </template>
 
 <style scoped>
-.trading-asset-modal{height:auto;max-height:min(690px,100%)}
-.trading-asset-modal .trading-modal-scroll{flex:1 1 auto;padding:10px}
-.asset-detail-quote{margin-bottom:3px}.yield-summary{margin-bottom:5px}
-.yield-summary,summary{font-size:12px}summary{cursor:pointer}
+.trading-asset-modal .asset-detail-quote { margin-bottom: 3px; }
+.trading-asset-modal .yield-summary { margin: 0 0 5px; font-size: 11px; line-height: 1.35; }
 </style>
