@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
-import { prestigeShop,prestigeCost,prestigePoints,MIN_LEVEL as ASCENSION_MIN_LEVEL,MIN_WORTH_CENTS } from '../ascension/v2.ts'
+import { prestigeShop,prestigeCost,MIN_LEVEL as ASCENSION_MIN_LEVEL,MIN_WORTH_CENTS } from '../ascension/v2.ts'
 import { v8EligiblePrestigeWorthCents, v8PrestigeRewardPreview } from '../exact-prestige-v8.ts'
 import { getExactLevel } from '../exact-levels.ts'
 import { formatCompactUnits } from '../large-numbers.ts'
