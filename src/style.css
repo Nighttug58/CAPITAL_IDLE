@@ -1693,3 +1693,37 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
   .ascension-news-effective>span {padding:7px 3px;font-size:9px}
   .ascension-news-effective strong {font-size:11px}
 }
+
+
+/* Pass 4: dedicated Transcendent Shop uses the same accessible Prestige cards. */
+.transcendent-launch-panel {
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px;margin:14px 0 8px;background:linear-gradient(135deg,#25352e,#282824);
+  border:1px solid #78976e;border-radius:11px
+}
+.transcendent-launch-panel h2 {font-size:16px;color:#d7f2ca;margin:5px 0}
+.transcendent-launch-panel p {font-size:11px;color:#bbd2bb;line-height:1.4;margin:0}
+.transcendent-launch {flex:0 0 auto;min-height:43px;padding:8px 12px;border:1px solid #9ad4a1;
+  border-radius:9px;color:#172b1f;background:#b7dfb4;font-weight:780;font-size:12px}
+.transcendent-screen {border-top-color:#629b71;background:linear-gradient(160deg,#17322b,#18221f 65%,#111b1b)}
+.transcendent-screen .ascension-page-header {background:linear-gradient(145deg,#223b30,#1e2928)}
+.transcendent-screen .ascension-page-header h1 {color:#dbf2d4}
+.transcendent-screen .ascension-summary strong {color:#c9efbd}
+.transcendent-screen .ascension-upgrade {border-color:#496750;background:linear-gradient(125deg,#202b25,#1d2525)}
+.transcendent-screen .ascension-upgrade-track>span {background:linear-gradient(to right,#467d5d,#a5d7a3)}
+.transcendent-screen .ascension-shop-heading h2 {color:#d6f0d4}
+.transcendent-screen .ascension-upgrade-effect strong {color:#d6ebc9}
+.transcendent-disabled {opacity:.67}
+.transcendent-disabled .ascension-buy {cursor:not-allowed}
+.transcendent-main {margin-bottom:20px}
+.transcendent-notice {overflow-wrap:anywhere}
+.transcendent-small {margin:8px 0;font-size:11px;color:#c5d8c8;line-height:1.5}
+.transcendent-launch:focus-visible,.transcendent-screen .ascension-buy:focus-visible {
+  outline:2px solid #dcf2c1;outline-offset:2px
+}
+@media(max-width:440px) {
+  .transcendent-launch-panel {align-items:stretch;flex-direction:column}
+  .transcendent-launch {width:100%}
+  .transcendent-screen .ascension-upgrade-footer {flex-wrap:wrap}
+  .transcendent-screen .ascension-upgrade-cost {flex:1 1 130px}
+}

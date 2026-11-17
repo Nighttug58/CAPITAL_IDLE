@@ -23,7 +23,7 @@ const props = defineProps<{
   selectSpeed: (speed: number) => MarketActionResult
   activateFrenzy: () => MarketActionResult
 }>()
-const emit = defineEmits<{ back: [] }>()
+const emit = defineEmits<{ back: []; 'open-transcendent': [] }>()
 
 const returnButton = ref<HTMLButtonElement | null>(null)
 const confirmField = ref<HTMLInputElement | null>(null)
@@ -253,12 +253,21 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
         </div>
       </section>
 
+      <section class="transcendent-launch-panel" aria-label="Boutique Prestige Transcendant">
+        <div><span class="ascension-eyebrow">BOUTIQUE PRESTIGE TRANSCENDANT</span>
+          <h2>Développer ton empire</h2>
+          <p>Six branches économiques et Héritage PP dès le Prestige 3, avec une septième branche Capital de départ préparée pour la passe 5.</p>
+        </div>
+        <button type="button" class="transcendent-launch" @click="emit('open-transcendent')">
+          Ouvrir le Shop Transcendant
+        </button>
+      </section>
       <section class="ascension-transcendent-news" aria-label="Bonus News avancés en Points Prestige">
         <div class="ascension-shop-heading">
           <div><span class="ascension-eyebrow">PRESTIGE TRANSCENDANT · NEWS</span><h2>News avancées en PP</h2></div>
           <span>{{ advancedNewsSum }} / {{ TRANSCENDENT_MAX_LEVEL*3 }}</span>
         </div>
-        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les 7 autres branches Transcendant arriveront en passe 4.</p>
+        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les six branches économiques sont aussi disponibles dans la boutique Transcendant dédiée. Le Capital de départ arrive en passe 5.</p>
         <div class="ascension-news-effective" aria-label="Effets actuels sur les news">
           <span>Puissance <strong>×{{ newsModifiers.impactMultiplier.toFixed(2) }}</strong></span>
           <span>Rampe <strong>{{ (newsModifiers.rampFraction*100).toFixed(2) }} %</strong></span>

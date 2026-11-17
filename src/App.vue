@@ -18,7 +18,7 @@ import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
-import {v8BuyTranscendentNews,transcendentNextCost,type TranscendentNewsId} from './ascension/transcendent-v1.ts'
+import {v8BuyTranscendentNews,v8BuyTranscendent,transcendentNextCost,type TranscendentNewsId,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from './bill-animation.ts'
@@ -40,6 +40,7 @@ import StatsScreen from './components/StatsScreen.vue'
 import FameShopScreen from './components/FameShopScreen.vue'
 import CollectionScreen from './components/CollectionScreen.vue'
 import PrestigeScreen from './components/PrestigeScreen.vue'
+import TranscendentShopScreen from './components/TranscendentShopScreen.vue'
 import { type AscensionPurchase } from './ascension/shop.ts'
 import { type AscensionResult } from './ascension/engine.ts'
 import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
@@ -81,7 +82,7 @@ const autoClickCost = computed(() => dollarAutoClickPriceCents(autoClickLevel.va
 const autoClickAffordable = computed(() => autoClickCost.value !== null && v(exact.value.game.balance) >= autoClickCost.value)
 const missingAutoClickCash = computed(() => autoClickCost.value===null ? null
   : autoClickCost.value > v(exact.value.game.balance) ? autoClickCost.value-v(exact.value.game.balance) : 0n)
-const page = ref<'home' | 'fame' | 'prestige' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
+const page = ref<'home' | 'fame' | 'prestige' | 'transcendent' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
 const achievementsLaunch = ref<HTMLButtonElement | null>(null)
@@ -162,6 +163,16 @@ function claimAchievementRewards(groupId?: AchievementMetric): AchievementBatchR
 }
 function openPrestige() {
   page.value = 'prestige'
+}
+function openTranscendentShop() { page.value='transcendent' }
+function returnToPrestige() {
+  page.value='prestige'
+  void nextTick(()=>document.querySelector<HTMLButtonElement>('.transcendent-launch')?.focus())
+}
+function executeTranscendentPurchase(id:TranscendentId,expectedRank:number,quoted:bigint):boolean {
+  if(loadBlocked.value || transcendentNextCost(expectedRank)!==quoted)return false
+  const next=v8BuyTranscendent(exact.value,id,expectedRank)
+  return !!next && replaceWholeSaveExact(next)
 }
 function returnHomeFromPrestige() {
   page.value = 'home'
@@ -684,7 +695,9 @@ onUnmounted(() => {
     <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital"
       :purchase-upgrade="executePrestigePurchase" :purchase-news-upgrade="executeTranscendentNewsPurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
-      @back="returnHomeFromPrestige" />
+      @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />
+    <TranscendentShopScreen v-if="page === 'transcendent'" :exact="exact"
+      :purchase-branch="executeTranscendentPurchase" @back="returnToPrestige" />
     <TradingScreen :purchase-news="purchaseNews" v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
@@ -694,7 +707,7 @@ onUnmounted(() => {
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
-      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' }"
+      <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' || page === 'transcendent' }"
         :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
