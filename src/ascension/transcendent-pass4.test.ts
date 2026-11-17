@@ -5,7 +5,7 @@ import {v8CreditIncome,v8AccrueEnterpriseUntil,v8BuyTrade,v8SellTrade} from '../
 import {v8PerformPrestige,v8PrestigeRewardPreview,previewV8PrestigePoints} from '../exact-prestige-v8.ts'
 import {v8AdvanceMarketSecond} from '../exact-market-v8.ts'
 import {v8SettleStaking} from '../exact-staking-v8.ts'
-import {getAsset} from '../trading/catalog.ts'
+import {getAsset,createInitialQuotes} from '../trading/catalog.ts'
 import {validateExactV8State} from '../exact-save-validation.ts'
 import {exportV8Save,prepareV8SaveImport} from '../exact-persistence-v8.ts'
 import {v8BuyTranscendent,v8BuyTranscendentNews,TRANSCENDENT_MAIN_IDS,
@@ -121,7 +121,7 @@ test('Trading only amplifies realized net gains, never invested principal or los
   assert.ok(purchase.ok)
   base=purchase.state
   const asset=getAsset('nvideo')!
-  const old=base.trading.quotes.nvideo!
+  const old=base.trading.quotes.nvideo??createInitialQuotes(NOW).nvideo!
   const strong={...base,trading:{...base.trading,quotes:{...base.trading.quotes,
     nvideo:{...old,price:old.price*2}}}}
   const boost=withRanks(strong,{trading:1000})
@@ -155,14 +155,14 @@ test('XP and Fame branches boost only their own newly created rewards; not cash 
   assert.equal(rankFame.game.balance,baseline.game.balance)
   assert.equal(BigInt(rankXP.prestige.experienceCents),BigInt(baseline.prestige.experienceCents)*3n)
   assert.equal(rankFame.prestige.experienceCents,baseline.prestige.experienceCents)
-  assert.equal(BigInt(rankFame.prestige.levelFameMicros),BigInt(baseline.prestige.levelFameMicros)*3n)
+  assert.equal(BigInt(rankFame.prestige.cycleLevelFameMicros),BigInt(baseline.prestige.cycleLevelFameMicros)*3n)
   assert.ok(BigInt(rankXP.prestige.levelFameMicros)>BigInt(baseline.prestige.levelFameMicros))
 })
 test('Rentier increases dividends and rewards in token units only, without creating bonus principal',()=>{
   const ready=cycle()
   const pos=10n**15n
   const divAsset=getAsset('nvideo')!
-  const quote=ready.trading.quotes.nvideo!
+  const quote=ready.trading.quotes.nvideo??createInitialQuotes(NOW).nvideo!
   const dividend={...ready,trading:{...ready.trading,positions:{
     ...ready.trading.positions,nvideo:{quantity:pos.toString(),costBasis:'0'},
   },quotes:{...ready.trading.quotes,nvideo:{...quote,dividendYield:0.1}}}}
