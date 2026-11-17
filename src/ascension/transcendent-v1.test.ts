@@ -121,6 +121,12 @@ test('Legacy V8 loads, migrates once with backup, exports, imports idempotently 
   const state=seeded(3)
   const old=JSON.parse(JSON.stringify(state))
   delete old.ascension.progress.transcendentV1
+  // A genuinely pre-Transcendent V8 snapshot also predates the grant receipts.
+  delete old.ascension.run.startingCapitalGrantedCents
+  for (const receipt of old.ascension.progress.history) {
+    delete receipt.startingCapitalLevelAtCycle
+    delete receipt.startingCapitalGrantedCents
+  }
   const original=JSON.stringify(old)
   const {entries,storage}=store()
   entries.set(V8_STORAGE_KEY,original)

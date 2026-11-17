@@ -98,10 +98,14 @@ test('Portfolio or enterprise purchase from grant cannot generate free PP',()=>{
   const state=res.state,grant=startingCapitalCents(100)!
   assert.equal(BigInt(state.game.balance),grant)
   assert.equal(v8EligiblePrestigeWorthCents(state),0n)
-  const business=v8BuyEnterpriseMax(state,'kiosque',AT,0)
+  // Kiosque requires player level 3. Earn only the XP needed to unlock it;
+  // that genuine earning is eligible, but the invested grant is still excluded.
+  const xpIncome=getExactLevelStartThreshold(3)*100n
+  const unlocked=v8CreditIncome(state,'clicks',xpIncome)
+  const business=v8BuyEnterpriseMax(unlocked,'kiosque',AT,0)
   assert.ok(business.ok)
   if(business.ok){
-    assert.equal(v8EligiblePrestigeWorthCents(business.state),0n)
+    assert.equal(v8EligiblePrestigeWorthCents(business.state),xpIncome)
     valid(business.state)
   }
   const trade=v8BuyTrade(state,'nvideo','1')
