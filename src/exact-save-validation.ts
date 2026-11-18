@@ -16,6 +16,7 @@ import { getAsset, ASSETS } from './trading/catalog.ts'
 import { getNewsTemplate } from './trading/news.ts'
 import { getExactLevel, getExactV3Level, rebaseV3ExperienceCents } from './exact-levels.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot } from './prestige/catalog.ts'
+import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
 
@@ -306,8 +307,10 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
         !safe(heritage)||heritage>TRANSCENDENT_MAX_LEVEL ||
         (progress.transcendentV1!==undefined &&
           heritage>(progress.transcendentV1 as {levels:{heritage:number}}).levels.heritage) ||
-        museum!==false || !safe(bonusBps) ||
-        bonusBps!==10_000+heritage*10 ||
+        (typeof museum!=='boolean') ||
+        (museum && !collectionV3Snapshot(p.ownedCollectionIds as string[]).museumComplete) ||
+        !safe(bonusBps) ||
+        bonusBps!==10_000+heritage*10+(museum?2_500:0) ||
         total!==base*BigInt(bonusBps)/10_000n)
         return fail('Invalid Prestige V3 reward')
     } else if(item.formulaVersion===2){
