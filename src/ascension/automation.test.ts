@@ -304,7 +304,7 @@ test('Ordres importés malformés rejetés : id, taille, déblocage et prix impo
   for (const mutate of [
     (s: CapitalState) => {s.ascension.run.marketOrders![0]!.id = 0},
     (s: CapitalState) => {s.ascension.run.marketOrders![0]!.quantity = -1},
-    (s: CapitalState) => {s.ascension.run.marketOrders![0]!.triggerPrice = 1e99},
+    (s: CapitalState) => {s.ascension.run.marketOrders![0]!.triggerPrice = -1},
     (s: CapitalState) => {s.ascension.run.nextOrderId = 1},
   ]) {
     const raw = structuredClone(order.state) as any

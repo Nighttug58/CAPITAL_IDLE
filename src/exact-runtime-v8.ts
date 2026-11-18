@@ -168,7 +168,7 @@ function priceFor(state: V8CapitalState, assetId: string) {
   const asset = getAsset(assetId)
   if (!asset) return null
   const price = state.trading.quotes[assetId]?.price ?? asset.referencePrice
-  if (!Number.isFinite(price) || price < asset.minPrice || price > asset.maxPrice) return null
+  if (!Number.isFinite(price) || price <= 0) return null
   const fraction = quoteToExactFraction(price)
   return fraction && { asset, price, fraction }
 }

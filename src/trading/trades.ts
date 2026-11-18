@@ -71,7 +71,7 @@ function toMoney(cents: number): number {
 function validQuote(asset: AssetDefinition, state: CapitalState): number | null {
   const current = state.trading.quotes[asset.id]
   const price = current?.price ?? asset.referencePrice
-  return Number.isFinite(price) && price >= asset.minPrice && price <= asset.maxPrice ? price : null
+  return Number.isFinite(price) && price > 0 ? price : null
 }
 
 function floorWithPrecision(value: number, decimals: number): number {

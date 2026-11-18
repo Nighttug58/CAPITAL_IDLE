@@ -119,7 +119,7 @@ test('limit and take-profit trigger prices can exceed former stock/crypto/memeco
     const v8=createV8CapitalState(now)
     const updated={...v8,ascension:{...v8.ascension,run:{...v8.ascension.run,
       marketOrders:[{...orders[0]!,quantity:String(10**asset.quantityDecimals)}],nextOrderId:2}}}
-    assert.equal(validateExactV8State(updated,decimals).valid,true)
+    assert.deepEqual(validateExactV8State(updated,decimals),{valid:true})
   }
 })
 test('offline catch-up and x5 market ticks do not reinstate old boundary holds',()=>{
@@ -127,7 +127,8 @@ test('offline catch-up and x5 market ticks do not reinstate old boundary holds',
   const state={...initial,trading:{...initial.trading,quotes:{nvideo:oldQuote('nvideo')}},
     ascension:{...initial.ascension,run:{...initial.ascension.run,
       marketClock:{...initial.ascension.run.marketClock,selectedSpeed:5}}}}
-  const first=v8AdvanceMarketSecond(state)
+  let first=state
+  for(let i=0;i<6;i++)first=v8AdvanceMarketSecond(first)
   assert.ok(first.trading.quotes.nvideo!.price!==state.trading.quotes.nvideo.price)
   assert.equal('boundary' in first.trading.quotes.nvideo!,false)
   const partial=catchUpV8(state,now+7*60_000)
