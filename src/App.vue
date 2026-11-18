@@ -20,7 +20,8 @@ import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from 
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue'
+import {PRIMARY_PAGES, adjacentPage, nextPageToward, isPrimaryPage, isSwipeDirectionHorizontal, shouldCompleteSwipe, NAV_ADJACENT_MS, NAV_PASS_THROUGH_MS, NAV_LAST_HOP_MS, type PrimaryPage} from './navigation/swipe.ts'
 import {
   getClickValue,
   MAX_CLICK_LEVEL,
@@ -82,7 +83,7 @@ const autoClickCost = computed(() => dollarAutoClickPriceCents(autoClickLevel.va
 const autoClickAffordable = computed(() => autoClickCost.value !== null && v(exact.value.game.balance) >= autoClickCost.value)
 const missingAutoClickCash = computed(() => autoClickCost.value===null ? null
   : autoClickCost.value > v(exact.value.game.balance) ? autoClickCost.value-v(exact.value.game.balance) : 0n)
-const page = ref<'home' | 'fame' | 'prestige' | 'transcendent' | 'achievements' | 'trading' | 'enterprises' | 'collection' | 'stats'>('home')
+const page = ref<PrimaryPage | 'fame' | 'prestige' | 'transcendent'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
 const focusTranscendentReturn=ref(false)
@@ -102,6 +103,230 @@ let nextGainId = 0
 let marketRuntime: ReturnType<typeof createV8MarketRuntime> | null = null
 let activeSince: number | null = null
 
+
+/** Only the main navigation participates in horizontal slides. Fame and Prestige
+ * remain dedicated secondary pages; the fullscreen control is not a page. */
+interface SlideState {
+  id:number
+  from:PrimaryPage
+  to:PrimaryPage
+  direction:-1|1
+  width:number
+  startPx:number
+  duration:number
+  running:boolean
+  commit:boolean
+}
+interface PointerGesture {
+  id:number
+  startX:number
+  startY:number
+  startedAt:number
+  axis:'undecided'|'vertical'|'horizontal'
+}
+const appRoot=ref<HTMLElement|null>(null)
+const displayedPage=ref<PrimaryPage>('home')
+const slide=ref<SlideState|null>(null)
+const drag=ref<{neighbor:PrimaryPage|null;delta:number;width:number}|null>(null)
+let trackedPointer:PointerGesture|null=null
+let slideId=0
+let slideFrame=0
+let slideTimer=0
+let hopCount=0
+let suppressClickUntil=0
+
+function pageWidth():number {
+  return Math.max(1,appRoot.value?.getBoundingClientRect().width || window.innerWidth || 360)
+}
+function motionAllowed():boolean {
+  return typeof window.matchMedia==='function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+function clearSlideHandles() {
+  if(slideFrame)cancelAnimationFrame(slideFrame)
+  if(slideTimer)clearTimeout(slideTimer)
+  slideFrame=0
+  slideTimer=0
+}
+function finishSlide(id:number) {
+  const step=slide.value
+  if(!step || step.id!==id)return
+  clearSlideHandles()
+  slide.value=null
+  if(step.commit)displayedPage.value=step.to
+  if(step.commit && isPrimaryPage(page.value))advanceMainNavigation()
+}
+function beginSlide(to:PrimaryPage,startPx=0,commit=true) {
+  const from=displayedPage.value
+  if(from===to)return
+  if(!motionAllowed()) {
+    slide.value=null
+    drag.value=null
+    if(commit) {
+      displayedPage.value=to
+      advanceMainNavigation()
+    }
+    return
+  }
+  const direction=PRIMARY_PAGES.indexOf(to)>PRIMARY_PAGES.indexOf(from)?1:-1
+  const remaining=isPrimaryPage(page.value)?Math.abs(PRIMARY_PAGES.indexOf(page.value)-PRIMARY_PAGES.indexOf(from)):1
+  const baseDuration=remaining>1?NAV_PASS_THROUGH_MS:hopCount>0?NAV_LAST_HOP_MS:NAV_ADJACENT_MS
+  const width=pageWidth()
+  const duration=startPx===0?baseDuration:Math.max(95,Math.round(NAV_ADJACENT_MS*(1-Math.min(.8,Math.abs(startPx)/width))))
+  const id=++slideId
+  slide.value={id,from,to,direction,width,startPx,duration,running:false,commit}
+  drag.value=null
+  // Mount the next screen at the edge before animating its transform.
+  void nextTick(() => {
+    if(slide.value?.id!==id)return
+    const run=()=>{
+      slideFrame=0
+      if(slide.value?.id!==id)return
+      slide.value={...slide.value,running:true}
+      // Also finish if the browser does not dispatch transitionend (background tabs).
+      slideTimer=window.setTimeout(()=>finishSlide(id),duration+75)
+    }
+    if(typeof requestAnimationFrame==='function') {
+      slideFrame=requestAnimationFrame(()=>{
+        if(slide.value?.id!==id)return
+        slideFrame=requestAnimationFrame(run)
+      })
+    } else {
+      slideTimer=window.setTimeout(run,16)
+    }
+  })
+}
+function advanceMainNavigation() {
+  if(slide.value || !isPrimaryPage(page.value))return
+  const next=nextPageToward(displayedPage.value,page.value)
+  if(!next)return
+  if(!motionAllowed()) {
+    displayedPage.value=page.value
+    return
+  }
+  beginSlide(next)
+}
+function navigateTo(target:PrimaryPage) {
+  // A secondary page is not a swipe step: leaving it directly chooses a main tab.
+  if(!isPrimaryPage(page.value)) {
+    clearSlideHandles()
+    slide.value=null
+    drag.value=null
+    trackedPointer=null
+    displayedPage.value=target
+    page.value=target
+    return
+  }
+  page.value=target
+  if(drag.value) {
+    drag.value=null
+    trackedPointer=null
+  }
+  if(!slide.value) {
+    hopCount=0
+    advanceMainNavigation()
+  }
+}
+function showMainPage(target:PrimaryPage):boolean {
+  if(!isPrimaryPage(page.value))return false
+  const current=slide.value
+  if(current)return current.from===target || current.to===target
+  const dragging=drag.value
+  return target===displayedPage.value || dragging?.neighbor===target
+}
+function mainPageStyle(target:PrimaryPage):CSSProperties {
+  const current=slide.value
+  if(current && (current.from===target || current.to===target)) {
+    const atFrom=current.running?(current.commit?-current.direction*current.width:0):current.startPx
+    const x=target===current.from?atFrom:
+      current.running?(current.commit?0:current.direction*current.width):current.startPx+current.direction*current.width
+    return {transform:`translate3d(${x}px,0,0)`,
+      transition:current.running?`transform ${current.duration}ms cubic-bezier(.2,.7,.2,1)`:'none',
+      pointerEvents:'none',willChange:'transform'}
+  }
+  const dragging=drag.value
+  if(dragging && (target===displayedPage.value || target===dragging.neighbor)) {
+    const direction=dragging.delta<0?1:-1
+    const x=target===displayedPage.value?dragging.delta:dragging.delta+direction*dragging.width
+    return {transform:`translate3d(${x}px,0,0)`,transition:'none',pointerEvents:'none',willChange:'transform'}
+  }
+  // Important: no transform on the settled page, so fixed dialogs remain fixed
+  // to the viewport instead of becoming trapped inside a transformed ancestor.
+  return {}
+}
+function onSlideTransitionEnd(event:TransitionEvent) {
+  if(event.propertyName!=='transform' || !(event.target instanceof HTMLElement) || !event.target.matches('main'))return
+  const current=slide.value
+  if(current?.running) {
+    hopCount+=current.commit?1:0
+    finishSlide(current.id)
+  }
+}
+function blockPageSwipe(target:EventTarget|null):boolean {
+  if(!(target instanceof Element))return true
+  if(target.closest('.bottom-nav,dialog,[role="dialog"],[role="alertdialog"],[aria-modal="true"],.trading-modal-backdrop,.prestige-overlay,.collection-overlay,.news-overlay,.news-layer,.ascension-confirm-overlay,.market-chart,.trading-tabs,.collection-tabs,.prestige-tabs,input,textarea,select,[contenteditable="true"],[role="slider"],[data-no-page-swipe]'))return true
+  // Nested horizontal scrollers own their gestures; ordinary vertical lists do not.
+  for(let el:Element|null=target;el && el!==appRoot.value;el=el.parentElement) {
+    if(el instanceof HTMLElement && el.scrollWidth>el.clientWidth+4) {
+      const overflowX=window.getComputedStyle(el).overflowX
+      if(overflowX==='auto'||overflowX==='scroll')return true
+    }
+  }
+  const modals=document.querySelectorAll('dialog[open],[aria-modal="true"],[role="dialog"],[role="alertdialog"],.trading-modal-backdrop')
+  return Array.from(modals).some(el=>{
+    const owner=el.closest('main') as HTMLElement|null
+    return !owner || owner.style.display!=='none'
+  })
+}
+function beginPageGesture(event:PointerEvent) {
+  if(!isPrimaryPage(page.value) || slide.value || trackedPointer || (event.pointerType==='mouse' && event.button!==0) || blockPageSwipe(event.target))return
+  trackedPointer={id:event.pointerId,startX:event.clientX,startY:event.clientY,startedAt:Date.now(),axis:'undecided'}
+}
+function movePageGesture(event:PointerEvent) {
+  const gesture=trackedPointer
+  if(!gesture || event.pointerId!==gesture.id || slide.value)return
+  const dx=event.clientX-gesture.startX
+  const dy=event.clientY-gesture.startY
+  if(gesture.axis==='undecided' && Math.max(Math.abs(dx),Math.abs(dy))>11) {
+    gesture.axis=isSwipeDirectionHorizontal(dx,dy)?'horizontal':'vertical'
+  }
+  if(gesture.axis!=='horizontal')return
+  const width=pageWidth()
+  const direction=dx<0?1:-1
+  const neighbor=adjacentPage(displayedPage.value,direction)
+  drag.value={neighbor,delta:neighbor?Math.max(-width,Math.min(width,dx)):dx*.16,width}
+}
+function endPageGesture(event:PointerEvent) {
+  const gesture=trackedPointer
+  if(!gesture || event.pointerId!==gesture.id)return
+  trackedPointer=null
+  if(gesture.axis!=='horizontal')return
+  suppressClickUntil=Date.now()+350
+  const dragging=drag.value
+  if(!dragging){return}
+  const neighbor=dragging.neighbor
+  const committed=!!neighbor && shouldCompleteSwipe(dragging.delta,Date.now()-gesture.startedAt)
+  if(committed && neighbor) {
+    hopCount=0
+    page.value=neighbor
+    beginSlide(neighbor,dragging.delta,true)
+  } else if(neighbor) {
+    beginSlide(neighbor,dragging.delta,false)
+  } else drag.value=null
+}
+function cancelPageGesture(event:PointerEvent) {
+  if(trackedPointer?.id!==event.pointerId)return
+  trackedPointer=null
+  if(drag.value?.neighbor)beginSlide(drag.value.neighbor,drag.value.delta,false)
+  else drag.value=null
+}
+function preventSwipeClick(event:MouseEvent) {
+  if(Date.now()>suppressClickUntil || (event.target instanceof Element && event.target.closest('.bottom-nav')))return
+  suppressClickUntil=0
+  event.preventDefault()
+  event.stopPropagation()
+  event.stopImmediatePropagation()
+}
+
 const progressPercent = computed(() => xpProgress.value.fractionBasisPoints / 100)
 
 const numberFormatter = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
@@ -116,9 +341,9 @@ function returnHomeFromFame() {
   page.value = 'home'
   void nextTick(() => fameLaunch.value?.focus())
 }
-function openAchievements() { page.value = 'achievements' }
+function openAchievements() { navigateTo('achievements') }
 function returnHomeFromAchievements() {
-  page.value = 'home'
+  navigateTo('home')
   void nextTick(() => achievementsLaunch.value?.focus())
 }
 function syncExactState(next: V8CapitalState) {
@@ -531,6 +756,7 @@ watch(page, (next) => {
 }, { flush: 'sync' })
 
 onUnmounted(() => {
+  clearSlideHandles()
   document.removeEventListener('fullscreenchange', syncFullscreen)
   document.removeEventListener('visibilitychange', syncMarketVisibility)
   window.removeEventListener('pagehide', syncMarketPageHide)
@@ -543,12 +769,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div ref="appRoot" class="app-shell" @pointerdown.capture="beginPageGesture" @pointermove.capture="movePageGesture"
+    @pointerup.capture="endPageGesture" @pointercancel.capture="cancelPageGesture"
+    @click.capture="preventSwipeClick" @transitionend.capture="onSlideTransitionEnd">
     <div v-if="loadBlocked" class="save-load-blocked" role="alert">
       Sauvegarde non chargée ({{ loadError }}). Vos données ont été préservées :
       importez un fichier valide depuis Stats, ou utilisez RESET pour recommencer.
     </div>
-    <main v-show="page === 'home'" id="accueil" class="home-screen">
+    <main v-show="showMainPage('home')" id="accueil" class="home-screen" :style="mainPageStyle('home')">
       <div class="home-actions">
         <button ref="fameLaunch" class="fame-shop-launch" type="button" @click="openFameShop"
           :title="'Fame disponibles : ' + fameBalance"
@@ -671,7 +899,7 @@ onUnmounted(() => {
 
     </main>
 
-    <AchievementsScreen v-if="page === 'achievements'" :state="capital"
+    <AchievementsScreen v-if="showMainPage('achievements')" :style="mainPageStyle('achievements')" :state="capital"
       :claim-rewards="claimAchievementRewards" @back="returnHomeFromAchievements" />
     <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
@@ -681,24 +909,24 @@ onUnmounted(() => {
       @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />
     <TranscendentShopScreen v-if="page === 'transcendent'" :exact="exact"
       :purchase-branch="executeTranscendentPurchase" :purchase-branch-max="executeTranscendentMaxPurchase" :state="capital" @back="returnToPrestige" />
-    <TradingScreen :purchase-news="purchaseNews" v-show="page === 'trading'" :state="capital"
+    <TradingScreen :purchase-news="purchaseNews" v-show="showMainPage('trading')" :style="mainPageStyle('trading')" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
-    <EnterpriseScreen v-show="page === 'enterprises'" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
-    <CollectionScreen v-if="page === 'collection'" :state="exact" :purchase-collection="executeCollectionPurchase" />
-    <StatsScreen v-show="page === 'stats'" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
+    <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
+    <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" />
+    <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'home' || page === 'fame' || page === 'prestige' || page === 'transcendent' }"
-        :aria-current="page === 'home' ? 'page' : undefined" @click="page = 'home'">
+        :aria-current="page === 'home' ? 'page' : undefined" @click="navigateTo('home')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" />
         </svg>
         <span>Accueil</span>
       </button>
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'trading' }"
-        :aria-current="page === 'trading' ? 'page' : undefined" @click="page = 'trading'">
+        :aria-current="page === 'trading' ? 'page' : undefined" @click="navigateTo('trading')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 17l6-6 4 4 8-9M16 6h5v5" />
           <path d="M3 21h18" />
@@ -706,7 +934,7 @@ onUnmounted(() => {
         <span>Trading</span>
       </button>
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'enterprises' }"
-        :aria-current="page === 'enterprises' ? 'page' : undefined" @click="page = 'enterprises'">
+        :aria-current="page === 'enterprises' ? 'page' : undefined" @click="navigateTo('enterprises')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="10" width="18" height="11" rx="1" />
           <path d="M3 10 6 4h12l3 6M9 21v-7h6v7M3 10h18" />
@@ -714,7 +942,7 @@ onUnmounted(() => {
         <span>Entreprises</span>
       </button>
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'collection' }"
-        :aria-current="page === 'collection' ? 'page' : undefined" @click="page = 'collection'">
+        :aria-current="page === 'collection' ? 'page' : undefined" @click="navigateTo('collection')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m3 8 9-5 9 5-9 5-9-5zM3 8v9l9 5 9-5V8M12 13v9" />
@@ -733,7 +961,7 @@ onUnmounted(() => {
         <span v-if="claimableAchievements" class="achievements-pending" aria-hidden="true">{{ claimableAchievements }}</span>
       </button>
       <button type="button" class="nav-home" :class="{ 'is-active': page === 'stats' }"
-        :aria-current="page === 'stats' ? 'page' : undefined" @click="page = 'stats'">
+        :aria-current="page === 'stats' ? 'page' : undefined" @click="navigateTo('stats')">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 3v18h18M7 15l4-4 3 2 5-6" />
         </svg>
