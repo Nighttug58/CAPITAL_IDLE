@@ -1,5 +1,5 @@
 /**
- * Transcendent PP Shop V1. Six core bonus branches and three News branches
+ * Transcendent PP Shop V1. Seven main branches and three News branches
  * can be purchased from Prestige 3. Starting capital is active from pass 5.
  * All prices and balances use exact BigInt PP; saves store integer ranks only.
  */
@@ -113,8 +113,8 @@ export function v8BuyTranscendentNews(
   if(!TRANSCENDENT_NEWS_IDS.includes(id))return null
   return v8BuyTranscendent(state,id,expectedRank)
 }
-/** Integer basis points: same base-rate additive policy as Fame / collections.
- * Reserve-fueled "ultimate" multiplier is NOT activated until pass 7.
+/** Integer basis points for the five unamplified economic ranks.
+ * The reserve-powered ultimate is applied separately by exact V8 reward paths.
  */
 export function transcendentEconomicBps(
   progress:{readonly transcendentV1?:TranscendentShopV1},
@@ -149,8 +149,8 @@ export function transcendentReserveRatio(progress:{
   const denominator=2n*(available+1_000_000_000n)
   return {unlocked:true,numerator:denominator+available,denominator}
 }
-/** Prestige PP bonus in exact bps, without activating the museum (pass 6).
- * Rate is frozen in each V3 receipt by the prestige transition.
+/** Prestige PP bonus in exact bps: Heritage and completed Museum only.
+ * Never apply the ultimate reserve here; each V3 receipt freezes this rate.
  */
 export function transcendentHeritageBps(
   progress:{readonly transcendentV1?:TranscendentShopV1},
