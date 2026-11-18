@@ -4,7 +4,7 @@ import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { quantityStringToUnits, quoteToExactFraction } from './exact-trading.ts'
 import { getAsset } from './trading/catalog.ts'
 import { stakingBaseRate, STAKING_COMPOUND_MS, STAKING_OFFLINE_CAP_MS, STAKING_UNLOCK_MS } from './trading/staking.ts'
-import {transcendentEconomicBps} from './ascension/transcendent-v1.ts'
+import {transcendentEconomicBps, transcendentReserveRatio} from './ascension/transcendent-v1.ts'
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 
 const PICO=1_000_000_000_000n
@@ -23,8 +23,9 @@ export function v8SettleStaking(state:V8CapitalState,at:number):V8CapitalState {
   const start=Math.max(source.lastAccruedAt,at-STAKING_OFFLINE_CAP_MS)
   const autoCompound=state.ascension.progress.upgradeLevels['auto-compound']>0
   const level=state.ascension.progress.upgradeLevels['staking-yield']
-  const rentierBps=transcendentEconomicBps(state.ascension.progress,'rentier')+
-    collectionV3Snapshot(state.prestige.ownedCollectionIds).museumIncomeBps
+  const rentierBps=transcendentEconomicBps(state.ascension.progress,'rentier')
+  const museumBps=collectionV3Snapshot(state.prestige.ownedCollectionIds).museumIncomeBps
+  const reserve=transcendentReserveRatio(state.ascension.progress)
   const positions:{[key:string]:V8Position}={...state.trading.positions}
   const locks:{[key:string]:V8StakingEntry}={}
   for(const [id,old]of Object.entries(source.positions)){
@@ -38,8 +39,9 @@ export function v8SettleStaking(state:V8CapitalState,at:number):V8CapitalState {
     const rate=quoteToExactFraction(stakingBaseRate(id))!
     // Classic staking +10% per level, Rentier +0.2% per level; additive
     // to the base reward, not compounded on holdings or principal.
-    const denominator=rate.denominator*100n*HOUR_MS*10_000n
-    const multiplier=rate.numerator*BigInt(10_000+level*1_000+rentierBps)
+    const denominator=rate.denominator*100n*HOUR_MS*10_000n*reserve.denominator
+    const multiplier=rate.numerator*(BigInt(10_000+level*1_000+museumBps)*reserve.denominator+
+      BigInt(rentierBps)*reserve.numerator)
     let carry=current.carryPicoUnits===undefined?
       BigInt(Math.round(current.carryUnits*Number(PICO))):v(current.carryPicoUnits)
     while(previous<at){
