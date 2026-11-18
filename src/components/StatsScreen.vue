@@ -43,7 +43,7 @@ const exactBonusPercent = (id:FameBoostId) => {
   const rate=v8ExactRewardRate(props.exactState,id)
   return formatExactBasisPoints((rate.numerator-rate.denominator)*10_000n,rate.denominator)
 }
-const exactShopPercent = (id:FameBoostId,level:number) => {
+const exactShopPercent = (level:number) => {
   if(!exactAbsolute.value)return ''
   return formatExactBasisPoints(BigInt(level*500)*exactAbsolute.value.factorUnits,FAME_FACTOR_SCALE)
 }
@@ -375,7 +375,7 @@ function pay() {
           <div v-for="boost in fameOverview.boosts" :key="boost.id" class="stats-prestige-boost" :data-boost="boost.id">
             <div><strong>{{ boost.name }}</strong><span>Niveau {{ boost.level }}/20</span></div>
             <p>Shop : +{{ percent(boost.rawShopBps) }}
-              <span v-if="exactAbsolute?.unlocked ?? fameOverview.absolute.unlocked"> · avec Prestige : +{{ exactAbsolute ? exactShopPercent(boost.id as FameBoostId,boost.level) : percent(boost.prestigeShopBps) }}</span>
+              <span v-if="exactAbsolute?.unlocked ?? fameOverview.absolute.unlocked"> · avec Prestige : +{{ exactAbsolute ? exactShopPercent(boost.level) : percent(boost.prestigeShopBps) }}</span>
               · Collections V3 : +{{ percent(boost.collectionBps) }}</p>
             <strong class="stats-prestige-total">Total : +{{ exactState ? exactBonusPercent(boost.id as FameBoostId) : percent(boost.totalBps) }}</strong>
           </div>
