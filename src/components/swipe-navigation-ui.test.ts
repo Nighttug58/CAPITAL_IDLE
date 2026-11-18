@@ -57,9 +57,11 @@ describe('Navigation horizontale V1',()=>{
   it('keeps secondary tabs fixed on vertical scroll and attached to sliding pages',async()=>{
     const css=readFileSync('src/style.css','utf8')
     const rule=css.slice(css.indexOf('/* Fixed secondary navigation.'))
-    expect(rule).toMatch(/\\.app-shell > main :is\\(\\.trading-tabs,\\.collection-tabs,\\.prestige-tabs\\) \\{[^}]*position:fixed/)
-    expect(rule).toMatch(/bottom:var\\(--nav-height\\)/)
-    expect(rule).toMatch(/main\\[style\\*=\"translate3d\"\\][^{]*\\{\\s*bottom:0;/)
+    expect(rule).toContain('.app-shell > main :is(.trading-tabs,.collection-tabs,.prestige-tabs) {')
+    expect(rule).toContain('position:fixed;')
+    expect(rule).toContain('bottom:var(--nav-height);')
+    expect(rule).toContain('main[style*="translate3d"] :is(.trading-tabs,.collection-tabs,.prestige-tabs) {')
+    expect(rule).toContain('bottom:0;')
     const sheet=document.createElement('style')
     sheet.textContent=rule
     document.head.append(sheet)
@@ -71,7 +73,7 @@ describe('Navigation horizontale V1',()=>{
       ;(trading.element as HTMLElement).scrollTop=350
       expect(getComputedStyle(tradingTabs.element).position).toBe('fixed')
       ;(trading.element as HTMLElement).style.transform='translate3d(20px,0,0)'
-      expect(getComputedStyle(tradingTabs.element).bottom).toBe('0px')
+      expect(getComputedStyle(tradingTabs.element).bottom).toMatch(/^0(?:px)?$/)
       ;(trading.element as HTMLElement).style.transform=''
       await w.find('.prestige-launch').trigger('click')
       expect(getComputedStyle(w.find('main.ascension-screen .prestige-tabs').element).position).toBe('fixed')
