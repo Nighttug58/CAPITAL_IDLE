@@ -19,6 +19,12 @@ import { getAsset } from '../src/trading/catalog.ts'
 const PORT=4173
 const BASE='http://127.0.0.1:'+PORT+'/CAPITAL_IDLE/'
 const output='artifacts/pass8-browser'
+// A stalled browser must not monopolize CI indefinitely. Test failures remain failures.
+const watchdog=setTimeout(()=>{
+  console.error('[BROWSER PASS8] watchdog expired after 140s')
+  process.exit(124)
+},140_000)
+watchdog.unref()
 mkdirSync(output,{recursive:true})
 const now=Date.now()
 const fresh=createV8CapitalState(now)
@@ -66,9 +72,20 @@ const expectNoOverflow=async(page,where)=>{
 async function browserScenario(viewport){
   const page=await browser.newPage({viewport,
     reducedMotion:'no-preference'})
+  page.setDefaultTimeout(12_000)
+  page.setDefaultNavigationTimeout(20_000)
+  console.log('[BROWSER PASS8] begin',viewport.width+'x'+viewport.height)
   page.on('pageerror',e=>errors.push(viewport.width+': '+e.message))
-  page.on('console',msg=>{if(msg.type()==='error' && !/favicon/.test(msg.text()))
-    errors.push(viewport.width+' console: '+msg.text())})
+  page.on('response',response=>{
+    if(response.status()>=400 && !/\/favicon\.ico(?:\?|$)/.test(response.url()))
+      errors.push(viewport.width+' HTTP '+response.status()+': '+response.url())
+  })
+  page.on('console',msg=>{
+    // HTTP failures are reported with their concrete URL above. Chrome's
+    // generic console message alone omits the URL and may be the favicon.
+    if(msg.type()==='error' && !/Failed to load resource/.test(msg.text()))
+      errors.push(viewport.width+' console: '+msg.text())
+  })
   await page.addInitScript(data=>localStorage.setItem('capital-idle-save-v8',data),JSON.stringify(rich))
   try{
     await page.goto(BASE,{waitUntil:'networkidle',timeout:30_000})
@@ -163,6 +180,7 @@ try{
     {width:768,height:1024},{width:1280,height:800},{width:832,height:384},
   ])await browserScenario(viewport)
   assert.deepEqual(errors,[],'Browser runtime must have no uncaught errors')
+  clearTimeout(watchdog)
   console.log('[BROWSER PASS8] all five real Chromium viewports passed')
 }finally{
   if(browser)await browser.close()
