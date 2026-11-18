@@ -1,0 +1,57 @@
+name: Validate pass 8 (isolated, no production deploy)
+on:
+  push:
+    branches: [pass8-stabilization-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release:
+    name: Exact V8 + UI + TypeScript + build:root
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Full release verification
+        run: npm run verify:release
+      - name: Final compiled root build (includes second verification)
+        run: npm run build:root
+      - name: Assert root distribution is compiled
+        run: |
+          test -s index.html
+          test -s .nojekyll
+          test -d assets
+          grep -Eq '/CAPITAL_IDLE/assets/index-[[:alnum:]_-]+\\.js' index.html
+  browser:
+    name: Real Chromium (360, 390, 768, 1280, landscape)
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies and Playwright test harness
+        run: npm install --no-audit --no-fund && npm install --no-save --no-audit --no-fund playwright
+      - name: Discover or provision Chromium
+        shell: bash
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "CHROME_BIN=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "CHROME_BIN=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: Browser user journeys and viewport screenshots
+        run: node --experimental-strip-types scripts/pass8-browser-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pass8-real-browser-captures
+          path: artifacts/pass8-browser/
+          if-no-files-found: ignore
