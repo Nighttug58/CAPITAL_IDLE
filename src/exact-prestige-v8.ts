@@ -6,6 +6,7 @@ import {createV8CapitalState,getExactAmount as v,withExactAmount as s} from './e
 import {getExactLevel} from './exact-levels.ts'
 import {exactTradeCost,quoteToExactFraction} from './exact-trading.ts'
 import {getAsset} from './trading/catalog.ts'
+import {liquidityQuote} from './trading/liquidity-v8.ts'
 import {v8AdvanceFiscalEconomy,v8PayTaxes} from './exact-runtime-v8.ts'
 import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
@@ -20,11 +21,14 @@ export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
     const asset=getAsset(id)
     if(!asset)throw new RangeError('Unknown asset in portfolio')
     const price=state.trading.quotes[id]?.price??asset.referencePrice
-    const fraction=quoteToExactFraction(price)
+    const units=v(item.quantity)
+    const execution=liquidityQuote(asset,price,units,'sell',units)
+    const fraction=execution&&quoteToExactFraction(execution.executionPrice)
     if(!fraction)throw new RangeError('Invalid quote')
-    const priceCents=exactTradeCost(fraction,v(item.quantity),asset.quantityDecimals,0n,'sell')
-    if(!priceCents)throw new RangeError('Invalid portfolio valuation')
-    gross+=priceCents.grossCents
+    const fee=asset.kind==='stock'?50n:asset.kind==='crypto'?100n:150n
+    const proceeds=exactTradeCost(fraction,units,asset.quantityDecimals,fee,'sell')
+    if(!proceeds)throw new RangeError('Invalid portfolio valuation')
+    gross+=proceeds.proceedsCents
   }
   for(const company of Object.values(state.enterprises.owned))gross+=v(company.investedCents)
   // One economy-wide exclusion, independent of cash/portfolio/business form.

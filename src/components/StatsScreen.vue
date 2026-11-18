@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import type { EarlyTaxPaymentResult } from '../economy/fiscal.ts'
 import { FISCAL_PERIOD_MS } from '../economy/state.ts'
+import { liquidityQuote } from '../trading/liquidity-v8.ts'
 import { marginalTaxRateBps } from '../economy/tax-curve.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
 import { getFameStatsOverview } from '../prestige/overview.ts'
@@ -83,7 +84,9 @@ const exactBalance = computed(() => {
     const asset=getAsset(id)
     if(!asset)continue
     const price=state.trading.quotes[id]?.price??asset.referencePrice
-    const quote=quoteToExactFraction(price)
+    const units=v(item.quantity)
+    const liquidation=liquidityQuote(asset,price,units,'sell',units)
+    const quote=liquidation&&quoteToExactFraction(liquidation.executionPrice)
     if(!quote)continue
     const gross=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,0n,'sell')
     const fee=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,

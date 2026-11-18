@@ -150,7 +150,7 @@ function holdingShare(state: TradingState, asset: AssetDefinition): number {
   if (!row) return 0
   if (typeof row.quantity === 'number')
     return Number.isFinite(row.quantity) ? Math.min(500, Math.max(0, row.quantity / asset.totalSupply)) : 0
-  if (!/^(0|[1-9]\\d*)$/.test(row.quantity)) return 0
+  if (!/^(0|[1-9]\d*)$/.test(row.quantity)) return 0
   const units = BigInt(row.quantity)
   const total = BigInt(asset.totalSupply) * 10n ** BigInt(asset.quantityDecimals)
   const scaled = units * 1_000_000n / total

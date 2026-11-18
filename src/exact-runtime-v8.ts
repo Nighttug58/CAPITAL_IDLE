@@ -185,12 +185,12 @@ function reservedUnits(state: V8CapitalState, assetId: string): bigint {
 export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: string): V8TradeResult {
   const entry = priceFor(state, assetId)
   if (!entry) return rejectTrade('unknown-asset-or-invalid-price')
-  const {asset, fraction} = entry
+  const {asset} = entry
   const units = quantityStringToUnits(quantity, asset.quantityDecimals)
   if (units === null || units <= 0n) return rejectTrade('invalid-quantity')
   const owned = state.trading.positions[assetId]
   const previous = owned ? v(owned.quantity) : 0n
-  const impact = liquidityQuote(asset, entry.price, units, 'buy')
+  const impact = liquidityQuote(asset, entry.price, units, 'buy', previous)
   const execution = impact && quoteToExactFraction(impact.executionPrice)
   if (!impact || !execution) return rejectTrade('invalid-price')
   const cost = exactTradeCost(execution, units, asset.quantityDecimals, feeBps(asset.kind), 'buy')
@@ -218,7 +218,8 @@ export function v8MaximumBuyUnits(state: V8CapitalState, assetId: string): bigin
   let low = 0n, high = upper
   while (low < high) {
     const mid = low + (high - low + 1n) / 2n
-    const impact = liquidityQuote(entry.asset, entry.price, mid, 'buy')
+    const impact = liquidityQuote(entry.asset, entry.price, mid, 'buy',
+      state.trading.positions[assetId] ? v(state.trading.positions[assetId]!.quantity) : 0n)
     const execution = impact && quoteToExactFraction(impact.executionPrice)
     const order = execution && exactTradeCost(execution, mid,
       entry.asset.quantityDecimals, feeBps(entry.asset.kind), 'buy')
@@ -231,13 +232,13 @@ export function v8MaximumBuyUnits(state: V8CapitalState, assetId: string): bigin
 export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: string): V8TradeResult {
   const entry = priceFor(state, assetId)
   if (!entry) return rejectTrade('unknown-asset-or-invalid-price')
-  const {asset, fraction} = entry
+  const {asset} = entry
   const units = quantityStringToUnits(quantity, asset.quantityDecimals)
   if (units === null || units <= 0n) return rejectTrade('invalid-quantity')
   const current = state.trading.positions[assetId]
   if (!current || units > v(current.quantity)) return rejectTrade('insufficient-holdings')
   if (units > v(current.quantity) - reservedUnits(state, assetId)) return rejectTrade('staked-holdings')
-  const impact = liquidityQuote(asset, entry.price, units, 'sell')
+  const impact = liquidityQuote(asset, entry.price, units, 'sell', v(current.quantity))
   const execution = impact && quoteToExactFraction(impact.executionPrice)
   if (!impact || !execution) return rejectTrade('invalid-price')
   const order = exactTradeCost(execution, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')

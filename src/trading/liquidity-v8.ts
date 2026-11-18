@@ -14,20 +14,29 @@ export interface LiquidityQuote {
 }
 const LIQUIDITY_FRACTION = { stock: 0.0005, crypto: 0.00035, memecoin: 0.0002 } as const
 
+/** Position-dependent impact is path-independent: splitting one buy into
+ * many small orders can never manufacture a larger final quote.
+ */
 export function liquidityQuote(asset: AssetDefinition, price: number,
-  quantityUnits: bigint, side: 'buy' | 'sell'): LiquidityQuote | null {
-  if (!Number.isFinite(price) || price <= 0 || quantityUnits <= 0n) return null
+  quantityUnits: bigint, side: 'buy' | 'sell',
+  ownedBeforeUnits = 0n): LiquidityQuote | null {
+  if (!Number.isFinite(price) || price <= 0 || quantityUnits <= 0n ||
+      ownedBeforeUnits < 0n || (side === 'sell' && ownedBeforeUnits < quantityUnits))
+    return null
   const circulatingUnits = BigInt(asset.totalSupply) * 10n ** BigInt(asset.quantityDecimals)
   if (circulatingUnits <= 0n) return null
-  const shareMicro = quantityUnits * 1_000_000n / circulatingUnits
-  // Clamp this conversion only, not asset supply, trade volume or price.
-  const safeMicro = shareMicro > 500_000_000n ? 500_000_000n : shareMicro
-  const ownershipFraction = Number(safeMicro) / 1_000_000
-  const magnitude = Math.min(2.4,
-    0.35 * Math.log1p(ownershipFraction / LIQUIDITY_FRACTION[asset.kind]))
-  const direction = side === 'buy' ? 1 : -1
-  const executionPrice = price * Math.exp(direction * magnitude / 2)
-  const endingPrice = price * Math.exp(direction * magnitude)
+  const impactStrength = (units: bigint): number => {
+    const scaled = units * 1_000_000_000_000n / circulatingUnits
+    // A bounded log-move is a numerical safety measure, not a spot-price cap.
+    const share = Number(scaled > 500_000_000_000_000n
+      ? 500_000_000_000_000n : scaled) / 1_000_000_000_000
+    return Math.min(2.4, 0.35 * Math.log1p(share / LIQUIDITY_FRACTION[asset.kind]))
+  }
+  const afterUnits = side === 'buy'
+    ? ownedBeforeUnits + quantityUnits : ownedBeforeUnits - quantityUnits
+  const logMove = impactStrength(afterUnits) - impactStrength(ownedBeforeUnits)
+  const executionPrice = price * Math.exp(logMove / 2)
+  const endingPrice = price * Math.exp(logMove)
   if (!Number.isFinite(executionPrice) || executionPrice <= 0 ||
       !Number.isFinite(endingPrice) || endingPrice <= 0) return null
   return { executionPrice, endingPrice,
