@@ -22,6 +22,7 @@ const notice=ref('')
 const error=ref(false)
 const integer=new Intl.NumberFormat('fr-CH',{maximumFractionDigits:0})
 const fmt=(value:bigint|string|number)=>integer.format(typeof value==='string'?BigInt(value):value)
+const grouped=(value:number)=>integer.format(value).replace(/[’'\\u00a0\\u202f]/g,' ')
 const progress=computed(()=>props.exact.ascension.progress)
 const points=computed(()=>BigInt(progress.value.availablePoints))
 const transcendentSpentPP=computed(()=>transcendentSpent(progress.value.transcendentV1)??0n)
@@ -85,7 +86,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
     </div>
     <section class="transcendent-ultimate" :class="{'is-unlocked':ultimateUnlocked}"
       aria-label="Prestige Transcendant ultime" data-ultimate-reserve>
-      <strong>Prestige Transcendant ultime · {{ mainTotal }}/7 000</strong>
+      <strong>Prestige Transcendant ultime · {{ grouped(mainTotal) }}/7 000</strong>
       <span v-if="ultimateUnlocked">DÉBLOQUÉ — Réserve {{ fmt(points) }} PP · facteur ×{{ reserveFactor }}</span>
       <span v-else>Débloqué gratuitement à 7 × 1 000 niveaux sur les sept branches principales.</span>
       <small>Le facteur de réserve est inférieur à ×1,5 et ne renforce que les cinq bonus économiques. Aucun effet sur PP, capital initial ou news.</small>
