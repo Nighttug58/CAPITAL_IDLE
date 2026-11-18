@@ -114,7 +114,7 @@ export function recordExactTradeProfit(
     }
   }
   const tax = (progressiveTaxNumerator(netProfitCents,
-    state.lifetimeEarnedCents > netProfitCents ? state.lifetimeEarnedCents - netProfitCents : 0n) + 5_000n) / 10_000n
+    state.lifetimeEarnedCents) + 5_000n) / 10_000n
   // P&L is credited through a separate trade cash settlement; don't double
   // count it as cash here. Only XP, stats and tax accrue to the ledger.
   return {
