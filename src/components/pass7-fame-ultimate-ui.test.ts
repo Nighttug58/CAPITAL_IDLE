@@ -57,7 +57,7 @@ describe('Pass 7 Fame Shop and ultimate Prestige UI',()=>{
     const wrapper=mount(TranscendentShopScreen,{props:{exact:state,purchaseBranch:()=>false}})
     try {
       expect(wrapper.find('[data-ultimate-reserve]').classes()).toContain('is-unlocked')
-      expect(wrapper.find('[data-ultimate-reserve]').text()).toContain('×1.25')
+      expect(wrapper.find('[data-ultimate-reserve]').text()).toContain('×1,25')
       expect(wrapper.find('[data-ultimate-reserve]').text()).toContain('7 000/7 000')
       const changed={...state,ascension:{...state.ascension,progress:{
         ...state.ascension.progress,availablePoints:'0',
