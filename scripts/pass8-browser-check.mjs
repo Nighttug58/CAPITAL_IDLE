@@ -46,7 +46,7 @@ const rich={...source,
 const validation=validateExactV8State(rich,(id)=>getAsset(id)?.quantityDecimals??null)
 assert.equal(validation.valid,true,validation.reason)
 
-const server=spawn('npm',['run','dev','--','--host','127.0.0.1','--port',String(PORT)],
+const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(PORT)],
   {stdio:['ignore','pipe','pipe']})
 let serverOutput=''
 server.stdout.on('data',chunk=>{serverOutput+=chunk.toString()})
@@ -184,5 +184,9 @@ try{
   console.log('[BROWSER PASS8] all five real Chromium viewports passed')
 }finally{
   if(browser)await browser.close()
+  // Spawn Vite directly, not via npm (which leaves a grandchild serving the
+  // project and keeps the parent's stdout pipe open forever on success).
   server.kill('SIGTERM')
+  server.stdout.destroy()
+  server.stderr.destroy()
 }
