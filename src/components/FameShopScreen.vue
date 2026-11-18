@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
-import { FAME_BOOSTS, getV2NextFameBoostCost, FAME_BOOST_BPS_PER_LEVEL } from '../prestige/catalog.ts'
+import { FAME_BOOSTS, getV2NextFameBoostCost, FAME_BOOST_BPS_PER_LEVEL, type FameBoostId } from '../prestige/catalog.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount } from '../exact-state-v8.ts'
 import { formatFameMicros } from '../large-numbers.ts'
 import { getBonusBreakdown } from '../prestige/bonuses.ts'
 import { getAbsolutePrestigeStatus } from '../prestige/absolute.ts'
+import { v8AbsoluteFameStatus, FAME_FACTOR_SCALE, formatFameFactor, formatExactBasisPoints } from '../prestige/absolute-v8.ts'
+import { collectionV3Snapshot, collectionV3BonusBps } from '../prestige/collections-v3.ts'
+import { formatCompactUnits } from '../large-numbers.ts'
 import { getFameShopOffers, type FameShopError, type FameShopPurchase } from '../prestige/shop.ts'
 
 const props = defineProps<{
@@ -37,13 +40,31 @@ const offers = computed(() => props.exactState ? FAME_BOOSTS.map(boost => {
   }
 }) : getFameShopOffers(props.state))
 const rows = computed(() => FAME_BOOSTS.map((boost, index) => ({
-  boost, offer: offers.value[index]!, collectionBonus: getBonusBreakdown(props.state, boost.id).collectionBps,
+  boost, offer: offers.value[index]!, collectionBonus: props.exactState ?
+    collectionV3BonusBps(collectionV3Snapshot(props.exactState.prestige.ownedCollectionIds), boost.id) :
+    getBonusBreakdown(props.state, boost.id).collectionBps,
 })))
 const purchasedLevels = computed(() => offers.value.reduce((total, offer) => total + offer.currentLevel, 0))
 const absolute = computed(() => getAbsolutePrestigeStatus(props.state))
-const factorText = computed(() =>
+const exactAbsolute = computed(() => props.exactState ? v8AbsoluteFameStatus(props.exactState) : null)
+const absoluteUnlocked = computed(() => exactAbsolute.value?.unlocked ?? absolute.value.unlocked)
+const absoluteCapped = computed(() => exactAbsolute.value?.capped ?? absolute.value.capped)
+const factorText = computed(() => exactAbsolute.value ?
+  '×' + formatFameFactor(exactAbsolute.value.factorUnits) + (exactAbsolute.value.capped ? ' · MAX' : '') :
   '×' + new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 }).format(absolute.value.factor) +
     (absolute.value.capped ? ' · MAX' : ''))
+const capText = computed(() => exactAbsolute.value ?
+  '×' + formatFameFactor(exactAbsolute.value.capUnits) :
+  '×' + numeric.format(100 + (props.state.ascension?.progress.prestigeCount ?? 0)))
+const fameStepsText = computed(() => exactAbsolute.value ?
+  formatCompactUnits(exactAbsolute.value.fameSteps, 0, '') : numeric.format(absolute.value.fameSteps))
+const nextStepText = computed(() => exactAbsolute.value ?
+  formatFameMicros(exactAbsolute.value.nextStepAtFameMicros) : numeric.format(absolute.value.nextStepAtFame))
+const exactShopBonus = (boost: FameBoostId, baseBps:number) => {
+  const status=exactAbsolute.value
+  if(!status || !props.exactState)return percentage(baseBps*absolute.value.factor)
+  return formatExactBasisPoints(BigInt(baseBps)*status.factorUnits, FAME_FACTOR_SCALE)
+}
 const remainingSteps = computed(() => Math.max(0, absolute.value.requiredLevels - absolute.value.purchasedLevels))
 
 const errors: Record<FameShopError, string> = {
@@ -109,7 +130,7 @@ onMounted(() => { void nextTick(() => returnButton.value?.focus()) })
           </div>
           <div class="fame-boost-meta">
             <span>Shop : <b>+{{ percentage(row.offer.currentBonusBps) }}</b></span>
-            <span v-if="absolute.unlocked">Shop avec Prestige : <b>+{{ percentage(row.offer.currentBonusBps * absolute.factor) }}</b></span>
+            <span v-if="absoluteUnlocked">Shop avec Prestige : <b>+{{ exactShopBonus(row.boost.id, row.offer.currentBonusBps) }}</b></span>
             <span v-if="row.collectionBonus > 0">Collection : <b>+{{ percentage(row.collectionBonus) }}</b></span>
             <span v-if="row.offer.nextBonusBps !== null">Prochain : <b>+{{ percentage(row.offer.nextBonusBps) }}</b></span>
             <span v-else class="fame-boost-max">Bonus au maximum</span>
@@ -126,25 +147,25 @@ onMounted(() => { void nextTick(() => returnButton.value?.focus()) })
             </button>
           </div>
         </article>
-        <article class="absolute-prestige-card" :class="{ 'absolute-prestige-unlocked': absolute.unlocked }"
+        <article class="absolute-prestige-card" :class="{ 'absolute-prestige-unlocked': absoluteUnlocked }"
           data-boost="absolute">
           <div class="absolute-prestige-heading">
             <div>
               <span class="prestige-eyebrow">✦ ULTIME AMÉLIORATION</span>
               <h3>Prestige absolu</h3>
             </div>
-            <span class="absolute-prestige-state">{{ absolute.unlocked ? 'DÉBLOQUÉ' : 'VERROUILLÉ' }}</span>
+            <span class="absolute-prestige-state">{{ absoluteUnlocked ? 'DÉBLOQUÉ' : 'VERROUILLÉ' }}</span>
           </div>
-          <p v-if="!absolute.unlocked">
+          <p v-if="!absoluteUnlocked">
             Déblocage automatique et gratuit après les 120 niveaux du Fame Shop.
             Encore {{ remainingSteps }} {{ remainingSteps === 1 ? 'palier' : 'paliers' }} à acheter.
           </p>
           <template v-else>
             <strong class="absolute-prestige-factor">{{ factorText }}</strong>
-            <p>Chaque tranche entière de 100 Fame <b>disponibles</b> multiplie uniquement les bonus du Fame Shop par ×1,01, jusqu’au plafond de sécurité ×100.</p>
+            <p>Chaque tranche entière de 100 Fame <b>disponibles</b> multiplie uniquement les bonus du Fame Shop par ×1,01. Plafond actuel : <b>{{ capText }}</b> (100 + Prestiges terminés).</p>
             <div class="absolute-prestige-details">
-              <span>{{ numeric.format(absolute.fameSteps) }} tranches actives</span>
-              <span v-if="!absolute.capped">Prochaine tranche : {{ numeric.format(absolute.nextStepAtFame) }} Fame</span>
+              <span>{{ fameStepsText }} tranches actives</span>
+              <span v-if="!absoluteCapped">Prochaine tranche : {{ nextStepText }} Fame</span>
               <span v-else>Plafond de sécurité atteint · Fame conservée</span>
             </div>
           </template>
