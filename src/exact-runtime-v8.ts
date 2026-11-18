@@ -19,6 +19,7 @@ import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordable
 import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, getEnterpriseUpgradeBatchCostCentsExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
+import { progressiveTaxNumerator } from './economy/tax-curve.ts'
 import { getV2NextFameBoostCost as fameCost } from './prestige/catalog.ts'
 import { prestigeShop, prestigeCost } from './ascension/v2.ts'
 import type { AscensionUpgradeId } from './ascension/contracts.ts'
@@ -26,7 +27,6 @@ import { ACHIEVEMENTS, type AchievementMetric } from './achievements.ts'
 
 const TOTAL_RATE_DENOM = 10_000n * 1_000_000n
 const FAME_MICROS = 1_000_000n
-const TAX_BPS = 1_500n
 
 /** Approximate display projections only; V8 transitions use exact rational rates. */
 export function v8BonusBasisPoints(state: V8CapitalState, id: FameBoostId): number {
@@ -278,7 +278,9 @@ export function v8AccrueTax(state: V8CapitalState, source: TaxSource,
   if (profitCents < 0n) throw new RangeError('Negative profit')
   if (profitCents === 0n) return state
   const residual = source === 'enterprises' ? BigInt(state.fiscal.enterpriseTaxRemainderBps) : 0n
-  const raw = profitCents * TAX_BPS + residual
+  const lifetime = v(state.game.lifetimeEarned)
+  const raw = progressiveTaxNumerator(profitCents,
+    lifetime > profitCents ? lifetime - profitCents : 0n) + residual
   const tax = source === 'enterprises' ? raw / 10_000n : (raw + 5_000n) / 10_000n
   return { ...state,
     fiscal: { ...state.fiscal,

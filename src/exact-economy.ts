@@ -4,6 +4,7 @@
  * Never coerce money into Number for XP, Fame, income, taxes or trade rewards.
  */
 import { multiplyRatio } from './large-numbers.ts'
+import { progressiveTaxNumerator } from './economy/tax-curve.ts'
 
 export type ExactTaxSource = 'enterprises' | 'stocks' | 'crypto' | 'memecoins'
 export type ExactIncomeSource = 'clicks' | 'dividends' | ExactTaxSource
@@ -88,7 +89,8 @@ export function accrueExactEnterpriseIncome(
   const earned = nano / 10_000_000n
   const rem = nano % 10_000_000n
   const credited = creditExactIncome(state, 'enterprises', earned, xpBonusBps)
-  const taxNumerator = earned * 1500n + enterpriseTaxRemainderBps
+  const taxNumerator = progressiveTaxNumerator(earned,
+    credited.lifetimeEarnedCents - earned) + enterpriseTaxRemainderBps
   const taxCents = taxNumerator / 10_000n
   return {
     state: { ...credited,
@@ -111,7 +113,8 @@ export function recordExactTradeProfit(
         [source]: state.lossesBySourceCents[source] - netProfitCents },
     }
   }
-  const tax = multiplyRatio(netProfitCents, 1500n, 10_000n, 'nearest')
+  const tax = (progressiveTaxNumerator(netProfitCents,
+    state.lifetimeEarnedCents > netProfitCents ? state.lifetimeEarnedCents - netProfitCents : 0n) + 5_000n) / 10_000n
   // P&L is credited through a separate trade cash settlement; don't double
   // count it as cash here. Only XP, stats and tax accrue to the ledger.
   return {
