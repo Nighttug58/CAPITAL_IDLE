@@ -73,7 +73,7 @@ async function browserScenario(viewport){
   try{
     await page.goto(BASE,{waitUntil:'networkidle',timeout:30_000})
     await page.locator('.balance-value').waitFor({timeout:20_000})
-    assert.equal(await page.locator('.bottom-nav button').count(),6)
+    assert.equal(await page.locator('.bottom-nav button').count(),7,'six tabs plus the fullscreen control')
     await expectNoOverflow(page,'home-'+viewport.width)
     const initial=await page.locator('.banknotes').getAttribute('style')
     await page.waitForTimeout(270)
