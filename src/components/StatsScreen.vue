@@ -10,7 +10,9 @@ import {prepareV8SaveImport} from '../exact-persistence-v8.ts'
 import type {V8CapitalState} from '../exact-state-v8.ts'
 import {getExactLevelProgress} from '../exact-levels.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from '../economy/catalog.ts'
-import {v8BonusBasisPoints, v8EarningBonusBps} from '../exact-runtime-v8.ts'
+import {v8BonusBasisPoints} from '../exact-runtime-v8.ts'
+import { v8ExactRewardRate } from '../prestige/exact-bonuses-v8.ts'
+import { v8AbsoluteFameStatus, FAME_FACTOR_SCALE, formatFameFactor, formatExactBasisPoints } from '../prestige/absolute-v8.ts'
 import {getAsset} from '../trading/catalog.ts'
 import {exactTradeCost,quoteToExactFraction} from '../exact-trading.ts'
 import {getCollectionBookValueCents} from '../prestige/collections-catalog.ts'
@@ -31,6 +33,20 @@ const props = defineProps<{
 const overview = computed(() => getCapitalStatsOverview(props.state))
 const collectionV3 = computed(() => collectionV3Snapshot(
   props.exactState?.prestige.ownedCollectionIds ?? props.state.prestige.ownedCollectionIds))
+const exactAbsolute = computed(() => props.exactState ? v8AbsoluteFameStatus(props.exactState) : null)
+const exactAbsoluteText = computed(() => exactAbsolute.value ? formatFameFactor(exactAbsolute.value.factorUnits).replace('.', ',') : '')
+const exactCapText = computed(() => exactAbsolute.value ? formatFameFactor(exactAbsolute.value.capUnits).replace('.', ',') : '')
+const exactStepText = computed(() => exactAbsolute.value ? formatCompactUnits(exactAbsolute.value.fameSteps,0,'') : '')
+const exactNextFame = computed(() => exactAbsolute.value ? formatFameMicros(exactAbsolute.value.nextStepAtFameMicros) : '')
+const exactBonusPercent = (id:FameBoostId) => {
+  if(!props.exactState)return ''
+  const rate=v8ExactRewardRate(props.exactState,id)
+  return formatExactBasisPoints((rate.numerator-rate.denominator)*10_000n,rate.denominator)
+}
+const exactShopPercent = (level:number) => {
+  if(!exactAbsolute.value)return ''
+  return formatExactBasisPoints(BigInt(level*500)*exactAbsolute.value.factorUnits,FAME_FACTOR_SCALE)
+}
 const fameOverview = computed(() => {
   const legacy = getFameStatsOverview(props.state)
   if (!props.exactState) return legacy
@@ -106,9 +122,8 @@ const enterpriseRate = computed(() => {
   let total=0n
   for(const [id, holding] of Object.entries(state.enterprises.owned))
     total += getEnterpriseIncomeMicrosPerSecondExact(id, holding.level) ?? 0n
-  const bonus = v8EarningBonusBps(state, 'enterprise')
-  const multiplier = BigInt(Math.round((1 + bonus / 10_000) * 1_000_000))
-  const boosted = total * multiplier / 1_000_000n
+  const bonus = v8ExactRewardRate(state, 'enterprise')
+  const boosted = total * bonus.numerator / bonus.denominator
   return boosted < 1_000_000_000n ? rate(Number(boosted) / 1_000_000)
     : formatCompactUnits(boosted, 6, '$/s')
 })
@@ -334,12 +349,13 @@ function pay() {
         <div class="stats-absolute-panel" :class="{ 'is-unlocked': fameOverview.absolute.unlocked }">
           <div class="stats-absolute-heading">
             <strong>Prestige absolu</strong>
-            <span>{{ fameOverview.absolute.unlocked ? 'DÉBLOQUÉ' : 'VERROUILLÉ' }}</span>
+            <span>{{ (exactAbsolute?.unlocked ?? fameOverview.absolute.unlocked) ? 'DÉBLOQUÉ' : 'VERROUILLÉ' }}</span>
           </div>
-          <template v-if="fameOverview.absolute.unlocked">
-            <strong class="stats-absolute-factor">{{ prestigeFactor(fameOverview.absolute.factor) }}</strong>
-            <p>{{ fameOverview.absolute.fameSteps }} tranches de 100 Fame disponibles · prochaine tranche à
-              {{ fameCount(fameOverview.absolute.nextStepAtFame) }} Fame.</p>
+          <template v-if="exactAbsolute?.unlocked ?? fameOverview.absolute.unlocked">
+            <strong class="stats-absolute-factor">{{ exactAbsolute ? '×'+exactAbsoluteText : prestigeFactor(fameOverview.absolute.factor) }}</strong>
+            <p>{{ exactAbsolute ? exactStepText : fameOverview.absolute.fameSteps }} tranches de 100 Fame disponibles · plafond actuel {{ exactAbsolute ? '×'+exactCapText : '×'+(100+(state.ascension?.progress.prestigeCount??0)) }}.
+              <span v-if="!(exactAbsolute?.capped ?? fameOverview.absolute.capped)">Prochaine tranche à {{ exactAbsolute ? exactNextFame : fameCount(fameOverview.absolute.nextStepAtFame) }} Fame.</span>
+              <span v-else>Plafond atteint ; votre Fame reste disponible.</span></p>
           </template>
           <p v-else>Débloqué gratuitement à 120/120 paliers. Encore
             {{ fameOverview.absolute.requiredLevels - fameOverview.absolute.purchasedLevels }} niveaux à acheter.</p>
@@ -359,9 +375,9 @@ function pay() {
           <div v-for="boost in fameOverview.boosts" :key="boost.id" class="stats-prestige-boost" :data-boost="boost.id">
             <div><strong>{{ boost.name }}</strong><span>Niveau {{ boost.level }}/20</span></div>
             <p>Shop : +{{ percent(boost.rawShopBps) }}
-              <span v-if="fameOverview.absolute.unlocked"> · avec Prestige : +{{ percent(boost.prestigeShopBps) }}</span>
+              <span v-if="exactAbsolute?.unlocked ?? fameOverview.absolute.unlocked"> · avec Prestige : +{{ exactAbsolute ? exactShopPercent(boost.level) : percent(boost.prestigeShopBps) }}</span>
               · Collections V3 : +{{ percent(boost.collectionBps) }}</p>
-            <strong class="stats-prestige-total">Total : +{{ percent(boost.totalBps) }}</strong>
+            <strong class="stats-prestige-total">Total : +{{ exactState ? exactBonusPercent(boost.id as FameBoostId) : percent(boost.totalBps) }}</strong>
           </div>
         </div>
         <p class="stats-footnote">Les bonus s'ajoutent aux sources éligibles et ne recalculent jamais les gains antérieurs. Les objets de collection restent valorisés au prix d'achat dans le patrimoine.</p>

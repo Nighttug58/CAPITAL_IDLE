@@ -4,8 +4,8 @@
 import type { V8CapitalState, V8TradingState } from './exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { quoteToExactFraction } from './exact-trading.ts'
-import { getRewardRateUnits } from './prestige/bonuses.ts'
-import { v8EarningBonusBps, v8CreditIncome, v8AdvanceFiscalEconomy } from './exact-runtime-v8.ts'
+import { v8ExactRewardRate } from './prestige/exact-bonuses-v8.ts'
+import { v8CreditIncome, v8AdvanceFiscalEconomy } from './exact-runtime-v8.ts'
 import { advanceMarketTick, MARKET_TICK_MS, createRandom } from './trading/market.ts'
 import { createEvent, getNewsDirection, isGlobalBearishNews, trimNews } from './trading/news.ts'
 import type { TradingState } from './trading/types.ts'
@@ -15,7 +15,6 @@ import { transcendentNewsModifiers } from './ascension/transcendent-v1.ts'
 
 const YEAR_SECONDS = 86_400n
 const PICO_CENTS = 1_000_000_000_000n
-const BONUS_RATE_DENOM=10_000_000_000n
 const STOCKS=ASSETS.filter(asset=>asset.kind==='stock')
 
 export function v8MarketNewsEffects(state:V8CapitalState,at:number){
@@ -95,12 +94,11 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
     })
     trading = {...trading,seed:random.seed(),news:trimNews([...liveNews,emergency],at)}
   }
-  const bonus=getRewardRateUnits(v8EarningBonusBps(state,'dividend'))
-  if(bonus===null)throw new RangeError('Invalid dividend bonus')
+  const bonus=v8ExactRewardRate(state,'dividend')
   const carry=trading.dividendCarryPicoCents!==undefined?v(trading.dividendCarryPicoCents):
     BigInt(Math.round(trading.dividendCarry*Number(PICO_CENTS)))
   const pending=v(trading.dividendPendingCents)
-  const earnedPico=v8DividendPicoCents(trading)*bonus/BONUS_RATE_DENOM
+  const earnedPico=v8DividendPicoCents(trading)*bonus.numerator/bonus.denominator
   const total=carry+pending*PICO_CENTS+earnedPico
   const due=total/PICO_CENTS
   const rem=total%PICO_CENTS

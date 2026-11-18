@@ -213,7 +213,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
 
     <section class="ascension-summary" aria-label="Points et cycles de Prestige">
       <div><span>POINTS DISPONIBLES</span><strong>{{ fmt(progress.availablePoints) }} <small>PP</small></strong></div>
-      <div><span>CYCLES PRESTIGE</span><strong>{{ fmt(progress.prestigeCount) }}</strong></div>
+      <div><span>CYCLES PRESTIGE</span><strong>{{ fmt(progress.prestigeCountExact??progress.prestigeCount) }}</strong></div>
       <div><span>AMÉLIORATIONS</span><strong>{{ purchasedLevels }} / {{ totalLevels }}</strong></div>
       <div><span>PP DÉPENSÉS</span><strong>{{ fmt(spentPoints) }}</strong></div>
     </section>

@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passes 1 à 6 validées (6/8)** au 18 novembre 2026. Les passes 7 à 8 restent à faire. Collections V3 et Musée impérial sont actifs ; les reçus PP V3 enregistrent l'état du Musée à chaque Prestige.
+**État :** passe 0.5 validée ; **passes 1 à 7 validées (7/8)** au 18 novembre 2026. La passe 8 reste à faire. Ascension du Fame avec plafond ×(100 + cycles terminés), compteur exact V8 et Prestige Transcendant ultime sur les PP disponibles sont désormais actifs.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -277,6 +277,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** cap ×100/×101/×102/×200/×1100, Fame disponible=0 après reset, Shop incomplet=×1, >10^15 Fame, cycles très élevés et sauvegarde exact/compat, PP réserve 0/1M/1B/10^100, activation uniquement à 7 ×1000, pas d'amplification sur PP/dotation/news, formatage sans NaN/Infinity, performance temps réel. `npm run verify:release` ; commit passe 7 uniquement.
 
+**Suivi — passe 7 validée (18/11/2026) :** plafond Fame absolu calculé depuis une seule source V8 pure, avec cap ×(100 + Prestiges terminés), 120/120 Fame Shop nécessaires et remise à ×1 quand la Fame disponible est nulle. Facteur représenté en arithmétique fixe BigInt (10⁻¹⁵), puissance ×1,01 par 100 Fame calculée par exponentiation bornée logarithmique sans `Number` géant ; conversion de formatage seulement pour les vues. L'état V8 conserve `version: 8` avec `prestigeCountExact` et `cycleExact` optionnels au-delà de `Number.MAX_SAFE_INTEGER` : validation de la continuité exacte des cycles et maintien de la projection numérique historique. Après **sept branches principales à 1 000/1 000**, réserve PP rationalisée exactement par `1 + PP_disponibles / (2 × (PP_disponibles + 1 000 000 000))` strictement inférieure à ×1,5 pour tout solde fini. Bonus uniquement sur cinq branches économiques Transcendant, additionnés au flux de base ; PP d'Héritage, dotation, news, Fame Shop et collections non multipliés. Les valeurs sont dérivées en temps réel, sans nouvel état monétaire. UI Fame Shop, Stats, Prestige et Boutique Transcendant synchronisées. Reçus PP V2/V3 et possessions antérieures conservés, migration/exports V8 sûrs. Validation indépendante : **420 tests métier et 107 tests UI**, `vue-tsc` et Vite verts via `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44257133201)) sur une branche isolée. Workflow temporaire non inclus dans `main`. **Passe 8 non commencée.**
+
 ### Passe 8 — Stabilisation, équilibrage et publication finale
 
 **Objectif.** Valider le parcours complet, nettoyer seulement ce que la refonte rend obsolète et publier une version fiable.
@@ -302,7 +304,7 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 4 | Transcendant Shop, 6 branches actives + Capital préparé pour passe 5, 1 000 niveaux | ✅ Terminé |
 | 5 | Capital de départ attribué au reset | ✅ Terminé |
 | 6 | Collections V3 + Musée impérial | ✅ Terminé |
-| 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
+| 7 | Plafond Fame progressif + bonus ultime PP | ✅ Terminé |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage actualisé (18/11/2026) :** les passes **0.5 et 1 à 6** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 7** (Ascension du Fame et Prestige Transcendant ultime), avec validation complète et commit ; ne pas commencer la passe 8. Une passe incomplète reste signalée comme telle.
+**Démarrage actualisé (18/11/2026) :** les passes **0.5 et 1 à 7** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 8** (stabilisation, équilibrage, vérification du navigateur et publication finale). Ne pas anticiper cette passe sans demande explicite. Toute validation incomplète doit rester signalée.

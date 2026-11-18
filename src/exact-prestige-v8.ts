@@ -11,6 +11,7 @@ import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
 import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} from './ascension/transcendent-v1.ts'
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
+import { nextPrestigeCycle, MAX_SAFE_CYCLE } from './ascension/prestige-count-v8.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
@@ -64,13 +65,15 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   const progress=afterTax.ascension.progress
   const startingCapitalLevelAtCycle=transcendentLevel(progress,'starting-capital')
   const grant=pendingStartingCapitalCents(progress)
-  const nextCycle=progress.prestigeCount+1
-  if(!Number.isSafeInteger(nextCycle))return{ok:false,reason:'cycle-overflow'}
+  const nextCycle=nextPrestigeCycle(progress)
   const nextProgress={...progress,
     availablePoints:s(v(progress.availablePoints)+earnedPoints),
     lifetimePoints:s(v(progress.lifetimePoints)+earnedPoints),
-    prestigeCount:nextCycle,
-    history:[...progress.history,{formulaVersion:3 as const,cycle:nextCycle,completedAtRealMs:at,
+    prestigeCount:nextCycle.prestigeCount,
+    ...(nextCycle.prestigeCountExact!==undefined?{prestigeCountExact:nextCycle.prestigeCountExact}:{}),
+    history:[...progress.history,{formulaVersion:3 as const,cycle:nextCycle.prestigeCount,
+      ...(nextCycle.cycleExact>MAX_SAFE_CYCLE?{cycleExact:s(nextCycle.cycleExact)}:{}),
+      completedAtRealMs:at,
       eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level,
       basePoints:s(reward.base),heritageLevelAtCycle:reward.heritageLevelAtCycle,
       museumCompleteAtCycle:reward.museumCompleteAtCycle,bonusBps:reward.bonusBps,
@@ -93,5 +96,5 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
       run:{...fresh.ascension.run,startingCapitalGrantedCents:s(grant)}},
     achievements:{claimedIds:[...afterTax.achievements.claimedIds],cycleGiftCents:'0'},
   }
-  return{ok:true,state:result,earnedPoints,cycle:nextCycle,worthCents:eligible}
+  return{ok:true,state:result,earnedPoints,cycle:nextCycle.prestigeCount,worthCents:eligible}
 }

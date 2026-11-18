@@ -91,6 +91,8 @@ export interface V8PrestigeState extends Omit<PrestigeState,
   xpRebase?: { readonly fromCents: ExactAmount; readonly toCents: ExactAmount }
 }
 export interface V8CycleSummary extends Omit<AscensionCycleSummary,'eligibleWorthCents'|'earnedPoints'> {
+  /** Canonical receipt index above Number.MAX_SAFE_INTEGER; legacy rows keep numeric cycle. */
+  cycleExact?: ExactAmount
   formulaVersion?: 2 | 3
   eligibleWorthCents: ExactAmount
   earnedPoints: ExactAmount
@@ -110,6 +112,8 @@ export interface V8AscensionProgress extends Omit<AscensionProgress,'availablePo
   legacyRanks?: AscensionProgress['upgradeLevels']
   /** Versioned exact-PP advanced shop; missing on old V8 saves means zero ranks. */
   transcendentV1?: TranscendentShopV1
+  /** Optional canonical cycle counter after 2^53-1. prestigeCount becomes a safe projection. */
+  prestigeCountExact?: ExactAmount
   history: readonly V8CycleSummary[]
 }
 export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {

@@ -5,9 +5,11 @@ import {
   TRANSCENDENT_MAIN_PRESENTATION, TRANSCENDENT_NEWS_PRESENTATION,
   TRANSCENDENT_MAX_LEVEL, transcendentLevel, transcendentNextCost,
   transcendentSpent, transcendentHeritageBps, pendingStartingCapitalCents,
+  transcendentReserveRatio, transcendentUltimateUnlocked,
   type TranscendentId,
 } from '../ascension/transcendent-v1.ts'
 import { formatCompactUnits } from '../large-numbers.ts'
+import { FAME_FACTOR_SCALE, formatFameFactor } from '../prestige/absolute-v8.ts'
 
 const props=defineProps<{
   exact:V8CapitalState
@@ -20,6 +22,7 @@ const notice=ref('')
 const error=ref(false)
 const integer=new Intl.NumberFormat('fr-CH',{maximumFractionDigits:0})
 const fmt=(value:bigint|string|number)=>integer.format(typeof value==='string'?BigInt(value):value)
+const grouped=(value:number)=>integer.format(value).replace(/[^0-9]/g,' ')
 const progress=computed(()=>props.exact.ascension.progress)
 const points=computed(()=>BigInt(progress.value.availablePoints))
 const transcendentSpentPP=computed(()=>transcendentSpent(progress.value.transcendentV1)??0n)
@@ -27,6 +30,12 @@ const totalRanks=computed(()=>[...TRANSCENDENT_MAIN_PRESENTATION,...TRANSCENDENT
   .reduce((total,row)=>total+transcendentLevel(progress.value,row.id),0))
 const heritageBps=computed(()=>transcendentHeritageBps(progress.value))
 const startingCapitalPreview=computed(()=>pendingStartingCapitalCents(progress.value))
+const ultimateUnlocked=computed(()=>transcendentUltimateUnlocked(progress.value))
+const reserveRatio=computed(()=>transcendentReserveRatio(progress.value))
+const reserveFactor=computed(()=>formatFameFactor(
+  reserveRatio.value.numerator*FAME_FACTOR_SCALE/reserveRatio.value.denominator).replace('.', ','))
+const mainTotal=computed(()=>TRANSCENDENT_MAIN_PRESENTATION.reduce((sum,row)=>
+  sum+transcendentLevel(progress.value,row.id),0))
 function offer(id:TranscendentId){
   const rank=transcendentLevel(progress.value,id)
   const locked=false
@@ -73,15 +82,22 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
       <div><span>PP DISPONIBLES</span><strong>{{ fmt(points) }}</strong></div>
       <div><span>PP TRANSCENDANT DÉPENSÉS</span><strong>{{ fmt(transcendentSpentPP) }}</strong></div>
       <div><span>NIVEAUX ACHETÉS</span><strong>{{ fmt(totalRanks) }}/10 000</strong></div>
-      <div><span>PRESTIGES</span><strong>{{ fmt(progress.prestigeCount) }}</strong></div>
+      <div><span>PRESTIGES</span><strong>{{ fmt(progress.prestigeCountExact??progress.prestigeCount) }}</strong></div>
     </div>
+    <section class="transcendent-ultimate" :class="{'is-unlocked':ultimateUnlocked}"
+      aria-label="Prestige Transcendant ultime" data-ultimate-reserve>
+      <strong>Prestige Transcendant ultime · {{ grouped(mainTotal) }}/7 000</strong>
+      <span v-if="ultimateUnlocked">DÉBLOQUÉ — Réserve {{ fmt(points) }} PP · facteur ×{{ reserveFactor }}</span>
+      <span v-else>Débloqué gratuitement à 7 × 1 000 niveaux sur les sept branches principales.</span>
+      <small>Le facteur de réserve est inférieur à ×1,5 et ne renforce que les cinq bonus économiques. Aucun effet sur PP, capital initial ou news.</small>
+    </section>
     <div class="ascension-scroll">
       <section class="transcendent-main" aria-label="Sept branches principales">
         <div class="ascension-shop-heading">
           <div><span class="ascension-eyebrow">BOUTIQUE TRANSCENDANTE</span><h2>Sept branches principales</h2></div>
           <span>1 000 niveaux / branche</span>
         </div>
-        <p class="transcendent-small">Les cinq bonus de gains et l'Héritage s'ajoutent aux bonus existants. Les effets sont permanents et ne sont jamais réappliqués rétroactivement. Aucun bonus ultime n'est actif avant sa passe dédiée.</p>
+        <p class="transcendent-small">Les cinq bonus de gains et l'Héritage s'ajoutent aux bonus existants. Les effets sont permanents et ne sont jamais réappliqués rétroactivement. Le bonus ultime s'active automatiquement lorsque les sept branches principales atteignent 1 000.</p>
         <article v-for="row in main" :key="row.id" class="ascension-upgrade"
           :class="{'transcendent-disabled':row.locked}" :data-transcendent="row.id">
           <div class="ascension-upgrade-top">
@@ -135,7 +151,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
           </div>
         </article>
       </section>
-      <p class="ascension-endnote">Le Capital de départ n'est attribué qu'après chaque Prestige, sans taxe ni XP, Fame ou PP immédiats. Son principal reste exclu de l'assiette des PP au cycle suivant. Le bonus ultime arrivera plus tard.</p>
+      <p class="ascension-endnote">Le Capital de départ n'est attribué qu'après chaque Prestige, sans taxe ni XP, Fame ou PP immédiats. Son principal reste exclu de l'assiette des PP au cycle suivant. Le bonus ultime utilise les PP disponibles sans les consommer et suit immédiatement le solde.</p>
     </div>
     <footer class="ascension-footer" aria-live="polite">
       <p v-if="notice" class="ascension-notice transcendent-notice" :class="{'is-error':error}" role="status">{{ notice }}</p>
