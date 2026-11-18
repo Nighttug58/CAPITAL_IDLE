@@ -8,7 +8,7 @@ import { validateExactV8State } from '../exact-save-validation.ts'
 const now=1_800_000_000_000
 const valid=(state:ReturnType<typeof createV8CapitalState>)=>validateExactV8State(state,id=>getAsset(id)?.quantityDecimals??null)
 
-test('buy far beyond former global supply with exact cents, no slippage or market impact',()=>{
+test('buy far beyond former global supply with exact cents and strong market impact',()=>{
   for(const id of ['nvideo','bitcoin','turbo','shiba-inu'] as const){
     const asset=getAsset(id)!
     const initial=createV8CapitalState(now)
@@ -22,13 +22,15 @@ test('buy far beyond former global supply with exact cents, no slippage or marke
     if(!response.ok)continue
     assert.equal(v(response.state.trading.positions[id]!.quantity),BigInt(requested)*10n**BigInt(asset.quantityDecimals))
     assert.equal(v(response.state.game.balance),cash-response.cashDeltaCents*-1n)
-    assert.deepEqual(response.state.trading.quotes,state.trading.quotes)
+    assert.ok(response.state.trading.quotes[id]!.price > asset.referencePrice, 'buy moves price')
     assert.ok(valid(response.state).valid,valid(response.state).reason)
     const sell=v8SellTrade(response.state,id,requested)
     assert.equal(sell.ok,true)
     if(sell.ok){
       assert.equal(sell.state.trading.positions[id],undefined)
-      assert.deepEqual(sell.state.trading.quotes,response.state.trading.quotes)
+      assert.ok(Math.abs(sell.state.trading.quotes[id]!.price / asset.referencePrice - 1) < 1e-10,
+        'liquidation reverses the order impact without artificial price caps')
+      assert.ok(v(sell.state.game.balance) < cash, 'round trip pays fees')
       assert.ok(valid(sell.state).valid,valid(sell.state).reason)
     }
   }

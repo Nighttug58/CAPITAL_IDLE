@@ -113,7 +113,8 @@ test('Enterprise income adds +300% on the same untaxed base, tax accrued once at
   const baseEarn=BigInt(one.stats.earnedBySource.enterprises)
   const topEarn=BigInt(four.stats.earnedBySource.enterprises)
   assert.ok(baseEarn>0n)
-  assert.ok(topEarn>=baseEarn*4n-2n && topEarn<=baseEarn*4n+2n)
+  assert.ok(topEarn>=baseEarn*4n-2n && topEarn<=baseEarn*4n+2n,
+    `empire +300%: base=${baseEarn} boosted=${topEarn}, ratio scaled=${topEarn*1000n/baseEarn}`)
   assert.ok(BigInt(four.fiscal.taxesDueCents)>BigInt(one.fiscal.taxesDueCents))
   assert.equal(BigInt(four.fiscal.dueBySourceCents.enterprises),BigInt(four.fiscal.taxesDueCents))
   assert.equal(four.stats.clickCount,one.stats.clickCount)
