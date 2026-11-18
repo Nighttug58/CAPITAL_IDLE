@@ -13,6 +13,7 @@ import { FAME_BOOST_BPS_PER_LEVEL, FAME_BOOST_IDS, currentCollectionId, getColle
   getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
+import { collectionV3BonusBps, collectionV3Snapshot } from './prestige/collections-v3.ts'
 import {transcendentEconomicBps} from './ascension/transcendent-v1.ts'
 import { getAsset } from './trading/catalog.ts'
 import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
@@ -31,11 +32,7 @@ const TAX_BPS = 1_500n
 
 /** Fame Shop bonuses are amplified by the existing Prestige absolu, not collections. */
 export function v8BonusBasisPoints(state: V8CapitalState, id: FameBoostId): number {
-  let collectionBps = 0
-  for (const item of state.prestige.ownedCollectionIds) {
-    const collection = getCollectionSlot(item)
-    if (collection?.boostId === id) collectionBps += collection.bonusBps
-  }
+  const collectionBps = collectionV3BonusBps(collectionV3Snapshot(state.prestige.ownedCollectionIds), id)
   let factor = 1
   if (FAME_BOOST_IDS.every(key => state.prestige.boosts[key] === 20)) {
     const steps = v(state.prestige.fameMicros) / 100_000_000n
