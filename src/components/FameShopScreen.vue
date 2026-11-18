@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
-import { FAME_BOOSTS, getV2NextFameBoostCost, FAME_BOOST_BPS_PER_LEVEL, type FameBoostId } from '../prestige/catalog.ts'
+import { FAME_BOOSTS, getV2NextFameBoostCost, FAME_BOOST_BPS_PER_LEVEL } from '../prestige/catalog.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount } from '../exact-state-v8.ts'
 import { formatFameMicros } from '../large-numbers.ts'
@@ -60,7 +60,7 @@ const fameStepsText = computed(() => exactAbsolute.value ?
   formatCompactUnits(exactAbsolute.value.fameSteps, 0, '') : numeric.format(absolute.value.fameSteps))
 const nextStepText = computed(() => exactAbsolute.value ?
   formatFameMicros(exactAbsolute.value.nextStepAtFameMicros) : numeric.format(absolute.value.nextStepAtFame))
-const exactShopBonus = (boost: FameBoostId, baseBps:number) => {
+const exactShopBonus = (baseBps:number) => {
   const status=exactAbsolute.value
   if(!status || !props.exactState)return percentage(baseBps*absolute.value.factor)
   return formatExactBasisPoints(BigInt(baseBps)*status.factorUnits, FAME_FACTOR_SCALE)
@@ -130,7 +130,7 @@ onMounted(() => { void nextTick(() => returnButton.value?.focus()) })
           </div>
           <div class="fame-boost-meta">
             <span>Shop : <b>+{{ percentage(row.offer.currentBonusBps) }}</b></span>
-            <span v-if="absoluteUnlocked">Shop avec Prestige : <b>+{{ exactShopBonus(row.boost.id, row.offer.currentBonusBps) }}</b></span>
+            <span v-if="absoluteUnlocked">Shop avec Prestige : <b>+{{ exactShopBonus(row.offer.currentBonusBps) }}</b></span>
             <span v-if="row.collectionBonus > 0">Collection : <b>+{{ percentage(row.collectionBonus) }}</b></span>
             <span v-if="row.offer.nextBonusBps !== null">Prochain : <b>+{{ percentage(row.offer.nextBonusBps) }}</b></span>
             <span v-else class="fame-boost-max">Bonus au maximum</span>
