@@ -6,11 +6,13 @@ import {
   collectionRarity, collectionV3BonusBps, collectionV3Snapshot,
 } from './collections-v3.ts'
 import { createV8CapitalState } from '../exact-state-v8.ts'
-import { v8BuyCollection, v8Click, v8CreditIncome, v8BonusBasisPoints, v8EarningBonusBps } from '../exact-runtime-v8.ts'
+import { v8BuyCollection, v8Click, v8CreditIncome, v8BonusBasisPoints, v8EarningBonusBps, v8BuyTrade, v8SellTrade, v8AccrueEnterpriseUntil } from '../exact-runtime-v8.ts'
 import { v8PerformPrestige, v8PrestigeRewardPreview } from '../exact-prestige-v8.ts'
 import { validateExactV8State } from '../exact-save-validation.ts'
 import { exportV8Save, prepareV8SaveImport } from '../exact-persistence-v8.ts'
-import { getAsset } from '../trading/catalog.ts'
+import { getAsset, createInitialQuotes } from '../trading/catalog.ts'
+import { v8AdvanceMarketSecond } from '../exact-market-v8.ts'
+import { v8SettleStaking } from '../exact-staking-v8.ts'
 
 const AT = 1_800_000_000_000
 const assetDecimals = (id: string) => getAsset(id)?.quantityDecimals ?? null
@@ -127,4 +129,81 @@ test('100 real purchases activate museum PP in immutable V3 receipt; old receipt
   const missingMuseum = JSON.parse(exported)
   missingMuseum.state.prestige.ownedCollectionIds.pop()
   assert.equal(prepareV8SaveImport(JSON.stringify(missingMuseum), AT).ok, false)
+})
+
+test('Museum scales enterprise income, dividends, staking rewards and only positive trading profit', () => {
+  const base = v8CreditIncome(createV8CapitalState(AT), 'clicks', 10n**13n)
+  const museum = (state: typeof base) => ({
+    ...state, prestige: { ...state.prestige, ownedCollectionIds: ids },
+  })
+  const enterprise = { ...base, enterprises: { ...base.enterprises, owned: {
+    kiosque: { level: 50, investedCents: '10000000000' },
+  } } }
+  const normalEnterprise = v8AccrueEnterpriseUntil(enterprise, AT + 3_600_000)
+  const museumEnterprise = v8AccrueEnterpriseUntil(museum(enterprise), AT + 3_600_000)
+  assert.ok(BigInt(normalEnterprise.stats.earnedBySource.enterprises) > 0n)
+  assert.ok(BigInt(museumEnterprise.stats.earnedBySource.enterprises) >
+    2n * BigInt(normalEnterprise.stats.earnedBySource.enterprises))
+  assert.ok(BigInt(museumEnterprise.fiscal.taxesDueCents) >
+    BigInt(normalEnterprise.fiscal.taxesDueCents))
+
+  const quote = base.trading.quotes.nvideo ?? createInitialQuotes(AT).nvideo!
+  const dividend = { ...base, trading: { ...base.trading,
+    positions: { nvideo: { quantity: (10n**15n).toString(), costBasis: '0' } },
+    quotes: { ...base.trading.quotes, nvideo: { ...quote, dividendYield: 0.1 } },
+  } }
+  const normalDiv = v8AdvanceMarketSecond(dividend)
+  const museumDiv = v8AdvanceMarketSecond(museum(dividend))
+  assert.ok(BigInt(normalDiv.stats.earnedBySource.dividends) > 0n)
+  assert.ok(BigInt(museumDiv.stats.earnedBySource.dividends) >
+    2n * BigInt(normalDiv.stats.earnedBySource.dividends))
+
+  const coin = getAsset('ethereum')!
+  const units = 10n**BigInt(coin.quantityDecimals + 15)
+  const entry = {
+    locked: units.toString(), unlocking: '0', unlockAt: null,
+    awaitingCompound: '0', rewardHeld: '0', rewardLocked: '0', rewardUnlocking: '0',
+    carryUnits: 0, carryPicoUnits: '0', lifetimeRewards: '0',
+  }
+  const staking = { ...base, ascension: { ...base.ascension, progress: {
+    ...base.ascension.progress, upgradeLevels: {
+      ...base.ascension.progress.upgradeLevels, 'crypto-staking': 1,
+    },
+  } }, trading: { ...base.trading,
+    positions: { ethereum: { quantity: units.toString(), costBasis: '0' } },
+    staking: { lastAccruedAt: AT, positions: { ethereum: entry } },
+  } }
+  const normalStake = v8SettleStaking(staking, AT + 3_600_000)
+  const museumStake = v8SettleStaking(museum(staking), AT + 3_600_000)
+  const ordinaryUnits = BigInt(normalStake.trading.staking.positions.ethereum!.lifetimeRewards)
+  const museumUnits = BigInt(museumStake.trading.staking.positions.ethereum!.lifetimeRewards)
+  assert.ok(ordinaryUnits > 0n)
+  assert.ok(museumUnits >= 2n * ordinaryUnits - 3n && museumUnits <= 2n * ordinaryUnits + 3n,
+    'Museum adds exactly 100% token rewards, not a second compounding pass')
+  assert.equal(normalStake.game.balance, museumStake.game.balance)
+
+  const bought = v8BuyTrade(base, 'nvideo', '10')
+  assert.ok(bought.ok)
+  if (!bought.ok) return
+  const originalQuote = bought.state.trading.quotes.nvideo ?? createInitialQuotes(AT).nvideo!
+  const high = { ...bought.state, trading: { ...bought.state.trading, quotes: {
+    ...bought.state.trading.quotes, nvideo: { ...originalQuote, price: originalQuote.price * 2 },
+  } } }
+  const normalGain = v8SellTrade(high, 'nvideo', '10')
+  const museumGain = v8SellTrade(museum(high), 'nvideo', '10')
+  assert.ok(normalGain.ok && museumGain.ok)
+  if (!normalGain.ok || !museumGain.ok) return
+  assert.ok(normalGain.realizedNetProfitCents > 0n)
+  assert.ok(museumGain.realizedNetProfitCents > normalGain.realizedNetProfitCents * 2n)
+  assert.equal(museumGain.grossCents, normalGain.grossCents)
+  assert.equal(museumGain.feeCents, normalGain.feeCents)
+  const low = { ...bought.state, trading: { ...bought.state.trading, quotes: {
+    ...bought.state.trading.quotes, nvideo: { ...originalQuote, price: originalQuote.price / 2 },
+  } } }
+  const plainLoss = v8SellTrade(low, 'nvideo', '10')
+  const museumLoss = v8SellTrade(museum(low), 'nvideo', '10')
+  assert.ok(plainLoss.ok && museumLoss.ok)
+  if (!plainLoss.ok || !museumLoss.ok) return
+  assert.equal(museumLoss.realizedNetProfitCents, plainLoss.realizedNetProfitCents)
+  assert.equal(museumLoss.cashDeltaCents, plainLoss.cashDeltaCents)
 })
