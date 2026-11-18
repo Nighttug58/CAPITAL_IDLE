@@ -17,6 +17,7 @@ import { getNewsTemplate } from './trading/news.ts'
 import { getExactLevel, getExactV3Level, rebaseV3ExperienceCents } from './exact-levels.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot } from './prestige/catalog.ts'
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
+import { MAX_SAFE_CYCLE, projectedPrestigeCycle } from './ascension/prestige-count-v8.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
 
@@ -262,7 +263,15 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   if (!Array.isArray(progress.history) || typeof progress.prestigeCount !== 'number' ||
       !Number.isSafeInteger(progress.prestigeCount) || progress.prestigeCount < 0)
     return fail('Missing prestige history')
-  if(grantCents>0n && progress.prestigeCount===0)
+  // The numeric counter remains a bounded V8 projection; after 2^53-1
+  // its optional canonical decimal string and each new receipt are exact.
+  const preciseCycles=progress.prestigeCountExact===undefined
+    ? BigInt(progress.prestigeCount) : amount(progress.prestigeCountExact)
+  if(preciseCycles===null ||
+    (progress.prestigeCountExact!==undefined &&
+      (preciseCycles<=MAX_SAFE_CYCLE || progress.prestigeCount!==Number.MAX_SAFE_INTEGER)))
+    return fail('Invalid exact Prestige cycle counter')
+  if(grantCents>0n && preciseCycles===0n)
     return fail('Starting capital granted without Prestige cycle')
   if(progress.shopVersion===2){
     const ranks=progress.upgradeLevels as Record<string,number>
@@ -272,8 +281,13 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   }
   let pointsInHistory=0n
   for (const [index, item] of progress.history.entries()) {
-    if (!object(item) || amount(item.eligibleWorthCents) === null || amount(item.earnedPoints) === null ||
-      !Number.isSafeInteger(item.cycle) || item.cycle !== progress.prestigeCount - progress.history.length + index + 1)
+    const expectedCycle=preciseCycles-BigInt(progress.history.length)+BigInt(index)+1n
+    if (!object(item) || expectedCycle<1n || amount(item.eligibleWorthCents) === null ||
+      amount(item.earnedPoints) === null || !Number.isSafeInteger(item.cycle) ||
+      item.cycle !== projectedPrestigeCycle(expectedCycle) ||
+      (expectedCycle>MAX_SAFE_CYCLE
+        ? amount(item.cycleExact)!==expectedCycle
+        : item.cycleExact!==undefined))
       return fail('Invalid prestige history')
     const total=amount(item.earnedPoints)!
     const worth=amount(item.eligibleWorthCents)!
@@ -325,7 +339,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   if(progress.history.length===0 && grantCents!==0n)
     return fail('Starting capital without historical receipt')
   if(pointsInHistory>lifetimePP||
-    (progress.prestigeCount<=100 && pointsInHistory!==lifetimePP))
+    (preciseCycles<=100n && pointsInHistory!==lifetimePP))
     return fail('Prestige lifetime reward ledger mismatch')
   const dividendCarry = amount(t.dividendCarryPicoCents)
   if (dividendCarry === null || dividendCarry >= 1_000_000_000_000n)
