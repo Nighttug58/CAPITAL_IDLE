@@ -5,6 +5,7 @@ import { quantityStringToUnits, quoteToExactFraction } from './exact-trading.ts'
 import { getAsset } from './trading/catalog.ts'
 import { stakingBaseRate, STAKING_COMPOUND_MS, STAKING_OFFLINE_CAP_MS, STAKING_UNLOCK_MS } from './trading/staking.ts'
 import {transcendentEconomicBps} from './ascension/transcendent-v1.ts'
+import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 
 const PICO=1_000_000_000_000n
 const HOUR_MS=3_600_000n
@@ -22,7 +23,8 @@ export function v8SettleStaking(state:V8CapitalState,at:number):V8CapitalState {
   const start=Math.max(source.lastAccruedAt,at-STAKING_OFFLINE_CAP_MS)
   const autoCompound=state.ascension.progress.upgradeLevels['auto-compound']>0
   const level=state.ascension.progress.upgradeLevels['staking-yield']
-  const rentierBps=transcendentEconomicBps(state.ascension.progress,'rentier')
+  const rentierBps=transcendentEconomicBps(state.ascension.progress,'rentier')+
+    collectionV3Snapshot(state.prestige.ownedCollectionIds).museumIncomeBps
   const positions:{[key:string]:V8Position}={...state.trading.positions}
   const locks:{[key:string]:V8StakingEntry}={}
   for(const [id,old]of Object.entries(source.positions)){
