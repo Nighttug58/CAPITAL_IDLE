@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { BANKNOTE_FPS, BANKNOTE_FRAME_COUNT, BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from '../bill-animation.ts'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'

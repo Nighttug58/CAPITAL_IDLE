@@ -243,8 +243,8 @@ describe('Trading interface mobile',()=>{
     // Lecture directe : le chargement CSS de Vitest en jsdom peut renvoyer une chaîne vide.
     const clickerStyles = readFileSync('src/style.css', 'utf8')
     expect(clickerStyles).toContain('@keyframes coin-rise')
-    expect(clickerStyles).toContain('transform: translate(-50%, -120px)')
-    expect(clickerStyles).toContain('gain-reduced-rise 1100ms')
+    expect(clickerStyles).toContain('transform: translate(-50%, -90px)')
+    expect(clickerStyles).toContain('gain-reduced-rise 600ms')
     expect(clickerStyles).toContain('transform: translate(-50%, -72px)')
     expect(clickerStyles).not.toContain('gain-static')
   })
