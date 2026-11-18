@@ -1,6 +1,6 @@
 import { ASSETS } from './catalog.ts'
 import { getSparklineSamples } from './market.ts'
-import type { AssetDefinition, PriceSample, TradingState } from './types.ts'
+import type { AssetDefinition, MarketQuote, PriceSample, TradingState } from './types.ts'
 
 export type Direction = 'up' | 'down' | 'flat'
 export interface AssetRow {
@@ -48,6 +48,26 @@ export function formatRemaining(endsAt: number, now: number): string {
   return secs === 0 ? 'Terminé' : Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0')
 }
 
+/** UI-only live tip. At accelerated market speeds quotes can move every real
+ * second while persisted 1h history is sampled every 5s (720 points). Show
+ * the authoritative current quote immediately without increasing save size.
+ * Never mutate historical samples or duplicate a timestamp. */
+export function withLiveQuote(samples: readonly PriceSample[], quote?: MarketQuote): readonly PriceSample[] {
+  if (!quote || !Number.isFinite(quote.price) || quote.price <= 0 ||
+      !Number.isSafeInteger(quote.updatedAt) || samples.length === 0) return samples
+  const last = samples[samples.length - 1]!
+  if (quote.updatedAt < last.at ||
+      (quote.updatedAt === last.at && quote.price === last.price)) return samples
+  const current: PriceSample = {
+    at: quote.updatedAt,
+    price: quote.price,
+    ...(quote.dividendYield !== null ? { dividendYield: quote.dividendYield } : {}),
+  }
+  return quote.updatedAt === last.at
+    ? [...samples.slice(0, -1), current]
+    : [...samples, current]
+}
+
 export function sparklinePoints(series: readonly PriceSample[], width = 112, height = 34, maxPoints = 40): string {
   if (series.length < 2) return ''
   const samples = getSparklineSamples(series, maxPoints)
@@ -74,6 +94,6 @@ export function getAssetRows(
       const changePercent = baseline !== undefined && baseline > 0 ? (price / baseline - 1) * 100 : null
       const direction: Direction = changePercent === null || Math.abs(changePercent) < 1e-10
         ? 'flat' : changePercent > 0 ? 'up' : 'down'
-      return { asset, price, changePercent, direction, sparkline: sparklinePoints(series) }
+      return { asset, price, changePercent, direction, sparkline: sparklinePoints(withLiveQuote(series, quotes[asset.id])) }
     })
 }

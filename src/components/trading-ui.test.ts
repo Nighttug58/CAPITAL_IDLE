@@ -8,6 +8,7 @@ import NewsPreview from './NewsPreview.vue'
 import { getNewsPresentation } from '../trading/news.ts'
 import { createCapitalState, type CapitalState } from '../capital.ts'
 import { createInitialQuotes } from '../trading/catalog.ts'
+import { formatPrice } from '../trading/presentation.ts'
 import { buyAsset, sellAsset, type TradeResult, type TradeSide } from '../trading/trades.ts'
 import type { MarketNews } from '../trading/types.ts'
 
@@ -54,6 +55,44 @@ describe('Trading interface mobile',()=>{
     expect(wrapper.findAll('button.market-asset-row')).toHaveLength(25)
     await tab(wrapper,0)
     expect(wrapper.find('.portfolio-panel').exists()).toBe(true)
+  })
+  it('actualise les mini-graphiques et la courbe détaillée dès chaque cotation accélérée',async()=>{
+    const {wrapper}=setup()
+    const state=wrapper.props('state') as CapitalState
+    const quote=state.trading.quotes.nvideo!
+    const baseline=quote.price
+    const history=[{at:NOW-5_000,price:baseline},{at:NOW,price:baseline}]
+    await wrapper.setProps({state:{...state,trading:{
+      ...state.trading,history:{...state.trading.history,nvideo:history},
+    }}})
+    await tab(wrapper,1)
+    const row=wrapper.findAll('button.market-asset-row')
+      .find(element=>element.attributes('aria-label')?.includes('Nvideo'))!
+    expect(row).toBeDefined()
+    const initialSparkline=row.find('.sparkline polyline').attributes('points')
+    await row.trigger('click')
+    const chart=wrapper.find('.trading-asset-modal .market-chart')
+    const initialPolyline=chart.find('svg polyline').attributes('points')
+    const livePrice=baseline*1.4
+    const liveQuote={...quote,updatedAt:NOW+1_000,price:livePrice}
+    const next=wrapper.props('state') as CapitalState
+    await wrapper.setProps({state:{...next,trading:{
+      ...next.trading,quotes:{...next.trading.quotes,nvideo:liveQuote},
+    }}})
+    expect(row.find('.sparkline polyline').attributes('points')).not.toBe(initialSparkline)
+    expect(chart.find('svg polyline').attributes('points')).not.toBe(initialPolyline)
+    expect(chart.find('svg g[color] text').text()).toBe(formatPrice(livePrice))
+    expect(wrapper.find('.trading-asset-modal .asset-detail-quote strong').text()).toBe(formatPrice(livePrice))
+    // A second fluctuation must update both charts before the next 5-second sample.
+    const falling=baseline*0.6
+    const nextState=wrapper.props('state') as CapitalState
+    const beforeSecond=chart.find('svg polyline').attributes('points')
+    await wrapper.setProps({state:{...nextState,trading:{
+      ...nextState.trading,quotes:{...nextState.trading.quotes,nvideo:{...liveQuote,price:falling,updatedAt:NOW+2_000}},
+    }}})
+    expect(chart.find('svg polyline').attributes('points')).not.toBe(beforeSecond)
+    expect(chart.find('svg g[color] text').text()).toBe(formatPrice(falling))
+    expect(history).toHaveLength(2)
   })
   it('achète puis vend MAX avec commissions sur le solde partagé',async()=>{
     const {wrapper,getState}=setup()

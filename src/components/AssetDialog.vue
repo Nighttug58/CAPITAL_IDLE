@@ -4,7 +4,7 @@ import { computed, ref, watch, onMounted } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import { getAsset } from '../trading/catalog.ts'
 import { getNewsPresentation } from '../trading/news.ts'
-import { formatCash, formatChange, formatPrice, formatQuantity, formatRate } from '../trading/presentation.ts'
+import { formatCash, formatChange, formatPrice, formatQuantity, formatRate, withLiveQuote } from '../trading/presentation.ts'
 import { buyAsset, feeRate, getQuickQuantity, sellAsset } from '../trading/trades.ts'
 import type { TradeResult, TradeSide, TradeFraction } from '../trading/trades.ts'
 import { parseTradeQuantity, formatEditableQuantity } from '../trading/order-ui.ts'
@@ -29,7 +29,9 @@ const quote = computed(() => props.state.trading.quotes[props.assetId])
 const currentPrice = computed(() => quote.value?.price ?? asset.value.referencePrice)
 const position = computed(() => props.state.trading.positions[props.assetId])
 const owned = computed(() => position.value?.quantity ?? 0)
-const samples = computed(() => props.state.trading.history[props.assetId] ?? [])
+const samples = computed(() => withLiveQuote(
+  props.state.trading.history[props.assetId] ?? [], quote.value,
+))
 const firstPrice = computed(() => samples.value[0]?.price)
 const change = computed(() => firstPrice.value ? (currentPrice.value / firstPrice.value - 1) * 100 : null)
 const news = computed(() => props.state.trading.news.filter(n => n.affectedAssetIds.includes(props.assetId)))

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { ASSETS, createInitialQuotes } from './catalog.ts'
 import {
   formatCash, formatPrice, formatPerSecond, formatQuantity, formatRate, formatChange, formatRemaining,
-  getAssetRows, sparklinePoints,
+  getAssetRows, sparklinePoints, withLiveQuote,
 } from './presentation.ts'
 import type { PriceSample } from './types.ts'
 
@@ -42,6 +42,42 @@ test('variation depuis la première cotation de l historique, hausse et baisse',
   const down = getAssetRows('stock', quote, { nvideo: [{ at: NOW, price: a.price }, { at: NOW + 5_000, price: a.price * .5 }] }).find((row) => row.asset.id === 'nvideo')!
   assert.ok(Math.abs(down.changePercent! + 50) < 1e-10)
   assert.equal(down.direction, 'down')
+})
+
+test('les graphiques suivent la cotation de chaque seconde sans grossir ni modifier l historique sauvegardé', () => {
+  const quotes = createInitialQuotes(NOW)
+  const initial = quotes.nvideo!
+  const samples: PriceSample[] = [
+    { at: NOW - 5_000, price: initial.price },
+    { at: NOW, price: initial.price },
+  ]
+  const rising = { ...initial, price: initial.price * 1.5, updatedAt: NOW + 1_000 }
+  const live = withLiveQuote(samples, rising)
+  assert.equal(live.length, 3)
+  assert.equal(live.at(-1)!.at, NOW + 1_000)
+  assert.equal(live.at(-1)!.price, rising.price)
+  assert.equal(samples.length, 2)
+  assert.equal(samples.at(-1)!.price, initial.price)
+  assert.notEqual(sparklinePoints(live), sparklinePoints(samples))
+  assert.ok(sparklinePoints(live).endsWith('110.00,2.00'))
+
+  const falling = { ...rising, price: initial.price * 0.7, updatedAt: NOW + 2_000 }
+  const newer = withLiveQuote(samples, falling)
+  assert.equal(newer.length, 3)
+  assert.equal(newer.at(-1)!.at, NOW + 2_000)
+  assert.ok(sparklinePoints(newer).endsWith('110.00,32.00'))
+  const row = getAssetRows('stock', { ...quotes, nvideo: falling }, { nvideo: samples })
+    .find((item) => item.asset.id === 'nvideo')!
+  assert.equal(row.price, falling.price)
+  assert.equal(row.sparkline, sparklinePoints(newer))
+
+  const sameTime = withLiveQuote(samples, { ...rising, updatedAt: NOW })
+  assert.equal(sameTime.length, samples.length)
+  assert.equal(sameTime.at(-1)!.price, rising.price)
+  assert.equal(withLiveQuote(samples, initial), samples)
+  assert.equal(withLiveQuote(samples, { ...rising, updatedAt: NOW - 10_000 }), samples)
+  assert.equal(withLiveQuote([], rising).length, 0)
+  assert.equal(withLiveQuote(samples, { ...rising, price: Infinity }), samples)
 })
 
 test('mini-graphe : SVG borné, ordre des points et conservation des extrêmes', () => {
