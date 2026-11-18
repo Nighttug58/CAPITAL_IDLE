@@ -54,6 +54,33 @@ describe('Navigation horizontale V1',()=>{
     expect(w.find('main.collection-screen').exists()).toBe(false)
     expect(w.find('main.achievements-screen').exists()).toBe(false)
   })
+  it('keeps secondary tabs fixed on vertical scroll and attached to sliding pages',async()=>{
+    const css=readFileSync('src/style.css','utf8')
+    const rule=css.slice(css.indexOf('/* Fixed secondary navigation.'))
+    expect(rule).toMatch(/\\.app-shell > main :is\\(\\.trading-tabs,\\.collection-tabs,\\.prestige-tabs\\) \\{[^}]*position:fixed/)
+    expect(rule).toMatch(/bottom:var\\(--nav-height\\)/)
+    expect(rule).toMatch(/main\\[style\\*=\"translate3d\"\\][^{]*\\{\\s*bottom:0;/)
+    const sheet=document.createElement('style')
+    sheet.textContent=rule
+    document.head.append(sheet)
+    try {
+      const w=openApp()
+      const trading=w.find('main.trading-screen')
+      const tradingTabs=trading.find('.trading-tabs')
+      expect(getComputedStyle(tradingTabs.element).position).toBe('fixed')
+      ;(trading.element as HTMLElement).scrollTop=350
+      expect(getComputedStyle(tradingTabs.element).position).toBe('fixed')
+      ;(trading.element as HTMLElement).style.transform='translate3d(20px,0,0)'
+      expect(getComputedStyle(tradingTabs.element).bottom).toBe('0px')
+      ;(trading.element as HTMLElement).style.transform=''
+      await w.find('.prestige-launch').trigger('click')
+      expect(getComputedStyle(w.find('main.ascension-screen .prestige-tabs').element).position).toBe('fixed')
+      await w.findAll('.bottom-nav button')[3]!.trigger('click')
+      expect(getComputedStyle(w.find('main.collection-screen .collection-tabs').element).position).toBe('fixed')
+    } finally {
+      sheet.remove()
+    }
+  })
   it('accepts horizontal swipes, rejects vertical scrolling and does not wrap',async()=>{
     const w=openApp()
     const home=w.find('main.home-screen').element
