@@ -9,7 +9,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { createV8CapitalState } from '../src/exact-state-v8.ts'
-import { v8CreditIncome } from '../src/exact-runtime-v8.ts'
+import { v8CreditIncome, v8BuyCollection } from '../src/exact-runtime-v8.ts'
 import { CURRENT_COLLECTION_SLOTS } from '../src/prestige/catalog.ts'
 import { transcendentSpent, zeroTranscendentV1,
   TRANSCENDENT_MAIN_IDS } from '../src/ascension/transcendent-v1.ts'
@@ -22,14 +22,18 @@ const output='artifacts/pass8-browser'
 mkdirSync(output,{recursive:true})
 const now=Date.now()
 const fresh=createV8CapitalState(now)
-const source=v8CreditIncome(fresh,'clicks',10n**24n)
+let source=v8CreditIncome(fresh,'clicks',10n**32n)
+for(const row of CURRENT_COLLECTION_SLOTS){
+  const bought=v8BuyCollection(source,row.id)
+  assert.ok(bought,'Could not acquire '+row.id)
+  source=bought
+}
 const transcendent=zeroTranscendentV1()
 const full={version:1,levels:{...transcendent.levels,
   ...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,1_000]))}}
 const spent=transcendentSpent(full)
 assert.ok(spent!==null)
-const rich={...source,prestige:{...source.prestige,
-    ownedCollectionIds:CURRENT_COLLECTION_SLOTS.map(item=>item.id)},
+const rich={...source,
   ascension:{...source.ascension,progress:{...source.ascension.progress,
     prestigeCount:101,transcendentV1:full,history:[],
     availablePoints:'1000000000',lifetimePoints:(spent+1_000_000_000n).toString()}}}
