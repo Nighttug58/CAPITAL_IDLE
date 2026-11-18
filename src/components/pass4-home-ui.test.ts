@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, it } from 'vitest'
 import { BANKNOTE_FPS, BANKNOTE_FRAME_COUNT, BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from '../bill-animation.ts'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -115,65 +115,39 @@ describe('Pass 0.5 — continuous fixed-speed 48-frame banknotes', () => {
     expect(banknoteFrameAtElapsedMs(Number.POSITIVE_INFINITY)).toBe(0)
   })
 
-  it('animates without taps and does not accelerate or duplicate the animation loop on paid taps', async () => {
-    const pending = new Map<number, FrameRequestCallback>()
-    let nextHandle = 0
-    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
-      const handle = ++nextHandle
-      pending.set(handle, callback)
-      return handle
-    })
-    vi.stubGlobal('cancelAnimationFrame', (handle: number) => { pending.delete(handle) })
-    const advance = (timestamp: number) => {
-      const job = pending.entries().next().value
-      expect(job, 'a single active animation frame should exist').toBeDefined()
-      const [handle, callback] = job as [number, FrameRequestCallback]
-      pending.delete(handle)
-      callback(timestamp)
-      expect(pending.size).toBe(1)
-    }
-    let wrapper: VueWrapper | null = null
-    try {
-      wrapper = start()
-      const frameStyle = () => wrapper!.find('.banknotes').attributes('style')
-      expect(pending.size).toBe(1)
-      expect(frameStyle()).toContain('0% 0%')
-      advance(1000)
-      advance(1084)
-      await nextTick()
-      expect(frameStyle()).toContain((1 / 7 * 100) + '% 0%')
-
-      const storage = vi.spyOn(Storage.prototype, 'setItem')
-      advance(1168)
-      await nextTick()
-      expect(storage).not.toHaveBeenCalled()
-      expect(frameStyle()).toContain((2 / 7 * 100) + '% 0%')
-
-      await wrapper.find('.tap-zone').trigger('click')
-      expect(wrapper.findAll('.floating-gain').length).toBeGreaterThan(0)
-      expect(pending.size).toBe(1)
-      expect(frameStyle()).toContain((2 / 7 * 100) + '% 0%')
-      advance(1251)
-      await nextTick()
-      expect(frameStyle()).toContain((3 / 7 * 100) + '% 0%')
-      expect(pending.size).toBe(1)
-
-      await wrapper.findAll('.bottom-nav button')[1]!.trigger('click')
-      await nextTick()
-      expect(pending.size).toBe(0)
-      await wrapper.findAll('.bottom-nav button')[0]!.trigger('click')
-      await nextTick()
-      expect(pending.size).toBe(1)
-    } finally {
-      if (wrapper) {
-        wrapper.unmount()
-        mounted.splice(mounted.indexOf(wrapper), 1)
-      }
-      vi.restoreAllMocks()
-      vi.unstubAllGlobals()
-    }
-    expect(pending.size).toBe(0)
+  it('autoplays all 48 sprite frames with CSS and never restarts on a click', async () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toMatch(/\.home-screen \.banknotes\{[^}]*animation:banknote-spin 4000ms steps\(1,end\) infinite/)
+    const frames = [...css.matchAll(/^\s*\d+(?:\.\d+)?%\s*\{\s*background-position:/gm)]
+    expect(frames).toHaveLength(49) // 48 frames plus the loop boundary at 100%.
+    expect(css).not.toContain('.home-screen .tap-zone .banknotes{transform:none;transition:none;animation:none}')
+    const wrapper = start()
+    const sprite = wrapper.find('.banknotes').element
+    expect(wrapper.find('.banknotes').attributes('style')).toBeUndefined()
+    await wrapper.find('.tap-zone').trigger('click')
+    expect(wrapper.find('.banknotes').element).toBe(sprite)
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(1)
   })
+
+  it('discards floating gains when leaving home and does not replay them on return', async () => {
+    const css = readFileSync('src/style.css', 'utf8')
+    expect(css).toContain('animation: coin-rise 600ms')
+    expect(css).toContain('animation: gain-reduced-rise 600ms')
+    const wrapper = start()
+    await wrapper.find('.tap-zone').trigger('click')
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(1)
+    await wrapper.findAll('.bottom-nav button')[1]!.trigger('click')
+    await nextTick()
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(0)
+    await wrapper.findAll('.bottom-nav button')[0]!.trigger('click')
+    await nextTick()
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(0)
+    await wrapper.find('.tap-zone').trigger('click')
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(1)
+    await wrapper.find('.floating-gain').trigger('animationend')
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(0)
+  })
+
 })
 
 

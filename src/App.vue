@@ -21,7 +21,6 @@ import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from './bill-animation.ts'
 import {
   getClickValue,
   MAX_CLICK_LEVEL,
@@ -99,38 +98,6 @@ const clickBoosts = computed(() => {
   return { ...legacy, collectionBps, totalBps: v8BonusBasisPoints(exact.value, 'click') }
 })
 const tapAnimationId = ref(0)
-const spinFrame = ref(0)
-let spinRequest = 0
-let spinStartedAt: number | null = null
-let spinElapsedMs = 0
-let reducedMotion: MediaQueryList | null = null
-
-/** A single wall-clock-driven 12 fps loop: clicks and economy never touch it. */
-function animateBundle(now: number) {
-  spinRequest = 0
-  if (document.hidden || page.value !== 'home' || reducedMotion?.matches) return
-  if (spinStartedAt === null) spinStartedAt = now - spinElapsedMs
-  spinElapsedMs = Math.max(0, now - spinStartedAt) % BANKNOTE_CYCLE_MS
-  const frame = banknoteFrameAtElapsedMs(spinElapsedMs)
-  if (spinFrame.value !== frame) spinFrame.value = frame
-  spinRequest = requestAnimationFrame(animateBundle)
-}
-function stopBundleAnimation() {
-  if (spinRequest) cancelAnimationFrame(spinRequest)
-  spinRequest = 0
-  spinStartedAt = null
-}
-function syncBundleAnimation() {
-  if (document.hidden || page.value !== 'home' || reducedMotion?.matches) {
-    stopBundleAnimation()
-    if (reducedMotion?.matches) {
-      spinElapsedMs = 0
-      spinFrame.value = 0
-    }
-    return
-  }
-  if (!spinRequest) spinRequest = requestAnimationFrame(animateBundle)
-}
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createV8MarketRuntime> | null = null
 let activeSince: number | null = null
@@ -554,20 +521,16 @@ onMounted(() => {
 
   document.addEventListener('fullscreenchange', syncFullscreen)
   document.addEventListener('visibilitychange', syncMarketVisibility)
-  document.addEventListener('visibilitychange', syncBundleAnimation)
-  reducedMotion = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null
-  reducedMotion?.addEventListener('change', syncBundleAnimation)
-  syncBundleAnimation()
   window.addEventListener('pagehide', syncMarketPageHide)
   window.addEventListener('pageshow', syncMarketPageShow)
 })
 
-watch(page, syncBundleAnimation, { flush: 'post' })
+// A hidden home must never keep click popups to replay when it is shown again.
+watch(page, (next) => {
+  if (next !== 'home') floatingGains.value = []
+}, { flush: 'sync' })
 
 onUnmounted(() => {
-  stopBundleAnimation()
-  reducedMotion?.removeEventListener('change', syncBundleAnimation)
-  document.removeEventListener('visibilitychange', syncBundleAnimation)
   document.removeEventListener('fullscreenchange', syncFullscreen)
   document.removeEventListener('visibilitychange', syncMarketVisibility)
   window.removeEventListener('pagehide', syncMarketPageHide)
@@ -694,7 +657,7 @@ onUnmounted(() => {
         @click="click"
       >
         <span class="tap-content">
-          <span class="banknotes" :style="{backgroundPosition: ((spinFrame % 8) / 7 * 100) + '% ' + (Math.floor(spinFrame / 8) / 5 * 100) + '%'}" aria-hidden="true"><i :key="tapAnimationId" class="bundle-shadow" :class="{pulsing:tapAnimationId>0}"></i></span>
+          <span class="banknotes" aria-hidden="true"><i :key="tapAnimationId" class="bundle-shadow" :class="{pulsing:tapAnimationId>0}"></i></span>
         </span>
         <span
           v-for="gain in floatingGains"
