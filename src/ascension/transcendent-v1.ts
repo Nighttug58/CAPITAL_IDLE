@@ -122,6 +122,33 @@ export function transcendentEconomicBps(
 ):number {
   return transcendentLevel(progress,id)*(id==='empire'?30:20)
 }
+/** The seven MAIN trees alone unlock the ultimate reserve; news ranks are irrelevant. */
+export function transcendentUltimateUnlocked(
+  progress:{readonly transcendentV1?:TranscendentShopV1},
+):boolean {
+  return TRANSCENDENT_MAIN_IDS.every(id => transcendentLevel(progress,id)===TRANSCENDENT_MAX_LEVEL)
+}
+export interface TranscendentReserveRatio {
+  readonly unlocked: boolean
+  readonly numerator: bigint
+  readonly denominator: bigint
+}
+/**
+ * Exact reserve multiplier: 1 + PP/(2*(PP+1,000,000,000)).
+ * The numerator is always smaller than 3/2 of the denominator for
+ * every finite nonnegative wallet. No reserve cash or state is stored.
+ */
+export function transcendentReserveRatio(progress:{
+  readonly transcendentV1?:TranscendentShopV1
+  readonly availablePoints:string
+}):TranscendentReserveRatio {
+  const unlocked=transcendentUltimateUnlocked(progress)
+  if(!unlocked)return {unlocked:false,numerator:1n,denominator:1n}
+  const available=BigInt(progress.availablePoints)
+  if(available<0n)throw new RangeError('Negative reserve')
+  const denominator=2n*(available+1_000_000_000n)
+  return {unlocked:true,numerator:denominator+available,denominator}
+}
 /** Prestige PP bonus in exact bps, without activating the museum (pass 6).
  * Rate is frozen in each V3 receipt by the prestige transition.
  */
