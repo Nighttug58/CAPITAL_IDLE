@@ -1332,9 +1332,9 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 /* The shell reserves the exact height of the navigation, including the safe area. */
 .app-shell{--nav-height:calc(68px + env(safe-area-inset-bottom,0px));--tabs-height:50px;position:relative;grid-template-rows:minmax(0,1fr) var(--nav-height)}
 .app-shell>.bottom-nav{height:var(--nav-height);min-height:0;box-sizing:border-box}
-.app-shell :is(.trading-tabs,.collection-tabs){position:absolute;z-index:5;inset:auto 0 var(--nav-height);height:var(--tabs-height);box-sizing:border-box;display:flex;align-items:center;gap:5px;margin:0;padding:5px 10px;background:#141c1d;border-top:1px solid #36423e;border-radius:0;overflow-x:auto;scrollbar-width:none}
+.app-shell :is(.trading-tabs,.collection-tabs,.prestige-tabs){position:absolute;z-index:5;inset:auto 0 var(--nav-height);height:var(--tabs-height);box-sizing:border-box;display:flex;align-items:center;gap:5px;margin:0;padding:5px 10px;background:#141c1d;border-top:1px solid #36423e;border-radius:0;overflow-x:auto;scrollbar-width:none}
 .app-shell .trading-tabs>.trading-tab{flex:1;min-width:0}
-.app-shell :is(.trading-screen,.collection-screen){margin-bottom:var(--tabs-height)}
+.app-shell :is(.trading-screen,.collection-screen,.ascension-screen){margin-bottom:var(--tabs-height)}
 .app-shell>.home-screen{display:flex;flex-direction:column;gap:8px;padding:12px 16px 10px}
 .app-shell>.home-screen>:not(dialog){margin:0;flex-shrink:0}
 .home-screen .balance-value{font-size:clamp(36px,9vw,52px)}
@@ -1770,4 +1770,114 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 @media(max-width:390px){
   .transcendent-ultimate { padding:9px 10px; }
   .transcendent-ultimate strong { font-size:11px; }
+}
+
+/* Prestige / Transcendant — shared dense layout, fixed Trading-style footer tabs. */
+.app-shell>.ascension-screen {
+  padding:10px 12px 14px;
+  border-top:0;
+  background:#151d1d;
+  color:#eaece5;
+}
+.app-shell>.ascension-screen>.ascension-page-header {
+  display:flex;flex-direction:row;align-items:center;gap:10px;
+  padding:0 0 10px;border-bottom:1px solid #36453c;
+  background:none;
+}
+.app-shell>.ascension-screen>.ascension-page-header>div {min-width:0;flex:1}
+.app-shell>.ascension-screen .ascension-return {
+  flex:0 0 auto;min-height:34px;padding:6px 9px;
+  border:1px solid #4d695b;background:#24362e;color:#d8e9dc;
+}
+.app-shell>.ascension-screen .ascension-page-header h1 {
+  margin:2px 0;font-size:clamp(19px,5vw,24px);line-height:1.12;color:#f1e6ca;
+}
+.app-shell>.ascension-screen .ascension-page-header p {
+  font-size:10px;line-height:1.3;color:#a9b9ac;
+}
+.app-shell>.ascension-screen .ascension-eyebrow{font-size:8px;color:#b4bfae}
+.app-shell>.ascension-screen>.ascension-summary {
+  border:1px solid #35463e;border-radius:10px;overflow:hidden;
+  gap:1px;background:#35463e;
+}
+.app-shell>.ascension-screen .ascension-summary>div{padding:8px 3px;background:#202a27}
+.app-shell>.ascension-screen .ascension-summary strong{font-size:clamp(12px,3.6vw,17px);margin-top:3px;color:#e8d8af}
+.app-shell>.ascension-screen .ascension-summary span{font-size:8px;line-height:1.25;color:#aebcad}
+.app-shell>.ascension-screen>.ascension-scroll {padding:0;min-height:0}
+.app-shell>.ascension-screen :is(.ascension-prestige-panel,.ascension-powers,.transcendent-ultimate) {
+  padding:10px 11px;border:1px solid #384a41;border-radius:10px;background:#1d2926;box-shadow:none;
+}
+.app-shell>.ascension-screen .ascension-panel-title h2{font-size:14px;margin:2px 0 7px}
+.app-shell>.ascension-screen .ascension-panel-title>strong{font-size:13px;padding:5px 7px}
+.app-shell>.ascension-screen .ascension-checks{gap:4px;margin:0 0 8px}
+.app-shell>.ascension-screen .ascension-checks>div{padding-bottom:4px;gap:6px}
+.app-shell>.ascension-screen .ascension-help{font-size:10px;margin:6px 0;line-height:1.35}
+.app-shell>.ascension-screen .ascension-reset-launch{min-height:37px;margin-top:5px}
+.app-shell>.ascension-screen .ascension-powers>p{margin:0 0 8px;line-height:1.3}
+.app-shell>.ascension-screen .ascension-speed-row{margin-bottom:8px}
+.app-shell>.ascension-screen .ascension-frenzy-row{padding-top:8px}
+.app-shell>.ascension-screen .ascension-shop-heading{margin:12px 0 8px;gap:6px}
+.app-shell>.ascension-screen .ascension-shop-heading h2{font-size:15px;margin-top:2px;color:#e8dec7}
+.app-shell>.ascension-screen .ascension-category{margin-bottom:10px}
+.app-shell>.ascension-screen .ascension-category>h3{font-size:11px;margin:0 0 5px}
+.app-shell>.ascension-screen .ascension-upgrade {
+  padding:8px 10px;margin-bottom:6px;border-radius:9px;
+  border:1px solid #3b4a40;background:#1c2624;
+}
+.app-shell>.ascension-screen .ascension-upgrade-top{gap:6px}
+.app-shell>.ascension-screen .ascension-upgrade-top strong{font-size:12px}
+.app-shell>.ascension-screen .ascension-upgrade-top p{font-size:10px;line-height:1.25;margin:2px 0 6px}
+.app-shell>.ascension-screen .ascension-upgrade-level{
+  font-size:9px;padding:3px 5px;background:#384434;color:#e6d3a5;
+}
+.app-shell>.ascension-screen .ascension-upgrade-track{height:5px}
+.app-shell>.ascension-screen .ascension-upgrade-effect {
+  margin:5px 0;gap:3px 8px;font-size:10px;
+}
+.app-shell>.ascension-screen .ascension-upgrade-footer{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:5px;
+}
+.app-shell>.ascension-screen .ascension-upgrade-cost {
+  min-width:0;font-size:10px;line-height:1.3;overflow-wrap:anywhere;
+}
+.app-shell>.ascension-screen .ascension-buy {
+  min-width:75px;min-height:32px;padding:5px 6px;font-size:10px;
+  background:#395e4d;border-color:#608571;color:#e6f3df;
+}
+.app-shell>.ascension-screen .ascension-buy-max{
+  flex:0 0 auto;min-width:42px;min-height:32px;padding:5px 7px;
+  border:1px solid #b79b62;border-radius:8px;
+  color:#f1daa3;background:#4b3e2b;font-size:10px;font-weight:800;
+}
+.app-shell>.ascension-screen :is(.ascension-buy,.ascension-buy-max):disabled{
+  opacity:.47;cursor:not-allowed;
+}
+.app-shell>.ascension-screen :is(.ascension-buy,.ascension-buy-max):focus-visible{
+  outline:2px solid #f5da9e;outline-offset:2px;
+}
+.app-shell>.ascension-screen .transcendent-main{margin-bottom:12px}
+.app-shell>.ascension-screen .transcendent-small{font-size:10px;line-height:1.35;margin:4px 0 8px}
+.app-shell>.ascension-screen .transcendent-ultimate{gap:3px}
+.app-shell>.ascension-screen .transcendent-ultimate strong{color:#e9d5a4}
+.app-shell>.ascension-screen .ascension-endnote{font-size:10px;line-height:1.4}
+.app-shell>.ascension-screen .ascension-footer {
+  padding:8px 10px;border:1px solid #33463c;border-radius:8px;background:#202824;
+}
+.app-shell>main>.prestige-tabs {
+  position:absolute;z-index:5;inset:auto 0 var(--nav-height);
+  height:var(--tabs-height);margin:0;padding:5px 10px;
+  display:flex;align-items:center;gap:5px;
+  border-top:1px solid #36423e;border-radius:0;background:#141c1d;
+}
+.app-shell .prestige-tabs>.prestige-tab{flex:1 1 0;min-width:0;min-height:37px;font-size:11px}
+.app-shell .prestige-tabs>.prestige-tab[aria-pressed="true"]{
+  background:#224239;color:#baf0da;border-color:#55796a;
+}
+.app-shell .prestige-tab:focus-visible{outline:2px solid #d3ebc8;outline-offset:-2px}
+@media(max-width:440px){
+  .app-shell>.ascension-screen{padding:9px 9px 12px}
+  .app-shell>.ascension-screen .ascension-upgrade-footer{grid-template-columns:minmax(0,1fr) auto auto;gap:4px}
+  .app-shell>.ascension-screen .ascension-buy{min-width:66px;padding:4px}
+  .app-shell>.ascension-screen .ascension-buy-max{min-width:38px;padding:4px}
+  .app-shell .prestige-tabs>.prestige-tab{font-size:10px}
 }

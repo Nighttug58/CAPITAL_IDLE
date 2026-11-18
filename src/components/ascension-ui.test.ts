@@ -52,7 +52,9 @@ describe('Prestige économique — page et boutique', () => {
     expect(wrapper.find('.ascension-screen').attributes('aria-label')).toBe('Boutique Prestige')
     expect(wrapper.find('.ascension-screen h1').text()).toBe('Prestige')
     expect(wrapper.findAll('.ascension-category .ascension-upgrade')).toHaveLength(11)
-    expect(wrapper.findAll('.ascension-transcendent-news .ascension-upgrade')).toHaveLength(3)
+    expect(wrapper.findAll('.ascension-transcendent-news .ascension-upgrade')).toHaveLength(0)
+    expect(wrapper.findAll('.prestige-tab')).toHaveLength(2)
+    expect(wrapper.findAll('button.ascension-buy-max')).toHaveLength(11)
     expect(wrapper.findAll('.ascension-category')).toHaveLength(4)
     expect(wrapper.findAll('.ascension-category .ascension-upgrade button.ascension-buy:disabled')).toHaveLength(11)
     expect(wrapper.find('.ascension-panel-title').text()).toContain('PP')
@@ -94,6 +96,32 @@ describe('Prestige économique — page et boutique', () => {
     mounted.push(restarted)
     await restarted.find('.prestige-launch').trigger('click')
     expect(restarted.find('.ascension-upgrade[data-upgrade="news-frequency"] .ascension-upgrade-level').text()).toContain('1/10')
+  })
+
+  it('MAX achète plusieurs niveaux Prestige avec un seul remplacement de sauvegarde', async () => {
+    const now=Date.now()
+    let exact=createV8CapitalState(now)
+    for(let i=0;i<3;i++){
+      exact=v8CreditIncome(exact,'clicks',10n**40n)
+      const result=v8PerformPrestige(exact,now)
+      expect(result.ok).toBe(true)
+      if(!result.ok)throw Error('Prestige fixture failed')
+      exact=result.state
+    }
+    expect(saveV8CapitalState(localStorage,exact)).toBe(true)
+    const wrapper=mount(App,{attachTo:document.body})
+    mounted.push(wrapper)
+    await wrapper.find('.prestige-launch').trigger('click')
+    const offer=wrapper.find('[data-upgrade="news-frequency"]')
+    expect(offer.find('.ascension-buy-max').attributes('disabled')).toBeUndefined()
+    const walletBefore=BigInt(exact.ascension.progress.availablePoints)
+    await offer.find('.ascension-buy-max').trigger('click')
+    await nextTick()
+    const updated=JSON.parse(localStorage.getItem(V8_STORAGE_KEY)!)
+    expect(updated.ascension.progress.upgradeLevels['news-frequency']).toBe(10)
+    expect(BigInt(updated.ascension.progress.availablePoints)).toBeLessThan(walletBefore)
+    expect(updated.game.balance).toBe(exact.game.balance)
+    expect(offer.find('.ascension-buy-max').attributes('disabled')).toBeDefined()
   })
 
   it('refuse les achats en PP insuffisants sans modifier l’économie et la Fame', async () => {
@@ -185,7 +213,8 @@ describe('Passe 3 — News avancées PP au Prestige 3',()=>{
   it('présente trois améliorations indépendantes et les verrouille avant le Prestige 3',async()=>{
     const {wrapper}=mountState(fixture(true))
     await wrapper.find('.prestige-launch').trigger('click')
-    const cards=wrapper.findAll('.ascension-transcendent-news .ascension-upgrade')
+    await wrapper.find('[data-prestige-tab="transcendent"]').trigger('click')
+    const cards=wrapper.findAll('.transcendent-news .ascension-upgrade')
     expect(cards).toHaveLength(3)
     expect(cards.map(card=>card.attributes('data-news-upgrade'))).toEqual([
       'news-power','news-intensity','news-duration',
@@ -213,6 +242,7 @@ describe('Passe 3 — News avancées PP au Prestige 3',()=>{
     const wrapper=mount(App,{attachTo:document.body})
     mounted.push(wrapper)
     await wrapper.find('.prestige-launch').trigger('click')
+    await wrapper.find('[data-prestige-tab="transcendent"]').trigger('click')
     const power=wrapper.find('.ascension-upgrade[data-news-upgrade="news-power"]')
     const buy=power.find('button.ascension-buy')
     expect(buy.attributes('disabled')).toBeUndefined()
@@ -231,6 +261,7 @@ describe('Passe 3 — News avancées PP au Prestige 3',()=>{
     const restored=mount(App,{attachTo:document.body})
     mounted.push(restored)
     await restored.find('.prestige-launch').trigger('click')
+    await restored.find('[data-prestige-tab="transcendent"]').trigger('click')
     expect(restored.find('[data-news-upgrade="news-power"] .ascension-upgrade-level').text()).toContain('1/1000')
   })
 })

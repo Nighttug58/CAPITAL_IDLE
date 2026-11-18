@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type { V8CapitalState } from '../exact-state-v8.ts'
+import type { CapitalState } from '../capital.ts'
+import { v8MarketNewsEffects } from '../exact-market-v8.ts'
+import PrestigeTabs from './PrestigeTabs.vue'
 import {
   TRANSCENDENT_MAIN_PRESENTATION, TRANSCENDENT_NEWS_PRESENTATION,
   TRANSCENDENT_MAX_LEVEL, transcendentLevel, transcendentNextCost,
@@ -13,7 +16,9 @@ import { FAME_FACTOR_SCALE, formatFameFactor } from '../prestige/absolute-v8.ts'
 
 const props=defineProps<{
   exact:V8CapitalState
+  state:CapitalState
   purchaseBranch:(id:TranscendentId,currentRank:number,quotedCost:bigint)=>boolean
+  purchaseBranchMax:(id:TranscendentId,currentRank:number)=>{levels:number;costPoints:bigint}|null
 }>()
 const emit=defineEmits<{back:[]}>()
 const returnButton=ref<HTMLButtonElement|null>(null)
@@ -24,6 +29,7 @@ const integer=new Intl.NumberFormat('fr-CH',{maximumFractionDigits:0})
 const fmt=(value:bigint|string|number)=>integer.format(typeof value==='string'?BigInt(value):value)
 const grouped=(value:number)=>integer.format(value).replace(/[^0-9]/g,' ')
 const progress=computed(()=>props.exact.ascension.progress)
+const newsModifiers=computed(()=>v8MarketNewsEffects(props.exact,props.state.trading.dividendLastPaidAt))
 const points=computed(()=>BigInt(progress.value.availablePoints))
 const transcendentSpentPP=computed(()=>transcendentSpent(progress.value.transcendentV1)??0n)
 const totalRanks=computed(()=>[...TRANSCENDENT_MAIN_PRESENTATION,...TRANSCENDENT_NEWS_PRESENTATION]
@@ -56,6 +62,17 @@ function purchase(id:TranscendentId,rank:number,cost:bigint|null){
       : 'Achat refusé : vérifie tes PP, ton niveau ou la sauvegarde.'
   } finally {busy.value=false}
 }
+function purchaseMax(id:TranscendentId,rank:number){
+  if(busy.value)return
+  busy.value=true
+  try {
+    const result=props.purchaseBranchMax(id,rank)
+    error.value=!result
+    notice.value=result
+      ? '+'+fmt(result.levels)+' niveaux achetés sur '+id+' pour '+fmt(result.costPoints)+' PP.'
+      : 'Achat MAX refusé : rang, PP ou sauvegarde indisponibles.'
+  } finally {busy.value=false}
+}
 function keydown(event:KeyboardEvent){
   if(event.key==='Escape'&&!busy.value){event.preventDefault();emit('back')}
 }
@@ -75,14 +92,14 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
       </button>
       <div><span class="ascension-eyebrow">EMPIRE PERMANENT · PRESTIGE 3</span>
         <h1>Prestige Transcendant</h1>
-        <p>Chaque branche possède 1 000 niveaux. Tous les achats consomment les PP du même portefeuille permanent.</p>
+        <p>10 branches de 1 000 niveaux · le même portefeuille PP.</p>
       </div>
     </header>
     <div class="ascension-summary" aria-label="Solde et dépenses Prestige Transcendant">
-      <div><span>PP DISPONIBLES</span><strong>{{ fmt(points) }}</strong></div>
-      <div><span>PP TRANSCENDANT DÉPENSÉS</span><strong>{{ fmt(transcendentSpentPP) }}</strong></div>
-      <div><span>NIVEAUX ACHETÉS</span><strong>{{ fmt(totalRanks) }}/10 000</strong></div>
-      <div><span>PRESTIGES</span><strong>{{ fmt(progress.prestigeCountExact??progress.prestigeCount) }}</strong></div>
+      <div><span>POINTS DISPONIBLES</span><strong>{{ fmt(points) }} <small>PP</small></strong></div>
+      <div><span>CYCLES PRESTIGE</span><strong>{{ fmt(progress.prestigeCountExact??progress.prestigeCount) }}</strong></div>
+      <div><span>AMÉLIORATIONS</span><strong>{{ fmt(totalRanks) }}/10 000</strong></div>
+      <div><span>PP DÉPENSÉS</span><strong>{{ fmt(transcendentSpentPP) }}</strong></div>
     </div>
     <section class="transcendent-ultimate" :class="{'is-unlocked':ultimateUnlocked}"
       aria-label="Prestige Transcendant ultime" data-ultimate-reserve>
@@ -97,7 +114,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
           <div><span class="ascension-eyebrow">BOUTIQUE TRANSCENDANTE</span><h2>Sept branches principales</h2></div>
           <span>1 000 niveaux / branche</span>
         </div>
-        <p class="transcendent-small">Les cinq bonus de gains et l'Héritage s'ajoutent aux bonus existants. Les effets sont permanents et ne sont jamais réappliqués rétroactivement. Le bonus ultime s'active automatiquement lorsque les sept branches principales atteignent 1 000.</p>
+        <p class="transcendent-small">Bonus permanents, non rétroactifs. Ultime : les sept branches principales au maximum.</p>
         <article v-for="row in main" :key="row.id" class="ascension-upgrade"
           :class="{'transcendent-disabled':row.locked}" :data-transcendent="row.id">
           <div class="ascension-upgrade-top">
@@ -122,6 +139,8 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
               @click="purchase(row.id,row.rank,row.cost)">
               {{ row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.available?'ACHETER':'PP INSUFF.' }}
             </button>
+            <button type="button" class="ascension-buy-max" :disabled="!row.available || busy"
+              :aria-label="'Acheter MAX '+row.name" @click="purchaseMax(row.id,row.rank)">MAX</button>
           </div>
         </article>
       </section>
@@ -130,8 +149,13 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
           <div><span class="ascension-eyebrow">NEWS TRANSCENDANTES</span><h2>Trois branches médiatiques</h2></div>
           <span>1 000 niveaux / branche</span>
         </div>
+        <div class="ascension-news-effective" aria-label="Effets actuels sur les news">
+          <span>Puissance <strong>×{{ newsModifiers.impactMultiplier.toFixed(2) }}</strong></span>
+          <span>Rampe <strong>{{ (newsModifiers.rampFraction*100).toFixed(2) }} %</strong></span>
+          <span>Durée future <strong>×{{ newsModifiers.durationMultiplier.toFixed(2) }}</strong></span>
+        </div>
         <article v-for="row in news" :key="row.id" class="ascension-upgrade"
-          :data-transcendent="row.id">
+          :data-transcendent="row.id" :data-news-upgrade="row.id">
           <div class="ascension-upgrade-top">
             <div><strong>{{ row.name }}</strong><p>{{ row.description }}</p></div>
             <span class="ascension-upgrade-level">NIV. {{ row.rank }}/{{ TRANSCENDENT_MAX_LEVEL }}</span>
@@ -148,11 +172,14 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
               @click="purchase(row.id,row.rank,row.cost)">
               {{ row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.available?'ACHETER':'PP INSUFF.' }}
             </button>
+            <button type="button" class="ascension-buy-max" :disabled="!row.available || busy"
+              :aria-label="'Acheter MAX '+row.name" @click="purchaseMax(row.id,row.rank)">MAX</button>
           </div>
         </article>
       </section>
       <p class="ascension-endnote">Le Capital de départ n'est attribué qu'après chaque Prestige, sans taxe ni XP, Fame ou PP immédiats. Son principal reste exclu de l'assiette des PP au cycle suivant. Le bonus ultime utilise les PP disponibles sans les consommer et suit immédiatement le solde.</p>
     </div>
+    <PrestigeTabs active="transcendent" @select="tab => tab === 'prestige' && emit('back')" />
     <footer class="ascension-footer" aria-live="polite">
       <p v-if="notice" class="ascension-notice transcendent-notice" :class="{'is-error':error}" role="status">{{ notice }}</p>
       <p v-else>Aucun achat n'attribue rétroactivement de Fame, XP, cash ou PP.</p>

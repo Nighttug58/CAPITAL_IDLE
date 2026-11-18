@@ -346,6 +346,21 @@ export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgrade
   }
 }
 
+/** Purchases the maximum affordable Prestige ranks without intermediate saves. */
+export function v8BuyPrestigeUpgradeMax(state: V8CapitalState, id: AscensionUpgradeId,
+  expectedLevel: number): V8CapitalState | null {
+  let next = v8BuyPrestigeUpgrade(state, id, expectedLevel)
+  if (!next) return null
+  let rank = expectedLevel + 1
+  for (;;) {
+    const further = v8BuyPrestigeUpgrade(next, id, rank)
+    if (!further) break
+    next = further
+    rank++
+  }
+  return next
+}
+
 export function v8CollectionReward(state: V8CapitalState, fame: number): bigint {
   return v8ScaleRewardUnits(BigInt(fame) * FAME_MICROS, v8ExactRewardRate(state,'fame'))
 }

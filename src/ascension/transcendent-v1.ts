@@ -106,6 +106,28 @@ export function v8BuyTranscendent(
     transcendentV1:{version:1,levels:{...section.levels,[id]:expectedRank+1}},
   }}}
 }
+/** Exact and atomic MAX purchase: binary search the total PP cost up to rank 1 000. */
+export function v8BuyTranscendentMax(
+  state:V8CapitalState,id:TranscendentId,expectedRank:number,
+):V8CapitalState|null {
+  const first=v8BuyTranscendent(state,id,expectedRank)
+  if(!first)return null
+  const wallet=BigInt(state.ascension.progress.availablePoints)
+  const baseline=transcendentSpentThrough(expectedRank)!
+  let lower=expectedRank+1
+  let upper=TRANSCENDENT_MAX_LEVEL
+  while(lower<upper){
+    const middle=Math.floor((lower+upper+1)/2)
+    const total=transcendentSpentThrough(middle)!-baseline
+    if(total<=wallet)lower=middle
+    else upper=middle-1
+  }
+  const spent=transcendentSpentThrough(lower)!-baseline
+  return {...first,ascension:{...first.ascension,progress:{
+    ...first.ascension.progress,availablePoints:(wallet-spent).toString(),
+    transcendentV1:{version:1,levels:{...first.ascension.progress.transcendentV1!.levels,[id]:lower}},
+  }}}
+}
 /** Retain pass-3 entrypoint and its purchase semantics. */
 export function v8BuyTranscendentNews(
   state:V8CapitalState,id:TranscendentNewsId,expectedRank:number,

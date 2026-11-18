@@ -8,7 +8,7 @@ import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
- v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAvailableAchievements,
+ v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
  quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
@@ -18,7 +18,7 @@ import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
-import {v8BuyTranscendentNews,v8BuyTranscendent,transcendentNextCost,type TranscendentNewsId,type TranscendentId} from './ascension/transcendent-v1.ts'
+import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { BANKNOTE_CYCLE_MS, banknoteFrameAtElapsedMs } from './bill-animation.ts'
@@ -175,6 +175,14 @@ function openTranscendentShop() { page.value='transcendent' }
 function returnToPrestige() {
   focusTranscendentReturn.value=true
   page.value='prestige'
+}
+function executeTranscendentMaxPurchase(id:TranscendentId,expectedRank:number):{levels:number;costPoints:bigint}|null {
+  if(loadBlocked.value)return null
+  const before=v(exact.value.ascension.progress.availablePoints)
+  const next=v8BuyTranscendentMax(exact.value,id,expectedRank)
+  if(!next || !replaceWholeSaveExact(next))return null
+  return {levels:next.ascension.progress.transcendentV1!.levels[id]-expectedRank,
+    costPoints:before-v(next.ascension.progress.availablePoints)}
 }
 function executeTranscendentPurchase(id:TranscendentId,expectedRank:number,quoted:bigint):boolean {
   if(loadBlocked.value || transcendentNextCost(expectedRank)!==quoted)return false
@@ -441,6 +449,15 @@ function resetSave():boolean{
   }
   return true
 }
+function executePrestigeMaxPurchase(id:string,expectedLevel:number):{levels:number;costPoints:bigint}|null {
+  if(loadBlocked.value)return null
+  const key=id as keyof V8CapitalState['ascension']['progress']['upgradeLevels']
+  const before=v(exact.value.ascension.progress.availablePoints)
+  const next=v8BuyPrestigeUpgradeMax(exact.value,key,expectedLevel)
+  if(!next || !replaceWholeSaveExact(next))return null
+  return {levels:next.ascension.progress.upgradeLevels[key]-expectedLevel,
+    costPoints:before-v(next.ascension.progress.availablePoints)}
+}
 function executePrestigePurchase(id:string,expectedLevel:number):AscensionPurchase{
   if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
   const cost=nextAscensionCost(id as keyof V8CapitalState['ascension']['progress']['upgradeLevels'],expectedLevel)
@@ -451,11 +468,6 @@ function executePrestigePurchase(id:string,expectedLevel:number):AscensionPurcha
     previousLevel:expectedLevel,newLevel:expectedLevel+1,costPoints:cost,
     remainingPoints:Number(v(next.ascension.progress.availablePoints)>BigInt(Number.MAX_SAFE_INTEGER)?
       BigInt(Number.MAX_SAFE_INTEGER):v(next.ascension.progress.availablePoints))}}
-}
-function executeTranscendentNewsPurchase(id:TranscendentNewsId,expectedRank:number,quoted:bigint):boolean {
-  if(loadBlocked.value || transcendentNextCost(expectedRank)!==quoted)return false
-  const next=v8BuyTranscendentNews(exact.value,id,expectedRank)
-  return !!next && replaceWholeSaveExact(next)
 }
 function purchaseNews(id:string|null,count:number,quoted:bigint):boolean {
   if(loadBlocked.value || newsPowerCost(exact.value,id!==null)!==quoted)return false
@@ -701,11 +713,11 @@ onUnmounted(() => {
     <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
       @back="returnHomeFromFame" />
     <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital" :focus-transcendent-on-mount="focusTranscendentReturn"
-      :purchase-upgrade="executePrestigePurchase" :purchase-news-upgrade="executeTranscendentNewsPurchase" :perform-cycle="executePrestigeCycle"
+      :purchase-upgrade="executePrestigePurchase" :purchase-upgrade-max="executePrestigeMaxPurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
       @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />
     <TranscendentShopScreen v-if="page === 'transcendent'" :exact="exact"
-      :purchase-branch="executeTranscendentPurchase" @back="returnToPrestige" />
+      :purchase-branch="executeTranscendentPurchase" :purchase-branch-max="executeTranscendentMaxPurchase" :state="capital" @back="returnToPrestige" />
     <TradingScreen :purchase-news="purchaseNews" v-show="page === 'trading'" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
