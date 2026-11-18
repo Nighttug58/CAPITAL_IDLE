@@ -16,7 +16,7 @@ import { FAME_FACTOR_SCALE, formatFameFactor } from '../prestige/absolute-v8.ts'
 
 const props=defineProps<{
   exact:V8CapitalState
-  state:CapitalState
+  state?:CapitalState
   purchaseBranch:(id:TranscendentId,currentRank:number,quotedCost:bigint)=>boolean
   purchaseBranchMax:(id:TranscendentId,currentRank:number)=>{levels:number;costPoints:bigint}|null
 }>()
@@ -29,7 +29,7 @@ const integer=new Intl.NumberFormat('fr-CH',{maximumFractionDigits:0})
 const fmt=(value:bigint|string|number)=>integer.format(typeof value==='string'?BigInt(value):value)
 const grouped=(value:number)=>integer.format(value).replace(/[^0-9]/g,' ')
 const progress=computed(()=>props.exact.ascension.progress)
-const newsModifiers=computed(()=>v8MarketNewsEffects(props.exact,props.state.trading.dividendLastPaidAt))
+const newsModifiers=computed(()=>v8MarketNewsEffects(props.exact,props.state?.trading.dividendLastPaidAt??Date.now()))
 const points=computed(()=>BigInt(progress.value.availablePoints))
 const transcendentSpentPP=computed(()=>transcendentSpent(progress.value.transcendentV1)??0n)
 const totalRanks=computed(()=>[...TRANSCENDENT_MAIN_PRESENTATION,...TRANSCENDENT_NEWS_PRESENTATION]
