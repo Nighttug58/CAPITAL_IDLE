@@ -10,10 +10,12 @@ import {prepareV8SaveImport} from '../exact-persistence-v8.ts'
 import type {V8CapitalState} from '../exact-state-v8.ts'
 import {getExactLevelProgress} from '../exact-levels.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from '../economy/catalog.ts'
-import {v8BonusBasisPoints} from '../exact-runtime-v8.ts'
+import {v8BonusBasisPoints, v8EarningBonusBps} from '../exact-runtime-v8.ts'
 import {getAsset} from '../trading/catalog.ts'
 import {exactTradeCost,quoteToExactFraction} from '../exact-trading.ts'
 import {getCollectionBookValueCents} from '../prestige/collections-catalog.ts'
+import { collectionV3Snapshot, COLLECTION_SET_REWARDS } from '../prestige/collections-v3.ts'
+import { COLLECTION_CATEGORIES, type FameBoostId } from '../prestige/catalog.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
 import {formatCompactUnits,formatDecimalUnits,formatFameMicros} from '../large-numbers.ts'
 
@@ -27,7 +29,20 @@ const props = defineProps<{
 }>()
 
 const overview = computed(() => getCapitalStatsOverview(props.state))
-const fameOverview = computed(() => getFameStatsOverview(props.state))
+const collectionV3 = computed(() => collectionV3Snapshot(
+  props.exactState?.prestige.ownedCollectionIds ?? props.state.prestige.ownedCollectionIds))
+const fameOverview = computed(() => {
+  const legacy = getFameStatsOverview(props.state)
+  if (!props.exactState) return legacy
+  const summary = collectionV3.value
+  return { ...legacy, boosts: legacy.boosts.map(boost => {
+    const key = boost.id as FameBoostId
+    const collectionBps = summary.originalBps[key] + summary.rarityBps[key] +
+      summary.setBps[key] + ((key === 'click' || key === 'enterprise' || key === 'dividend' || key === 'trading')
+        ? summary.museumIncomeBps : 0)
+    return { ...boost, collectionBps, totalBps: v8BonusBasisPoints(props.exactState!, key) }
+  }) }
+})
 const format = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
 const precise = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 })
 const money = (cents: number) => format.format(cents / 100) + ' $'
@@ -91,7 +106,7 @@ const enterpriseRate = computed(() => {
   let total=0n
   for(const [id, holding] of Object.entries(state.enterprises.owned))
     total += getEnterpriseIncomeMicrosPerSecondExact(id, holding.level) ?? 0n
-  const bonus = v8BonusBasisPoints(state, 'enterprise')
+  const bonus = v8EarningBonusBps(state, 'enterprise')
   const multiplier = BigInt(Math.round((1 + bonus / 10_000) * 1_000_000))
   const boosted = total * multiplier / 1_000_000n
   return boosted < 1_000_000_000n ? rate(Number(boosted) / 1_000_000)
@@ -330,13 +345,22 @@ function pay() {
             {{ fameOverview.absolute.requiredLevels - fameOverview.absolute.purchasedLevels }} niveaux à acheter.</p>
           <p>Multiplicateur appliqué aux seuls bonus du Fame Shop, jamais aux collections.</p>
         </div>
+        <div class="stats-collections-v3" aria-label="Bonus des collections V3">
+          <strong>Collections V3 · {{ collectionV3.owned }}/100</strong>
+          <p>Musée impérial : {{ collectionV3.museumComplete ? 'COMPLET · +100 % revenus éligibles et +25 % PP futurs' : 'non débloqué · complétez 100 pièces' }}</p>
+          <div v-for="entry in COLLECTION_CATEGORIES" :key="entry.id" class="stats-collection-set">
+            <span>{{ entry.label }} : {{ collectionV3.categories[entry.id] }}/20</span>
+            <strong>{{ collectionV3.categories[entry.id] === 20 ? 'ACTIF' : 'EN ATTENTE' }} · +{{ percent(COLLECTION_SET_REWARDS[entry.id].bonusBps) }}</strong>
+          </div>
+          <p>Bonus d’objet et de rareté additionnés à ceux des catégories. Les achats anciens sont conservés.</p>
+        </div>
         <div class="stats-prestige-boosts">
           <strong>Vos six bonus permanents</strong>
           <div v-for="boost in fameOverview.boosts" :key="boost.id" class="stats-prestige-boost" :data-boost="boost.id">
             <div><strong>{{ boost.name }}</strong><span>Niveau {{ boost.level }}/20</span></div>
             <p>Shop : +{{ percent(boost.rawShopBps) }}
               <span v-if="fameOverview.absolute.unlocked"> · avec Prestige : +{{ percent(boost.prestigeShopBps) }}</span>
-              · Collection : +{{ percent(boost.collectionBps) }}</p>
+              · Collections V3 : +{{ percent(boost.collectionBps) }}</p>
             <strong class="stats-prestige-total">Total : +{{ percent(boost.totalBps) }}</strong>
           </div>
         </div>
