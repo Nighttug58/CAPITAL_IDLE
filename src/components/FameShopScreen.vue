@@ -59,7 +59,7 @@ const capText = computed(() => exactAbsolute.value ?
 const fameStepsText = computed(() => exactAbsolute.value ?
   formatCompactUnits(exactAbsolute.value.fameSteps, 0, '') : numeric.format(absolute.value.fameSteps))
 const nextStepText = computed(() => exactAbsolute.value ?
-  formatFameMicros(exactAbsolute.value.nextStepAtFameMicros) : numeric.format(absolute.value.nextStepAtFame))
+  formatFameMicros(exactAbsolute.value.nextStepAtFameMicros).replace(/\\.0$/, '') : numeric.format(absolute.value.nextStepAtFame))
 const exactShopBonus = (baseBps:number) => {
   const status=exactAbsolute.value
   if(!status || !props.exactState)return percentage(baseBps*absolute.value.factor)
