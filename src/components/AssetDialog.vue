@@ -68,6 +68,13 @@ const displayTotal = computed(() => estimateExact.value
 const displayProfit = computed(() => estimateExact.value
   ? cashExact(estimateExact.value.realizedNetProfitCents)
   : estimate.value ? formatCash(estimate.value.netRealizedProfit) : '—')
+const displayImpact = computed(() => {
+  if (!estimateExact.value || !props.exactState) return null
+  const after = estimateExact.value.state.trading.quotes[props.assetId]?.price
+  if (!after || !currentPrice.value) return null
+  const percent = (after / currentPrice.value - 1) * 100
+  return (percent > 0 ? '+' : '') + percent.toFixed(2) + ' %'
+})
 const displayTax = computed(() => estimateExact.value && props.exactState
   ? cashExact(v(estimateExact.value.state.fiscal.taxesDueCents)-v(props.exactState.fiscal.taxesDueCents))
   : estimate.value ? formatCash(estimate.value.taxAccrued) : '—')
@@ -188,6 +195,9 @@ function submit() {
         </div>
         <div class="order-calculation">
           <span>Frais ({{ formatRate(feeRate(asset.kind)) }})</span><strong>{{ displayFee }}</strong>
+          <template v-if="displayImpact">
+            <span>Impact de l'ordre sur le cours</span><strong>{{ displayImpact }}</strong>
+          </template>
           <span>{{ activeSide === 'buy' ? 'Total à payer' : 'Montant à recevoir' }}</span>
           <strong>{{ displayTotal }}</strong>
           <template v-if="activeSide === 'sell' && (estimate || estimateExact)">
