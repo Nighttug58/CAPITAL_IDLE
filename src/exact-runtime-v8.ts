@@ -7,7 +7,6 @@
 import type { V8CapitalState } from './exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { getExactLevel } from './exact-levels.ts'
-import { multiplyRatio } from './large-numbers.ts'
 import { getClickValue, UPGRADES } from './game.ts'
 import { currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
