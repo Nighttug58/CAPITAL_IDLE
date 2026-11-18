@@ -50,11 +50,11 @@ const exactAbsolute = computed(() => props.exactState ? v8AbsoluteFameStatus(pro
 const absoluteUnlocked = computed(() => exactAbsolute.value?.unlocked ?? absolute.value.unlocked)
 const absoluteCapped = computed(() => exactAbsolute.value?.capped ?? absolute.value.capped)
 const factorText = computed(() => exactAbsolute.value ?
-  '×' + formatFameFactor(exactAbsolute.value.factorUnits) + (exactAbsolute.value.capped ? ' · MAX' : '') :
+  '×' + formatFameFactor(exactAbsolute.value.factorUnits).replace('.', ',') + (exactAbsolute.value.capped ? ' · MAX' : '') :
   '×' + new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 6 }).format(absolute.value.factor) +
     (absolute.value.capped ? ' · MAX' : ''))
 const capText = computed(() => exactAbsolute.value ?
-  '×' + formatFameFactor(exactAbsolute.value.capUnits) :
+  '×' + formatFameFactor(exactAbsolute.value.capUnits).replace('.', ',') :
   '×' + numeric.format(100 + (props.state.ascension?.progress.prestigeCount ?? 0)))
 const fameStepsText = computed(() => exactAbsolute.value ?
   formatCompactUnits(exactAbsolute.value.fameSteps, 0, '') : numeric.format(absolute.value.fameSteps))
