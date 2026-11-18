@@ -62,7 +62,7 @@ test('dette fiscale > liquidités : achats bloqués puis résorption grâce aux 
   const deadline = advanceFiscalEconomy(taxed, T0 + FISCAL_PERIOD_MS)
   assert.ok(deadline.game.balance < 0, 'l impôt doit réellement autoriser le découvert')
   assert.equal(deadline.fiscal.taxesDueCents, 0)
-  assert.equal(deadline.fiscal.paidBySourceCents.stocks, 4_500_000_000)
+  assert.equal(deadline.fiscal.paidBySourceCents.stocks, taxed.fiscal.dueBySourceCents.stocks)
   assert.equal(deadline.game.lifetimeEarned > initial.state.game.lifetimeEarned, true)
   const blocked = upgradeEnterprise(deadline, 'kiosque', T0 + FISCAL_PERIOD_MS)
   assert.equal(blocked.ok, false)

@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import type { CapitalState } from '../capital.ts'
 import type { EarlyTaxPaymentResult } from '../economy/fiscal.ts'
-import { FISCAL_PERIOD_MS, FISCAL_TAX_RATE } from '../economy/state.ts'
+import { FISCAL_PERIOD_MS } from '../economy/state.ts'
+import { liquidityQuote } from '../trading/liquidity-v8.ts'
+import { marginalTaxRateBps } from '../economy/tax-curve.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
 import { getFameStatsOverview } from '../prestige/overview.ts'
 import {MAX_IMPORT_FILE_BYTES} from '../save-transfer.ts'
@@ -82,7 +84,9 @@ const exactBalance = computed(() => {
     const asset=getAsset(id)
     if(!asset)continue
     const price=state.trading.quotes[id]?.price??asset.referencePrice
-    const quote=quoteToExactFraction(price)
+    const units=v(item.quantity)
+    const liquidation=liquidityQuote(asset,price,units,'sell',units)
+    const quote=liquidation&&quoteToExactFraction(liquidation.executionPrice)
     if(!quote)continue
     const gross=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,0n,'sell')
     const fee=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,
@@ -384,7 +388,7 @@ function pay() {
       </section>
 
       <section class="stats-tax-panel" aria-label="Fiscalité">
-        <div class="stats-tax-title"><h2>Administration fiscale</h2><span>Taux {{ Math.round(FISCAL_TAX_RATE * 100) }} %</span></div>
+        <div class="stats-tax-title"><h2>Administration fiscale</h2><span>Taux marginal {{ Number(marginalTaxRateBps(exactState ? v(exactState.game.lifetimeEarned) : BigInt(Math.round(state.game.lifetimeEarned * 100)))) / 100 }} %</span></div>
         <div class="stats-tax-due">
           <span>TAXES ACCUMULÉES</span>
           <strong>{{ exactState ? importMoney(exactState.fiscal.taxesDueCents) : money(state.fiscal.taxesDueCents) }}</strong>
@@ -400,7 +404,7 @@ function pay() {
             <strong>{{ exactState ? importMoney(exactState.fiscal.taxesPaidCents) : money(state.fiscal.taxesPaidCents) }}</strong>
           </div>
         </div>
-        <p class="stats-tax-help">Les taxes s'accumulent sans prélèvement immédiat. À chaque échéance de 72 heures réelles, elles sont débitées automatiquement, même si le solde devient négatif.</p>
+        <p class="stats-tax-help">Barème progressif de 15 à 70 % sur les gains du cycle. Seuls les revenus d'entreprises et les bénéfices réalisés du trading sont taxés. La dette s'accumule et est prélevée toutes les 72 heures réelles, même en cas de solde négatif.</p>
         <button type="button" class="stats-tax-pay" :disabled="(exactState ? v(exactState.fiscal.taxesDueCents) === 0n : state.fiscal.taxesDueCents === 0)" @click="confirming = true">
           Payer les taxes maintenant
         </button>

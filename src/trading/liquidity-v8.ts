@@ -1,0 +1,65 @@
+/**
+ * Market microstructure for the fictional V8 exchange. A large order is
+ * executed at a worse average price and then moves the public quote.
+ * The same symmetric curve on buys/sells prevents free pump-and-dump loops.
+ * Holdings and money remain exact BigInt, only market quotes are Numbers.
+ */
+import type { AssetDefinition } from './types.ts'
+import type { V8TradingState } from '../exact-state-v8.ts'
+
+export interface LiquidityQuote {
+  readonly executionPrice: number
+  readonly endingPrice: number
+  readonly priceImpactPercent: number
+}
+const LIQUIDITY_FRACTION = { stock: 0.0005, crypto: 0.00035, memecoin: 0.0002 } as const
+
+/** Position-dependent impact is path-independent: splitting one buy into
+ * many small orders can never manufacture a larger final quote.
+ */
+export function liquidityQuote(asset: AssetDefinition, price: number,
+  quantityUnits: bigint, side: 'buy' | 'sell',
+  ownedBeforeUnits = 0n): LiquidityQuote | null {
+  if (!Number.isFinite(price) || price <= 0 || quantityUnits <= 0n ||
+      ownedBeforeUnits < 0n || (side === 'sell' && ownedBeforeUnits < quantityUnits))
+    return null
+  const circulatingUnits = BigInt(asset.totalSupply) * 10n ** BigInt(asset.quantityDecimals)
+  if (circulatingUnits <= 0n) return null
+  const impactStrength = (units: bigint): number => {
+    const scaled = units * 1_000_000_000_000n / circulatingUnits
+    // A bounded log-move is a numerical safety measure, not a spot-price cap.
+    const share = Number(scaled > 500_000_000_000_000n
+      ? 500_000_000_000_000n : scaled) / 1_000_000_000_000
+    return Math.min(2.4, 0.35 * Math.log1p(share / LIQUIDITY_FRACTION[asset.kind]))
+  }
+  const afterUnits = side === 'buy'
+    ? ownedBeforeUnits + quantityUnits : ownedBeforeUnits - quantityUnits
+  const logMove = impactStrength(afterUnits) - impactStrength(ownedBeforeUnits)
+  const executionPrice = price * Math.exp(logMove / 2)
+  const endingPrice = price * Math.exp(logMove)
+  if (!Number.isFinite(executionPrice) || executionPrice <= 0 ||
+      !Number.isFinite(endingPrice) || endingPrice <= 0) return null
+  return { executionPrice, endingPrice,
+    priceImpactPercent: (endingPrice / price - 1) * 100 }
+}
+
+/** A trade reprices charts at the same timestamp; never append duplicate times. */
+export function updateTradeMarket(trading: V8TradingState, asset: AssetDefinition,
+  endingPrice: number): Pick<V8TradingState, 'quotes' | 'history'> {
+  const current = trading.quotes[asset.id] ?? {
+    price: asset.referencePrice, momentum: 0,
+    dividendYield: asset.initialDividendYield, updatedAt: trading.lastTickAt,
+  }
+  const at = Math.max(trading.lastTickAt, trading.dividendLastPaidAt, current.updatedAt)
+  const logMove = Math.log(endingPrice / current.price)
+  const quote = { ...current, price: endingPrice, updatedAt: at,
+    momentum: Math.max(-0.08, Math.min(0.08, current.momentum * 0.5 + logMove * 0.2)) }
+  const old = trading.history[asset.id] ?? []
+  const last = old[old.length - 1]
+  const sample = { at, price: endingPrice,
+    ...(current.dividendYield !== null ? { dividendYield: current.dividendYield } : {}) }
+  const series = last && last.at >= at ? [...old.slice(0, -1), sample] :
+    [...old, sample].slice(-720)
+  return { quotes: { ...trading.quotes, [asset.id]: quote },
+    history: { ...trading.history, [asset.id]: series } }
+}

@@ -5,6 +5,7 @@ import {
   spendExactCash, settleExactTaxes, recordExactTradeProfit,
   creditExactFame, spendExactFame, creditExactPrestigePoints, spendExactPrestigePoints,
 } from './exact-economy.ts'
+import { progressiveTaxNumerator } from './economy/tax-curve.ts'
 
 test('very large click cash, XP and stats remain exact', () => {
   const huge = 10n ** 150n + 1234n
@@ -27,13 +28,14 @@ test('enterprise income accumulates subcent and tax exactly after long offline i
     first.carry.remainderNanodollars, first.carry.taxRemainderBps)
   assert.equal(second.state.balanceCents, rate)
   assert.equal(second.state.experienceCents, rate)
-  assert.equal(second.state.taxesDueCents, rate * 15n / 100n)
-  assert.equal(second.state.dueBySourceCents.enterprises, rate * 15n / 100n)
+  const progressiveTax = progressiveTaxNumerator(rate, 0n) / 10_000n
+  assert.equal(second.state.taxesDueCents, progressiveTax)
+  assert.equal(second.state.dueBySourceCents.enterprises, progressiveTax)
   assert.equal(second.carry.remainderNanodollars, 0n)
   const taxed = settleExactTaxes(second.state)
-  assert.equal(taxed.balanceCents, rate * 85n / 100n)
+  assert.equal(taxed.balanceCents, rate - progressiveTax)
   assert.equal(taxed.taxesDueCents, 0n)
-  assert.equal(taxed.taxesPaidCents, rate * 15n / 100n)
+  assert.equal(taxed.taxesPaidCents, progressiveTax)
 })
 
 test('cash can become negative through tax settlement, but no borrowing for purchases', () => {

@@ -130,7 +130,7 @@ export function getEnterprisePurchaseCostCents(id: string): number | null {
 /**
  * Pure, O(1)-arithmetic upgrade prices. Up to level 20 the original 20%-base
  * 18%-growth price curve is preserved (only the ROI has changed). Afterwards,
- * price growth is quadratic, NOT an exponential depending on the user's level.
+ * price growth is linear, NOT an exponential depending on the user's level.
  * No table, loops proportional to ownedLevel or artificial business-level cap.
  */
 export function getEnterpriseUpgradeCostCentsExact(id: string, currentLevel: number): bigint | null {
@@ -144,8 +144,8 @@ export function getEnterpriseUpgradeCostCentsExact(id: string, currentLevel: num
     (1 + UPGRADE_COST_GROWTH_BPS / BASIS_POINTS) ** (LEGACY_MILESTONE_END - 1)))
   const x = BigInt(currentLevel - LEGACY_MILESTONE_END)
   // At level 20, the price of level 21 is the same curve's next term.
-  const scale = 20n + x
-  return (anchor * scale * scale + 200n) / 400n
+  // A linear curve (rounded per-level) replaces the quadratic runaway.
+  return (anchor * (20n + x) + 10n) / 20n
 }
 
 /** Historical 1..20 levels use exactly the same incremental rounding. */
@@ -160,9 +160,9 @@ function legacyIncomeAtLevel(item: EnterpriseDefinition, level: number): bigint 
 }
 
 /**
- * Exact income stream after level 20: cubic scaling, with +10% for each
- * additional 25-level milestone. This avoids unbounded exponentiation, and
- * costs per upgrade remain economically useful at very high levels.
+ * After level 20, use linear growth with a mild square-root boost.
+ * Every 25-level milestone adds 10% of the level-20 baseline (not compounding).
+ * This prevents the former cubic runaway with large MAX purchases.
  */
 export function getEnterpriseIncomeMicrosPerSecondExact(id: string, ownedLevel: number): bigint | null {
   const item = getEnterprise(id)
@@ -170,9 +170,9 @@ export function getEnterpriseIncomeMicrosPerSecondExact(id: string, ownedLevel: 
   if (ownedLevel <= LEGACY_MILESTONE_END) return legacyIncomeAtLevel(item, ownedLevel)
   const baseline = legacyIncomeAtLevel(item, LEGACY_MILESTONE_END)
   const x = BigInt(ownedLevel - LEGACY_MILESTONE_END)
-  const growth = 20n + x
+  const root = BigInt(Math.floor(Math.sqrt(ownedLevel - LEGACY_MILESTONE_END)))
   const milestones = BigInt(Math.floor(ownedLevel / CONTINUOUS_MILESTONE_STEP))
-  return (baseline * growth * growth * growth * (10n + milestones) + 40_000n) / 80_000n
+  return baseline * (10_000n + 40n * x + 200n * root + 1_000n * milestones) / 10_000n
 }
 
 /** Old numeric engine / compatibility UI only; authoritative v8 uses BigInt. */
@@ -204,32 +204,25 @@ export function getNextEnterpriseMilestone(level: number): EnterpriseMilestone |
 
 
 /**
- * Sum individually rounded enterprise upgrades exactly, without one loop per
- * level. The quadratic tier has a modulo-400 correction repeating every 200
- * levels, so a constant-size prefix makes huge purchases O(1).
+ * Exact O(1) batch total for the post-level-20 linear curve.
+ * The rounding residual repeats every 20 levels; this compact prefix keeps
+ * a MAX purchase identical to the sum of all single purchases.
  */
-const upgradeResidueCache = new Map<string, { anchor: bigint; prefix: readonly bigint[] }>()
-const ROUND_DENOMINATOR = 400n
-const PRICE_PERIOD = 200n
-function upgradeResidues(id: string): { anchor: bigint; prefix: readonly bigint[] } {
-  const cached = upgradeResidueCache.get(id)
+const PRICE_PERIOD = 20n
+const PRICE_DENOMINATOR = 20n
+const upgradeRemainderCache = new Map<string, readonly bigint[]>()
+function upgradeRemainderPrefix(id: string): readonly bigint[] {
+  const cached = upgradeRemainderCache.get(id)
   if (cached) return cached
   const anchor = getEnterpriseUpgradeCostCentsExact(id, 20)!
-  const prefix: bigint[] = [0n]
-  for (let n = 0n; n < PRICE_PERIOD; n++) {
-    const remainder = anchor * n * n % ROUND_DENOMINATOR
-    const correction = (remainder >= 200n ? ROUND_DENOMINATOR : 0n) - remainder
-    prefix.push(prefix[prefix.length - 1]! + correction)
-  }
-  const result = { anchor, prefix }
-  upgradeResidueCache.set(id, result)
+  const result: bigint[] = [0n]
+  for (let i = 0n; i < PRICE_PERIOD; i++)
+    result.push(result[result.length - 1]! + (anchor * i + 10n) % PRICE_DENOMINATOR)
+  upgradeRemainderCache.set(id, result)
   return result
 }
-function squaresBefore(end: bigint): bigint {
-  return (end - 1n) * end * (2n * end - 1n) / 6n
-}
-function correctionsBefore(end: bigint, prefix: readonly bigint[]): bigint {
-  return end / PRICE_PERIOD * prefix[200]! + prefix[Number(end % PRICE_PERIOD)]!
+function remaindersBefore(level: bigint, prefix: readonly bigint[]): bigint {
+  return level / PRICE_PERIOD * prefix[20]! + prefix[Number(level % PRICE_PERIOD)]!
 }
 export function getEnterpriseUpgradeBatchCostCentsExact(
   id: string, fromLevel: number, toLevel: number,
@@ -238,16 +231,19 @@ export function getEnterpriseUpgradeBatchCostCentsExact(
       !Number.isSafeInteger(toLevel) || fromLevel < 1 ||
       toLevel < fromLevel || toLevel >= Number.MAX_SAFE_INTEGER) return null
   if (toLevel === fromLevel) return 0n
+
   let total = 0n
   for (let level = fromLevel; level < Math.min(toLevel, 20); level++)
     total += getEnterpriseUpgradeCostCentsExact(id, level)!
   const first = Math.max(fromLevel, 20)
   if (first < toLevel) {
     const a = BigInt(first), b = BigInt(toLevel)
-    const { anchor, prefix } = upgradeResidues(id)
-    const squareTotal = squaresBefore(b) - squaresBefore(a)
-    const corrections = correctionsBefore(b, prefix) - correctionsBefore(a, prefix)
-    total += (anchor * squareTotal + corrections) / ROUND_DENOMINATOR
+    const count = b - a
+    const anchor = getEnterpriseUpgradeCostCentsExact(id, 20)!
+    const levelSum = (a + b - 1n) * count / 2n
+    const prefix = upgradeRemainderPrefix(id)
+    const remainder = remaindersBefore(b, prefix) - remaindersBefore(a, prefix)
+    total += (anchor * levelSum + 10n * count - remainder) / PRICE_DENOMINATOR
   }
   return total
 }

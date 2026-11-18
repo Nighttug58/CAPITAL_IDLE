@@ -2,6 +2,7 @@
 import type { V8CapitalState } from './exact-state-v8.ts'
 import { getExactAmount as v } from './exact-state-v8.ts'
 import { getAsset } from './trading/catalog.ts'
+import { liquidityQuote } from './trading/liquidity-v8.ts'
 import { exactTradeCost, quoteToExactFraction } from './exact-trading.ts'
 import { formatCompactUnits, formatDecimalUnits } from './large-numbers.ts'
 import { v8DividendPicoCents } from './exact-market-v8.ts'
@@ -33,7 +34,8 @@ export function exactPortfolioSummary(state:V8CapitalState):{
     const units=v(holding.quantity)
     if(units<=0n)continue
     const quote=state.trading.quotes[id]?.price??asset.referencePrice
-    const fraction=quoteToExactFraction(quote)
+    const execution=liquidityQuote(asset,quote,units,'sell',units)
+    const fraction=execution&&quoteToExactFraction(execution.executionPrice)
     if(!fraction)continue
     const gross=exactTradeCost(fraction,units,asset.quantityDecimals,0n,'sell')
     const net=exactTradeCost(fraction,units,asset.quantityDecimals,feeBps(asset.kind),'sell')

@@ -1,5 +1,6 @@
 import type { CapitalState } from '../capital.ts'
 import { exactMoneyCents } from '../money.ts'
+import { progressiveTaxNumerator } from './tax-curve.ts'
 import {
   FISCAL_PERIOD_MS, FISCAL_TAX_RATE,
   type TaxBreakdown, type TaxSource,
@@ -40,7 +41,10 @@ export function accrueProfitTax(
   if (profitCents === 0) return state
   const fractional = source === 'enterprises' ? state.fiscal.enterpriseTaxRemainderBps : 0
   if (!isSafeCents(fractional) || fractional >= Number(BPS)) return null
-  const taxable = BigInt(profitCents) * BigInt(FISCAL_TAX_BPS) + BigInt(fractional)
+  const lifetime = toCents(state.game.lifetimeEarned)
+  if (lifetime === null) return null
+  const taxable = progressiveTaxNumerator(BigInt(profitCents),
+    BigInt(Math.max(0, lifetime - profitCents))) + BigInt(fractional)
   const taxCents = source === 'enterprises'
     ? taxable / BPS
     : (taxable + BPS / 2n) / BPS

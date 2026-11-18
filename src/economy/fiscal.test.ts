@@ -8,6 +8,7 @@ import { buyEnterprise, advanceEnterpriseIncome } from './enterprises.ts'
 import { advanceFiscalEconomy, payFiscalBalanceNow } from './clock.ts'
 import { accrueProfitTax, FISCAL_TAX_BPS, collectTaxesAtDeadline, payTaxesEarly } from './fiscal.ts'
 import { FISCAL_PERIOD_MS, FISCAL_TAX_RATE } from './state.ts'
+import { progressiveTaxNumerator } from './tax-curve.ts'
 import type { CapitalState } from '../capital.ts'
 
 const T0 = 1_800_000_000_000
@@ -130,7 +131,8 @@ test('entreprises : revenu BRUT crédité immédiatement et taxe seulement accum
   const gained = Math.round((next.game.balance - start.game.balance) * 100)
   assert.ok(gained > 0)
   assert.equal(next.game.lifetimeEarned, start.game.lifetimeEarned + gained / 100)
-  assert.equal(next.fiscal.taxesDueCents, Math.floor(gained * 0.15))
+  assert.equal(next.fiscal.taxesDueCents, Number(progressiveTaxNumerator(
+    BigInt(gained), BigInt(Math.round(start.game.lifetimeEarned * 100))) / 10_000n))
   assert.equal(next.fiscal.taxesPaidCents, 0)
   assert.equal(next.fiscal.dueBySourceCents.enterprises, next.fiscal.taxesDueCents)
   assert.equal(next.stats.earnedBySource.enterprises, gained / 100)

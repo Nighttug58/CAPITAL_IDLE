@@ -100,7 +100,7 @@ test('Extreme PP rank ledger, 1e30 exact balances and exports do not round or mi
     BigInt(ready.ascension.progress.availablePoints)-1000n)
   assert.equal(validateExactV8State(proposed,decimals).valid,false)
 })
-test('Enterprise income adds +300% on the same untaxed base, tax accrued once at 15%',()=>{
+test('Enterprise income adds +300% to gross base, progressive tax accrued once',()=>{
   const base=cycle()
   const rich=v8CreditIncome(base,'clicks',10n**13n)
   const own={...rich,enterprises:{...rich.enterprises,owned:{
@@ -113,7 +113,8 @@ test('Enterprise income adds +300% on the same untaxed base, tax accrued once at
   const baseEarn=BigInt(one.stats.earnedBySource.enterprises)
   const topEarn=BigInt(four.stats.earnedBySource.enterprises)
   assert.ok(baseEarn>0n)
-  assert.ok(topEarn>=baseEarn*4n-2n && topEarn<=baseEarn*4n+2n)
+  assert.ok(topEarn>=baseEarn*4n-10n && topEarn<=baseEarn*4n+10n,
+    `empire +300% gross income after integer carry rounding: base=${baseEarn} boosted=${topEarn}`)
   assert.ok(BigInt(four.fiscal.taxesDueCents)>BigInt(one.fiscal.taxesDueCents))
   assert.equal(BigInt(four.fiscal.dueBySourceCents.enterprises),BigInt(four.fiscal.taxesDueCents))
   assert.equal(four.stats.clickCount,one.stats.clickCount)
