@@ -2,7 +2,7 @@ import { prestigeShop, prestigeSpent, prestigePoints } from './ascension/v2.ts'
 import { transcendentSpent } from './ascension/transcendent-v1.ts'
 import { TRANSCENDENT_MAX_LEVEL } from './ascension/transcendent-v1.ts'
 import { startingCapitalCents } from './ascension/starting-capital-v1.ts'
-import { isValidMarketBoundary } from './trading/market.ts'
+import { validLegacyBoundary } from './trading/legacy-boundary.ts'
 /**
  * Strict V8 serialization contract. No BigInt is ever written to JSON; all
  * economic amounts are canonical decimal strings. This validator is applied on active V8 writes, imports and migrations.
@@ -46,7 +46,7 @@ const companies=new Set(ENTERPRISES.map(x=>x.id))
 function validMarketQuote(value:unknown,id:string):boolean {
   const asset=getAsset(id)
   if(!asset||!object(value))return false
-  return validPercent(value.price,asset.minPrice,asset.maxPrice)&&
+  return finite(value.price)&&value.price>0&&
     finite(value.momentum)&&safe(value.updatedAt)&&
     (value.dividendYield===null||validPercent(value.dividendYield,0.01,0.30))&&
     (value.dividendMomentum===undefined||validPercent(value.dividendMomentum,-0.00024,0.00024))&&
@@ -54,7 +54,7 @@ function validMarketQuote(value:unknown,id:string):boolean {
     (value.regimeTicksLeft===undefined||(safe(value.regimeTicksLeft)&&value.regimeTicksLeft<=115))&&
     (value.shockDrift===undefined||validPercent(value.shockDrift,-0.25,0.25))&&
     (value.shockTicksLeft===undefined||(safe(value.shockTicksLeft)&&value.shockTicksLeft<=40))&&
-    (value.boundary===undefined||isValidMarketBoundary(value.boundary,asset,
+    (value.boundary===undefined||validLegacyBoundary(value.boundary,asset,
       value.price as number,value.updatedAt as number))
 }
 function validMarketEvent(value:unknown):boolean {
@@ -138,10 +138,8 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
         (order.kind!=='limit'&&order.side!=='sell')||!finite(order.triggerPrice)||
         !safe(order.createdAtRealMs)||order.createdAtRealMs<run.startedAtRealMs||
         amount(order.quantity)===null)return false
-      const asset=getAsset(order.assetId)!
       const units=amount(order.quantity)!
-      if(units<=0n||order.triggerPrice<asset.minPrice||
-        order.triggerPrice>asset.maxPrice)return false
+      if(units<=0n||order.triggerPrice<=0)return false
       seen.add(order.id)
     }
   }

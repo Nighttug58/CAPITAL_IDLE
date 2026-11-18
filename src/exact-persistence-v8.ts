@@ -7,6 +7,7 @@ import { migrateTranscendentV1 } from './ascension/transcendent-v1.ts'
  * saves remain untouched and can be restored by an explicit import.
  */
 import { getAsset } from './trading/catalog.ts'
+import { stripLegacyBoundaries } from './trading/legacy-boundary.ts'
 import { validateExactV8State } from './exact-save-validation.ts'
 import { previewV8Migration } from './exact-save-migration.ts'
 import { createV8CapitalState, convertValidatedV7ToV8, type V8CapitalState } from './exact-state-v8.ts'
@@ -30,6 +31,12 @@ function record(value:unknown):value is Record<string,unknown>{
   return value!==null && typeof value==='object' && !Array.isArray(value)
 }
 function validNow(now:number):boolean{return Number.isSafeInteger(now)&&now>=0}
+/** Migrate only obsolete boundary metadata, leaving all price/history/ledger
+ * values intact. An original V8 stored record is not overwritten on read. */
+function withoutOldBoundary(state:V8CapitalState):V8CapitalState {
+  const trading=stripLegacyBoundaries(state.trading)
+  return trading===state.trading?state:{...state,trading}
+}
 function validate(state:unknown):state is V8CapitalState{
   return validateExactV8State(state,decimalsFor).valid
 }
@@ -48,7 +55,7 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
     try{
       const parsed=JSON.parse(previous) as unknown
       if(!validate(parsed))return{ok:false,reason:'invalid-v8'}
-      const current=parsed as V8CapitalState
+      const current=withoutOldBoundary(parsed as V8CapitalState)
       if(current.prestige.xpCurveVersion===4 && current.ascension.progress.shopVersion===2 &&
          current.ascension.progress.transcendentV1!==undefined)
         return{ok:true,state:current,origin:'v8'}
@@ -83,7 +90,7 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
       // later successful reloads. Restoring that backup is an explicit action.
       if(key===PREVIOUS_KEYS[0] && storage.getItem(V8_BACKUP_KEY)===null)
         storage.setItem(V8_BACKUP_KEY,raw)
-      const normalized=migrateTranscendentV1(migrated.convertedState as unknown as V8CapitalState)
+      const normalized=withoutOldBoundary(migrateTranscendentV1(migrated.convertedState as unknown as V8CapitalState))
       if(!validate(normalized))return{ok:false,reason:'invalid-legacy'}
       const payload=JSON.stringify(normalized)
       storage.setItem(V8_STORAGE_KEY,payload)
@@ -133,7 +140,7 @@ export function saveV8CapitalState(storage:Pick<Storage,'getItem'|'setItem'>,
   state:V8CapitalState):boolean {
   if(state.prestige.xpCurveVersion!==4||!validate(state))return false
   try{
-    const serialized=JSON.stringify(state)
+    const serialized=JSON.stringify(withoutOldBoundary(state))
     if(new TextEncoder().encode(serialized).byteLength>MAX_IMPORT_FILE_BYTES)return false
     const before=storage.getItem(V8_STORAGE_KEY)
     storage.setItem(V8_STORAGE_KEY,serialized)
@@ -166,7 +173,7 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
   if(parsed.version===8){
     if(!validate(parsed))return{ok:false,reason:'invalid-save'}
     try {
-      const upgraded=migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState)))
+      const upgraded=withoutOldBoundary(migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(parsed as V8CapitalState))))
       if(!validate(upgraded))return{ok:false,reason:'invalid-save'}
       return{ok:true,state:upgraded,sourceVersion:8}
     } catch { return{ok:false,reason:'invalid-save'} }
@@ -174,7 +181,7 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
   if(![4,5,6,7].includes(parsed.version as number))return{ok:false,reason:'unsupported-version'}
   const migrated=previewV8Migration(JSON.stringify(parsed),now)
   if(!migrated.ok)return{ok:false,reason:'invalid-save'}
-  const normalized=migrateTranscendentV1(migrated.convertedState as unknown as V8CapitalState)
+  const normalized=withoutOldBoundary(migrateTranscendentV1(migrated.convertedState as unknown as V8CapitalState))
   if(!validate(normalized))return{ok:false,reason:'invalid-save'}
   return{ok:true,state:normalized,sourceVersion:migrated.sourceVersion as 4|5|6|7}
 }
@@ -182,5 +189,5 @@ export function prepareV8SaveImport(text:string,now=Date.now()):V8ImportResult{
 export function exportV8Save(state:V8CapitalState,now=Date.now()):string{
   if(!validNow(now)||state.prestige.xpCurveVersion!==4||!validate(state))throw new RangeError('Invalid V8 export')
   return JSON.stringify({format:SAVE_FILE_FORMAT,formatVersion:SAVE_FILE_FORMAT_VERSION,
-    exportedAt:now,state})
+    exportedAt:now,state:withoutOldBoundary(state)})
 }

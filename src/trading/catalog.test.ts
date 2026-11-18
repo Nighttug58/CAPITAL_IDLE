@@ -9,15 +9,15 @@ test('catalogue exactement 20 actions, 15 cryptos, 10 memecoins', () => {
   assert.equal(ASSETS.filter((asset) => asset.kind === 'memecoin').length, 10)
 })
 
-test('ticker et id uniques, contrats valides, prix de référence dans bornes', () => {
+test('ticker et id uniques, prix de référence valides et aucune borne de marché', () => {
   assert.equal(new Set(ASSETS.map((a) => a.id)).size, 45)
   assert.equal(new Set(ASSETS.map((a) => a.symbol)).size, 45)
   for (const asset of ASSETS) {
     assert.match(asset.id, /^[a-z0-9-]+$/)
     assert.match(asset.symbol, /^[A-Z0-9]+$/)
     assert.ok(Number.isFinite(asset.referencePrice) && asset.referencePrice > 0)
-    assert.ok(asset.minPrice > 0 && asset.minPrice < asset.referencePrice)
-    assert.ok(asset.maxPrice > asset.referencePrice)
+    assert.equal('minPrice' in asset, false)
+    assert.equal('maxPrice' in asset, false)
     assert.ok(Number.isSafeInteger(asset.totalSupply) && asset.totalSupply > 0)
     assert.ok(asset.quantityDecimals >= 0 && asset.quantityDecimals <= 8)
     assert.match(asset.priceSource, /^https:\/\//)
@@ -35,8 +35,6 @@ test('actions parodiées, dividendes initialement bornés 1–30 %, émissions f
     assert.ok(a.inspiredBy)
     assert.equal(a.supplyBasis, 'fictional-issue')
     assert.ok(a.initialDividendYield !== null && a.initialDividendYield >= 0.01 && a.initialDividendYield <= 0.30)
-    assert.ok(Math.abs(a.minPrice / a.referencePrice - 0.10) < 1e-10)
-    assert.ok(Math.abs(a.maxPrice / a.referencePrice - 6) < 1e-10)
   }
   assert.equal(getAsset('nvideo')?.name, 'Nvideo')
   assert.equal(getAsset('mike')?.name, 'Mike')
@@ -44,13 +42,11 @@ test('actions parodiées, dividendes initialement bornés 1–30 %, émissions f
   assert.equal(getAsset('mcgonagal')?.name, 'McGonagal')
 })
 
-test('cryptos authentiques : bornes et absence de dividendes', () => {
+test('cryptos authentiques : aucune borne de prix, absence de dividendes', () => {
   const coins = ASSETS.filter((a) => a.kind !== 'stock')
   for (const a of coins) {
     assert.equal(a.inspiredBy, null)
     assert.equal(a.initialDividendYield, null)
-    assert.ok(Math.abs(a.minPrice / a.referencePrice - 0.05) < 1e-10)
-    assert.ok(Math.abs(a.maxPrice / a.referenceHighPrice - 5) < 1e-10)
     assert.ok(['protocol-cap', 'launch-supply', 'game-cap'].includes(a.supplyBasis))
   }
   assert.equal(getAsset('bitcoin')?.totalSupply, 21_000_000)

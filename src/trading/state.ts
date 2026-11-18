@@ -1,4 +1,4 @@
-import { isValidMarketBoundary } from './market.ts'
+import { validLegacyBoundary, stripLegacyBoundaries } from './legacy-boundary.ts'
 import { getAsset } from './catalog.ts'
 import { createInitialStakingState, validStakingState } from './staking.ts'
 import type { MarketNews, MarketQuote, Position, PriceSample, TradingState } from './types.ts'
@@ -45,7 +45,7 @@ function isQuote(value: unknown, id: string): value is MarketQuote {
     (value.shockDrift === undefined || (typeof value.shockDrift === 'number' && Number.isFinite(value.shockDrift) && Math.abs(value.shockDrift) <= 0.25)) &&
     (value.shockTicksLeft === undefined || (Number.isSafeInteger(value.shockTicksLeft) && (value.shockTicksLeft as number) >= 0 && (value.shockTicksLeft as number) <= 40)) &&
     (value.boundary === undefined || (getAsset(id) !== undefined &&
-      isValidMarketBoundary(value.boundary, getAsset(id)!, value.price as number, value.updatedAt as number)))
+      validLegacyBoundary(value.boundary, getAsset(id)!, value.price as number, value.updatedAt as number)))
 }
 
 function isHistory(value: unknown): value is PriceSample[] {
@@ -128,7 +128,7 @@ export function restoreTradingState(raw: unknown, now = Date.now()): TradingStat
     seed: raw.seed,
     lastTickAt: raw.lastTickAt,
     nextNewsAt: raw.nextNewsAt,
-    quotes: raw.quotes,
+    quotes: stripLegacyBoundaries({quotes:raw.quotes}).quotes,
     history: raw.history,
     positions: raw.positions,
     staking: raw.staking ?? createInitialStakingState(

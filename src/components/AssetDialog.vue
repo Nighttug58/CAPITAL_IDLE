@@ -77,13 +77,15 @@ const fullHolding = computed(() => exactHolding.value
   : formatQuantity(owned.value))
 const fullBalance = computed(() => props.exactState
   ? cashExact(v(props.exactState.game.balance)) : formatCash(balance.value))
-const boundary = computed(() => props.state.trading.quotes[props.assetId]?.boundary)
-const boundaryDescription = computed(() => {
-  const event = boundary.value
-  if (!event) return null
-  const realNow = props.state.trading.dividendLastPaidAt
-  if (realNow < event.holdUntilRealMs) return `Cours bloqué au ${event.side === 'min' ? 'minimum' : 'maximum'} pendant encore ${Math.ceil((event.holdUntilRealMs-realNow)/60_000)} min réelles`
-  return `Retournement ${event.side === 'min' ? 'haussier' : 'baissier'} en cours`
+// Historical extremes are observations, never guaranteed trading limits.
+const observedRange = computed(() => {
+  let low = currentPrice.value
+  let high = currentPrice.value
+  for (const sample of samples.value) {
+    if (sample.price < low) low = sample.price
+    if (sample.price > high) high = sample.price
+  }
+  return {low,high}
 })
 
 const errors: Record<string, string> = {
@@ -159,7 +161,6 @@ function submit() {
         <strong>{{ formatPrice(currentPrice) }}</strong>
         <span :class="change === null ? 'market-direction-flat' : change >= 0 ? 'market-direction-up' : 'market-direction-down'">{{ formatChange(change) }} · 1 h</span>
       </div>
-      <p v-if="boundaryDescription" class="yield-summary" role="status">{{ boundaryDescription }}</p>
       <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}</div>
       <MarketChart :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
       <div class="asset-order">
@@ -206,8 +207,8 @@ function submit() {
       <section class="asset-market-details" aria-label="Détails du marché et actualités">
         <h3>Détails du marché et actualités</h3>
         <div class="asset-detail-grid">
-          <div><span>Prix minimum</span><strong>{{ formatPrice(asset.minPrice) }}</strong></div>
-          <div><span>Prix maximum</span><strong>{{ formatPrice(asset.maxPrice) }}</strong></div>
+          <div><span>Plus bas observé (1 h)</span><strong>{{ formatPrice(observedRange.low) }}</strong></div>
+          <div><span>Plus haut observé (1 h)</span><strong>{{ formatPrice(observedRange.high) }}</strong></div>
           <div><span>Vous détenez</span><strong>{{ fullHolding }}</strong></div>
         </div>
         <div class="asset-news-related">

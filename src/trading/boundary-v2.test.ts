@@ -1,140 +1,141 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getAsset } from './catalog.ts'
-import { createInitialTradingState, restoreTradingState } from './state.ts'
-import { advanceMarketTick, BOUNDARY_MIN_HOLD_REAL_MS, isValidMarketBoundary } from './market.ts'
-import type { MarketQuote, TradingState } from './types.ts'
-import { createV8CapitalState, type V8CapitalState } from '../exact-state-v8.ts'
-import { v8AdvanceMarketSecond } from '../exact-market-v8.ts'
-import { catchUpV8 } from '../exact-clock-v8.ts'
-import { validateExactV8State } from '../exact-save-validation.ts'
-import { loadV8CapitalState, saveV8CapitalState } from '../exact-persistence-v8.ts'
+import {getAsset} from './catalog.ts'
+import {advanceMarketTick} from './market.ts'
+import {createInitialTradingState,restoreTradingState} from './state.ts'
+import {validLegacyBoundary} from './legacy-boundary.ts'
+import {validMarketOrders} from '../ascension/automation-orders.ts'
+import {createV8CapitalState} from '../exact-state-v8.ts'
+import {v8AdvanceMarketSecond} from '../exact-market-v8.ts'
+import {catchUpV8} from '../exact-clock-v8.ts'
+import {validateExactV8State} from '../exact-save-validation.ts'
+import {V8_STORAGE_KEY,loadV8CapitalState,saveV8CapitalState,prepareV8SaveImport} from '../exact-persistence-v8.ts'
 
-const now = 1_800_000_000_000
-function towards(id:string, side:'min'|'max'):TradingState {
+const now=1_800_000_000_000
+const decimals=(id:string)=>getAsset(id)?.quantityDecimals??null
+function oldQuote(id:string,side:'min'|'max'='min') {
   const asset=getAsset(id)!
-  const multiplier=side==='min'?1.001:0.999
-  const quote:MarketQuote={price:(side==='min'?asset.minPrice:asset.maxPrice)*multiplier,
-    momentum:side==='min'?-0.08:0.08,
-    regime:'steady',regimeTicksLeft:20,shockTicksLeft:5,
-    shockDrift:side==='min'?-0.2:0.2,
-    dividendYield:asset.initialDividendYield,updatedAt:now}
-  return {...createInitialTradingState(now,123),quotes:{[id]:quote}}
-}
-
-test('minimum/maximum touched exactly, real 5–10min hold, then decisive 1–3min rebound',()=>{
-  for(const [id,side] of [['bitcoin','min'],['nvideo','max'],['turbo','min']] as const){
-    const asset=getAsset(id)!
-    let state=advanceMarketTick(towards(id,side),true,{realAt:now+5000})
-    const initial=state.quotes[id]!
-    const event=initial.boundary!
-    assert.ok(event,`${id} must enter an exact boundary state`)
-    assert.equal(event.side,side)
-    const bound=side==='min'?asset.minPrice:asset.maxPrice
-    assert.equal(initial.price,bound)
-    assert.ok(event.holdUntilRealMs-event.touchedAtRealMs>=BOUNDARY_MIN_HOLD_REAL_MS)
-    assert.ok(event.holdUntilRealMs-event.touchedAtRealMs<=600000)
-    assert.ok(event.reboundUntilRealMs-event.holdUntilRealMs>=60000)
-    assert.ok(event.reboundUntilRealMs-event.holdUntilRealMs<=180000)
-    assert.equal(isValidMarketBoundary(event,asset,initial.price,initial.updatedAt),true)
-    const saved=JSON.parse(JSON.stringify(state))
-    const restored=restoreTradingState(saved,now+5000)
-    assert.deepEqual(restored,state)
-    const holdRealAt=event.holdUntilRealMs-1
-    state=advanceMarketTick(state,true,{realAt:holdRealAt})
-    assert.equal(state.quotes[id]!.price,bound,'no movement during hold, even on large replay gaps')
-    const halfway=event.holdUntilRealMs+Math.floor((event.reboundUntilRealMs-event.holdUntilRealMs)/2)
-    state=advanceMarketTick(state,true,{realAt:halfway})
-    const moving=state.quotes[id]!.price
-    assert.ok(side==='min'?moving>bound:moving<bound)
-    state=advanceMarketTick(state,true,{realAt:event.reboundUntilRealMs})
-    assert.equal(state.quotes[id]!.price,event.reboundTargetPrice)
-    assert.equal(state.quotes[id]!.boundary,undefined)
-    assert.ok(state.quotes[id]!.price>=asset.minPrice && state.quotes[id]!.price<=asset.maxPrice)
+  const edge=asset.referencePrice*(side==='min'?(asset.kind==='stock'?0.10:0.05):(asset.kind==='stock'?6:5))
+  return {
+    price:edge,momentum:side==='min'?-0.08:0.08,
+    regime:side==='min'?'bear' as const:'bull' as const,
+    regimeTicksLeft:25,shockTicksLeft:5,shockDrift:side==='min'?-0.2:0.2,
+    dividendYield:asset.initialDividendYield,updatedAt:now,
+    boundary:{side,touchedAtRealMs:now,holdUntilRealMs:now+300_000,
+      reboundUntilRealMs:now+360_000,
+      reboundTargetPrice:edge*(side==='min'?1.1:0.9)},
   }
-})
-
-test('same price behavior at x1/x5: boundary duration is real-time, not simulated',()=>{
-  for(const speed of [1,5]){
-    let state=towards('nvideo','min')
-    state=advanceMarketTick(state,true,{realAt:now+1000,speed})
-    const event=state.quotes.nvideo!.boundary!
-    assert.ok(event)
-    assert.ok(event.holdUntilRealMs-event.touchedAtRealMs>=5*60_000)
-    for(let current=now+2000;current<now+300000;current+=5000){
-      state=advanceMarketTick(state,true,{realAt:current,speed})
-      assert.equal(state.quotes.nvideo!.price,getAsset('nvideo')!.minPrice)
+}
+function memoryStorage() {
+  const values=new Map<string,string>()
+  return {
+    values,
+    getItem:(key:string)=>values.get(key)??null,
+    setItem:(key:string,val:string)=>{values.set(key,val)},
+  }
+}
+test('old bounded quotes for all three categories resume immediately, without 5-10 minute hold',()=>{
+  for(const id of ['nvideo','bitcoin','turbo']){
+    const asset=getAsset(id)!
+    for(const side of ['min','max'] as const){
+      const legacy=oldQuote(id,side)
+      assert.equal(validLegacyBoundary(legacy.boundary,asset,legacy.price,now),true)
+      const state=createInitialTradingState(now,123)
+      state.quotes={[id]:legacy}
+      const step=advanceMarketTick(state,true,{realAt:now+5_000})
+      const first=step.quotes[id]!
+      assert.equal('boundary'in first,false)
+      assert.ok(side==='min'?first.price<legacy.price:first.price>legacy.price)
+      const following=advanceMarketTick(step,true,{realAt:now+10_000})
+      assert.notEqual(following.quotes[id]!.price,first.price,'free price movement')
     }
   }
 })
-
-test('V8 exact save reload keeps boundary state and seeded continuation',()=>{
-  let v8=createV8CapitalState(now)
-  v8={...v8,trading:{...v8.trading,quotes:towards('bitcoin','max').quotes}}
-  for(let i=0;i<5;i++)v8=v8AdvanceMarketSecond(v8)
-  const event=v8.trading.quotes.bitcoin!.boundary!
-  assert.ok(event)
-  assert.equal(validateExactV8State(v8,id=>getAsset(id)?.quantityDecimals??null).valid,true)
-  const map=new Map<string,string>()
-  const storage={getItem:(key:string)=>map.get(key)??null,setItem:(key:string,val:string)=>{map.set(key,val)}}
-  assert.equal(saveV8CapitalState(storage,v8),true)
-  const reloaded=loadV8CapitalState(storage,now+5000)
+test('V7 restores existing held boundary state without discarding positions, then strips the obsolete event',()=>{
+  const state=createInitialTradingState(now,123)
+  state.quotes={bitcoin:oldQuote('bitcoin')}
+  state.positions.bitcoin={quantity:0.5,costBasis:120}
+  const read=restoreTradingState(JSON.parse(JSON.stringify(state)),now)
+  assert.equal(read.quotes.bitcoin!.price,state.quotes.bitcoin!.price)
+  assert.equal('boundary' in read.quotes.bitcoin!,false)
+  assert.deepEqual(read.positions,state.positions)
+  assert.equal(read.seed,state.seed)
+  assert.equal(read.lastTickAt,state.lastTickAt)
+  assert.notEqual(advanceMarketTick(read).quotes.bitcoin!.price,read.quotes.bitcoin!.price)
+})
+test('V8 accepts a previously valid held boundary, strips it on read/import/write without changing economic state',()=>{
+  const initial=createV8CapitalState(now)
+  const legacy={...initial,trading:{...initial.trading,quotes:{bitcoin:oldQuote('bitcoin')}}}
+  assert.equal(validateExactV8State(legacy,decimals).valid,true)
+  const storage=memoryStorage()
+  const original=JSON.stringify(legacy)
+  storage.setItem(V8_STORAGE_KEY,original)
+  const loaded=loadV8CapitalState(storage,now)
+  assert.equal(loaded.ok,true)
+  if(!loaded.ok)return
+  assert.equal(storage.getItem(V8_STORAGE_KEY),original,'do not rewrite existing save on read')
+  assert.equal(loaded.state.trading.quotes.bitcoin!.price,legacy.trading.quotes.bitcoin.price)
+  assert.equal('boundary' in loaded.state.trading.quotes.bitcoin!,false)
+  assert.equal(loaded.state.game.balance,legacy.game.balance)
+  assert.equal(loaded.state.trading.seed,legacy.trading.seed)
+  assert.equal(validateExactV8State(loaded.state,decimals).valid,true)
+  const imported=prepareV8SaveImport(original,now)
+  assert.equal(imported.ok,true)
+  if(imported.ok)assert.equal('boundary' in imported.state.trading.quotes.bitcoin!,false)
+  assert.equal(saveV8CapitalState(storage,legacy),true)
+  assert.equal((JSON.parse(storage.getItem(V8_STORAGE_KEY)!) as any).trading.quotes.bitcoin.boundary,undefined)
+  const reloaded=loadV8CapitalState(storage,now)
   assert.equal(reloaded.ok,true)
   if(!reloaded.ok)return
-  assert.deepEqual(reloaded.state.trading.quotes.bitcoin!.boundary,event)
-  let replay=v8
-  let resumed=reloaded.state
-  for(let i=0;i<10;i++){
-    replay=v8AdvanceMarketSecond(replay)
-    resumed=v8AdvanceMarketSecond(resumed)
+  let direct=loaded.state,restored=reloaded.state
+  for(let i=0;i<20;i++){
+    direct=v8AdvanceMarketSecond(direct)
+    restored=v8AdvanceMarketSecond(restored)
   }
-  assert.deepEqual(resumed,replay)
+  assert.deepEqual(restored,direct,'unchanged seeded market continuation')
 })
-
-test('invalid/tampered boundary saved state is rejected',()=>{
-  const state=advanceMarketTick(towards('nvideo','min'),true,{realAt:now+5000})
-  const original=state.quotes.nvideo!
-  const asset=getAsset('nvideo')!
-  assert.equal(isValidMarketBoundary(original.boundary,asset,original.price,original.updatedAt),true)
-  for(const boundary of [
-    {...original.boundary!,holdUntilRealMs:original.boundary!.touchedAtRealMs+299999},
-    {...original.boundary!,reboundTargetPrice:asset.minPrice},
-    {...original.boundary!,reboundUntilRealMs:original.boundary!.holdUntilRealMs-1},
-  ]){
-    assert.equal(isValidMarketBoundary(boundary,asset,original.price,original.updatedAt),false)
-    const tampered={...state,quotes:{...state.quotes,nvideo:{...original,boundary}}}
-    assert.notDeepEqual(restoreTradingState(tampered,now+5000),tampered)
+test('corrupted old boundary metadata is still rejected, not used as a reset or a free price event',()=>{
+  const old=oldQuote('bitcoin')
+  const malformed={...old,boundary:{...old.boundary,holdUntilRealMs:now+1000}}
+  assert.equal(validLegacyBoundary(malformed.boundary,getAsset('bitcoin')!,malformed.price,now),false)
+  const legacy=createInitialTradingState(now,987)
+  legacy.quotes={bitcoin:malformed}
+  assert.deepEqual(restoreTradingState(legacy,now).quotes,{})
+  const v8=createV8CapitalState(now)
+  const forged={...v8,trading:{...v8.trading,quotes:{bitcoin:malformed}}}
+  assert.equal(validateExactV8State(forged,decimals).valid,false)
+  const storage=memoryStorage()
+  storage.setItem(V8_STORAGE_KEY,JSON.stringify(forged))
+  assert.deepEqual(loadV8CapitalState(storage,now),{ok:false,reason:'invalid-v8'})
+})
+test('limit and take-profit trigger prices can exceed former stock/crypto/memecoin maxima',()=>{
+  for(const id of ['nvideo','bitcoin','turbo']){
+    const asset=getAsset(id)!
+    const far=asset.referencePrice*1000
+    const orders=[{id:1,assetId:id,side:'sell' as const,kind:'take-profit' as const,
+      triggerPrice:far,quantity:1,createdAtRealMs:now}]
+    assert.equal(validMarketOrders(orders,2,now,now),true)
+    assert.equal(validMarketOrders([{...orders[0]!,triggerPrice:-1}],2,now,now),false)
+    const v8=createV8CapitalState(now)
+    const updated={...v8,ascension:{...v8.ascension,run:{...v8.ascension.run,
+      marketOrders:[{...orders[0]!,quantity:String(10**asset.quantityDecimals)}],nextOrderId:2}}}
+    assert.equal(validateExactV8State(updated,decimals).valid,true)
   }
 })
-
-
-test('offline market replay advances in bounded batches and preserves real-time boundary timestamps',()=>{
-  let initial=createV8CapitalState(now)
-  initial={...initial,trading:{...initial.trading,quotes:towards('nvideo','min').quotes}}
-  const first=catchUpV8(initial,now+7*60_000)
-  assert.equal(first.processedSeconds,256)
-  assert.equal(first.pendingSeconds,164)
-  assert.ok(first.state.trading.quotes.nvideo!.boundary)
-  const second=catchUpV8(first.state,now+7*60_000)
-  assert.equal(second.pendingSeconds,0)
-  assert.equal(second.processedSeconds,164)
-  let sequential=initial
+test('offline catch-up and x5 market ticks do not reinstate old boundary holds',()=>{
+  const initial=createV8CapitalState(now)
+  const state={...initial,trading:{...initial.trading,quotes:{nvideo:oldQuote('nvideo')}},
+    ascension:{...initial.ascension,run:{...initial.ascension.run,
+      marketClock:{...initial.ascension.run.marketClock,selectedSpeed:5}}}}
+  const first=v8AdvanceMarketSecond(state)
+  assert.ok(first.trading.quotes.nvideo!.price!==state.trading.quotes.nvideo.price)
+  assert.equal('boundary' in first.trading.quotes.nvideo!,false)
+  const partial=catchUpV8(state,now+7*60_000)
+  assert.equal(partial.processedSeconds,256)
+  const complete=catchUpV8(partial.state,now+7*60_000)
+  assert.equal(complete.pendingSeconds,0)
+  let sequential=state
   for(let i=0;i<420;i++)sequential=v8AdvanceMarketSecond(sequential)
-  assert.deepEqual(second.state,sequential)
-  assert.equal(validateExactV8State(sequential,id=>getAsset(id)?.quantityDecimals??null).valid,true)
-})
-
-test('actual V8 accelerated 5x ticks still require 5 real minutes before rebound',()=>{
-  let state=createV8CapitalState(now)
-  state={...state,trading:{...state.trading,quotes:towards('nvideo','min').quotes},
-    ascension:{...state.ascension,
-      progress:{...state.ascension.progress,upgradeLevels:{...state.ascension.progress.upgradeLevels,'time-accelerator':5}},
-      run:{...state.ascension.run,marketClock:{...state.ascension.run.marketClock,selectedSpeed:5}}}}
-  state=v8AdvanceMarketSecond(state)
-  const boundary=state.trading.quotes.nvideo!.boundary!
-  assert.ok(boundary)
-  assert.equal(boundary.touchedAtRealMs,now+1000)
-  for(let i=1;i<300;i++)state=v8AdvanceMarketSecond(state)
-  assert.equal(state.trading.quotes.nvideo!.price,getAsset('nvideo')!.minPrice)
-  assert.ok(state.trading.quotes.nvideo!.boundary!.holdUntilRealMs>now+300_000)
+  assert.deepEqual(complete.state,sequential)
+  assert.equal(validateExactV8State(sequential,decimals).valid,true)
 })

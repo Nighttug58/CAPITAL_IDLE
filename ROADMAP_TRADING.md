@@ -1,5 +1,7 @@
 # ROADMAP — CAPITAL_IDLE / Trading & News V1
 
+> **Note de mise à jour du 18/11/2026 :** Cette roadmap V1 documente les objectifs historiques. Les anciennes exigences de plancher/plafond de prix, de pause aux bornes et de rebond forcé sont **remplacées** par le marché libre pour les actions, les cryptos et les memecoins. La référence actuelle est `TRADING_ASSETS.md` ; les anciennes règles ci-dessous ne doivent pas être réimplémentées.
+
 Statut : **Trading V1 livrée — passes 1 à 10 terminées**  
 Branche cible : **main**  
 Dernière définition fonctionnelle : **13 novembre 2026**

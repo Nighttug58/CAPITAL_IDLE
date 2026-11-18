@@ -7,8 +7,6 @@ export interface AssetDefinition {
   readonly name: string
   readonly kind: AssetKind
   readonly referencePrice: number
-  readonly minPrice: number
-  readonly maxPrice: number
   readonly totalSupply: number
   readonly initialDividendYield: number | null
   readonly sector: string
@@ -24,15 +22,6 @@ export interface AssetDefinition {
 
 export type MarketRegime = 'steady' | 'bull' | 'bear' | 'frenzy'
 
-/** Real-time market floor/ceiling event. The price cannot move during the hold. */
-export interface MarketBoundaryState {
-  readonly side: 'min' | 'max'
-  readonly touchedAtRealMs: number
-  readonly holdUntilRealMs: number
-  readonly reboundUntilRealMs: number
-  readonly reboundTargetPrice: number
-}
-
 export interface MarketQuote {
   price: number
   momentum: number
@@ -44,7 +33,6 @@ export interface MarketQuote {
   regimeTicksLeft?: number
   shockDrift?: number
   shockTicksLeft?: number
-  boundary?: MarketBoundaryState
 }
 
 export interface PriceSample {

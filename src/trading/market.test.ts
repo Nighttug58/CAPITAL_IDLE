@@ -52,13 +52,12 @@ test('le rechargement JSON en milieu de tendance reprend bit pour bit la même t
   assert.deepEqual(resumed, before)
 })
 
-test('les 45 actifs respectent leurs bornes et les rendements actions restent entre 1 et 30 %', () => {
+test('les 45 actifs restent cotés positivement et les rendements actions entre 1 et 30 %', () => {
   const state = simulate(950, 981)
   for (const asset of ASSETS) {
     const quote = state.quotes[asset.id]!
     assert.ok(Number.isFinite(quote.price))
-    assert.ok(quote.price >= asset.minPrice, `${asset.id}: below min`)
-    assert.ok(quote.price <= asset.maxPrice, `${asset.id}: above max`)
+    assert.ok(quote.price > 0, `${asset.id}: non-positive quote`)
     if (asset.kind === 'stock') {
       assert.ok(quote.dividendYield !== null && quote.dividendYield >= 0.01 && quote.dividendYield <= 0.30)
     } else assert.equal(quote.dividendYield, null)
@@ -68,24 +67,27 @@ test('les 45 actifs respectent leurs bornes et les rendements actions restent en
   }
 })
 
-test('les bornes amortissent les mouvements sans rebond artificiel imposé', () => {
-  const state = createInitialTradingState(START, 23)
-  state.quotes = createInitialQuotes(START)
-  const btc = ASSETS.find((asset) => asset.id === 'bitcoin')!
-  state.quotes.bitcoin = {
-    ...state.quotes.bitcoin!,
-    price: btc.minPrice,
-    momentum: -0.08,
-    regime: 'bear',
-    regimeTicksLeft: 50,
-    shockDrift: -0.11,
-    shockTicksLeft: 5,
-  }
-  const after = advanceMarketTick(state)
-  assert.equal(after.quotes.bitcoin!.price, btc.minPrice)
-  for (const asset of ASSETS) {
-    const current = after.quotes[asset.id]!
-    assert.ok(current.price >= asset.minPrice && current.price <= asset.maxPrice)
+test('cours libres pour les trois catégories : le marché traverse les anciens planchers et plafonds', () => {
+  for (const id of ['nvideo','bitcoin','turbo']) {
+    const asset=ASSETS.find(a=>a.id===id)!
+    for (const side of ['min','max'] as const) {
+      const legacyEdge=asset.referencePrice*(side==='min'?(asset.kind==='stock'?.1:.05):(asset.kind==='stock'?6:5))
+      const direction=side==='min'?-1:1
+      const trading=createInitialTradingState(START,23)
+      trading.quotes=createInitialQuotes(START)
+      trading.quotes[id]={
+        ...trading.quotes[id]!,price:legacyEdge,momentum:direction*.08,
+        regime:side==='min'?'bear':'bull',regimeTicksLeft:20,
+        shockDrift:direction*.2,shockTicksLeft:5,
+      }
+      const first=advanceMarketTick(trading)
+      const quote=first.quotes[id]!
+      assert.ok(direction<0?quote.price<legacyEdge:quote.price>legacyEdge,id+' '+side)
+      assert.ok(Number.isFinite(quote.price) && quote.price>0)
+      assert.equal('boundary' in quote,false)
+      const second=advanceMarketTick(first)
+      assert.notEqual(second.quotes[id]!.price,quote.price,'no fixed hold after crossing')
+    }
   }
 })
 

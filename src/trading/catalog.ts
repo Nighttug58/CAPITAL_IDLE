@@ -95,8 +95,6 @@ function stock(row: StockRow): AssetDefinition {
     sector: row.sector, inspiredBy: row.inspiredBy, sourceTicker: row.sourceTicker,
     referencePrice: row.price,
     referenceHighPrice: row.price,
-    minPrice: row.price * 0.10,
-    maxPrice: row.price * 6,
     totalSupply: row.supply, initialDividendYield: row.yield,
     supplyBasis: 'fictional-issue' as const,
     supplyNote: 'Émission fictive choisie pour le jeu, non nombre officiel d’actions en circulation.',
@@ -112,10 +110,6 @@ function coin(row: CoinRow, kind: Extract<AssetKind, 'crypto' | 'memecoin'>): As
     sector: row.sector, inspiredBy: null, sourceTicker: row.symbol,
     referencePrice: row.price,
     referenceHighPrice: row.price,
-    minPrice: row.price * 0.05,
-    // Maximum de jeu V1 : 500 % du prix de la photo de marché.
-    // Ne prétend pas être 5 × un ATH historique qui reste à sourcer/valider.
-    maxPrice: row.price * 5,
     totalSupply: row.supply, initialDividendYield: null,
     supplyBasis: row.supplyBasis, supplyNote: row.supplyNote,
     quantityDecimals: row.decimals,

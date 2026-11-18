@@ -11,11 +11,14 @@
 
 Les références ne sont pas identiques à la seconde près : il s'agit de **prix approximatifs de départ**, non de données synchronisées. Le taux de dividende initial de chaque entreprise est une valeur **100 % ludique** entre 1 % et 30 %, distincte des vrais dividendes.
 
-## Règles des bornes
+## Marché sans bornes de cours (18 novembre 2026)
 
-- **Actions fictives** : borne de jeu **10 %** du prix de départ ; plafond **600 %** du prix de départ. Ces bornes sont des choix d'équilibrage, pas des min/max réels historiques.
-- **Cryptos et memecoins** : minimum **5 %** du prix réel de référence (photo de marché). **Plafond provisoire V1 = 500 % du prix de référence de la photo de marché** ; la colonne `referenceHighPrice` reflète cette même valeur, **pas un plus haut historique vérifié**. Le libellé antérieur « 500 % du max des cours actuels » n'identifie pas de fenêtre de temps ; **si la référence voulue est l'ATH historique, il faudra sourcer et recalculer les 25 plafonds avant de lancer la simulation**. Ne jamais présenter ce plafond comme un ATH sans données vérifiées.
-- Les bornes sont des constantes du catalogue. Elles ne changent pas si le cours simulé évolue.
+- **Actions, cryptos et memecoins** : aucun prix minimum ou maximum lié au prix de référence initial. Les cours peuvent descendre sous l'ancien seuil de 10 % / 5 % ou dépasser les anciens plafonds ×6 / ×5.
+- **Aucune pause à la limite** : le blocage de 5–10 minutes et le rebond automatique de 1–3 minutes ont été retirés. Les tendances, bruits, chocs et News continuent de déterminer les mouvements à chaque tick.
+- La vitesse maximale d'un mouvement isolé reste bornée à **±0,25 en log-rendement par tick**, afin d'éviter des sauts instantanés absurdes. Les seules autres protections sont la positivité et la finitude numérique des cours.
+- La fiche de chaque actif affiche les **plus bas et plus hauts réellement observés sur l'historique glissant d'une heure**. Ces extrêmes ne sont pas des limites ni des prédictions.
+- La donnée `referenceHighPrice` du catalogue est un repère documentaire de la photo de marché, **pas un plafond**, et ne prétend pas être un record historique (ATH).
+- Les sauvegardes V7/V8 contenant un ancien événement de limite sont vérifiées puis débarrassées de ce seul événement à la restauration. Aucun prix, historique, quantité ni état économique n'est remis à zéro.
 
 ## Offre maximale / quantité accessible
 

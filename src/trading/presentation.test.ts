@@ -101,3 +101,8 @@ test('calcule 45 séries avec 720 points sans données non finies', () => {
   assert.ok(rows.every((row) => row.sparkline.length > 10 && !row.sparkline.includes('NaN')))
   assert.ok(performance.now() - start < 2_000)
 })
+
+test('extreme free-market prices remain visible instead of rounding to zero', () => {
+  assert.match(formatPrice(1e-30), /e-30/)
+  assert.match(formatPrice(1e35), /e\+35/)
+})

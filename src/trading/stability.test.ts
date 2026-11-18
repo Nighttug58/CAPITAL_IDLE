@@ -12,7 +12,7 @@ const START = 1_800_000_000_000
 const HOUR = 3_600_000
 const DAY = HOUR * 24
 
-test('trois simulations de 6 heures : 45 cours bornés, rendements et historique valide', () => {
+test('trois simulations de 6 heures : 45 cours libres, rendements et historique valides', () => {
   for (const seed of [1, 0xabc123, 0xdeadbeef]) {
     const state = createCapitalState(undefined, START)
     let trading = { ...state.trading, seed }
@@ -24,7 +24,7 @@ test('trois simulations de 6 heures : 45 cours bornés, rendements et historique
       if (tick % 12 !== 0) continue
       for (const asset of ASSETS) {
         const quote = trading.quotes[asset.id]!
-        assert.ok(quote && Number.isFinite(quote.price) && quote.price >= asset.minPrice && quote.price <= asset.maxPrice, asset.id)
+        assert.ok(quote && Number.isFinite(quote.price) && quote.price > 0, asset.id)
         if (asset.kind === 'stock') assert.ok(quote.dividendYield !== null && quote.dividendYield >= .01 && quote.dividendYield <= .3)
         else assert.equal(quote.dividendYield, null)
         const prev = previous.get(asset.id)
@@ -43,7 +43,7 @@ test('trois simulations de 6 heures : 45 cours bornés, rendements et historique
       const samples = trading.history[asset.id]!
       assert.ok(samples.length <= MARKET_MAX_SAMPLES && samples.length > 100)
       assert.ok(samples.every(e => e.at > trading.lastTickAt - MARKET_HISTORY_MS))
-      assert.ok(samples.every(e => e.price >= asset.minPrice && e.price <= asset.maxPrice))
+      assert.ok(samples.every(e => Number.isFinite(e.price) && e.price > 0))
       assert.ok(samples.every((e, i) => i === 0 || e.at > samples[i - 1]!.at))
     }
     assert.deepEqual(restoreTradingState(JSON.parse(JSON.stringify(trading)), trading.lastTickAt), trading)

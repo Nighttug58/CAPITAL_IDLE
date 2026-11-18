@@ -32,7 +32,7 @@ export function validMarketOrders(raw: unknown, nextOrderId: unknown, startedAt:
         !['limit','stop-loss','take-profit'].includes(item.kind as string) ||
         (item.kind !== 'limit' && item.side !== 'sell') ||
         typeof item.triggerPrice !== 'number' || !Number.isFinite(item.triggerPrice) ||
-        item.triggerPrice < asset.minPrice || item.triggerPrice > asset.maxPrice ||
+        item.triggerPrice <= 0 ||
         typeof item.quantity !== 'number' || !Number.isFinite(item.quantity) ||
         item.quantity <= 0 ||
         Math.abs(item.quantity * 10 ** asset.quantityDecimals -
