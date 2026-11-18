@@ -34,8 +34,8 @@ const overview = computed(() => getCapitalStatsOverview(props.state))
 const collectionV3 = computed(() => collectionV3Snapshot(
   props.exactState?.prestige.ownedCollectionIds ?? props.state.prestige.ownedCollectionIds))
 const exactAbsolute = computed(() => props.exactState ? v8AbsoluteFameStatus(props.exactState) : null)
-const exactAbsoluteText = computed(() => exactAbsolute.value ? formatFameFactor(exactAbsolute.value.factorUnits) : '')
-const exactCapText = computed(() => exactAbsolute.value ? formatFameFactor(exactAbsolute.value.capUnits) : '')
+const exactAbsoluteText = computed(() => exactAbsolute.value ? formatFameFactor(exactAbsolute.value.factorUnits).replace('.', ',') : '')
+const exactCapText = computed(() => exactAbsolute.value ? formatFameFactor(exactAbsolute.value.capUnits).replace('.', ',') : '')
 const exactStepText = computed(() => exactAbsolute.value ? formatCompactUnits(exactAbsolute.value.fameSteps,0,'') : '')
 const exactNextFame = computed(() => exactAbsolute.value ? formatFameMicros(exactAbsolute.value.nextStepAtFameMicros) : '')
 const exactBonusPercent = (id:FameBoostId) => {
