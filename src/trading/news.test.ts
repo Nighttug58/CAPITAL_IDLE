@@ -333,7 +333,7 @@ test('une News influe sur les prix, et la réaction des dividendes reste douce',
     } else {
       assert.equal(loud.quotes[asset.id]!.dividendYield, null)
     }
-    assert.ok(loud.quotes[asset.id]!.price >= asset.minPrice)
+    assert.ok(Number.isFinite(loud.quotes[asset.id]!.price) && loud.quotes[asset.id]!.price > 0)
   }
   assert.ok(higher >= 35, 'une nouvelle globale positive doit réellement soutenir les tendances')
 })

@@ -146,11 +146,11 @@ test('Ordres limites : priorité ID, pas de double ordre, conservation des frais
   let original = funded(['automatic-orders'])
   const asset = getAsset('nvideo')!
   const first = createMarketOrder(original, {
-    assetId: 'nvideo', side: 'buy', kind: 'limit', quantity: 1, triggerPrice: asset.maxPrice,
+    assetId: 'nvideo', side: 'buy', kind: 'limit', quantity: 1, triggerPrice: asset.referencePrice * 20,
   }, NOW)
   assert.ok(first.ok)
   const second = createMarketOrder(first.state, {
-    assetId: 'nvideo', side: 'buy', kind: 'limit', quantity: 1, triggerPrice: asset.maxPrice,
+    assetId: 'nvideo', side: 'buy', kind: 'limit', quantity: 1, triggerPrice: asset.referencePrice * 20,
   }, NOW)
   assert.ok(second.ok)
   assert.deepEqual(second.state.ascension.run.marketOrders?.map(o=>o.id), [1,2])
@@ -191,7 +191,7 @@ test('Auto Trader : vente déclenchée passe par taxe, XP et frais réels, avec 
   const beforeTaxes = advanced.fiscal.taxesDueCents
   const beforeLevel = advanced.prestige.experienceCents
   const base = getAsset('ethereum')!
-  const price = Math.min(base.maxPrice,base.referencePrice*1.25)
+  const price = base.referencePrice*1.25
   const updated = { ...advanced, trading: {...advanced.trading,
     quotes: {...advanced.trading.quotes, ethereum: {...advanced.trading.quotes.ethereum!,
       price, updatedAt:NOW+5_000 } },
@@ -221,7 +221,7 @@ test('Priorité anti-churn : un actif vendu par Auto Trader n’est pas racheté
         ...advanced.trading.quotes,
         ethereum: {
           ...advanced.trading.quotes.ethereum!,
-          price: Math.max(asset.minPrice, asset.referencePrice * 0.75),
+          price: asset.referencePrice * 0.75,
           updatedAt: NOW + 5_000,
         },
       },

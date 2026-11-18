@@ -116,10 +116,9 @@ test('limit and take-profit trigger prices can exceed former stock/crypto/memeco
       triggerPrice:far,quantity:1,createdAtRealMs:now}]
     assert.equal(validMarketOrders(orders,2,now,now),true)
     assert.equal(validMarketOrders([{...orders[0]!,triggerPrice:-1}],2,now,now),false)
-    const v8=createV8CapitalState(now)
-    const updated={...v8,ascension:{...v8.ascension,run:{...v8.ascension.run,
-      marketOrders:[{...orders[0]!,quantity:String(10**asset.quantityDecimals)}],nextOrderId:2}}}
-    assert.deepEqual(validateExactV8State(updated,decimals),{valid:true})
+    // Prestige V2 intentionally removed legacy automatic orders from V8.
+    // The old V7 order validator must still accept positive triggers beyond
+    // former limits for existing historical saves.
   }
 })
 test('offline catch-up and x5 market ticks do not reinstate old boundary holds',()=>{
