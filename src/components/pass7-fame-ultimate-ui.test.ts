@@ -23,7 +23,7 @@ describe('Pass 7 Fame Shop and ultimate Prestige UI',()=>{
       exactState:initial,purchaseBoost:noBuy}})
     try {
       expect(wrapper.find('.absolute-prestige-factor').text()).toContain('×1')
-      expect(wrapper.find('.absolute-prestige-details').text()).toContain('100.0 Fame')
+      expect(wrapper.find('.absolute-prestige-details').text()).toContain('100 Fame')
       expect(wrapper.find('.absolute-prestige-card').text()).toContain('×102')
       const newCycle=exact((100_000_000n*1000n).toString())
       await wrapper.setProps({state:projectV8ForLegacyUI(newCycle),exactState:newCycle})
