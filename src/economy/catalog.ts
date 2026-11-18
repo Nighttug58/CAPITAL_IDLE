@@ -130,7 +130,7 @@ export function getEnterprisePurchaseCostCents(id: string): number | null {
 /**
  * Pure, O(1)-arithmetic upgrade prices. Up to level 20 the original 20%-base
  * 18%-growth price curve is preserved (only the ROI has changed). Afterwards,
- * price growth is quadratic, NOT an exponential depending on the user's level.
+ * price growth is linear, NOT an exponential depending on the user's level.
  * No table, loops proportional to ownedLevel or artificial business-level cap.
  */
 export function getEnterpriseUpgradeCostCentsExact(id: string, currentLevel: number): bigint | null {

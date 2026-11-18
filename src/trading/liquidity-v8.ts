@@ -58,7 +58,7 @@ export function updateTradeMarket(trading: V8TradingState, asset: AssetDefinitio
   const last = old[old.length - 1]
   const sample = { at, price: endingPrice,
     ...(current.dividendYield !== null ? { dividendYield: current.dividendYield } : {}) }
-  const series = last?.at === at ? [...old.slice(0, -1), sample] :
+  const series = last && last.at >= at ? [...old.slice(0, -1), sample] :
     [...old, sample].slice(-720)
   return { quotes: { ...trading.quotes, [asset.id]: quote },
     history: { ...trading.history, [asset.id]: series } }

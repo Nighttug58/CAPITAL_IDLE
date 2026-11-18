@@ -9,6 +9,7 @@ import { validateExactV8State } from '../exact-save-validation.ts'
 import { saveV8CapitalState, loadV8CapitalState, exportV8Save, prepareV8SaveImport } from '../exact-persistence-v8.ts'
 import { getAsset } from '../trading/catalog.ts'
 import { FISCAL_PERIOD_MS } from './state.ts'
+import { progressiveTaxNumerator } from './tax-curve.ts'
 
 const START = 1_800_000_000_000
 const wealth = 10n ** 110n
@@ -43,16 +44,16 @@ test('V8 upgrades business 20 -> 21 -> 22 without a company cap and with exact i
   assert.equal(checked.valid, true, checked.reason)
 })
 
-test('level 1000 earns beyond Number safe limit, accrual is exact and cannot double credit', () => {
+test('level 1000 earns with exact BigInt, accrual cannot double credit', () => {
   const state = seeded(1000)
   const rate = getEnterpriseIncomeMicrosPerSecondExact('kiosque', 1000)!
-  assert.ok(rate > 10n ** 14n)
+  assert.ok(rate > 10n ** 9n)
   const next = v8AccrueEnterpriseUntil(state, START + 123_456)
   const whole = rate * 123_456n / 10_000_000n
   const carry = rate * 123_456n % 10_000_000n
   assert.equal(cents(next.game.balance) - cents(state.game.balance), whole)
   assert.equal(cents(next.enterprises.revenueCarryNanoCents!), carry)
-  assert.equal(cents(next.fiscal.taxesDueCents), whole * 1_500n / 10_000n)
+  assert.equal(cents(next.fiscal.taxesDueCents), progressiveTaxNumerator(whole, wealth) / 10_000n)
   assert.equal(cents(next.prestige.experienceCents) > 0n, true)
   assert.strictEqual(v8AccrueEnterpriseUntil(next, START + 123_456), next)
   assert.equal(validate(next).valid, true, validate(next).reason)

@@ -35,7 +35,7 @@ test('huge V8 cash and XP survive click and Upgrade exact arithmetic',()=>{
   assert.equal(upgraded!.game.purchasedUpgrades,1)
 })
 
-test('tiny memecoin trade with exact cents, no slippage and correct basis/taxes',()=>{
+test('tiny memecoin trade with exact cents, slippage and correct basis/taxes',()=>{
   const state=addCash(createV8CapitalState(now), 10n**100n)
   const bought=v8BuyTrade(state,'turbo','1000000.0000')
   assert.equal(bought.ok,true)

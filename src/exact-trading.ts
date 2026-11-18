@@ -43,7 +43,8 @@ export function quantityStringToUnits(quantity: string, decimals: number): bigin
 }
 
 /**
- * No market impact, price deterioration, supply cap or order-volume ceiling.
+ * Pure exact settlement of a quote, which may already include order-size
+ * market impact and slippage computed by liquidity-v8. No supply cap.
  * The fee is applied to the unrounded gross, not its rounded cent value.
  * Buy rounds gross UP to a cent; sale rounds gross DOWN to a cent.
  * A fee rounds up, with min 1 cent, and cannot make sale proceeds negative.
