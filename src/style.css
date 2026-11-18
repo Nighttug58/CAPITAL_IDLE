@@ -1974,3 +1974,22 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
   margin-bottom:0;
   padding-bottom:calc(var(--tabs-height) + 12px);
 }
+
+/* Fixed secondary navigation. The pages themselves are vertical scrollports:
+ * absolute positioning inside them previously caused the tabs to scroll away.
+ * At rest, fixed tabs use the viewport and the centered 540px app width.
+ * During a horizontal swipe, the transformed main becomes their containing
+ * block: anchor to its bottom so tabs travel with the page, without jumping. */
+.app-shell > main :is(.trading-tabs,.collection-tabs,.prestige-tabs) {
+  position:fixed;
+  top:auto;
+  left:0;
+  right:0;
+  bottom:var(--nav-height);
+  width:100%;
+  max-width:540px;
+  margin-inline:auto;
+}
+.app-shell > main[style*="translate3d"] :is(.trading-tabs,.collection-tabs,.prestige-tabs) {
+  bottom:0;
+}
