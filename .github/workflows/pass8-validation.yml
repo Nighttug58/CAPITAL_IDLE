@@ -23,7 +23,7 @@ jobs:
       - name: Assert root distribution is compiled
         run: |
           test -s index.html
-          test -s .nojekyll
+          test -f .nojekyll
           test -d assets
           grep -Eq '/CAPITAL_IDLE/assets/index-[[:alnum:]_-]+\\.js' index.html
   browser:
