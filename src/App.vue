@@ -152,7 +152,10 @@ function finishSlide(id:number) {
   if(!step || step.id!==id)return
   clearSlideHandles()
   slide.value=null
-  if(step.commit)displayedPage.value=step.to
+  if(step.commit){
+    hopCount++
+    displayedPage.value=step.to
+  }
   if(step.commit && isPrimaryPage(page.value))advanceMainNavigation()
 }
 function beginSlide(to:PrimaryPage,startPx=0,commit=true) {
@@ -256,10 +259,7 @@ function mainPageStyle(target:PrimaryPage):CSSProperties {
 function onSlideTransitionEnd(event:TransitionEvent) {
   if(event.propertyName!=='transform' || !(event.target instanceof HTMLElement) || !event.target.matches('main'))return
   const current=slide.value
-  if(current?.running) {
-    hopCount+=current.commit?1:0
-    finishSlide(current.id)
-  }
+  if(current?.running)finishSlide(current.id)
 }
 function blockPageSwipe(target:EventTarget|null):boolean {
   if(!(target instanceof Element))return true

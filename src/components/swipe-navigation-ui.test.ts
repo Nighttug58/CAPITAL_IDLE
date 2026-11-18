@@ -45,6 +45,8 @@ describe('Navigation horizontale V1',()=>{
     expect(css).toContain('touch-action:pan-y')
     expect(css).toContain('grid-row:2;')
     expect(css).toContain('inset:auto 0 0;')
+    expect(css).toContain('margin-bottom:0;')
+    expect(css).toContain('padding-bottom:calc(var(--tabs-height) + 12px);')
     const w=openApp()
     const labels=w.findAll('.bottom-nav button').slice(0,6).map(b=>b.text())
     expect(labels).toEqual(['Accueil','Trading','Entreprises','Collection','Succès','Stats'])
@@ -106,7 +108,10 @@ describe('Navigation horizontale V1',()=>{
       source.element.dispatchEvent(event)
       await nextTick()
       expect(w.find('main.'+destinations[i]!).isVisible()).toBe(true)
-      if(i+1<sources.length)expect(w.find('main.'+sources[i]!).isVisible()).toBe(false)
+      if(i+1<sources.length) {
+        const old=w.find('main.'+sources[i]!)
+        expect(old.exists() && old.isVisible()).toBe(false)
+      }
     }
     expect(w.findAll('main').filter(main=>main.isVisible())).toHaveLength(1)
     expect(w.find('main.stats-screen').attributes('style')).not.toContain('translate3d')

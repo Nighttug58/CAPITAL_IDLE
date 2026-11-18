@@ -1967,3 +1967,10 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 @media (prefers-reduced-motion: reduce) {
   .app-shell > main {transition:none!important}
 }
+
+/* The page itself now occupies the full area above navigation: its tabs live
+ * at bottom:0, not in a second reserved strip outside that page. */
+.app-shell > main:is(.trading-screen,.collection-screen,.ascension-screen) {
+  margin-bottom:0;
+  padding-bottom:calc(var(--tabs-height) + 12px);
+}
