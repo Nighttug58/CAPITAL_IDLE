@@ -273,7 +273,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           <div><span class="ascension-eyebrow">PRESTIGE TRANSCENDANT · NEWS</span><h2>News avancées en PP</h2></div>
           <span>{{ advancedNewsSum }} / {{ TRANSCENDENT_MAX_LEVEL*3 }}</span>
         </div>
-        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les six branches économiques sont aussi disponibles dans la boutique Transcendant dédiée. Le Capital de départ est désormais disponible dans la boutique Transcendant.</p>
+        <p class="ascension-help">Débloqué au Prestige 3. Trois branches permanentes de 1 000 niveaux, qui affectent les annonces haussières et baissières. Les cinq branches économiques, l’Héritage PP et le Capital de départ sont disponibles dans la boutique Transcendant dédiée. Le bonus ultime de réserve PP s’active lorsque les sept branches principales atteignent chacune 1 000 niveaux.</p>
         <div class="ascension-news-effective" aria-label="Effets actuels sur les news">
           <span>Puissance <strong>×{{ newsModifiers.impactMultiplier.toFixed(2) }}</strong></span>
           <span>Rampe <strong>{{ (newsModifiers.rampFraction*100).toFixed(2) }} %</strong></span>

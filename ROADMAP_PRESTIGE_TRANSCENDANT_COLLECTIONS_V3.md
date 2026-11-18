@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passes 1 à 7 validées (7/8)** au 18 novembre 2026. La passe 8 reste à faire. Ascension du Fame avec plafond ×(100 + cycles terminés), compteur exact V8 et Prestige Transcendant ultime sur les PP disponibles sont désormais actifs.
+**État :** passe préparatoire 0.5 validée ; **passes 1 à 8 validées (8/8)** au 18 novembre 2026. Refonte Prestige Transcendant & Collections V3 stabilisée ; le suivi de validation est consigné dans `AUDIT_PASS8_STABILISATION.md` et la publication finale GitHub Pages est vérifiée séparément.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -293,6 +293,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Livrables de validation finale :** suite métier + UI + TypeScript/Vite **vertes**, export/import exact V8, aucun ancien palier Prestige >3, aucune perte de collections/PP/Fame, stabilité news, achats MAX performants, UI mobile utilisable, artefacts racine synchronisés et mise en production vérifiée.
 
+**Suivi — passe 8 validée (18/11/2026) :** audit transversal des achats MAX, marché/News, fiscalité, collections/raretés/Musée, Prestige/dotation et réserve PP ultime ; matrice V8 des sauvegardes et imports historiques, préservation du solde en cas d'écriture refusée, contrôle des états falsifiés et très grands `BigInt`. Correction d'arrondi du formatage Fame en franchissement d'un entier ; absence de modification des récompenses ou tarifs. `README.md` actualisé pour Prestige 1–3, commandes News au 3, Fame cap, 100 collections, Transcendant 7+3, PP et V8 ; anciens 50 objets étiquetés comme scénario historique. **427 tests métier et 107 tests UI réussis**, TypeScript et build Vite verts, `npm run verify:release` suivi de `npm run build:root` validés dans [GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44266870857). **Chromium réel** aux tailles 360×780, 390×844, 768×1024, 1280×800 et 832×384 avec navigation, news, modales, mise en page, Fame, collection, achats MAX, bonus ultime et billet animé ; [preuves et captures](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44266870857). La validation a été effectuée sur une branche isolée, workflow temporaire **non intégré à `main`**. Rapport complet : [`AUDIT_PASS8_STABILISATION.md`](AUDIT_PASS8_STABILISATION.md). Publication du site compilé contrôlée via le workflow principal GitHub Pages. **Aucune autre passe démarrée.**
+
 ## F. Suivi et discipline de « Next »
 
 | Passe | Objet | État |
@@ -305,6 +307,6 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 5 | Capital de départ attribué au reset | ✅ Terminé |
 | 6 | Collections V3 + Musée impérial | ✅ Terminé |
 | 7 | Plafond Fame progressif + bonus ultime PP | ✅ Terminé |
-| 8 | Audit intégral, tests, build, publication | ☐ À faire |
+| 8 | Audit intégral, tests, build, publication | ✅ Terminé |
 
-**Démarrage actualisé (18/11/2026) :** les passes **0.5 et 1 à 7** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 8** (stabilisation, équilibrage, vérification du navigateur et publication finale). Ne pas anticiper cette passe sans demande explicite. Toute validation incomplète doit rester signalée.
+**Clôture (18/11/2026) :** les passes **0.5 et 1 à 8** sont terminées. **Cette roadmap ne contient plus de passe à exécuter.** Toute demande future exige un nouveau périmètre explicite ; aucune passe 9 implicite ni rééquilibrage hors périmètre. Les archives de tests et les preuves de déploiement sont documentées dans `AUDIT_PASS8_STABILISATION.md`.

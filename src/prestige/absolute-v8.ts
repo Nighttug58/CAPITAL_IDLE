@@ -75,10 +75,12 @@ export function v8AbsoluteFameStatus(state: {
 export function formatFameFactor(units: bigint): string {
   if (units >= 1_000_000_000n * FAME_FACTOR_SCALE)
     return formatCompactUnits(units, 15, '')
-  const whole = (units / FAME_FACTOR_SCALE).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'")
-  const six = ((units % FAME_FACTOR_SCALE + 500_000_000n) / 1_000_000_000n)
-    .toString().padStart(6, '0').replace(/0+$/, '')
-  return whole + (six ? '.' + six : '')
+  // Round the WHOLE fixed-point number before separating digits. Rounding
+  // 1.999999999999999 to six places must display 2, never 1.1000000.
+  const rounded = (units + 500_000_000n) / 1_000_000_000n
+  const whole = (rounded / 1_000_000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, "'")
+  const fraction = (rounded % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '')
+  return whole + (fraction ? '.' + fraction : '')
 }
 
 export function formatExactBasisPoints(bpsNumerator: bigint, denominator = 1n): string {
