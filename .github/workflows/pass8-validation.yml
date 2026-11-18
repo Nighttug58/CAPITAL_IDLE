@@ -29,7 +29,6 @@ jobs:
           grep -Eq 'index-[A-Za-z0-9_-]+[.]js' index.html
   browser:
     name: Real Chromium (360, 390, 768, 1280, landscape)
-    needs: release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
