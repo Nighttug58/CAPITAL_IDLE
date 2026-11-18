@@ -9,7 +9,7 @@ import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
  v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8ClaimAvailableAchievements,
- quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax} from './exact-runtime-v8.ts'
+ quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
@@ -44,7 +44,8 @@ import TranscendentShopScreen from './components/TranscendentShopScreen.vue'
 import { type AscensionPurchase } from './ascension/shop.ts'
 import { type AscensionResult } from './ascension/engine.ts'
 import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
-import { getBonusBreakdown, getBonusMultiplier } from './prestige/bonuses.ts'
+import { getBonusBreakdown } from './prestige/bonuses.ts'
+import { collectionV3BonusBps, collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { type FameShopPurchase } from './prestige/shop.ts'
 import { type CollectionPurchase } from './prestige/collections.ts'
 import type { EarlyTaxPaymentResult } from './economy/fiscal.ts'
@@ -66,7 +67,7 @@ const exact = ref<V8CapitalState>(boot.ok ? boot.state : createV8CapitalState())
 const capital = ref<CapitalState>(projectV8ForLegacyUI(exact.value))
 const game = computed<GameState>(() => capital.value.game)
 const level = computed(() => getExactLevel(v(exact.value.prestige.experienceCents)))
-const clickValue = computed(() => getClickValue(game.value.purchasedUpgrades) * getBonusMultiplier(capital.value, 'click'))
+const clickValue = computed(() => getClickValue(game.value.purchasedUpgrades) * (1 + v8BonusBasisPoints(exact.value, 'click') / 10_000))
 const xpProgress = computed(() => getExactLevelProgress(v(exact.value.prestige.experienceCents)))
 const xpLabel = computed(() => formatCompactUnits(v(exact.value.prestige.experienceCents)-xpProgress.value.startCents,2,'XP')+' / '+
   formatCompactUnits(xpProgress.value.nextCents-xpProgress.value.startCents,2,'XP'))
@@ -76,7 +77,7 @@ const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.
   v(exact.value.game.balance) >= BigInt(nextUpgrade.value.price)*100n)
 const clickMaxQuote = computed(() => quoteV8ClickMax(exact.value))
 const clickMaxNotice = ref('')
-const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * getBonusMultiplier(capital.value, 'click'))
+const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * (1 + v8BonusBasisPoints(exact.value, 'click') / 10_000))
 const autoClickLevel = computed(() => getDollarAutoClickLevel(exact.value))
 const autoClickCost = computed(() => dollarAutoClickPriceCents(autoClickLevel.value))
 const autoClickAffordable = computed(() => autoClickCost.value !== null && v(exact.value.game.balance) >= autoClickCost.value)
@@ -92,7 +93,11 @@ const isFullscreen = ref(false)
 const supportsFullscreen = typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function'
 const floatingGains = ref<FloatingGain[]>([])
 const boostDialog = ref<HTMLDialogElement | null>(null)
-const clickBoosts = computed(() => getBonusBreakdown(capital.value, 'click'))
+const clickBoosts = computed(() => {
+  const legacy = getBonusBreakdown(capital.value, 'click')
+  const collectionBps = collectionV3BonusBps(collectionV3Snapshot(exact.value.prestige.ownedCollectionIds), 'click')
+  return { ...legacy, collectionBps, totalBps: v8BonusBasisPoints(exact.value, 'click') }
+})
 const tapAnimationId = ref(0)
 const spinFrame = ref(0)
 let spinRequest = 0
@@ -610,7 +615,7 @@ onUnmounted(() => {
           <h2>Gain par clic</h2><dl>
             <dt>Base au niveau actuel</dt><dd>{{formatMoney(getClickValue(game.purchasedUpgrades))}}</dd>
             <dt>Fame Shop</dt><dd>+{{numberFormatter.format(clickBoosts.shopBps / 100)}} %</dd>
-            <dt>Collection</dt><dd>+{{numberFormatter.format(clickBoosts.collectionBps / 100)}} %</dd>
+            <dt>Collections V3 + Musée</dt><dd>+{{numberFormatter.format(clickBoosts.collectionBps / 100)}} %</dd>
             <dt>Prestige absolu</dt><dd>+{{numberFormatter.format((clickBoosts.totalBps-clickBoosts.shopBps-clickBoosts.collectionBps)/100)}} %</dd>
             <dt>Total par clic</dt><dd>{{formatMoney(clickValue)}}</dd>
           </dl><button type="button" @click="boostDialog?.close()">Fermer</button>

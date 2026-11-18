@@ -4,6 +4,7 @@ import { formatCompactUnits, formatFameMicros } from '../large-numbers.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { CURRENT_COLLECTION_ITEMS } from '../prestige/collections-catalog.ts'
 import { currentCollectionId, getCollectionSlot } from '../prestige/catalog.ts'
+import { collectionRarity, collectionV3Snapshot, COLLECTION_SET_REWARDS } from '../prestige/collections-v3.ts'
 import { v8CollectionReward } from '../exact-runtime-v8.ts'
 import { COLLECTION_CATEGORIES, FAME_BOOSTS, type CollectionCategoryId } from '../prestige/catalog.ts'
 import {
@@ -37,7 +38,10 @@ const rows = computed(() => CURRENT_COLLECTION_ITEMS.filter(item => item.categor
     owned: !!receipt, canAfford: !receipt && BigInt(props.state.game.balance) >= BigInt(item.priceCents),
     awardedFameMicros: paid ? null : Number(v8CollectionReward(props.state, item.fame)) }
 }))
-const ownedCount = computed(() => holdings.value.size)
+const collectionV3 = computed(() => collectionV3Snapshot(props.state.prestige.ownedCollectionIds))
+const ownedCount = computed(() => collectionV3.value.owned)
+const categorySet = computed(() => COLLECTION_SET_REWARDS[category.value])
+const categorySetName = computed(() => FAME_BOOSTS.find(row => row.id === categorySet.value.boostId)?.label ?? '')
 const selectedOffer = computed(() => rows.value.find(row => row.item.id === selectedId.value))
 const selectedItem = computed(() => selectedOffer.value?.item ?? null)
 const selectedBonusName = computed(() =>
@@ -141,6 +145,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       <div><span>FAME DISPONIBLE</span><strong class="collection-fame-balance">✦ {{ formatFameMicros(BigInt(state.prestige.fameMicros)) }}</strong></div>
     </div>
 
+    <section class="collection-v3-museum" :class="{'is-complete': collectionV3.museumComplete}" aria-label="Musée impérial">
+      <strong>Musée impérial · {{ ownedCount }}/100</strong>
+      <span v-if="collectionV3.museumComplete">COMPLET — +100 % revenus éligibles et +25 % PP aux futurs Prestiges.</span>
+      <span v-else>Complétez les 100 pièces pour +100 % aux revenus éligibles et +25 % PP futurs.</span>
+    </section>
+
     <div class="collection-tabs" role="tablist" aria-label="Catégories de collection">
       <button v-for="entry in COLLECTION_CATEGORIES" :key="entry.id" type="button"
         class="collection-tab" role="tab" :class="{ 'is-selected': category === entry.id }"
@@ -157,6 +167,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       <span>{{ COLLECTION_CATEGORIES.find((entry) => entry.id === category)?.label }}</span>
       <span>{{ categoryOwned }} / {{ rows.length }} pièces</span>
     </div>
+    <div class="collection-v3-set" :class="{'is-complete': categoryOwned === 20}" aria-live="polite">
+      <span>Collection de catégorie : {{ categoryOwned }}/20</span>
+      <strong>{{ categoryOwned === 20 ? 'DÉBLOQUÉ' : 'À DÉBLOQUER' }} · +{{ percentage(categorySet.bonusBps) }} {{ categorySetName }}</strong>
+    </div>
 
     <div :id="'collection-items-' + category" class="collection-list-scroll" role="tabpanel"
       :aria-label="'Objets de la catégorie ' + category">
@@ -167,6 +181,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <span class="collection-card-art" :data-category="offer.item.category">
             <span class="collection-card-rank">N° {{ String(offer.item.rank).padStart(2, '0') }}</span>
             <span class="collection-card-glyph" aria-hidden="true">{{ iconByCategory[offer.item.category] }}</span>
+            <span class="collection-rarity-tag">{{ collectionRarity(offer.item.id)?.label }}</span>
             <span v-if="offer.owned" class="collection-owned-tag">ACQUIS</span>
           </span>
           <span class="collection-card-info">
@@ -174,7 +189,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
             <span class="collection-card-price">{{ money(offer.item.priceCents) }}</span>
             <span class="collection-card-rewards">
               <span>✦ +{{ offer.awardedFameMicros === null ? offer.item.fame : fame(offer.awardedFameMicros) }} Fame</span>
-              <span>+{{ percentage(offer.item.bonusBps) }}</span>
+              <span>+{{ percentage(offer.item.bonusBps) }} objet · +{{ percentage(collectionRarity(offer.item.id)?.bonusBps ?? 0) }} rareté</span>
             </span>
           </span>
         </button>
@@ -202,7 +217,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <div class="collection-detail-data">
             <div><span>PRIX EN GOLD</span><strong>{{ money(selectedItem.priceCents) }}</strong></div>
             <div><span>{{ selectedOffer.owned ? 'FAME DE BASE' : 'FAME À RECEVOIR' }}</span><strong class="collection-fame-balance">✦ +{{ selectedOffer.awardedFameMicros === null ? selectedItem.fame : fame(selectedOffer.awardedFameMicros) }}</strong></div>
-            <div><span>BONUS PERMANENT</span><strong>+{{ percentage(selectedItem.bonusBps) }} · {{ selectedBonusName }}</strong></div>
+            <div><span>BONUS ORIGINAL</span><strong>+{{ percentage(selectedItem.bonusBps) }} · {{ selectedBonusName }}</strong></div>
+            <div><span>RARETÉ</span><strong>{{ collectionRarity(selectedItem.id)?.label }} · +{{ percentage(collectionRarity(selectedItem.id)?.bonusBps ?? 0) }} {{ selectedBonusName }}</strong></div>
+            <div><span>ENSEMBLE {{ categoryOwned }}/20</span><strong>+{{ percentage(categorySet.bonusBps) }} {{ categorySetName }} {{ categoryOwned === 20 ? '· ACTIF' : '· NON ACTIF' }}</strong></div>
+            <div><span>MUSÉE {{ ownedCount }}/100</span><strong>{{ collectionV3.museumComplete ? '+100 % revenus · +25 % PP futurs' : 'Bonus de complétion non activé' }}</strong></div>
           </div>
           <p class="collection-detail-note">Achat unique, permanent et non revendable. La Fame est attribuée au moment de l'achat.</p>
           <div v-if="confirming" class="collection-confirm" role="alert">

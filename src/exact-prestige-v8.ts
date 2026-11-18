@@ -10,6 +10,7 @@ import {v8AdvanceFiscalEconomy,v8PayTaxes} from './exact-runtime-v8.ts'
 import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
 import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} from './ascension/transcendent-v1.ts'
+import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
@@ -30,13 +31,11 @@ export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
   return gross-v(state.ascension.run.startingCapitalGrantedCents??'0')
 }
 
-/** Preview uses exact PP values and applies only the owned Heritage rank.
- * Museum contribution stays zero until the Collections V3 implementation.
- */
+/** Exact PP preview freezes the current Museum and Heritage status in V3 receipts. */
 export function v8PrestigeRewardPreview(state:V8CapitalState,worth:bigint,level:number){
   const base=previewV8PrestigePoints(worth,level)
   const heritageLevelAtCycle=transcendentLevel(state.ascension.progress,'heritage')
-  const museumCompleteAtCycle=false
+  const museumCompleteAtCycle=collectionV3Snapshot(state.prestige.ownedCollectionIds).museumComplete
   const bonusBps=transcendentHeritageBps(state.ascension.progress,museumCompleteAtCycle)
   const earned=base*BigInt(bonusBps)/10_000n
   return {base,earned,bonusBps,heritageLevelAtCycle,museumCompleteAtCycle}

@@ -3,7 +3,7 @@
 **Dépôt :** Nighttug58/CAPITAL_IDLE  
 **Branche cible :** `main`  
 **Audit du code :** 17 novembre 2026, référence `431915f3355cd9cf14d79f7ee569499d35912d25`  
-**État :** passe 0.5 validée ; **passes 1 à 5 validées (5/8)** au 17 novembre 2026. Les passes 6 à 8 restent à faire. Les sept branches Transcendant sont désormais achetables, le Capital de départ est réellement attribué après Prestige et son principal exclu des PP futurs.
+**État :** passe 0.5 validée ; **passes 1 à 6 validées (6/8)** au 18 novembre 2026. Les passes 7 à 8 restent à faire. Collections V3 et Musée impérial sont actifs ; les reçus PP V3 enregistrent l'état du Musée à chaque Prestige.
 
 > **Contrat de conduite :** commencer par la **passe préparatoire 0.5** ; ensuite chaque « Next » exécute exactement la prochaine passe non terminée, puis vérifie les tests, le build, la sauvegarde, et commit seulement après validation. Ne jamais commencer la passe suivante implicitement. Les anciennes roadmaps restent historiques ; cette roadmap prévaut seulement pour son périmètre. En cas d'incohérence entre le projet vivant et ce document, inspecter et corriger explicitement la roadmap avant de modifier l'économie.
 
@@ -260,6 +260,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 
 **Tests de sortie :** 5 × 20 canoniques, 100/100 avec legacy V1/V2, 19/20 et 99/100 sans bonus prématuré, achat dernier objet active effet une seule fois, bonus appliqués rétroactivement aux possessions, pas de Fame dupliquée, valeur comptable exclue PP, gains de tous les flux exactement additifs, +25 % PP et reçus V3 immuables même après modification de possession. `npm run verify:release` ; commit passe 6 uniquement.
 
+**Suivi — passe 6 validée (18/11/2026) :** rareté déterministe des 100 pièces à partir de leur identifiant canonique et rang actuel (commun +1 %, peu commun +3 %, rare +7 %, épique +15 %, légendaire +30 %, mythique +50 %) en supplément du bonus d'origine. Cinq sets de 20 pièces : +50 % dividendes, clics, XP, Fame ou profit net positif Trading, activés automatiquement et rétroactivement pour les possessions existantes sans Fame supplémentaire. Musée impérial à 100/100 : +100 % sur les revenus éligibles (clics, entreprises, dividendes, staking en unités de coins, profit Trading positif), +25 % PP futurs ; revenus, XP et taxes conservent les flux et assiettes d'origine sans multiplications en chaîne. Calculs dérivés mis en cache par identité du tableau d'acquisitions, sans migration de schéma V8 ni refacturation. Nouveaux reçus PP V3 avec `museumCompleteAtCycle` figé à la transition et validation des points + statut à l'import ; anciennes lignes V2 et V3 `false` restent intactes. L'écran Collection affiche rareté, original, set, progression et Musée ; Stats et Accueil reflètent les bonus V8 réels. Validation indépendante : **407 tests métier + 104 tests UI**, TypeScript et build Vite verts via `npm run verify:release` ([preuve GitHub Actions](https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44253760527)) sur branche isolée. Workflow temporaire exclu de `main`. **Passe 7 non commencée.**
+
 ### Passe 7 — Ascension du Fame et Transcendant ultime
 
 **Objectif.** Porter le plafond Fame de ×100 à `×(100+Prestiges)` sans maximum de niveau gameplay et rendre les PP non dépensés utiles après le 7 × 1 000.
@@ -299,8 +301,8 @@ Entre paliers, interpolation **linéaire monotone en centimes BigInt avec arrond
 | 3 | News avancées PP + commandes manuelles au Prestige 3 | ✅ Terminé |
 | 4 | Transcendant Shop, 6 branches actives + Capital préparé pour passe 5, 1 000 niveaux | ✅ Terminé |
 | 5 | Capital de départ attribué au reset | ✅ Terminé |
-| 6 | Collections V3 + Musée impérial | ☐ À faire |
+| 6 | Collections V3 + Musée impérial | ✅ Terminé |
 | 7 | Plafond Fame progressif + bonus ultime PP | ☐ À faire |
 | 8 | Audit intégral, tests, build, publication | ☐ À faire |
 
-**Démarrage actualisé (17/11/2026) :** les passes **0.5 et 1 à 5** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 6** (Collections V3, raretés, bonus de catégories et Musée impérial), avec validation complète et commit avant la passe 7. Les passes 6 à 8 ne sont pas commencées. Une passe incomplète reste signalée comme telle ; ne jamais maquiller l'absence de tests/production en succès.
+**Démarrage actualisé (18/11/2026) :** les passes **0.5 et 1 à 6** sont validées. Au prochain message « Next », inspecter `main` puis exécuter **uniquement la passe 7** (Ascension du Fame et Prestige Transcendant ultime), avec validation complète et commit ; ne pas commencer la passe 8. Une passe incomplète reste signalée comme telle.

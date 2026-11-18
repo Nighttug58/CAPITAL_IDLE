@@ -1727,3 +1727,32 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
   .transcendent-screen .ascension-upgrade-footer {flex-wrap:wrap}
   .transcendent-screen .ascension-upgrade-cost {flex:1 1 130px}
 }
+
+/* Collections V3 — rarity, five completed sets and Imperial Museum. */
+.collection-v3-museum,.collection-v3-set {
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px;
+  min-width:0; padding:9px 12px; border-radius:10px;
+  border:1px solid #594965; background:#25232c; color:#c9becb; font-size:11px;
+}
+.collection-v3-museum { flex:0 0 auto; }
+.collection-v3-museum strong,.collection-v3-set strong { color:#e1c8ee; font-size:11px; }
+.collection-v3-museum.is-complete,.collection-v3-set.is-complete { border-color:#50846d; background:#1e3029; }
+.collection-v3-museum.is-complete strong,.collection-v3-set.is-complete strong { color:#b0efd0; }
+.collection-v3-set { flex:0 0 auto; }
+.collection-rarity-tag {
+  position:absolute; right:8px; top:8px; padding:3px 6px;
+  border-radius:5px; background:#1a1723db; border:1px solid #795c88;
+  color:#e9d3fb; font-size:9px; font-weight:760;
+}
+.stats-collections-v3 { display:flex; flex-direction:column; gap:9px; padding:12px;
+  border:1px solid #4a5760; border-radius:12px; background:#1a2227; }
+.stats-collections-v3>strong { color:#f2e4fc; font-size:13px; }
+.stats-collections-v3>p { margin:0; color:#bbc2c8; font-size:11px; }
+.stats-collection-set { display:flex; flex-wrap:wrap; justify-content:space-between; gap:7px;
+  font-size:11px; color:#dae1e3; }
+.stats-collection-set strong { color:#b6e6d0; font-size:11px; }
+@media(max-width:390px){
+  .collection-v3-museum,.collection-v3-set { padding:8px; font-size:10px; }
+  .collection-v3-museum strong,.collection-v3-set strong { font-size:10px; }
+  .collection-rarity-tag { max-width:50%; text-align:center; }
+}
