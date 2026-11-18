@@ -4,7 +4,7 @@ import type { PriceSample, MarketNews } from '../trading/types.ts'
 import { formatChange, formatPrice } from '../trading/presentation.ts'
 import { getNewsPresentation } from '../trading/news.ts'
 
-const props = defineProps<{samples: PriceSample[], news: MarketNews[], average?: number}>()
+const props = defineProps<{samples: readonly PriceSample[], news: MarketNews[], average?: number}>()
 defineEmits<{'open-news':[id:string]}>()
 const period = ref(15)
 const cursorX = ref(2)
