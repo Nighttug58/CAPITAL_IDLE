@@ -33,7 +33,7 @@ const startingCapitalPreview=computed(()=>pendingStartingCapitalCents(progress.v
 const ultimateUnlocked=computed(()=>transcendentUltimateUnlocked(progress.value))
 const reserveRatio=computed(()=>transcendentReserveRatio(progress.value))
 const reserveFactor=computed(()=>formatFameFactor(
-  reserveRatio.value.numerator*FAME_FACTOR_SCALE/reserveRatio.value.denominator))
+  reserveRatio.value.numerator*FAME_FACTOR_SCALE/reserveRatio.value.denominator).replace('.', ','))
 const mainTotal=computed(()=>TRANSCENDENT_MAIN_PRESENTATION.reduce((sum,row)=>
   sum+transcendentLevel(progress.value,row.id),0))
 function offer(id:TranscendentId){
