@@ -135,7 +135,7 @@ async function browserScenario(viewport){
     assert.equal(await visible(page,'.backup-reset-confirm'),true)
     const resetInput=page.locator('#reset-code')
     await resetInput.fill('WRONG')
-    assert.equal(await page.locator('.backup-reset-confirm button:has-text("Confirmer")').first().isEnabled(),false)
+    assert.equal(await page.locator('.backup-reset-confirm .backup-confirm-danger').isEnabled(),false)
     await click(page,'.backup-reset-confirm button:has-text("Annuler")')
     await expectNoOverflow(page,'stats-'+viewport.width)
     await page.screenshot({path:output+'/stats-'+viewport.width+'.png'})
