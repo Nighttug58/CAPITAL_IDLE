@@ -12,6 +12,8 @@ import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount as v } from '../exact-state-v8.ts'
 import { v8BuyTrade, v8SellTrade, v8MaximumBuyUnits, type V8TradeResult } from '../exact-runtime-v8.ts'
 import { formatCompactUnits, formatDecimalUnits } from '../large-numbers.ts'
+import { exactTradeCost, quoteToExactFraction } from '../exact-trading.ts'
+import { liquidityQuote } from '../trading/liquidity-v8.ts'
 
 const props = defineProps<{
   state: CapitalState
@@ -127,6 +129,62 @@ function chooseFraction(fraction: TradeFraction) {
   }
   status.value = null
 }
+// Withdraw the unrealized profit in cash, not the entire holding. Use the
+// same execution curve and exact fee rounding as the V8 settlement engine.
+function netSale(price: number, units: bigint, held: bigint): bigint | null {
+  if (units === 0n) return 0n
+  const impact = liquidityQuote(asset.value, price, units, 'sell', held)
+  const fraction = impact && quoteToExactFraction(impact.executionPrice)
+  const fee = asset.value.kind === 'stock' ? 50n : asset.value.kind === 'crypto' ? 100n : 150n
+  return fraction ? exactTradeCost(fraction, units, asset.value.quantityDecimals, fee, 'sell')?.proceedsCents ?? null : null
+}
+const profitWithdrawal = computed(() => {
+  const state = props.exactState
+  const holding = exactHolding.value
+  if (!state || !props.executeExactTrade || !holding) return null
+  const held = v(holding.quantity)
+  const basis = v(holding.costBasis)
+  const stake = state.trading.staking.positions[props.assetId]
+  const liquid = held - (stake ? v(stake.locked) + v(stake.unlocking) + v(stake.awaitingCompound) : 0n)
+  const price = state.trading.quotes[props.assetId]?.price ?? asset.value.referencePrice
+  if (held <= 0n || liquid <= 0n) return null
+  const fullNet = netSale(price, held, held)
+  if (fullNet === null || fullNet <= basis) return null
+  return { held, basis, liquid, price, target: fullNet - basis }
+})
+function withdrawProfit() {
+  const plan = profitWithdrawal.value
+  const state = props.exactState
+  const execute = props.executeExactTrade
+  status.value = null
+  if (!plan || !state || !execute) return
+  // The remainder is valued after the order reprices the market. Keep at
+  // least the original investment at estimated net liquidation value.
+  // Search only on click, never on a market tick.
+  let low = 0n, high = plan.liquid
+  while (low < high) {
+    const mid = low + (high - low + 1n) / 2n
+    const impact = liquidityQuote(asset.value, plan.price, mid, 'sell', plan.held)
+    const cash = netSale(plan.price, mid, plan.held)
+    const remainder = impact ? netSale(impact.endingPrice, plan.held - mid, plan.held - mid) : null
+    if (cash !== null && cash <= plan.target && remainder !== null && remainder >= plan.basis) low = mid
+    else high = mid - 1n
+  }
+  const cash = netSale(plan.price, low, plan.held)
+  const amount = formatDecimalUnits(low, asset.value.quantityDecimals, true)
+  const preview = low > 0n ? v8SellTrade(state, props.assetId, amount) : null
+  if (!cash || !preview?.ok || preview.realizedNetProfitCents <= 0n) {
+    status.value = {success:false,message:'Plus-value insuffisante pour vendre sans entamer le capital initial.'}
+    return
+  }
+  const response = execute('sell', props.assetId, amount)
+  if (!response.ok) {
+    status.value = {success:false,message:errors[response.reason] ?? 'Ordre refusé.'}
+    return
+  }
+  quantityText.value = ''
+  status.value = {success:true,message:`Plus-value encaissée · ${cashExact(response.cashDeltaCents)} · ${amount} ${asset.value.symbol} vendus`}
+}
 function submit() {
   status.value = null
   if (!ready.value) {
@@ -177,6 +235,10 @@ function submit() {
           <button type="button" :class="{ 'is-buy': activeSide === 'buy' }" :aria-pressed="activeSide === 'buy'" @click="activeSide = 'buy'">Acheter</button>
           <button type="button" :class="{ 'is-sell': activeSide === 'sell' }" :aria-pressed="activeSide === 'sell'" @click="activeSide = 'sell'">Vendre</button>
         </div>
+        <button v-if="exactState && executeExactTrade" class="order-profit-quick" type="button"
+          :disabled="!profitWithdrawal" @click="$event.detail < 2 && withdrawProfit()">
+          Encaisser la plus-value <span v-if="profitWithdrawal">· {{ cashExact(profitWithdrawal.target) }} max.</span>
+        </button>
         <div class="order-hint">
           <span>{{ activeSide === 'buy' ? 'Votre solde' : 'En portefeuille' }}</span>
           <strong>{{ activeSide === 'buy' ? fullBalance : fullHolding + ' ' + asset.symbol }}</strong>
@@ -238,4 +300,10 @@ function submit() {
 <style scoped>
 .trading-asset-modal .asset-detail-quote { margin-bottom: 3px; }
 .trading-asset-modal .yield-summary { margin: 0 0 5px; font-size: 11px; line-height: 1.35; }
+.trading-asset-modal .order-profit-quick {
+  width: 100%; min-height: 36px; margin: 4px 0; padding: 6px 8px;
+  border-radius: 8px; border: 1px solid #27845a; color: #8ee6b2;
+  background: rgba(39,132,90,.16); font: inherit; font-size: 12px; font-weight: 700;
+}
+.trading-asset-modal .order-profit-quick:disabled { opacity: .45; cursor: not-allowed; }
 </style>
