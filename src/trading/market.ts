@@ -1,6 +1,7 @@
 import { ASSETS, createInitialQuotes } from './catalog.ts'
 import { advanceNewsTick, getNewsPressure, type NewsClockOptions } from './news.ts'
 import { advanceDividendYield } from './yield.ts'
+import { valuation } from './valuation.ts'
 import type { AssetDefinition, MarketQuote, PriceSample, TradingState } from './types.ts'
 
 export const MARKET_TICK_MS = 5_000
@@ -92,12 +93,15 @@ function updateQuote(
   }
   regimeTicksLeft--
 
+  // A bubble can trigger crashes independently of player ownership.
+  const valuationBefore = valuation(asset.kind, current.fundamentalLog ?? 0,
+    current.price, asset.referencePrice, 0, 0)
   let shockTicksLeft = current.shockTicksLeft ?? 0
   let shockDrift = current.shockDrift ?? 0
-  if (shockTicksLeft <= 0 && random.next() < profile.shockProbability) {
+  if (shockTicksLeft <= 0 && random.next() < profile.shockProbability + valuationBefore.extraShock) {
     shockTicksLeft = 10 + Math.floor(random.next() * 31)
     const magnitude = profile.shockMin + random.next() * (profile.shockMax - profile.shockMin)
-    shockDrift = (random.next() < 0.5 ? -1 : 1) * magnitude / shockTicksLeft
+    shockDrift = (random.next() < 0.5 + valuationBefore.crashBias ? -1 : 1) * magnitude / shockTicksLeft
   }
 
   const regimeDirection = regime === 'bull' ? 1 : regime === 'bear' ? -1 : 0
@@ -122,9 +126,12 @@ function updateQuote(
     logMove -= Math.min(0.02, whale * appreciation * 0.0005)
   }
 
-  // No asset-specific floor/ceiling, holding period or forced rebound.
-  // Keep only IEEE-754 safety: non-finite/underflow results cannot enter V8
-  // snapshots, but normal prices can move above/below any old game bounds.
+  // Soft valuation pressure applies to every asset, including empty portfolios.
+  // Bound speculative impulse before applying gravity so stacked news cannot
+  // overpower the correction at absurd prices. The final tick remains bounded.
+  const fundamental = valuation(asset.kind, current.fundamentalLog ?? 0,
+    current.price, asset.referencePrice, noise, newsPressure)
+  logMove = clamp(logMove, -0.22, 0.22) - fundamental.gravity
   const candidate = current.price * Math.exp(clamp(logMove, -0.25, 0.25))
   const price = Number.isFinite(candidate) && candidate > 0 ? candidate : current.price
   const actualMove = Math.log(price / current.price)
@@ -134,6 +141,7 @@ function updateQuote(
     : { dividendYield: current.dividendYield, ...(current.dividendMomentum !== undefined ? { dividendMomentum: current.dividendMomentum } : {}) }
   return {
     price,
+    fundamentalLog: fundamental.fundamentalLog,
     momentum: clamp(momentum * 0.72 + actualMove * 0.28, -0.08, 0.08),
     ...dividend,
     updatedAt: at,

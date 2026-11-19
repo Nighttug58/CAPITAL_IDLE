@@ -50,6 +50,7 @@ function validMarketQuote(value:unknown,id:string):boolean {
     finite(value.momentum)&&safe(value.updatedAt)&&
     (value.dividendYield===null||validPercent(value.dividendYield,0.01,0.30))&&
     (value.dividendMomentum===undefined||validPercent(value.dividendMomentum,-0.00024,0.00024))&&
+    (value.fundamentalLog===undefined||validPercent(value.fundamentalLog,-1.6,1.6))&&
     (value.regime===undefined||['steady','bull','bear','frenzy'].includes(value.regime as string))&&
     (value.regimeTicksLeft===undefined||(safe(value.regimeTicksLeft)&&value.regimeTicksLeft<=115))&&
     (value.shockDrift===undefined||validPercent(value.shockDrift,-0.25,0.25))&&

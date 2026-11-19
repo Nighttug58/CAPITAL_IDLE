@@ -145,3 +145,27 @@ test('simulation de masse 45 actifs sans états incohérents ou historiques exce
   assert.ok(Object.values(state.history).every((history) => history.length <= MARKET_MAX_SAMPLES))
   assert.ok(performance.now() - start < 12_000, '1200 ticks doivent rester raisonnables sur CI')
 })
+
+
+test('gravity corrects extreme quotes on all three markets without ownership or a price reset', () => {
+  const ids = ['nvideo', 'bitcoin', 'popcat']
+  for (const direction of [-1, 1]) {
+    let state = createInitialTradingState(START, 4242)
+    state.quotes = createInitialQuotes(START)
+    for (const id of ids) {
+      const asset = ASSETS.find(a => a.id === id)!
+      state.quotes[id] = { ...state.quotes[id]!, price: asset.referencePrice * Math.exp(direction * 30) }
+    }
+    const original = structuredClone(state)
+    for (let i = 0; i < 240; i++) state = advanceMarketTick(state, false)
+    assert.deepEqual(state.positions, original.positions)
+    for (const id of ids) {
+      const asset = ASSETS.find(a => a.id === id)!
+      const ratio = state.quotes[id]!.price / asset.referencePrice
+      assert.ok(Number.isFinite(ratio) && ratio > 0)
+      assert.ok(Math.abs(Math.log(ratio)) < 10, id + ': extreme quote should correct')
+      assert.ok(Math.abs(state.quotes[id]!.fundamentalLog!) <= 1.6)
+    }
+    assert.deepEqual(restoreTradingState(JSON.parse(JSON.stringify(state)), state.lastTickAt), state)
+  }
+})

@@ -24,3 +24,7 @@ Le **moteur financier** est dans `src/trading/trades.ts`. L'écran Acheter/Vendr
 - `src/trading/trades.test.ts` : tests financiers automatisés.
 
 La suite : passe 6 = News, passe 7 = dividendes dynamiques avec revenus réels, passes 8–9 = interface de Trading.
+
+## Régulation souple des cotations (V8)
+
+Le moteur partagé applique une gravité en espace logarithmique, indépendante du portefeuille et attachée à une valeur fondamentale évoluant lentement autour du prix de référence. Les news et le bruit affectent cette fondamentale, mais pas les ordres du joueur. Les actions sont plus fortement régulées que les cryptos et les memecoins. La survalorisation augmente aussi la fréquence et le biais baissier des chocs. Aucun seuil de blocage de prix, aucun reset de position ni de coût d'achat. Les anciennes sauvegardes sans `fundamentalLog` démarrent avec la fondamentale du catalogue et corrigent progressivement leurs cours au prochain tick. Le champ est validé en V7/V8 ; l'impact des achats/ventes demeure inchangé.

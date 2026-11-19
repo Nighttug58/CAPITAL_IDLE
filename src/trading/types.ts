@@ -25,6 +25,8 @@ export type MarketRegime = 'steady' | 'bull' | 'bear' | 'frenzy'
 export interface MarketQuote {
   price: number
   momentum: number
+  /** Log fundamental relative to catalog reference; absent in older saves. */
+  fundamentalLog?: number
   dividendYield: number | null
   dividendMomentum?: number
   updatedAt: number

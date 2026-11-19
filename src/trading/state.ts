@@ -33,6 +33,8 @@ function isMap<T>(value: unknown, validate: (item: unknown, id: string) => item 
 function isQuote(value: unknown, id: string): value is MarketQuote {
   return isRecord(value) && isAmount(value.price) && value.price > 0 &&
     typeof value.momentum === 'number' && Number.isFinite(value.momentum) &&
+    (value.fundamentalLog === undefined || (typeof value.fundamentalLog === 'number' &&
+      Number.isFinite(value.fundamentalLog) && Math.abs(value.fundamentalLog) <= 1.6)) &&
     (value.dividendYield === null || (
       typeof value.dividendYield === 'number' && Number.isFinite(value.dividendYield) &&
       value.dividendYield >= 0.01 && value.dividendYield <= 0.30
