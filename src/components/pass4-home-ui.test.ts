@@ -186,3 +186,28 @@ describe('Pass 1 — MAX purchase on the home page',()=>{
     expect(wrapper.find('.home-click-actions .home-upgrade-buy').attributes('disabled')).toBeDefined()
   })
 })
+
+describe('Bilan hors ligne au lancement',()=>{
+  it('shows a compact receipt and expandable market details after a meaningful absence',async()=>{
+    const at=Date.now()
+    const state=buyDollarAutoClick(wealthy(),at)!
+    const old=at-65_000
+    // Move all real-time anchors together so the market clock can replay.
+    const before={...state,enterprises:{...state.enterprises,lastAccruedAt:old},
+      trading:{...state.trading,dividendLastPaidAt:old,lastTickAt:old},
+      ascension:{...state.ascension,run:{...state.ascension.run,startedAtRealMs:old,lastAutomationAtRealMs:old,
+        marketClock:{...state.ascension.run.marketClock,realAnchorMs:old,simulatedAtMs:old}}}}
+    expect(saveV8CapitalState(localStorage,before)).toBe(true)
+    const wrapper=start()
+    await nextTick()
+    const report=wrapper.find('.offline-report-dialog')
+    expect(report.exists()).toBe(true)
+    expect(report.text()).toContain('BILAN HORS LIGNE')
+    expect(report.text()).toContain('Dividendes')
+    await report.find('.offline-detail-toggle').trigger('click')
+    expect(report.find('#offline-market-detail').exists()).toBe(true)
+    expect(report.text()).toContain('Memecoins')
+    await report.find('.offline-report-footer button').trigger('click')
+    expect(wrapper.find('.offline-report-dialog').exists()).toBe(false)
+  })
+})

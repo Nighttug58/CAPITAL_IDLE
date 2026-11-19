@@ -18,6 +18,9 @@ export interface V8RuntimeOptions {
  schedule?:(cb:()=>void,delay:number)=>ReturnType<typeof setTimeout>
  cancel?:(handle:ReturnType<typeof setTimeout>)=>void
  isForeground?:()=>boolean
+ /** Optional fixed launch snapshot; presentation never changes settlement. */
+ initialOfflineTarget?:number
+ onOfflineReplay?:(state:V8CapitalState,pendingSeconds:number,incomplete:boolean)=>void
 }
 
 export function catchUpV8(state:V8CapitalState,now:number,maxSeconds=MAX_CATCH_UP_SECONDS){
@@ -47,6 +50,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
  const cancel=options.cancel??clearTimeout
  let started=false,paused=false,processing=false,dirty=false,lastPersistedAt=0
  let timer:ReturnType<typeof setTimeout>|null=null
+ let reportTarget=options.initialOfflineTarget
  const clear=()=>{if(timer!==null){cancel(timer);timer=null}}
  function saveIfDirty(force=false){
    if(!dirty)return
@@ -59,7 +63,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
    if(!started||paused||processing)return
    clear();processing=true
    try{
-     const timestamp=now()
+     const timestamp=reportTarget??now()
      const current=options.getState()
      // Passive cash must be visible and persisted even with a long market backlog.
      const passive=v8SettlePassiveIncome(current,timestamp)
@@ -70,6 +74,11 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
      const final=replay.state
      if(final!==options.getState()){options.setState(final);dirty=true}
      saveIfDirty(replay.pendingSeconds===0)
+     if(reportTarget!==undefined){
+       const incomplete=replay.pendingSeconds>0&&replay.processedSeconds===0
+       options.onOfflineReplay?.(options.getState(),replay.pendingSeconds,incomplete)
+       if(replay.pendingSeconds===0||incomplete)reportTarget=undefined
+     }
      if(!started||paused)return
      const delay=replay.pendingSeconds>0?REPLAY_PAUSE_MS:
        Math.max(50,Math.min(1000,final.trading.dividendLastPaidAt+1000-timestamp))

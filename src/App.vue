@@ -3,6 +3,8 @@ import {createV8CapitalState, getExactAmount as v, type V8CapitalState} from './
 import {projectV8ForLegacyUI, approximateMoneyCents} from './exact-view-v8.ts'
 import {loadV8CapitalState, saveV8CapitalState, exportV8Save} from './exact-persistence-v8.ts'
 import {createV8MarketRuntime} from './exact-clock-v8.ts'
+import {makeOfflineReport,offlineReportDuration,OFFLINE_REPORT_MIN_MS,type OfflineReport} from './offline-report-v8.ts'
+import OfflineReportDialog from './components/OfflineReportDialog.vue'
 import {v8SettlePassiveIncome} from './exact-autoclick-frame.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
 import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
@@ -65,6 +67,17 @@ const boot = loadV8CapitalState(localStorage)
 const loadBlocked = ref(!boot.ok)
 const loadError = ref(boot.ok ? '' : boot.reason)
 const exact = ref<V8CapitalState>(boot.ok ? boot.state : createV8CapitalState())
+const offlineReport=ref<OfflineReport|null>(null)
+let reportBaseline:V8CapitalState|null=null
+let reportAt:number|undefined
+function prepareOfflineReport(at:number){
+  if(offlineReport.value||offlineReportDuration(exact.value,at)<OFFLINE_REPORT_MIN_MS)return
+  reportBaseline=exact.value
+  reportAt=at
+  const pending=Math.max(0,Math.floor((at-exact.value.trading.dividendLastPaidAt)/1000))
+  offlineReport.value=makeOfflineReport(reportBaseline,reportBaseline,at,pending)
+}
+function dismissOfflineReport(){offlineReport.value=null;reportBaseline=null;reportAt=undefined}
 const capital = ref<CapitalState>(projectV8ForLegacyUI(exact.value))
 const game = computed<GameState>(() => capital.value.game)
 const level = computed(() => getExactLevel(v(exact.value.prestige.experienceCents)))
@@ -593,6 +606,12 @@ function startMarketRuntime(){
     isForeground:()=>!document.hidden,
     setState:syncExactState,
     persist,
+    initialOfflineTarget:reportAt,
+    onOfflineReplay:(state,pending,incomplete)=>{
+      if(!offlineReport.value||!reportBaseline||reportAt===undefined)return
+      offlineReport.value=makeOfflineReport(reportBaseline,state,reportAt,pending,incomplete)
+      if(pending===0||incomplete){reportBaseline=null;reportAt=undefined}
+    },
   })
   marketRuntime.start()
   if(document.hidden)marketRuntime.pause()
@@ -751,7 +770,10 @@ async function toggleFullscreen() {
 
 onMounted(() => {
   activeSince = document.hidden ? null : Date.now()
-  if(!loadBlocked.value)startMarketRuntime()
+  if(!loadBlocked.value){
+    if(boot.ok&&boot.origin!=='new')prepareOfflineReport(Date.now())
+    startMarketRuntime()
+  }
 
   document.addEventListener('fullscreenchange', syncFullscreen)
   document.addEventListener('visibilitychange', syncMarketVisibility)
@@ -989,5 +1011,6 @@ onUnmounted(() => {
         <span class="nav-label">Plein écran</span>
       </button>
     </nav>
+    <OfflineReportDialog v-if="offlineReport" :report="offlineReport" @close="dismissOfflineReport" />
   </div>
 </template>

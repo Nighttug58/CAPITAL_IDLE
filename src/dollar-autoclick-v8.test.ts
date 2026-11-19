@@ -217,3 +217,55 @@ test('24 hours of passive enterprise income and rank-20 clicks settle before mar
   runtime.stop()
   assert.ok(valid(state).valid,valid(state).reason)
 })
+
+test('Offline launch receipt measures credited cash separately from latent trading changes',async()=>{
+  const {makeOfflineReport,offlineReportDuration}=await import('./offline-report-v8.ts')
+  const {v8BuyTrade,v8CreditIncome}=await import('./exact-runtime-v8.ts')
+  const bought=v8BuyTrade(funded(),'nvideo','10')
+  assert.ok(bought.ok)
+  const before=buyDollarAutoClick(bought.state,NOW)!
+  const at=NOW+60_000
+  const passive=v8SettlePassiveIncome(before,at)
+  const after=v8CreditIncome(passive,'dividends',1234n)
+  const id='nvideo'
+  const quote=after.trading.quotes[id]!
+  const priced={...after,trading:{...after.trading,quotes:{...after.trading.quotes,[id]:{...quote,price:quote.price*2}}}}
+  const report=makeOfflineReport(before,priced,at)
+  assert.equal(offlineReportDuration(before,at),60_000)
+  assert.equal(report.clickCount,60)
+  assert.equal(report.clicks,6000n)
+  assert.equal(report.dividends,1234n)
+  assert.equal(report.cashChange,7234n)
+  assert.ok(report.marketChange>0n)
+  assert.equal(report.marketChange,report.stocks)
+  assert.equal(report.assets.length,1)
+  assert.equal(report.remainingSeconds,0)
+  const down={...after,trading:{...after.trading,quotes:{...after.trading.quotes,[id]:{...quote,price:quote.price/2}}}}
+  assert.ok(makeOfflineReport(before,down,at).marketChange<0n)
+  assert.equal(makeOfflineReport(before,down,at).cashChange,7234n)
+})
+
+test('Offline report fixes the launch cutoff, then resumes the normal wall clock',()=>{
+  let state=buyDollarAutoClick(funded(),NOW)!
+  const before=state
+  const target=NOW+300_000
+  let clock=target
+  let callback:(()=>void)|undefined
+  const reports:{clicks:number;pending:number;last:number}[]=[]
+  const runtime=createV8MarketRuntime({
+    getState:()=>state,setState:next=>{state=next},persist:()=>true,now:()=>clock,
+    initialOfflineTarget:target,onOfflineReplay:(s,pending)=>reports.push({clicks:s.stats.clickCount,pending,last:s.trading.dividendLastPaidAt}),
+    schedule:cb=>{callback=cb;return 1 as unknown as ReturnType<typeof setTimeout>},cancel:()=>{}
+  })
+  runtime.start()
+  assert.equal(reports[0]!.clicks-before.stats.clickCount,300)
+  assert.ok(reports[0]!.pending>0)
+  clock+=10_000;callback?.()
+  assert.equal(reports.at(-1)!.pending,0)
+  assert.equal(reports.at(-1)!.last,target)
+  assert.equal(reports.at(-1)!.clicks,300)
+  callback?.()
+  assert.equal(state.stats.clickCount,310)
+  assert.equal(reports.length,2)
+  runtime.stop()
+})
