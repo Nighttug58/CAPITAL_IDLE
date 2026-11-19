@@ -3,11 +3,12 @@ import {createV8CapitalState, getExactAmount as v, type V8CapitalState} from './
 import {projectV8ForLegacyUI, approximateMoneyCents} from './exact-view-v8.ts'
 import {loadV8CapitalState, saveV8CapitalState, exportV8Save} from './exact-persistence-v8.ts'
 import {createV8MarketRuntime} from './exact-clock-v8.ts'
+import {v8SettlePassiveIncome} from './exact-autoclick-frame.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
 import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
-import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,v8AdvanceFiscalEconomy,
+import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
  v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
  quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
@@ -370,6 +371,7 @@ function returnToPrestige() {
 }
 function executeTranscendentMaxPurchase(id:TranscendentId,expectedRank:number):{levels:number;costPoints:bigint}|null {
   if(loadBlocked.value)return null
+  settleEconomyNow()
   const before=v(exact.value.ascension.progress.availablePoints)
   const next=v8BuyTranscendentMax(exact.value,id,expectedRank)
   if(!next || !replaceWholeSaveExact(next))return null
@@ -378,6 +380,7 @@ function executeTranscendentMaxPurchase(id:TranscendentId,expectedRank:number):{
 }
 function executeTranscendentPurchase(id:TranscendentId,expectedRank:number,quoted:bigint):boolean {
   if(loadBlocked.value || transcendentNextCost(expectedRank)!==quoted)return false
+  settleEconomyNow()
   const next=v8BuyTranscendent(exact.value,id,expectedRank)
   return !!next && replaceWholeSaveExact(next)
 }
@@ -456,11 +459,13 @@ function removeFloatingGain(id: number) {
 
 function buy() {
   if (loadBlocked.value) return
+  settleEconomyNow()
   const next = v8UpgradeClick(exact.value)
   if (next) {clickMaxNotice.value='';syncExactState(next); persist()}
 }
 function buyClickMax() {
   if (loadBlocked.value) return
+  settleEconomyNow()
   const quote=clickMaxQuote.value
   if (!quote) return
   const next=v8UpgradeClickMax(exact.value,exact.value.game.purchasedUpgrades)
@@ -532,6 +537,7 @@ function executeStaking(action:'deposit'|'withdraw',id:string,quantity:number):S
 }
 function executeEnterpriseMax(id:string,expectedLevel:number) {
   if(loadBlocked.value)return{ok:false as const,error:'money-overflow' as const}
+  settleEconomyNow()
   const result=v8BuyEnterpriseMax(exact.value,id,Date.now(),expectedLevel)
   if(!result.ok)return{ok:false as const,error:result.reason as Exclude<EnterpriseResult,{ok:true}>['error']|'stale-level'}
   if(!replaceWholeSaveExact(result.state))return{ok:false as const,error:'money-overflow' as const}
@@ -565,7 +571,7 @@ function persist():boolean {
 }
 function settleEconomyNow(){
   if(loadBlocked.value)return
-  const next=v8AdvanceFiscalEconomy(exact.value,Date.now())
+  const next=v8SettlePassiveIncome(exact.value,Date.now())
   if(next!==exact.value){syncExactState(next);persist()}
 }
 function payTaxes():EarlyTaxPaymentResult{
@@ -643,6 +649,7 @@ function resetSave():boolean{
 }
 function executePrestigeMaxPurchase(id:string,expectedLevel:number):{levels:number;costPoints:bigint}|null {
   if(loadBlocked.value)return null
+  settleEconomyNow()
   const key=id as keyof V8CapitalState['ascension']['progress']['upgradeLevels']
   const before=v(exact.value.ascension.progress.availablePoints)
   const next=v8BuyPrestigeUpgradeMax(exact.value,key,expectedLevel)
@@ -652,6 +659,7 @@ function executePrestigeMaxPurchase(id:string,expectedLevel:number):{levels:numb
 }
 function executePrestigePurchase(id:string,expectedLevel:number):AscensionPurchase{
   if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
+  settleEconomyNow()
   const cost=nextAscensionCost(id as keyof V8CapitalState['ascension']['progress']['upgradeLevels'],expectedLevel)
   const next=v8BuyPrestigeUpgrade(exact.value,id as keyof V8CapitalState['ascension']['progress']['upgradeLevels'],expectedLevel)
   if(!next||cost===null)return{ok:false,state:capital.value,error:'insufficient-points'}
@@ -668,6 +676,7 @@ function purchaseNews(id:string|null,count:number,quoted:bigint):boolean {
 }
 function executePrestigeCycle():AscensionResult{
   if(loadBlocked.value)return{ok:false,state:capital.value,error:'storage-error'}
+  settleEconomyNow()
   const at=Date.now()
   const before=exact.value
   const tax=v(before.fiscal.taxesDueCents)
@@ -874,7 +883,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="home-auto-footnote" aria-live="polite">
-          <span><span class="home-online-dot" aria-hidden="true"></span> Automatique uniquement en jeu actif</span>
+          <span><span class="home-online-dot" aria-hidden="true"></span> Automatique en ligne et hors ligne</span>
           <small v-if="missingAutoClickCash !== null && missingAutoClickCash > 0n">Manque {{ formatCompactUnits(missingAutoClickCash) }}</small>
         </div>
       </section>

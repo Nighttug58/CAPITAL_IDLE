@@ -3,11 +3,11 @@ import test from 'node:test'
 import { createV8CapitalState, getExactAmount as cents, type V8CapitalState } from './exact-state-v8.ts'
 import { dollarAutoClickPriceCents, buyDollarAutoClick, armDollarAutoClick,
   getDollarAutoClickLevel, DOLLAR_AUTOCLICK_MAX_LEVEL } from './dollar-autoclick-v8.ts'
-import { v8AutoClickFrame } from './exact-autoclick-frame.ts'
+import { v8AutoClickFrame, v8SettlePassiveIncome } from './exact-autoclick-frame.ts'
 import { createV8MarketRuntime } from './exact-clock-v8.ts'
 import { v8PerformPrestige } from './exact-prestige-v8.ts'
 import { getExactLevelStartThreshold } from './exact-levels.ts'
-import { v8BuyPrestigeUpgrade } from './exact-runtime-v8.ts'
+import { v8BuyPrestigeUpgrade, v8BuyEnterprise } from './exact-runtime-v8.ts'
 import { validateExactV8State } from './exact-save-validation.ts'
 import { getAsset } from './trading/catalog.ts'
 import { loadV8CapitalState, saveV8CapitalState, V8_STORAGE_KEY } from './exact-persistence-v8.ts'
@@ -71,26 +71,25 @@ test('Dollar Auto Click purchases are cash-only and exact; XP, Fame, PP and clic
   assert.equal(JSON.parse(pre).ascension.run.autoClickLevel,0)
 })
 
-test('One real foreground second yields one batch of native XP/Fame/click credit, never a backlog',()=>{
-  let state=buyDollarAutoClick(funded(),NOW)!
-  assert.ok(state)
+test('Elapsed seconds credit native cash, XP and clicks even offline; no double credit',()=>{
+  const state=buyDollarAutoClick(funded(),NOW)!
   const baseEarned=cents(state.game.lifetimeEarned)
-  const quiet=v8AutoClickFrame(ready(state,NOW),NOW,true)
+  const quiet=v8AutoClickFrame(state,NOW,true)
   assert.equal(quiet.stats.clickCount,0)
-  const hidden=v8AutoClickFrame(ready(quiet,NOW+1000),NOW+1000,false)
-  assert.equal(hidden.stats.clickCount,0)
-  const first=v8AutoClickFrame(ready(hidden,NOW+1000),NOW+1000,true)
+  const hidden=v8AutoClickFrame(quiet,NOW+1000,false)
+  assert.equal(hidden.stats.clickCount,1)
+  const first=v8AutoClickFrame(hidden,NOW+1000,true)
   assert.equal(first.stats.clickCount,1)
   assert.equal(cents(first.game.lifetimeEarned),baseEarned+100n)
   assert.equal(cents(first.stats.earnedBySource.clicks),100n)
   assert.equal(cents(first.prestige.experienceCents),100n)
-  const repeat=v8AutoClickFrame(ready(first,NOW+1000),NOW+1000,true)
-  assert.equal(repeat.stats.clickCount,1)
-  const offlineGap=v8AutoClickFrame(ready(repeat,NOW+12_000),NOW+12_000,true)
-  assert.equal(offlineGap.stats.clickCount,1)
+  assert.equal(v8AutoClickFrame(first,NOW+1999,true),first)
+  const offlineGap=v8AutoClickFrame(first,NOW+12_500,true)
+  assert.equal(offlineGap.stats.clickCount,12)
   assert.equal(offlineGap.ascension.run.lastAutomationAtRealMs,NOW+12_000)
-  const resumed=v8AutoClickFrame(ready(offlineGap,NOW+13_000),NOW+13_000,true)
-  assert.equal(resumed.stats.clickCount,2)
+  assert.equal(v8AutoClickFrame(offlineGap,NOW+12_500,true),offlineGap)
+  const resumed=v8AutoClickFrame(offlineGap,NOW+13_000,true)
+  assert.equal(resumed.stats.clickCount,13)
   assert.ok(valid(resumed).valid,valid(resumed).reason)
 })
 
@@ -160,7 +159,7 @@ test('Prestige clears dollar Auto Click and PP old ranks remain unchanged for re
   assert.equal(v8BuyPrestigeUpgrade(result.state,'auto-click',0),null)
 })
 
-test('Pause and reload rearm the real-second cursor instead of earning offline clicks',()=>{
+test('Pause, resume and reload credit offline clicks exactly once',()=>{
   let state=buyDollarAutoClick(funded(),NOW)!
   let clock=NOW
   let foreground=true
@@ -175,9 +174,46 @@ test('Pause and reload rearm the real-second cursor instead of earning offline c
   assert.equal(state.stats.clickCount,1)
   foreground=false;engine.pause();clock+=30_000
   foreground=true;engine.resume()
-  assert.equal(state.stats.clickCount,1)
+  assert.equal(state.stats.clickCount,31)
   assert.equal(state.ascension.run.lastAutomationAtRealMs,NOW+31_000)
   clock+=1000;callback?.()
-  assert.equal(state.stats.clickCount,2)
+  assert.equal(state.stats.clickCount,32)
   engine.stop()
+  const db=storage()
+  assert.equal(saveV8CapitalState(db,state),true)
+  const loaded=loadV8CapitalState(db,clock+10_000)
+  assert.ok(loaded.ok)
+  const reloaded=v8SettlePassiveIncome(loaded.state,clock+10_000)
+  assert.equal(reloaded.stats.clickCount,42)
+  assert.equal(v8SettlePassiveIncome(reloaded,clock+10_000),reloaded)
+})
+
+test('24 hours of passive enterprise income and rank-20 clicks settle before market replay',()=>{
+  const initial=funded()
+  let state={...initial,prestige:{...initial.prestige,
+    experienceCents:(getExactLevelStartThreshold(3)*100n).toString()}}
+  const opened=v8BuyEnterprise(state,'kiosque',NOW)
+  assert.ok(opened.ok)
+  state=opened.state
+  for(let rank=0;rank<20;rank++)state=buyDollarAutoClick(state,NOW)!
+  const start=state
+  const at=NOW+86_400_000
+  let persisted:V8CapitalState|undefined
+  const runtime=createV8MarketRuntime({getState:()=>state,setState:next=>{state=next},
+    now:()=>at,persist:()=>{persisted=state;return true},
+    schedule:()=>1 as unknown as ReturnType<typeof setTimeout>,cancel:()=>{}})
+  runtime.start()
+  assert.equal(state.stats.clickCount,1_728_000)
+  assert.equal(cents(state.stats.earnedBySource.clicks),172_800_000n)
+  assert.ok(cents(state.stats.earnedBySource.enterprises)>cents(start.stats.earnedBySource.enterprises))
+  assert.equal(state.enterprises.lastAccruedAt,at)
+  assert.ok(persisted)
+  assert.equal(persisted.stats.clickCount,1_728_000)
+  assert.equal(persisted.enterprises.lastAccruedAt,at)
+  const cash=state.stats.earnedBySource.enterprises
+  runtime.wake()
+  assert.equal(state.stats.clickCount,1_728_000)
+  assert.equal(state.stats.earnedBySource.enterprises,cash)
+  runtime.stop()
+  assert.ok(valid(state).valid,valid(state).reason)
 })

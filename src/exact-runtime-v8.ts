@@ -110,6 +110,26 @@ export function v8Click(state: V8CapitalState): V8CapitalState {
   }
 }
 
+/** Aggregate elapsed Auto Clicks without iterating through offline seconds.
+ * Long catch-up uses the reward rates at settlement, like enterprise income. */
+export function v8ClickBatch(state: V8CapitalState, count: bigint): V8CapitalState {
+  if (count <= 0n) return state
+  if (count <= 20n && state.stats.clickCount <= Number.MAX_SAFE_INTEGER - Number(count)) {
+    let next = state
+    for (let i = 0; i < Number(count); i++) next = v8Click(next)
+    return next
+  }
+  const base = BigInt(getClickValue(state.game.purchasedUpgrades)) * 100n * count
+  const rate = v8ScaleRewardCents(base, v8ExactRewardRate(state, 'click'), state.prestige.clickCarryBps)
+  const credited = v8CreditIncome(state, 'clicks', rate.amount)
+  const total = BigInt(state.stats.clickCount) + count
+  const max = BigInt(Number.MAX_SAFE_INTEGER)
+  return { ...credited,
+    stats: { ...credited.stats, clickCount: Number(total > max ? max : total) },
+    prestige: { ...credited.prestige, clickCarryBps: rate.carryBps },
+  }
+}
+
 export function v8UpgradeClick(state: V8CapitalState): V8CapitalState | null {
   const next = UPGRADES[state.game.purchasedUpgrades]
   const level = getExactLevel(v(state.prestige.experienceCents))

@@ -1,5 +1,5 @@
 /** Cycle-scoped Auto Click: paid in exact dollars, independent of permanent PP.
- * Each purchased rank grants one ordinary click each real foreground second.
+ * Each purchased rank grants one ordinary click each real elapsed second.
  * Historical PP Auto Click levels are preserved solely for the pass-6 refund.
  */
 import type { V8CapitalState } from './exact-state-v8.ts'
@@ -33,18 +33,17 @@ export function buyDollarAutoClick(state: V8CapitalState, at: number): V8Capital
     ascension: { ...state.ascension, run: { ...state.ascension.run,
       autoClickLevel: level + 1,
       // No reward at purchase time: first earned ticks occur after activation.
-      lastAutomationAtRealMs: Math.floor(at / 1000) * 1000,
+      lastAutomationAtRealMs: at,
     } },
   }
 }
 
-/** Re-arm after a visibility change/reload: never catch up clicks from absence. */
+/** Initialize a missing legacy cursor only; never erase uncredited elapsed time. */
 export function armDollarAutoClick(state: V8CapitalState, at: number): V8CapitalState {
   if (getDollarAutoClickLevel(state) === 0 || !Number.isSafeInteger(at) ||
       at < state.ascension.run.startedAtRealMs) return state
-  const second = Math.floor(at / 1000) * 1000
-  if (state.ascension.run.lastAutomationAtRealMs === second) return state
+  if (state.ascension.run.lastAutomationAtRealMs !== undefined) return state
   return { ...state, ascension: { ...state.ascension,
-    run: { ...state.ascension.run, lastAutomationAtRealMs: second },
+    run: { ...state.ascension.run, lastAutomationAtRealMs: at },
   } }
 }

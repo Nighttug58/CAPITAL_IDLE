@@ -35,7 +35,7 @@ describe('Pass 4 — compact home and dollar Auto Click',()=>{
     expect(deck.findAll('.home-upgrade-row')).toHaveLength(2)
     expect(deck.findAll('.upgrade-button')).toHaveLength(2)
     expect(deck.find('.home-upgrade-row[aria-label="Amélioration Auto Click"]').text()).toContain('0 / 20')
-    expect(deck.find('.home-auto-footnote').text()).toContain('uniquement en jeu actif')
+    expect(deck.find('.home-auto-footnote').text()).toContain('en ligne et hors ligne')
     expect(deck.find('.home-auto-buy').attributes('disabled')).toBeDefined()
     expect(wrapper.find('.tap-zone').exists()).toBe(true)
   })

@@ -69,11 +69,16 @@ describe('Navigation horizontale V1',()=>{
       const w=openApp()
       const trading=w.find('main.trading-screen')
       const tradingTabs=trading.find('.trading-tabs')
-      expect(getComputedStyle(tradingTabs.element).position).toBe('fixed')
-      ;(trading.element as HTMLElement).scrollTop=350
-      expect(getComputedStyle(tradingTabs.element).position).toBe('fixed')
+      const scroll=trading.find('.trading-scroll-content')
+      expect(scroll.element.parentElement).toBe(trading.element)
+      expect(tradingTabs.element.parentElement).toBe(trading.element)
+      expect(scroll.element.contains(tradingTabs.element)).toBe(false)
+      expect(getComputedStyle(tradingTabs.element).position).toBe('relative')
+      expect(getComputedStyle(scroll.element).overflowY).toBe('auto')
+      ;(scroll.element as HTMLElement).scrollTop=350
+      expect(getComputedStyle(tradingTabs.element).position).toBe('relative')
       ;(trading.element as HTMLElement).style.transform='translate3d(20px,0,0)'
-      expect(getComputedStyle(tradingTabs.element).bottom).toMatch(/^0(?:px)?$/)
+      expect(getComputedStyle(tradingTabs.element).bottom).toBe('auto')
       ;(trading.element as HTMLElement).style.transform=''
       await w.find('.prestige-launch').trigger('click')
       expect(getComputedStyle(w.find('main.ascension-screen .prestige-tabs').element).position).toBe('fixed')

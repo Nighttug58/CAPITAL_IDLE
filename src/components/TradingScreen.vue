@@ -179,6 +179,7 @@ onUnmounted(() => {
 
 <template>
   <main id="trading" class="trading-screen" aria-label="Marchés Trading">
+    <div class="trading-scroll-content">
     <div class="trading-hero">
       <div><span class="eyebrow">CAPITAL · MARCHÉS</span><strong>Trading</strong><span class="trading-hero-note">Marché fictif · évolution en direct</span></div>
       <div class="trading-wallet"><span>SOLDE DISPONIBLE</span><strong>{{ displayWallet }}</strong></div>
@@ -186,15 +187,6 @@ onUnmounted(() => {
     <div v-if="radar.length" class="trading-radar" aria-label="Radar de volatilité">
       <strong>RADAR VOLATILITÉ</strong>
       <span v-for="item in radar" :key="item.id">{{ item.symbol }} · {{ item.volatilityPercent.toFixed(2) }} %</span>
-    </div>
-    <div class="trading-tabs" aria-label="Rubriques Trading">
-      <button
-        v-for="tab in tabs" :key="tab.key" type="button" class="trading-tab"
-        :class="{ 'is-selected': activeTab === tab.key }"
-        :aria-pressed="activeTab === tab.key"
-        aria-controls="trading-content"
-        @click="activeTab = tab.key"
-      >{{ tab.label }}</button>
     </div>
     <section id="trading-content" class="trading-stage">
       <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" :exact-state="exactState" @open-asset="openAsset" />
@@ -212,6 +204,16 @@ onUnmounted(() => {
     <p v-if="activeTab === 'stocks' || activeTab === 'crypto'" class="trading-disclaimer">
       Touchez un actif pour consulter ses détails et trader
     </p>
+    </div>
+    <div class="trading-tabs" aria-label="Rubriques Trading">
+      <button
+        v-for="tab in tabs" :key="tab.key" type="button" class="trading-tab"
+        :class="{ 'is-selected': activeTab === tab.key }"
+        :aria-pressed="activeTab === tab.key"
+        aria-controls="trading-content"
+        @click="activeTab = tab.key"
+      >{{ tab.label }}</button>
+    </div>
     <div v-if="hasDialog" class="trading-modal-backdrop" @click.self="closeDialog">
       <AssetDialog
         v-if="selectedAssetId" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
