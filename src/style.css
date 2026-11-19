@@ -1995,7 +1995,8 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 }
 
 /* Trading uses two non-overlapping rows: only the content scrolls.
- * Tabs stay in the page layout, including during horizontal transitions. */
+ * Tabs stay in the page layout, including during horizontal transitions.
+ * The content flex item can shrink to zero without pushing the tabs offscreen. */
 .app-shell > main.trading-screen {
   display:flex;
   flex-direction:column;
