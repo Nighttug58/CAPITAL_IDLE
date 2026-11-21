@@ -1,0 +1,23 @@
+name: Verify Fame V4 Pass 2 (temporary branch)
+on:
+  push:
+    branches: [fame-v4-pass2-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify release
+        run: npm run verify:release
+      - name: Build root release
+        run: npm run build:root

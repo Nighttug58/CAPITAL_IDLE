@@ -39,3 +39,46 @@ export function v8BuyFameV4Upgrade(state:V8CapitalState,id:string,expectedLevel:
      spentMicros:(v4Spent+cost*MICROS).toString()},
  }}
 }
+
+/** Quote the largest affordable consecutive block of V4 ranks, with no state writes. */
+export interface FameV4MaxQuote { readonly levels:number; readonly costFame:bigint }
+export function quoteFameV4Max(state:V8CapitalState,id:string,expectedLevel:number):FameV4MaxQuote|null {
+ const item=getFameV4Definition(id),section=state.prestige.fameV4
+ if(!item||!section||section.version!==1||section.levels[item.id]!==expectedLevel||
+  !Number.isSafeInteger(expectedLevel)||expectedLevel<0||expectedLevel>=item.maxLevel)return null
+ const available=decodeExactInteger(state.prestige.fameMicros)
+ if(available===null)return null
+ const budget=available/MICROS
+ const remaining=item.maxLevel-expectedLevel
+ // O(remaining), max 15, and all arithmetic in BigInt.
+ let spent=0n, levels=0
+ for(let offset=0;offset<remaining;offset++){
+  const price=fameV4NextCost(item.id,expectedLevel+offset)
+  if(price===null||spent+price>budget)break
+  spent+=price
+  levels++
+ }
+ return levels>0?{levels,costFame:spent}:null
+}
+/** One exact V8 transaction, zero partial writes on failure or stale quotes. */
+export function v8BuyFameV4UpgradeMax(state:V8CapitalState,id:string,expectedLevel:number):V8CapitalState|null {
+ const quote=quoteFameV4Max(state,id,expectedLevel)
+ if(!quote)return null
+ const p=state.prestige,section=p.fameV4!
+ const classic=getVersionedPurchasedFameCost(p.boosts,p.fameLegacyLevels)
+ const v4=fameV4PurchasedCost(section.levels)
+ const fame=decodeExactInteger(p.fameMicros),spent=decodeExactInteger(p.fameSpentMicros)
+ const v4Spent=decodeExactInteger(section.spentMicros)
+ const lifetime=decodeExactInteger(p.lifetimeFameMicros),forfeited=decodeExactInteger(p.fameForfeitedMicros)
+ const cost=quote.costFame*MICROS
+ if(classic===null||v4===null||fame===null||spent===null||v4Spent===null||
+  lifetime===null||forfeited===null||v4Spent!==v4*MICROS||
+  spent!==(BigInt(classic)+v4)*MICROS||lifetime!==fame+spent+forfeited||cost>fame)return null
+ const item=getFameV4Definition(id)!
+ return {...state,prestige:{...p,
+  fameMicros:(fame-cost).toString(),
+  fameSpentMicros:(spent+cost).toString(),
+  fameV4:{version:1,levels:{...section.levels,[item.id]:expectedLevel+quote.levels},
+   spentMicros:(v4Spent+cost).toString()},
+ }}
+}
