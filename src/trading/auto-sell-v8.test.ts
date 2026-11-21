@@ -45,7 +45,7 @@ test('green news expiry sells all liquid stock once during clock and keeps an ex
 
 test('red news appearance sells only configured affected assets, not existing red news',()=>{
   const initial=prefer('redStart')
-  const later={...initial,trading:{...initial.trading,news:[bearish]}}
+  const later={...initial,trading:{...initial.trading,dividendLastPaidAt:NOW+1000,news:[bearish]}}
   const triggered=applyNewsAutoSells(initial,later,NOW+1000)
   assert.equal(triggered.trading.positions.nvideo,undefined)
   assert.ok(valid(triggered).valid,valid(triggered).reason)
@@ -97,7 +97,7 @@ test('old V8 saves remain valid and per-asset switches survive storage reload',(
 
 test('automatic sell writes one exact receipt with its trigger, cash, realized profit and fee',()=>{
   const state=prefer('redStart')
-  const result=applyNewsAutoSells(state,{...state,trading:{...state.trading,news:[bearish]}},NOW+1000)
+  const result=applyNewsAutoSells(state,{...state,trading:{...state.trading,dividendLastPaidAt:NOW+1000,news:[bearish]}},NOW+1000)
   assert.equal(result.trading.autoSellHistory?.length,1)
   const entry=result.trading.autoSellHistory![0]!
   assert.equal(entry.trigger,'redStart')

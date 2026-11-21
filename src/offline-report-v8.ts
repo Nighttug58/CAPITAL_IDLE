@@ -71,7 +71,7 @@ export function makeOfflineReport(before:V8CapitalState,after:V8CapitalState,at:
     const marketChange=final-initial
     byKind[asset.kind]+=marketChange
     stakingValue+=rewards
-    assets.push({id,name:asset.name,symbol:asset.symbol,kind:asset.kind,before:initial,after:final,
+    if(retained>0n||stakingUnits>0n)assets.push({id,name:asset.name,symbol:asset.symbol,kind:asset.kind,before:initial,after:final,
       marketChange,stakingValue:rewards,stakingUnits:stakingUnits>0n?stakingUnits:0n,decimals:asset.quantityDecimals})
   }
   assets.sort((a,b)=>{const x=a.marketChange<0n?-a.marketChange:a.marketChange;const y=b.marketChange<0n?-b.marketChange:b.marketChange;return x===y?0:x>y?-1:1})

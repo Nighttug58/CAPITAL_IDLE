@@ -75,6 +75,7 @@ function validMarketEvent(value:unknown):boolean {
   return (value.resolution===undefined)===(value.resolutionAt===undefined)
 }
 function validTradingStateShape(t:Dict):boolean {
+  if(!safe(t.dividendLastPaidAt))return false
   if(t.autoSellHistory!==undefined){
     if(!Array.isArray(t.autoSellHistory)||t.autoSellHistory.length>96)return false
     let last=-1
