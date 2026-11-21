@@ -154,7 +154,7 @@ test('old V3 receipt remains valid, with its original points and export/import',
  const result=v8PerformPrestige(start,now)
  assert.ok(result.ok)
  if(!result.ok)return
- assert.equal(result.state.ascension.progress.history[0]?.formulaVersion,4)
+ assert.equal(result.state.ascension.progress.history[0]?.formulaVersion,5)
  const item=result.state.ascension.progress.history[0]!
  const old=prestigePoints(BigInt(item.eligibleWorthCents),item.levelAtCompletion)
  const history=[{...item,formulaVersion:3 as const,basePoints:old.toString(),earnedPoints:old.toString()}]
