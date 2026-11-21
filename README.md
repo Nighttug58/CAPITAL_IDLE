@@ -183,6 +183,12 @@ npm run build:root
 Voir également [la roadmap Trading](ROADMAP_TRADING.md), [la roadmap Entreprises/Stats/Fiscalité](ROADMAP_ENTREPRISES_STATS_FISCALITE.md), [l'équilibrage Entreprises](ENTREPRISES_ECONOMIE.md), [les règles du moteur News](TRADING_NEWS.md) et [l'interface Trading](TRADING_INTERFACE.md).
 
 
+## Prestige Transcendant — rééquilibrage 100 niveaux (21.11.2026)
+
+Les **10 branches** comportent désormais **100 niveaux** au lieu de 1 000, sans changement de leur effet maximal : Empire +300 %, les branches économiques concernées +200 %, Héritage +100 % de PP futurs et Capital de départ jusqu'à 1 Qa $. Les trois améliorations News conservent également leur effet maximal. Les nouveaux rangs coûtent de **5 à 202 PP** (8 693 PP pour une branche complète, 86 930 PP pour les dix branches).
+
+Les sauvegardes V8 préexistantes utilisent une migration idempotente du registre Transcendant V1 vers V2 : les anciens rangs sont convertis par arrondi supérieur de niveau/10, les PP payés en trop sont remboursés une seule fois au portefeuille disponible, et les PP gagnés à vie restent inchangés. Les reçus historiques V3/V4, les dotations de capital déjà octroyées et les bonus sont conservés. Une sauvegarde brute pré-migration est archivée sous la clé dédiée `capital-idle-save-backup-v8-pre-transcendent-100-ranks`. Les nouveaux reçus Prestige portent `formulaVersion:5`.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.
