@@ -14,7 +14,6 @@ import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
 import { prestigeCycleCount } from './ascension/prestige-count-v8.ts'
 import { getAsset } from './trading/catalog.ts'
-import { liquidityQuote, updateTradeMarket } from './trading/liquidity-v8.ts'
 import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
   divideCostBasis } from './exact-trading.ts'
 import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, getEnterpriseUpgradeBatchCostCentsExact, isEnterpriseUnlocked }
@@ -201,7 +200,7 @@ function reservedUnits(state: V8CapitalState, assetId: string): bigint {
   return entry ? v(entry.locked) + v(entry.unlocking) + v(entry.awaitingCompound) : 0n
 }
 
-/** No artificial supply cap, but order-size-dependent execution and price impact. */
+/** Orders settle at the public market quote; player trades never move prices. */
 export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: string): V8TradeResult {
   const entry = priceFor(state, assetId)
   if (!entry) return rejectTrade('unknown-asset-or-invalid-price')
@@ -210,17 +209,14 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
   if (units === null || units <= 0n) return rejectTrade('invalid-quantity')
   const owned = state.trading.positions[assetId]
   const previous = owned ? v(owned.quantity) : 0n
-  const impact = liquidityQuote(asset, entry.price, units, 'buy', previous)
-  const execution = impact && quoteToExactFraction(impact.executionPrice)
-  if (!impact || !execution) return rejectTrade('invalid-price')
-  const cost = exactTradeCost(execution, units, asset.quantityDecimals, feeBps(asset.kind), 'buy')
+  const cost = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'buy')
   if (!cost) return rejectTrade('invalid-cost')
-  const sale = exactTradeCost(execution, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
+  const sale = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
   if (!sale?.proceedsCents) return rejectTrade('amount-too-small')
   if (v(state.game.balance) < cost.totalCents) return rejectTrade('insufficient-funds')
   const next: V8CapitalState = { ...state,
     game: { ...state.game, balance: s(v(state.game.balance) - cost.totalCents) },
-    trading: { ...state.trading, ...updateTradeMarket(state.trading, asset, impact.endingPrice),
+    trading: { ...state.trading,
       positions: { ...state.trading.positions,
         [assetId]: { quantity:s(previous + units),
           costBasis:s((owned ? v(owned.costBasis) : 0n) + cost.totalCents) } } },
@@ -235,18 +231,7 @@ export function v8MaximumBuyUnits(state: V8CapitalState, assetId: string): bigin
   const cash = v(state.game.balance)
   const upper = affordableExactQuantity(cash, entry.fraction,
     entry.asset.quantityDecimals, feeBps(entry.asset.kind))
-  let low = 0n, high = upper
-  while (low < high) {
-    const mid = low + (high - low + 1n) / 2n
-    const impact = liquidityQuote(entry.asset, entry.price, mid, 'buy',
-      state.trading.positions[assetId] ? v(state.trading.positions[assetId]!.quantity) : 0n)
-    const execution = impact && quoteToExactFraction(impact.executionPrice)
-    const order = execution && exactTradeCost(execution, mid,
-      entry.asset.quantityDecimals, feeBps(entry.asset.kind), 'buy')
-    if (order && order.totalCents <= cash) low = mid
-    else high = mid - 1n
-  }
-  return low
+  return upper
 }
 
 export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: string): V8TradeResult {
@@ -258,10 +243,7 @@ export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: st
   const current = state.trading.positions[assetId]
   if (!current || units > v(current.quantity)) return rejectTrade('insufficient-holdings')
   if (units > v(current.quantity) - reservedUnits(state, assetId)) return rejectTrade('staked-holdings')
-  const impact = liquidityQuote(asset, entry.price, units, 'sell', v(current.quantity))
-  const execution = impact && quoteToExactFraction(impact.executionPrice)
-  if (!impact || !execution) return rejectTrade('invalid-price')
-  const order = exactTradeCost(execution, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
+  const order = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
   if (!order) return rejectTrade('invalid-cost')
 
   // Staking rewards are sold first at zero cost basis. Purchased units retain
@@ -295,7 +277,7 @@ export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: st
   let next: V8CapitalState = { ...state,
     game: { ...state.game, balance:s(newBalance),
       lifetimeEarned:s(v(state.game.lifetimeEarned) + earnings) },
-    trading: { ...state.trading, ...updateTradeMarket(state.trading, asset, impact.endingPrice),
+    trading: { ...state.trading,
       positions, staking,
       realizedNetProfit:s(v(state.trading.realizedNetProfit) + effectiveProfit),
       creditedTradingProfit:s(v(state.trading.creditedTradingProfit) + earnings) },

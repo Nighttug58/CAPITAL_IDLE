@@ -32,44 +32,45 @@ test('progressive marginal tax crosses a bracket exactly and cannot be diluted b
   assert.equal(cents(taxed.game.balance), cents(state.game.balance))
 })
 
-test('large buy pumps stock; liquidation reprices strongly and cannot create free profit', () => {
-  const stock = getAsset('nvideo')!
-  const start = wealthy(10n ** 20n)
-  const volume = '24000000'
-  const bought = v8BuyTrade(start, stock.id, volume)
-  assert.ok(bought.ok)
-  if (!bought.ok) return
-  const pumped = bought.state.trading.quotes[stock.id]!.price
-  assert.ok(pumped > stock.referencePrice * 1.3)
-  const sold = v8SellTrade(bought.state, stock.id, volume)
-  assert.ok(sold.ok)
-  if (!sold.ok) return
-  const after = sold.state.trading.quotes[stock.id]!.price
-  assert.ok(after < pumped * 0.8)
-  assert.ok(Math.abs(after / stock.referencePrice - 1) < 1e-10)
-  assert.ok(cents(sold.state.game.balance) < cents(start.game.balance))
-  assert.equal(sold.state.trading.positions[stock.id], undefined)
-  const checked = validateExactV8State(sold.state,
-    id => getAsset(id)?.quantityDecimals ?? null)
-  assert.equal(checked.valid, true, checked.reason)
+test('large buy and full sale leave prices and charts unchanged for all assets', () => {
+  for (const id of ['nvideo', 'bitcoin', 'shiba-inu'] as const) {
+    const asset = getAsset(id)!
+    const start = wealthy(10n ** 28n)
+    const volume = '24000000'
+    const quotes = start.trading.quotes
+    const history = start.trading.history
+    const bought = v8BuyTrade(start, id, volume)
+    assert.equal(bought.ok, true, id)
+    if (!bought.ok) continue
+    assert.strictEqual(bought.state.trading.quotes, quotes)
+    assert.strictEqual(bought.state.trading.history, history)
+    const sold = v8SellTrade(bought.state, id, volume)
+    assert.equal(sold.ok, true, id)
+    if (!sold.ok) continue
+    assert.strictEqual(sold.state.trading.quotes, quotes)
+    assert.strictEqual(sold.state.trading.history, history)
+    assert.ok(cents(sold.state.game.balance) < cents(start.game.balance), 'round trip pays fees')
+    assert.equal(sold.state.trading.positions[id], undefined)
+    const checked = validateExactV8State(sold.state,
+      assetId => getAsset(assetId)?.quantityDecimals ?? null)
+    assert.equal(checked.valid, true, checked.reason)
+    assert.ok(asset.referencePrice > 0)
+  }
 })
 
-test('market impact is path-independent against order splitting', () => {
-  const asset = getAsset('bitcoin')!
-  const base = asset.referencePrice
-  const first = liquidityQuote(asset, base, 5_000n * 100_000_000n, 'buy', 0n)!
-  const second = liquidityQuote(asset, first.endingPrice, 5_000n * 100_000_000n,
-    'buy', 5_000n * 100_000_000n)!
-  const single = liquidityQuote(asset, base, 10_000n * 100_000_000n, 'buy', 0n)!
-  assert.ok(Math.abs(second.endingPrice / single.endingPrice - 1) < 1e-12)
-  assert.ok(first.executionPrice < first.endingPrice)
-  assert.ok(single.executionPrice > base)
-  const liquidate = liquidityQuote(asset, single.endingPrice,
-    10_000n * 100_000_000n, 'sell', 10_000n * 100_000_000n)!
-  assert.ok(Math.abs(liquidate.endingPrice / base - 1) < 1e-12)
+test('buy and sell quotes have zero impact even for very large orders', () => {
+  for (const id of ['nvideo', 'bitcoin', 'shiba-inu'] as const) {
+    const asset = getAsset(id)!
+    const base = asset.referencePrice
+    const units = 10_000_000n * 10n ** BigInt(asset.quantityDecimals)
+    const buy = liquidityQuote(asset, base, units, 'buy', 0n)!
+    const sell = liquidityQuote(asset, base, units, 'sell', units)!
+    assert.deepEqual(buy, { executionPrice: base, endingPrice: base, priceImpactPercent: 0 })
+    assert.deepEqual(sell, { executionPrice: base, endingPrice: base, priceImpactPercent: 0 })
+  }
 })
 
-test('MAX order uses real impacted execution cost, never overdraws wallet', () => {
+test('MAX order uses public quote and fees, never overdraws wallet', () => {
   const state = wealthy(1_000_000_000n)
   const asset = getAsset('nvideo')!
   const max = v8MaximumBuyUnits(state, asset.id)

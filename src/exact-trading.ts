@@ -43,8 +43,8 @@ export function quantityStringToUnits(quantity: string, decimals: number): bigin
 }
 
 /**
- * Pure exact settlement of a quote, which may already include order-size
- * market impact and slippage computed by liquidity-v8. No supply cap.
+ * Pure exact settlement at the public market quote, independent of order size.
+ * No artificial supply cap or player-induced slippage.
  * The fee is applied to the unrounded gross, not its rounded cent value.
  * Buy rounds gross UP to a cent; sale rounds gross DOWN to a cent.
  * A fee rounds up, with min 1 cent, and cannot make sale proceeds negative.

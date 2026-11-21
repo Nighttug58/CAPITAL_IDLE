@@ -78,7 +78,6 @@ function updateQuote(
   random: { next: () => number },
   updateDividends = true,
   dividendPressureLimit = 1.25,
-  holdingShare = 0,
 ): MarketQuote {
   const profile = PROFILES[asset.kind]
   const variation = assetVariation(asset)
@@ -116,16 +115,6 @@ function updateQuote(
     if (shockTicksLeft === 0) shockDrift = 0
   }
 
-  // Concentrated positions cannot indefinitely compound favorable pumps.
-  // Positive growth slows and extreme appreciation creates soft profit-taking
-  // pressure, without imposing any absolute minimum or maximum asset price.
-  const whale = Math.log1p(Math.max(0, holdingShare) / 0.001)
-  if (whale > 0) {
-    if (logMove > 0) logMove /= 1 + whale * 1.5
-    const appreciation = Math.max(0, Math.log(current.price / asset.referencePrice))
-    logMove -= Math.min(0.02, whale * appreciation * 0.0005)
-  }
-
   // Soft valuation pressure applies to every asset, including empty portfolios.
   // Bound speculative impulse before applying gravity so stacked news cannot
   // overpower the correction at absurd prices. The final tick remains bounded.
@@ -150,19 +139,6 @@ function updateQuote(
     shockDrift,
     shockTicksLeft,
   }
-}
-
-function holdingShare(state: TradingState, asset: AssetDefinition): number {
-  // The V8 state uses decimal-string subunits; V7 uses Number whole units.
-  const row = (state.positions as Record<string, { quantity: number | string } | undefined>)[asset.id]
-  if (!row) return 0
-  if (typeof row.quantity === 'number')
-    return Number.isFinite(row.quantity) ? Math.min(500, Math.max(0, row.quantity / asset.totalSupply)) : 0
-  if (!/^(0|[1-9]\d*)$/.test(row.quantity)) return 0
-  const units = BigInt(row.quantity)
-  const total = BigInt(asset.totalSupply) * 10n ** BigInt(asset.quantityDecimals)
-  const scaled = units * 1_000_000n / total
-  return Number(scaled > 500_000_000n ? 500_000_000n : scaled) / 1_000_000
 }
 
 function appendSample(
@@ -226,8 +202,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true, opt
     }
     const quote = updateQuote(asset, current, at, sharedNoise,
       (pressure.price[asset.id] ?? 0) / speed, pressure.dividend[asset.id] ?? 0,
-      random, options.updateDividends ?? true, 1.25 * strength,
-      holdingShare(state, asset))
+      random, options.updateDividends ?? true, 1.25 * strength)
     quotes[asset.id] = quote
     if (recordHistory) {
       const series = state.history[asset.id]

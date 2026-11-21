@@ -42,6 +42,18 @@ test('une même graine et le même état produisent exactement les mêmes cours'
   assert.notDeepEqual(simulate(65, 55).quotes, simulate(65, 56).quotes)
 })
 
+test('market ticks are independent of the player\'s holdings', () => {
+  const empty = createInitialTradingState(START, 678)
+  const owned = createInitialTradingState(START, 678)
+  owned.positions.nvideo = { quantity: 10_000_000, costBasis: 100_000 }
+  owned.positions.bitcoin = { quantity: 100_000, costBasis: 100_000 }
+  const first = advanceMarketTick(empty)
+  const second = advanceMarketTick(owned)
+  assert.deepEqual(second.quotes, first.quotes)
+  assert.deepEqual(second.history, first.history)
+  assert.equal(second.seed, first.seed)
+})
+
 test('le rechargement JSON en milieu de tendance reprend bit pour bit la même trajectoire', () => {
   let before = simulate(40, 12936)
   let resumed = restoreTradingState(JSON.parse(JSON.stringify(before)), START + 40 * MARKET_TICK_MS)
