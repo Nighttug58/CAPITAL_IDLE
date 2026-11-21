@@ -1,6 +1,6 @@
 /** Per-asset news-triggered liquidation. Runs inside the exact V8 clock and
  * also on player-triggered news powers; never creates another market clock. */
-import type { V8CapitalState } from '../exact-state-v8.ts'
+import type { V8CapitalState, V8AutoSellReceipt } from '../exact-state-v8.ts'
 import { getExactAmount as units } from '../exact-state-v8.ts'
 import { getAsset } from './catalog.ts'
 import { getNewsDirection } from './news.ts'
@@ -8,6 +8,9 @@ import { v8SellTrade } from '../exact-runtime-v8.ts'
 import { formatDecimalUnits } from '../large-numbers.ts'
 
 export type NewsAutoSellTrigger = 'greenEnd' | 'redStart'
+/** A closed position cannot be reopened by the market clock, so 96 recent
+ * receipts cover the whole 45-asset portfolio of an offline session. */
+export const MAX_AUTO_SELL_HISTORY=96
 
 export function setNewsAutoSellRule(
   state:V8CapitalState,assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean,
@@ -29,7 +32,7 @@ export function applyNewsAutoSells(before:V8CapitalState,after:V8CapitalState,at
   if(!rules||!Object.keys(rules).length)return after
   const beforeEvents=new Map(before.trading.news.map(event=>[event.id,event]))
   const afterEvents=new Map(after.trading.news.map(event=>[event.id,event]))
-  const eligible=new Set<string>()
+  const eligible=new Map<string,NewsAutoSellTrigger>()
   const previously=before.trading.dividendLastPaidAt
 
   for(const event of before.trading.news){
@@ -38,19 +41,19 @@ export function applyNewsAutoSells(before:V8CapitalState,after:V8CapitalState,at
     const endedAt=current?.endsAt??event.endsAt
     const wasLive=event.startedAt<=previously && event.endsAt>previously
     if(!wasLive || endedAt>at || getNewsDirection(current??event)!=='bullish')continue
-    for(const id of event.affectedAssetIds)if(rules[id]?.greenEnd)eligible.add(id)
+    for(const id of event.affectedAssetIds)if(rules[id]?.greenEnd)eligible.set(id,'greenEnd')
   }
   for(const event of after.trading.news){
     const earlier=beforeEvents.get(event.id)
     const justTurnedRed=getNewsDirection(event)==='bearish' &&
       (!earlier||getNewsDirection(earlier)!=='bearish')
     if(!justTurnedRed||event.startedAt>at||event.endsAt<=at)continue
-    for(const id of event.affectedAssetIds)if(rules[id]?.redStart)eligible.add(id)
+    for(const id of event.affectedAssetIds)if(rules[id]?.redStart)eligible.set(id,'redStart')
   }
   if(!eligible.size)return after
 
   let result=after
-  for(const id of eligible){
+  for(const [id,trigger] of eligible){
     const asset=getAsset(id)
     const holding=result.trading.positions[id]
     if(!asset||!holding)continue
@@ -60,7 +63,17 @@ export function applyNewsAutoSells(before:V8CapitalState,after:V8CapitalState,at
     if(liquid<=0n)continue
     // Reuse the only authoritative trading engine (fees, XP, Fame, taxes, cost basis).
     const order=v8SellTrade(result,id,formatDecimalUnits(liquid,asset.quantityDecimals,true))
-    if(order.ok)result=order.state
+    if(order.ok){
+      const receipt:V8AutoSellReceipt={
+        at,assetId:id,trigger,quantity:liquid.toString(),
+        proceedsCents:order.cashDeltaCents.toString(),
+        realizedNetProfitCents:order.realizedNetProfitCents.toString(),
+        feeCents:order.feeCents.toString(),
+      }
+      // One bounded ledger append, in the same atomic economic transaction.
+      result={...order.state,trading:{...order.state.trading,
+        autoSellHistory:[...(result.trading.autoSellHistory??[]),receipt].slice(-MAX_AUTO_SELL_HISTORY)}}
+    }
   }
   return result
 }

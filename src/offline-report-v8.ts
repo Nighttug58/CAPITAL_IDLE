@@ -1,4 +1,4 @@
-import type { V8CapitalState } from './exact-state-v8.ts'
+import type { V8CapitalState, V8AutoSellReceipt } from './exact-state-v8.ts'
 import { getExactAmount as v } from './exact-state-v8.ts'
 import { getAsset } from './trading/catalog.ts'
 import { quoteToExactFraction } from './exact-trading.ts'
@@ -9,7 +9,14 @@ export interface OfflineAssetRow {
   id:string; name:string; symbol:string; kind:OfflineAssetKind
   before:bigint; after:bigint; marketChange:bigint; stakingValue:bigint; stakingUnits:bigint; decimals:number
 }
+export interface OfflineAutoSaleRow {
+  id:string;name:string;symbol:string;kind:OfflineAssetKind
+  at:number;trigger:V8AutoSellReceipt['trigger'];quantity:bigint;decimals:number
+  proceeds:bigint;realizedProfit:bigint;fee:bigint
+}
 export interface OfflineReport {
+  autoSales:OfflineAutoSaleRow[]
+  autoSalesProceeds:bigint; autoSalesProfit:bigint
   durationMs:number; marketDurationMs:number; remainingSeconds:number; incomplete:boolean
   clicks:bigint; clickCount:number; enterprises:bigint; dividends:bigint
   taxesPaid:bigint; taxesGenerated:bigint; cashChange:bigint; xp:bigint; fame:bigint
@@ -31,13 +38,34 @@ export function makeOfflineReport(before:V8CapitalState,after:V8CapitalState,at:
   const assets:OfflineAssetRow[]=[]
   const byKind:Record<OfflineAssetKind,bigint>={stock:0n,crypto:0n,memecoin:0n}
   let stakingValue=0n
+  // A sale is cash realized, not an unrealized price movement. Only units
+  // that remain in the portfolio can contribute to latent variation.
+  const autoSales:OfflineAutoSaleRow[]=[]
+  let autoSalesProceeds=0n,autoSalesProfit=0n
+  for(const receipt of after.trading.autoSellHistory??[]){
+    if(receipt.at<=before.trading.dividendLastPaidAt||receipt.at>after.trading.dividendLastPaidAt)continue
+    const asset=getAsset(receipt.assetId)
+    if(!asset)continue
+    const row:OfflineAutoSaleRow={
+      id:asset.id,name:asset.name,symbol:asset.symbol,kind:asset.kind,
+      at:receipt.at,trigger:receipt.trigger,quantity:v(receipt.quantity),
+      decimals:asset.quantityDecimals,proceeds:v(receipt.proceedsCents),
+      realizedProfit:BigInt(receipt.realizedNetProfitCents),fee:v(receipt.feeCents),
+    }
+    autoSales.push(row)
+    autoSalesProceeds+=row.proceeds
+    autoSalesProfit+=row.realizedProfit
+  }
+  autoSales.sort((a,b)=>b.at-a.at)
   for(const [id,holding] of Object.entries(before.trading.positions)){
     const asset=getAsset(id)
     if(!asset)continue
     const quantity=v(holding.quantity)
     if(quantity<=0n)continue
-    const initial=valuation(before,id,quantity,asset.quantityDecimals,asset.referencePrice)
-    const final=valuation(after,id,quantity,asset.quantityDecimals,asset.referencePrice)
+    const remaining=after.trading.positions[id]?v(after.trading.positions[id]!.quantity):0n
+    const retained=remaining<quantity?remaining:quantity
+    const initial=valuation(before,id,retained,asset.quantityDecimals,asset.referencePrice)
+    const final=valuation(after,id,retained,asset.quantityDecimals,asset.referencePrice)
     const stakingUnits=delta(after.trading.staking.positions[id]?.lifetimeRewards??'0',before.trading.staking.positions[id]?.lifetimeRewards??'0')
     const rewards=valuation(after,id,stakingUnits>0n?stakingUnits:0n,asset.quantityDecimals,asset.referencePrice)
     const marketChange=final-initial
@@ -56,5 +84,6 @@ export function makeOfflineReport(before:V8CapitalState,after:V8CapitalState,at:
     xp:delta(after.prestige.experienceCents,before.prestige.experienceCents),
     fame:delta(after.prestige.lifetimeFameMicros,before.prestige.lifetimeFameMicros),
     stocks:byKind.stock,crypto:byKind.crypto,memecoins:byKind.memecoin,
-    marketChange:byKind.stock+byKind.crypto+byKind.memecoin,stakingValue,assets}
+    marketChange:byKind.stock+byKind.crypto+byKind.memecoin,stakingValue,assets,
+    autoSales,autoSalesProceeds,autoSalesProfit}
 }

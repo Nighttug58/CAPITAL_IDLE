@@ -40,7 +40,19 @@ export interface V8StakingEntry extends Omit<StakingEntry,
   /** 10^-12 minimum token unit carry, never full tokens. */
   carryPicoUnits?: ExactAmount
 }
+/** A completed automatic liquidation, stored in exact units for offline receipts. */
+export interface V8AutoSellReceipt {
+  at:number
+  assetId:string
+  trigger:'greenEnd'|'redStart'
+  quantity:string
+  proceedsCents:string
+  realizedNetProfitCents:string
+  feeCents:string
+}
 export interface V8TradingState extends Omit<TradingState, 'positions'|'staking'|'realizedNetProfit'|'creditedTradingProfit'|'dividendPendingCents'> {
+  /** Bounded exact trade receipts; omitted in existing V8 saves. */
+  autoSellHistory?: V8AutoSellReceipt[]
   /** Per-asset user preferences; optional for pre-feature V8 saves. */
   autoSellRules?: Record<string,{greenEnd:boolean;redStart:boolean}>
   positions: Record<string,V8Position>

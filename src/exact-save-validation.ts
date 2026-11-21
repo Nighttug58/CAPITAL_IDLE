@@ -75,6 +75,20 @@ function validMarketEvent(value:unknown):boolean {
   return (value.resolution===undefined)===(value.resolutionAt===undefined)
 }
 function validTradingStateShape(t:Dict):boolean {
+  if(t.autoSellHistory!==undefined){
+    if(!Array.isArray(t.autoSellHistory)||t.autoSellHistory.length>96)return false
+    let last=-1
+    for(const raw of t.autoSellHistory){
+      if(!object(raw)||!safe(raw.at)||raw.at<last||raw.at>t.dividendLastPaidAt||
+        typeof raw.assetId!=='string'||!allowedAssets.has(raw.assetId)||
+        !['greenEnd','redStart'].includes(raw.trigger as string)||
+        amount(raw.quantity)===null||(amount(raw.quantity)??0n)<=0n||
+        amount(raw.proceedsCents)===null||
+        amount(raw.realizedNetProfitCents,true)===null||
+        amount(raw.feeCents)===null)return false
+      last=raw.at
+    }
+  }
   if(t.autoSellRules!==undefined){
     if(!map(t.autoSellRules)||Object.keys(t.autoSellRules).length>allowedAssets.size)return false
     for(const [id,rule] of Object.entries(t.autoSellRules)){

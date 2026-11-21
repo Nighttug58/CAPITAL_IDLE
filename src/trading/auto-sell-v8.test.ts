@@ -94,3 +94,19 @@ test('old V8 saves remain valid and per-asset switches survive storage reload',(
   const invalid={...both,trading:{...both.trading,autoSellRules:{nvideo:{greenEnd:'yes',redStart:true}}}}
   assert.equal(validateExactV8State(invalid,id=>getAsset(id)?.quantityDecimals??null).valid,false)
 })
+
+test('automatic sell writes one exact receipt with its trigger, cash, realized profit and fee',()=>{
+  const state=prefer('redStart')
+  const result=applyNewsAutoSells(state,{...state,trading:{...state.trading,news:[bearish]}},NOW+1000)
+  assert.equal(result.trading.autoSellHistory?.length,1)
+  const entry=result.trading.autoSellHistory![0]!
+  assert.equal(entry.trigger,'redStart')
+  assert.equal(entry.assetId,'nvideo')
+  assert.equal(entry.quantity,state.trading.positions.nvideo!.quantity)
+  assert.equal(v(entry.proceedsCents),v(result.game.balance)-v(state.game.balance))
+  assert.equal(BigInt(entry.realizedNetProfitCents),v(result.trading.realizedNetProfit)-v(state.trading.realizedNetProfit))
+  assert.ok(v(entry.feeCents)>0n)
+  const repeat=applyNewsAutoSells(result,result,NOW+1000)
+  assert.deepEqual(repeat.trading.autoSellHistory,result.trading.autoSellHistory)
+  assert.ok(valid(result).valid,valid(result).reason)
+})

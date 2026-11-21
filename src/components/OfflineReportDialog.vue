@@ -50,6 +50,8 @@ function dismiss(){emit('close')}
       </div>
       <p v-if="report.incomplete" class="offline-note">Rattrapage du marché incomplet : résultats partiels uniquement.</p>
       <div class="offline-market-summary">
+        <span>Reventes auto · {{ report.autoSales.length }}</span><strong :class="tone(report.autoSalesProfit)">{{ signed(report.autoSalesProfit) }} réalisé</strong>
+        <span>Cash encaissé sur ventes auto</span><strong :class="tone(report.autoSalesProceeds)">{{ formatCompactUnits(report.autoSalesProceeds) }}</strong>
         <span>Trading · variation latente</span><strong :class="tone(report.marketChange)">{{ signed(report.marketChange) }}</strong>
         <span>Staking · valeur des tokens reçus</span><strong :class="tone(report.stakingValue)">{{ signed(report.stakingValue) }}</strong>
       </div>
@@ -57,6 +59,20 @@ function dismiss(){emit('close')}
         {{ details?'Masquer le détail':'Détail Trading & dividendes' }} <span aria-hidden="true">{{ details?'−':'+' }}</span>
       </button>
       <section v-if="details" id="offline-market-detail" class="offline-detail">
+        <div class="offline-auto-sales-header">
+          <strong>Reventes automatiques · {{ report.autoSales.length }}</strong>
+          <small :class="tone(report.autoSalesProfit)">Résultat réalisé {{ signed(report.autoSalesProfit) }}</small>
+        </div>
+        <p v-if="!report.autoSales.length" class="offline-note">Aucune revente automatique pendant cette absence.</p>
+        <div v-for="(sale,index) in report.autoSales" :key="sale.at+'-'+sale.id+'-'+index" class="offline-auto-sale">
+          <div class="offline-auto-sale-head">
+            <strong>{{ sale.symbol }} <small>{{ sale.name }}</small></strong>
+            <strong :class="tone(sale.realizedProfit)">{{ signed(sale.realizedProfit) }}</strong>
+          </div>
+          <small>{{ sale.trigger==='greenEnd'?'Fin de news verte':'Apparition de news rouge' }} · {{ new Date(sale.at).toLocaleString('fr-CH') }}</small>
+          <small>{{ formatDecimalUnits(sale.quantity,sale.decimals,true) }} unités vendues · Cash encaissé {{ formatCompactUnits(sale.proceeds) }} · Frais {{ formatCompactUnits(sale.fee) }}</small>
+        </div>
+        <p class="offline-note">Gains/pertes réalisés après frais et bonus Trading, avant impôts. Les recettes des ventes sont déjà incluses dans la variation du cash.</p>
         <dl class="offline-lines">
           <div><dt>Actions</dt><dd :class="tone(report.stocks)">{{ signed(report.stocks) }}</dd></div>
           <div><dt>Cryptos</dt><dd :class="tone(report.crypto)">{{ signed(report.crypto) }}</dd></div>
@@ -64,8 +80,8 @@ function dismiss(){emit('close')}
           <div><dt>Dividendes encaissés</dt><dd :class="tone(report.dividends)">{{ signed(report.dividends) }}</dd></div>
           <div><dt>Taxes générées (dont prélevées)</dt><dd>{{ formatCompactUnits(report.taxesGenerated) }}</dd></div>
         </dl>
-        <p class="offline-note">Variation des cours sur les positions détenues, hors frais de vente. Ce résultat latent n'est pas ajouté au cash.</p>
-        <p v-if="!report.assets.length" class="offline-note">Aucun actif détenu pendant cette période.</p>
+        <p class="offline-note">Variation latente uniquement sur les unités encore détenues, hors frais de vente. Les unités revendues sont comptées ci-dessus, pas une deuxième fois ici.</p>
+        <p v-if="!report.assets.length" class="offline-note">Aucun actif détenu au début de cette période.</p>
         <div v-for="asset in report.assets" :key="asset.id" class="offline-asset">
           <div><strong>{{ asset.symbol }}</strong><small>{{ asset.name }}</small></div>
           <div><strong :class="tone(asset.marketChange)">{{ signed(asset.marketChange) }}</strong><small>{{ formatCompactUnits(asset.before) }} → {{ formatCompactUnits(asset.after) }}</small>
