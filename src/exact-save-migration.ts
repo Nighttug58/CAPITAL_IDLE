@@ -1,4 +1,5 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
+import { migrateV8ToFameV4 } from './prestige/fame-v4-ledger.ts'
 /**
  * Transaction-safe candidate migration: validate the source v7 with the
  * existing strict importer, then produce and check an exact v8 snapshot.
@@ -26,7 +27,7 @@ export function previewV8Migration(sourceJson: string, now = Date.now()): ExactM
     const legacy = projectValidatedV7ToExactV8(imported.preview.state, getDecimals)
     const oldChecked = validateExactV8State(legacy, getDecimals)
     if (!oldChecked.valid) return { ok: false, error: 'Legacy V8 validation rejected: ' + oldChecked.reason }
-    const convertedState = migratePrestigeShop(migratePreV2V8Save(legacy as unknown as V8CapitalState))
+    const convertedState = migrateV8ToFameV4(migratePrestigeShop(migratePreV2V8Save(legacy as unknown as V8CapitalState)))
     const checked = validateExactV8State(convertedState, getDecimals)
     if (!checked.valid) return { ok: false, error: 'V8 validation rejected: ' + checked.reason }
     const v8Json = JSON.stringify({

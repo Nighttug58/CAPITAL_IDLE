@@ -1,7 +1,7 @@
 # CAPITAL_IDLE — ROADMAP FAME SHOP V4 (30 nouveaux pouvoirs, 8 passes)
 
 **Dépôt :** Nighttug58/CAPITAL_IDLE · **Branche :** main
-**Statut :** SPECIFICATION ET PLANIFICATION UNIQUEMENT — 0/8 passes d'implémentation réalisées.
+**Statut :** 1/8 passes réalisées ; passe 1 validée sur branche isolée, reste des passes 2–8.
 **Décision :** 30 pouvoirs retenus par le joueur; 196 niveaux Fame en plus; 178 100 Fame de coût additionnel, 345 810 Fame pour tout le magasin historique et V4.
 **Déclenchement :** « Next » exécute **une seule passe non terminée** avec vérification de l'état réel de main avant toute mutation. Ne jamais marquer une passe terminée sans preuves et commit.
 **Références techniques (inspection de main) :** src/prestige/catalog.ts, src/prestige/absolute-v8.ts, src/prestige/collections-v3.ts, src/exact-runtime-v8.ts, src/exact-save-validation.ts, src/exact-state-v8.ts, src/exact-prestige-v8.ts, src/exact-market-v8.ts, src/trading/auto-sell-v8.ts, src/offline-report-v8.ts, src/components/FameShopScreen.vue.
@@ -135,7 +135,9 @@ Les coûts en dollars des nouvelles fonctionnalités sont des **money sinks**. I
 ## 6. Ordre d'exécution — huit passes indépendantes
 
 ### Passe 1 — Catalogue et socle V4
-**À faire.** Modèle immuable des 30 pouvoirs + calcul prix BigInt, niveaux, V4 ledger V8, validation, migration sûre des anciennes V8, compatibilité XP/Fame/Prestige absolu. Tests catalogue 30/196/178100 et invariants de dépense, import/export, corruptions et Prestiges. **Pas de nouveaux effets actifs** avant les passes dédiées.
+**TERMINÉE, VALIDÉE.** Modèle immuable des 30 pouvoirs + calcul prix BigInt, niveaux, V4 ledger V8, validation, migration sûre des anciennes V8, compatibilité XP/Fame/Prestige absolu. Tests catalogue 30/196/178100 et invariants de dépense, import/export, corruptions et Prestiges. **Pas de nouveaux effets actifs** avant les passes dédiées.
+
+**Validation passe 1 (22/11/2026) :** catalogue V4 complet (30 pouvoirs, 196 rangs, 178 100 Fame), registre V4 en micro-Fame inclus dans le montant total permanent `fameSpentMicros`, migration zéro coût idempotente avec backup dédié, import/export JSON et validateur V8 strict. Les six branches historiques et le Prestige absolu sont inchangés ; les nouveaux pouvoirs n'ont encore aucun effet gameplay ni UI. Vérification distante sur branche `fame-v4-pass1-validation` au commit `1c3916289784e1bcb216c70d0c39cc90dc7991e3` : `npm run verify:release` réussi, 458/458 tests Node, 120/120 tests UI, TypeScript et Vite build verts. Rapport GitHub Actions : https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44961936431. Seuls les fichiers de la passe 1 sont intégrés sur main; le workflow temporaire reste limité à la branche de validation.
 
 ### Passe 2 — Interface Fame Shop V4
 **À faire.** UI catégories Classique / Trading / Entreprises / Collections / Clics / Fiscalité / Prestige ; ACHETER/MAX avec transactions atomiques ; affichage rang/prix/bonus, résumé 316 niveaux, réserve Fame et prévisualisation Prestige absolu avant/après. Contrôles mobile, scroll et accessibilité; vérification navigateur si disponible.

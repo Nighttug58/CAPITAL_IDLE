@@ -1,4 +1,6 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
+import { migrateV8ToFameV4 } from './prestige/fame-v4-ledger.ts'
+import type { FameV4ShopState } from './prestige/fame-v4-catalog.ts'
 import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
@@ -90,6 +92,8 @@ export interface V8PrestigeState extends Omit<PrestigeState,
   fameShopLedgerVersion: 2
   fameLegacyLevels: PrestigeState['boosts']
   fameSpentMicros: ExactAmount
+  /** Optional only for earlier V8; purchases add into the permanent Fame spent total. */
+  fameV4?: FameV4ShopState
   /** Total Fame removed when completing past cycles (activated in pass 6). */
   fameForfeitedMicros: ExactAmount
   /** Newly earned Fame in the current Prestige cycle (not lifetime history). */
@@ -180,5 +184,5 @@ export function convertValidatedV7ToV8(source: CapitalState): V8CapitalState {
   const converted = projectValidatedV7ToExactV8(source, decimals)
   const checked = validateExactV8State(converted, decimals)
   if (!checked.valid) throw new Error('V8 conversion invalid: ' + checked.reason)
-  return migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(converted as unknown as V8CapitalState)))
+  return migrateV8ToFameV4(migrateTranscendentV1(migratePrestigeShop(migratePreV2V8Save(converted as unknown as V8CapitalState))))
 }
