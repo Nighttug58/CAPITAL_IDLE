@@ -210,7 +210,7 @@ describe('Prestige économique — page et boutique', () => {
 
 
 describe('News avancées PP sans condition de cycles',()=>{
-  it('présente trois améliorations indépendantes, bloquées seulement si PP insuffisants',async()=>{
+  it('présente trois améliorations News accessibles dès le premier Prestige avec PP',async()=>{
     const {wrapper}=mountState(fixture(true))
     await wrapper.find('.prestige-launch').trigger('click')
     await wrapper.find('[data-prestige-tab="transcendent"]').trigger('click')
@@ -221,8 +221,8 @@ describe('News avancées PP sans condition de cycles',()=>{
     ])
     for(const card of cards){
       expect(card.find('.ascension-upgrade-level').text()).toContain('0/100')
-      expect(card.find('button.ascension-buy').attributes('disabled')).toBeDefined()
-      expect(card.find('button.ascension-buy').text()).toContain('PP INSUFF.')
+      expect(card.find('button.ascension-buy').attributes('disabled')).toBeUndefined()
+       expect(card.find('button.ascension-buy').text()).toContain('ACHETER')
     }
     expect(wrapper.find('.ascension-news-effective').text()).toContain('Puissance')
     expect(wrapper.find('.ascension-news-effective').text()).toContain('Rampe')
