@@ -2090,3 +2090,102 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .collection-max-notice { margin:0; }
 @media(max-width:420px) { .collection-max-bar {padding:8px 10px}
   .collection-max-info span {font-size:10px} .collection-max-button {padding:8px 10px} }
+
+
+/* Fame Shop V4 — scrollable category rail above ONE vertically scrolling panel.
+   The bottom navigation remains outside this screen; keep a safe footer. */
+.fame-shop-screen .fame-shop-page-header { gap:7px; padding-block:10px; }
+.fame-shop-screen .fame-shop-page-heading h1 { font-size:clamp(21px,5.8vw,27px); margin:3px 0; }
+.fame-shop-screen .fame-shop-page-heading p { font-size:11px; }
+.fame-shop-screen .fame-shop-summary { padding:10px 14px; }
+.fame-shop-screen .fame-shop-summary small {
+  font-size:10px; color:#c5aecf; line-height:1.35;
+}
+.fame-v4-tabs {
+  min-height:0; flex:0 0 auto; display:flex; gap:5px; padding:7px 10px;
+  overflow-x:auto; overflow-y:hidden; white-space:nowrap;
+  overscroll-behavior-x:contain; scroll-snap-type:x proximity;
+  scrollbar-width:thin; scrollbar-color:#75598a #221a2c;
+  touch-action:pan-x;
+  border-bottom:1px solid #564169; background:#201a2b;
+}
+.fame-v4-tab {
+  flex:0 0 auto; min-width:84px; min-height:44px; border:1px solid #4b3b59;
+  border-radius:9px; padding:6px 10px; display:flex;
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; color:#c6b4d1; background:#2b2535; font-size:11px;
+  font-weight:760; scroll-snap-align:start;
+}
+.fame-v4-tab small { color:#ab95bc; font-size:9px; font-variant-numeric:tabular-nums; }
+.fame-v4-tab.is-active {
+  border-color:#ba8ced; color:#fff2ff; background:#4b345e;
+  box-shadow:inset 0 -2px #ddacf8;
+}
+.fame-v4-tab.is-active small { color:#e4c2fc; }
+.fame-v4-tab:focus-visible,.fame-v4-max-button:focus-visible {
+  outline:2px solid #e9c3ff; outline-offset:2px;
+}
+.fame-v4-group-heading {
+  display:flex; justify-content:space-between; align-items:center; gap:9px;
+  margin:0 0 9px;
+}
+.fame-v4-group-heading h2 { margin:0 0 4px; font-size:17px; color:#f5e6ff; }
+.fame-v4-group-heading p { margin:0; font-size:11px; color:#baabc6; }
+.fame-v4-group-heading>span {
+  flex:0 0 auto; border:1px solid #735b87; border-radius:7px;
+  color:#d9b7fa; font-size:9px; font-weight:800; padding:6px 8px;
+}
+.fame-v4-pending {
+  margin:0 0 11px; padding:8px 11px; font-size:11px; line-height:1.5;
+  border:1px solid #695577; border-radius:9px; color:#d0bfdc;
+  background:#292332;
+}
+.fame-v4-card .fame-boost-heading-main strong small {
+  display:inline-grid; place-items:center; width:22px; height:22px;
+  border-radius:6px; color:#d9b5f4; background:#4b345d;
+  font-size:10px; margin-right:3px;
+}
+.fame-v4-effect { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:6px; margin-top:11px; }
+.fame-v4-effect>div {
+  display:flex; flex-direction:column; gap:4px; min-width:0; padding:8px;
+  background:#211c29; border:1px solid #41384d; border-radius:8px;
+}
+.fame-v4-effect span { font-size:9px; color:#b5a0c3; font-weight:770; letter-spacing:.045em; }
+.fame-v4-effect strong { font-size:11px; color:#f0e1f9; line-height:1.4; overflow-wrap:anywhere; }
+.fame-v4-mechanic { margin:8px 0 0; font-size:10px; color:#c9b6d2; line-height:1.45; }
+.fame-v4-buttons { display:flex; gap:6px; align-items:stretch; flex:0 0 auto; }
+.fame-shop-screen .fame-v4-buttons .fame-buy-button {
+  min-width:100px; min-height:39px;
+}
+.fame-v4-max-button {
+  min-width:53px; min-height:39px; border:1px solid #8a69a4;
+  border-radius:8px; color:#f2ddff; background:#493458;
+  font-size:11px; font-weight:800;
+}
+.fame-v4-max-button:disabled {
+  border-color:#53465c; color:#a99bae; background:#322b39;
+}
+.fame-v4-max-cost {
+  display:block; font-size:10px; line-height:1.3; color:#c8a5e0;
+  overflow-wrap:anywhere;
+}
+.fame-v4-factor-preview {
+  margin:10px 0 0; padding:6px 9px; border-top:1px solid #55465a;
+  font-size:10px; line-height:1.5; color:#dac1e8;
+}
+.fame-v4-factor-preview span { display:inline; }
+@media(max-width:420px) {
+  .fame-v4-tab { min-width:77px; padding-inline:7px; }
+  .fame-v4-effect { grid-template-columns:1fr; }
+  .fame-v4-buttons { gap:4px; }
+  .fame-shop-screen .fame-v4-buttons .fame-buy-button { min-width:84px; font-size:10px; }
+  .fame-v4-max-button { min-width:48px; }
+  .fame-shop-screen .fame-shop-summary { padding:8px 12px; }
+  .fame-shop-screen .fame-boost-footer { align-items:flex-end; }
+}
+@media(max-height:610px) {
+  .fame-v4-tabs { padding-block:4px; }
+  .fame-shop-screen .fame-shop-page-header { padding-block:7px; }
+  .fame-shop-screen .fame-shop-page-footer { padding-block:6px; }
+}

@@ -360,6 +360,36 @@ export function v8BuyFameUpgrade(state: V8CapitalState, id: FameBoostId,
     fameSpentMicros:s(v(state.prestige.fameSpentMicros) + BigInt(price)*FAME_MICROS),
   } }
 }
+
+/** Quote the entire affordable consecutive block for a historical Fame boost. */
+export function quoteV8FameBoostMax(state:V8CapitalState,id:FameBoostId,
+  expectedLevel:number):{levels:number;costFame:bigint}|null {
+  if(state.prestige.boosts[id]!==expectedLevel || !Number.isSafeInteger(expectedLevel))return null
+  let spent=0n,levels=0
+  const budget=v(state.prestige.fameMicros)/FAME_MICROS
+  for(let level=expectedLevel;level<20;level++){
+    const cost=fameCost(id,level)
+    if(cost===null||spent+BigInt(cost)>budget)break
+    spent+=BigInt(cost)
+    levels++
+  }
+  return levels>0?{levels,costFame:spent}:null
+}
+/** One state result for MAX: no partial save or rollback required. */
+export function v8BuyFameUpgradeMax(state:V8CapitalState,id:FameBoostId,
+  expectedLevel:number):V8CapitalState|null {
+  const quote=quoteV8FameBoostMax(state,id,expectedLevel)
+  if(!quote)return null
+  // All 20 ranks use the exact existing purchase authority. Pure intermediate
+  // states are never published or persisted; failure discards the entire block.
+  let next=state
+  for(let i=0;i<quote.levels;i++){
+    const upgraded=v8BuyFameUpgrade(next,id,expectedLevel+i)
+    if(!upgraded)return null
+    next=upgraded
+  }
+  return next
+}
 export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgradeId,
   expectedLevel: number): V8CapitalState | null {
   // Former PP Auto Click is retired; its ledger is retained for the pass-6 refund.

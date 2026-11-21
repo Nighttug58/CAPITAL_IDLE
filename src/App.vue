@@ -11,7 +11,7 @@ import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
- v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyCollectionsMax,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
+ v8PayTaxes,v8BuyFameUpgrade,v8BuyFameUpgradeMax,v8BuyCollection,v8BuyCollectionsMax,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
  quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
@@ -21,6 +21,7 @@ import { setNewsAutoSellRule, type NewsAutoSellTrigger } from './trading/auto-se
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
+import {v8BuyFameV4Upgrade,v8BuyFameV4UpgradeMax} from './prestige/fame-v4-ledger.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
@@ -411,8 +412,7 @@ function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase
   const oldFame = v(exact.value.prestige.fameMicros)
   const next = v8BuyFameUpgrade(exact.value,id as keyof V8CapitalState['prestige']['boosts'],currentLevel)
   if (!next || price===null) return {ok:false,state:capital.value,error:'insufficient-fame'}
-  syncExactState(next)
-  persist()
+  if(!replaceWholeSaveExact(next))return {ok:false,state:capital.value,error:'invalid-state'}
   const state=capital.value
   const actualCost = oldFame-v(next.prestige.fameMicros)
   return {ok:true,state,receipt:{
@@ -423,6 +423,34 @@ function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase
     newBonusBps:(currentLevel+1)*FAME_BOOST_BPS_PER_LEVEL,
     remainingFameMicros:state.prestige.fameMicros,
   }}
+}
+
+/** Entire Fame MAX buy is one V8 state and one verified persistence boundary. */
+function executeFameMaxPurchase(id:string,expectedLevel:number):{levels:number;costFame:bigint}|null {
+  if(loadBlocked.value)return null
+  settleEconomyNow()
+  const key=id as keyof V8CapitalState['prestige']['boosts']
+  const before=v(exact.value.prestige.fameMicros)
+  const next=v8BuyFameUpgradeMax(exact.value,key,expectedLevel)
+  if(!next||!replaceWholeSaveExact(next))return null
+  return {levels:next.prestige.boosts[key]-expectedLevel,
+    costFame:(before-v(next.prestige.fameMicros))/1_000_000n}
+}
+function executeFameV4Purchase(id:string,expectedLevel:number):boolean {
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const next=v8BuyFameV4Upgrade(exact.value,id,expectedLevel)
+  return !!next&&replaceWholeSaveExact(next)
+}
+function executeFameV4MaxPurchase(id:string,expectedLevel:number):{levels:number;costFame:bigint}|null {
+  if(loadBlocked.value)return null
+  settleEconomyNow()
+  const before=v(exact.value.prestige.fameMicros)
+  const next=v8BuyFameV4UpgradeMax(exact.value,id,expectedLevel)
+  if(!next||!replaceWholeSaveExact(next))return null
+  const itemId=id as keyof NonNullable<V8CapitalState['prestige']['fameV4']>['levels']
+  return {levels:next.prestige.fameV4!.levels[itemId]-expectedLevel,
+    costFame:(before-v(next.prestige.fameMicros))/1_000_000n}
 }
 
 function executeCollectionPurchase(id: string): CollectionPurchase {
@@ -948,7 +976,9 @@ onUnmounted(() => {
 
     <AchievementsScreen v-if="showMainPage('achievements')" :style="mainPageStyle('achievements')" :state="capital"
       :claim-rewards="claimAchievementRewards" @back="returnHomeFromAchievements" />
-    <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact" :purchase-boost="executeFamePurchase"
+    <FameShopScreen v-if="page === 'fame'" :state="capital" :exact-state="exact"
+      :purchase-boost="executeFamePurchase" :purchase-boost-max="executeFameMaxPurchase"
+      :purchase-v4="executeFameV4Purchase" :purchase-v4-max="executeFameV4MaxPurchase"
       @back="returnHomeFromFame" />
     <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital" :focus-transcendent-on-mount="focusTranscendentReturn"
       :purchase-upgrade="executePrestigePurchase" :purchase-upgrade-max="executePrestigeMaxPurchase" :perform-cycle="executePrestigeCycle"
