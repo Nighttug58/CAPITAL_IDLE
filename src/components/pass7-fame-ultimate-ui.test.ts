@@ -48,8 +48,8 @@ describe('Pass 7 Fame Shop and ultimate Prestige UI',()=>{
   })
   it('requires seven maxed main branches and responds to PP changes',async()=>{
     const source=createV8CapitalState(AT)
-    const fullLevels={version:1 as const,levels:{...zeroTranscendentV1().levels,
-      ...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,1000]))}}
+    const fullLevels={version:2 as const,levels:{...zeroTranscendentV1().levels,
+      ...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,100]))}}
     const state={...source,ascension:{...source.ascension,progress:{
       ...source.ascension.progress,prestigeCount:3,transcendentV1:fullLevels,
       availablePoints:'1000000000',
@@ -58,7 +58,7 @@ describe('Pass 7 Fame Shop and ultimate Prestige UI',()=>{
     try {
       expect(wrapper.find('[data-ultimate-reserve]').classes()).toContain('is-unlocked')
       expect(wrapper.find('[data-ultimate-reserve]').text()).toContain('×1,25')
-      expect(wrapper.find('[data-ultimate-reserve]').text()).toContain('7 000/7 000')
+      expect(wrapper.find('[data-ultimate-reserve]').text()).toContain('700/700')
       const changed={...state,ascension:{...state.ascension,progress:{
         ...state.ascension.progress,availablePoints:'0',
       }}}
