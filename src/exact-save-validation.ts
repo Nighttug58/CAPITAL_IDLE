@@ -305,7 +305,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
          !object(progress.transcendentV1)||!object(progress.transcendentV1.levels)||
          !safe(progress.transcendentV1.levels['starting-capital'])||
          (progress.transcendentV1.version===2 && item.formulaVersion!==5
-            ? Math.ceil(rank/10):rank)>progress.transcendentV1.levels['starting-capital']
+            ? Math.ceil(rank/10):rank)>progress.transcendentV1.levels['starting-capital'])
         return fail('Invalid starting capital receipt')
       historicalGrant=granted
     }
