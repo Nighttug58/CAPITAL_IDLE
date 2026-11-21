@@ -7,9 +7,11 @@ import type { TradeResult, TradeSide } from '../trading/trades.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import type { V8TradeResult } from '../exact-runtime-v8.ts'
 import type { NewsAutoSellTrigger } from '../trading/auto-sell-v8.ts'
+import { fameV4Level } from '../trading/fame-v4-trading.ts'
+import { getNewsDirection, getNewsPresentation } from '../trading/news.ts'
 import type { V8StakingResult } from '../exact-staking-v8.ts'
 import type { StakingResult } from '../trading/staking.ts'
-import { formatCash } from '../trading/presentation.ts'
+import { formatCash, formatPrice } from '../trading/presentation.ts'
 import {formatCompactUnits} from '../large-numbers.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
 import { marketNewsEffects, peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
@@ -28,6 +30,8 @@ const props = defineProps<{
   exactState?: V8CapitalState
   executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
   setAutoSellRule?: (assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean)=>boolean
+  setFameV4Stop?: (assetId:string,enabled:boolean,drawdownPct:number)=>boolean
+  setFameV4Target?: (assetId:string,slot:number,gainPct:number|null,portionPct:number)=>boolean
   executeExactStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: string) => V8StakingResult
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
   executeStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: number) => StakingResult
@@ -69,6 +73,26 @@ const newsFactors = computed(() => props.exactState
   ? v8MarketNewsEffects(props.exactState, props.state.trading.dividendLastPaidAt)
   : marketNewsEffects(props.state, props.state.trading.dividendLastPaidAt))
 const radar = computed(() => volatilityRadar(props.state).slice(0, 3))
+const fameNewsRank=computed(()=>props.exactState?fameV4Level(props.exactState,4):0)
+const fameJournalRank=computed(()=>props.exactState?fameV4Level(props.exactState,6):0)
+const activeMarketNews=computed(()=>props.state.trading.news.filter(x=>
+  x.startedAt<=props.state.trading.dividendLastPaidAt && x.endsAt>props.state.trading.dividendLastPaidAt))
+const heldNews=computed(()=>activeMarketNews.value.filter(event=>
+  event.affectedAssetIds.some(id=>!!props.exactState?.trading.positions[id])))
+const newsPressure=computed(()=>heldNews.value.reduce((sum,x)=>sum+x.impact,0))
+const newsJournal=computed(()=>[...(props.exactState?.trading.fameV4Trading?.newsLog??[])].reverse())
+function earliestAssetGain(log:{startPrices:Record<string,number>;endPrices?:Record<string,number>}):string{
+ const id=Object.keys(log.startPrices)[0]
+ if(!id||!log.endPrices)return 'en cours'
+ const start=log.startPrices[id],end=log.endPrices[id]
+ if(!start||!end)return 'données insuffisantes'
+ const pct=(end/start-1)*100
+ return (pct>=0?'+':'')+pct.toFixed(2)+' %'
+}
+function eventRemain(endsAt:number):string{
+ const seconds=Math.max(0,Math.ceil((endsAt-props.state.trading.dividendLastPaidAt)/1000))
+ return seconds>=60?Math.floor(seconds/60)+' min '+(seconds%60)+' s':seconds+' s'
+}
 const confirmEnd=ref(false)
 watch(selectedNewsId,()=>{confirmEnd.value=false;notice.value=''})
 const hasDialog = computed(() => selectedAssetId.value !== null || selectedNewsId.value !== null)
@@ -190,6 +214,14 @@ onUnmounted(() => {
       <strong>RADAR VOLATILITÉ</strong>
       <span v-for="item in radar" :key="item.id">{{ item.symbol }} · {{ item.volatilityPercent.toFixed(2) }} %</span>
     </div>
+    <section v-if="fameNewsRank>0" class="fame-trading-radar" aria-label="Radar des news Fame V4">
+      <strong>RADAR DES NEWS · {{ fameNewsRank }}/5</strong>
+      <span>Nouvelles actives concernant vos positions : {{ heldNews.length }}</span>
+      <span v-if="fameNewsRank>=2 && heldNews.length">Prochaine expiration observée : {{ eventRemain(Math.min(...heldNews.map(x=>x.endsAt))) }}</span>
+      <span v-if="fameNewsRank>=3">Signaux actifs : {{ heldNews.filter(x=>getNewsDirection(x)==='bullish').length }} verts · {{ heldNews.filter(x=>getNewsDirection(x)==='bearish').length }} rouges</span>
+      <span v-if="fameNewsRank>=4">Pression cumulée observée : {{ newsPressure.toFixed(2) }}</span>
+      <span v-if="fameNewsRank>=5">Fenêtre de news habituelle : 5–10 minutes · estimation uniquement, sans résultat révélé</span>
+    </section>
     <section id="trading-content" class="trading-stage">
       <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" :exact-state="exactState" @open-asset="openAsset" />
       <AssetList v-else-if="activeTab === 'stocks'" kind="stock" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
@@ -202,6 +234,23 @@ onUnmounted(() => {
         <button v-if="exactState" type="button" class="order-submit" @click="$event.detail < 2 && activatePower(null)">Générer une news · 5 % du patrimoine · {{ powerPrices[0] }}</button>
         <small role="status">{{ notice }}</small>
       </NewsPreview>
+      <section v-if="activeTab==='news' && fameJournalRank>0" class="fame-news-journal" aria-label="Réseau d'informateurs">
+        <h3>Réseau d’informateurs · journal de news observées</h3>
+        <small>100 dernières news enregistrées après déblocage, sans reconstitution du passé.</small>
+        <p v-if="!newsJournal.length">Aucune news enregistrée depuis l'activation du pouvoir.</p>
+        <details v-for="entry in newsJournal" :key="entry.id" class="fame-news-record">
+          <summary>{{ getNewsPresentation({id:entry.id,templateId:entry.templateId,
+            startedAt:entry.startedAt,endsAt:entry.endsAt,affectedAssetIds:Object.keys(entry.startPrices),
+            impact:0,phase:'active'})?.headline??entry.templateId }}
+            · {{ earliestAssetGain(entry) }}
+          </summary>
+          <small>Détectée : {{ new Date(entry.recordedAt).toLocaleString('fr-CH') }} · {{ entry.direction==='bullish'?'Hausse':entry.direction==='bearish'?'Baisse':'Neutre' }}</small>
+          <div v-for="(price,id) in entry.startPrices" :key="id">
+            {{ getAsset(String(id))?.symbol??id }} : {{ formatPrice(price) }} →
+            {{ entry.endPrices?.[id]!==undefined?formatPrice(entry.endPrices[id]):'en cours' }}
+          </div>
+        </details>
+      </section>
     </section>
     <p v-if="activeTab === 'stocks' || activeTab === 'crypto'" class="trading-disclaimer">
       Touchez un actif pour consulter ses détails et trader
@@ -220,7 +269,8 @@ onUnmounted(() => {
       <AssetDialog
         v-if="selectedAssetId" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
         :execute-trade="executeTrade" :exact-state="exactState" :execute-exact-trade="executeExactTrade"
-        :set-auto-sell-rule="setAutoSellRule" @close="closeDialog" @open-news="openNews"
+        :set-auto-sell-rule="setAutoSellRule" :set-fame-v4-stop="setFameV4Stop"
+        :set-fame-v4-target="setFameV4Target" @close="closeDialog" @open-news="openNews"
       />
       <div v-if="activeNews" :class="{'trading-modal-backdrop news-overlay': selectedAssetId}" class="news-layer" @click.self="closeDialog">
       <NewsDialog
@@ -239,3 +289,14 @@ onUnmounted(() => {
     </div>
   </main>
 </template>
+
+<style scoped>
+.fame-trading-radar {display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:5px 12px;margin:6px 0;padding:9px;border:1px solid rgba(85,143,195,.3);border-radius:9px;background:rgba(18,38,61,.75);font-size:11px;color:#bacfe4}
+.fame-trading-radar strong {color:#e1f2ff;grid-column:1/-1;font-size:11px}
+.fame-news-journal {margin-top:12px;padding:10px;border:1px solid rgba(96,150,195,.3);border-radius:9px;display:grid;gap:7px;color:#c6d8eb}
+.fame-news-journal h3 {font-size:13px;margin:0;color:#e1f2ff}
+.fame-news-journal small,.fame-news-journal p {font-size:10px;color:#9cb1c6;margin:0}
+.fame-news-record {border:1px solid rgba(110,149,184,.25);padding:8px;border-radius:7px;font-size:11px}
+.fame-news-record summary {cursor:pointer;line-height:1.4}
+.fame-news-record>div {margin-top:5px;font-size:10px;overflow-wrap:anywhere}
+</style>

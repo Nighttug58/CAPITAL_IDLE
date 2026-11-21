@@ -4,7 +4,8 @@ import { getCollectionBookValueCents } from './prestige/collections-catalog.ts'
 import { createRandom } from './trading/market.ts'
 import { createEvent, getNewsDirection, trimNews } from './trading/news.ts'
 import { v8MarketNewsEffects } from './exact-market-v8.ts'
-import { applyNewsAutoSells } from './trading/auto-sell-v8.ts'
+import { applyNewsAutoSells,applyFameV4AutoSells } from './trading/auto-sell-v8.ts'
+import { observeFameV4News } from './trading/fame-v4-trading.ts'
 
 export function newsPowerCost(state:V8CapitalState,end:boolean):bigint {
   const worth=v8EligiblePrestigeWorthCents(state)+BigInt(getCollectionBookValueCents(state.prestige.ownedCollectionIds)??0)
@@ -35,5 +36,5 @@ export function buyNewsPower(state:V8CapitalState,eventId:string|null,expectedCo
   const changed:V8CapitalState={...state,game:{...state.game,balance:(BigInt(state.game.balance)-cost).toString()},
     trading:{...state.trading,news:trimNews(news,at),seed:random.seed()},
     newsPowers:{count:count+1,recent:[...(state.newsPowers?.recent??[]),{eventId:affectedId!,action:eventId===null?'generate' as const:'end' as const,at,costCents:cost.toString()}].slice(-50),spentCents:(BigInt(state.newsPowers?.spentCents??0)+cost).toString()}}
-  return applyNewsAutoSells(state,changed,at)
+  return applyFameV4AutoSells(applyNewsAutoSells(state,observeFameV4News(state,changed,at),at),at)
 }

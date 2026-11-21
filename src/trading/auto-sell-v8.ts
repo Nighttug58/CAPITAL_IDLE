@@ -6,6 +6,7 @@ import { getAsset } from './catalog.ts'
 import { getNewsDirection } from './news.ts'
 import { v8SellTrade } from '../exact-runtime-v8.ts'
 import { formatDecimalUnits } from '../large-numbers.ts'
+import { fameV4Level, minTrailingDrawdown } from './fame-v4-trading.ts'
 
 export type NewsAutoSellTrigger = 'greenEnd' | 'redStart'
 /** A closed position cannot be reopened by the market clock, so 96 recent
@@ -73,6 +74,84 @@ export function applyNewsAutoSells(before:V8CapitalState,after:V8CapitalState,at
       // One bounded ledger append, in the same atomic economic transaction.
       result={...order.state,trading:{...order.state.trading,
         autoSellHistory:[...(result.trading.autoSellHistory??[]),receipt].slice(-MAX_AUTO_SELL_HISTORY)}}
+    }
+  }
+  return result
+}
+
+/** All Fame V4 automated sales run AFTER existing news sales. No second clock.
+ * The same exact order function handles staking, fees, taxes and XP once. */
+export function applyFameV4AutoSells(state:V8CapitalState,at:number):V8CapitalState{
+  let result=state
+  const conf=state.trading.fameV4Trading
+  if(!conf || (!Object.keys(conf.stops).length&&!Object.keys(conf.targets).length))return state
+  const append=(next:V8CapitalState,id:string,trigger:V8AutoSellReceipt['trigger'],
+    quantity:bigint,order:Extract<ReturnType<typeof v8SellTrade>,{ok:true}>):V8CapitalState=>{
+    const receipt:V8AutoSellReceipt={at,assetId:id,trigger,quantity:quantity.toString(),
+      proceedsCents:order.cashDeltaCents.toString(),
+      realizedNetProfitCents:order.realizedNetProfitCents.toString(),feeCents:order.feeCents.toString()}
+    return {...next,trading:{...next.trading,
+      autoSellHistory:[...(next.trading.autoSellHistory??[]),receipt].slice(-MAX_AUTO_SELL_HISTORY)}}
+  }
+  const liquidFor=(s:V8CapitalState,id:string):bigint=>{
+    const held=s.trading.positions[id]
+    if(!held)return 0n
+    const locked=s.trading.staking.positions[id]
+    const reserved=locked?units(locked.locked)+units(locked.unlocking)+units(locked.awaitingCompound):0n
+    const liquid=units(held.quantity)-reserved
+    return liquid>0n?liquid:0n
+  }
+  if(fameV4Level(state,2)>0){
+    for(const [id,stop] of Object.entries(conf.stops)){
+      if(!stop.enabled || stop.drawdownPct<(minTrailingDrawdown(fameV4Level(result,2))??100))continue
+      const asset=getAsset(id),holding=result.trading.positions[id]
+      if(!asset||!holding)continue
+      const price=result.trading.quotes[id]?.price??asset.referencePrice
+      if(!Number.isFinite(price)||price<=0)continue
+      const peak=Math.max(stop.peakPrice??price,price)
+      if(peak!==stop.peakPrice){
+        const data=result.trading.fameV4Trading!
+        result={...result,trading:{...result.trading,fameV4Trading:{
+          ...data,stops:{...data.stops,[id]:{...stop,peakPrice:peak}}}}}
+      }
+      if(price>peak*(1-stop.drawdownPct/100))continue
+      const liquid=liquidFor(result,id)
+      if(liquid<=0n)continue
+      const order=v8SellTrade(result,id,formatDecimalUnits(liquid,asset.quantityDecimals,true))
+      if(!order.ok)continue
+      const data=order.state.trading.fameV4Trading!
+      const stored=data.stops[id]??stop
+      const disarmed:V8CapitalState={...order.state,trading:{...order.state.trading,
+        fameV4Trading:{...data,stops:{...data.stops,[id]:{...stored,enabled:false,peakPrice:null}}}}}
+      result=append(disarmed,id,'trailingStop',liquid,order)
+    }
+  }
+  if(fameV4Level(state,7)>0){
+    for(const [id,targets] of Object.entries(conf.targets)){
+      const asset=getAsset(id)
+      if(!asset)continue
+      for(const target of targets){
+        const live=result.trading.fameV4Trading?.targets[id]
+        if(!live?.some(t=>t.slot===target.slot))continue
+        const held=result.trading.positions[id],liquid=liquidFor(result,id)
+        if(!held||liquid<=0n)break
+        const amount=target.portionPct===100?liquid:liquid*BigInt(target.portionPct)/100n
+        if(amount<=0n)continue
+        const order=v8SellTrade(result,id,formatDecimalUnits(amount,asset.quantityDecimals,true))
+        if(!order.ok)continue
+        const baseline=units(held.costBasis)*amount/units(held.quantity)
+        // Require a positive net gain even on zero-cost staking rewards.
+        if(order.realizedNetProfitCents<=0n||
+          (baseline>0n&&order.realizedNetProfitCents*100n<baseline*BigInt(target.gainPct)))continue
+        const data=order.state.trading.fameV4Trading!
+        const remaining=(data.targets[id]??[]).filter(t=>t.slot!==target.slot)
+        const nextTargets={...data.targets}
+        if(remaining.length)nextTargets[id]=remaining
+        else delete nextTargets[id]
+        const final:V8CapitalState={...order.state,trading:{...order.state.trading,
+          fameV4Trading:{...data,targets:nextTargets}}}
+        result=append(final,id,'profitTarget',amount,order)
+      }
     }
   }
   return result

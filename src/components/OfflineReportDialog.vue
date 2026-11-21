@@ -69,7 +69,9 @@ function dismiss(){emit('close')}
             <strong>{{ sale.symbol }} <small>{{ sale.name }}</small></strong>
             <strong :class="tone(sale.realizedProfit)">{{ signed(sale.realizedProfit) }}</strong>
           </div>
-          <small>{{ sale.trigger==='greenEnd'?'Fin de news verte':'Apparition de news rouge' }} · {{ new Date(sale.at).toLocaleString('fr-CH') }}</small>
+          <small>{{ sale.trigger==='greenEnd'?'Fin de news verte':
+             sale.trigger==='redStart'?'Apparition de news rouge':
+             sale.trigger==='trailingStop'?'Stop suiveur Fame':'Objectif de profit Fame' }} · {{ new Date(sale.at).toLocaleString('fr-CH') }}</small>
           <small>{{ formatDecimalUnits(sale.quantity,sale.decimals,true) }} unités vendues · Cash encaissé {{ formatCompactUnits(sale.proceeds) }} · Frais {{ formatCompactUnits(sale.fee) }}</small>
         </div>
         <p class="offline-note">Gains/pertes réalisés après frais et bonus Trading, avant impôts. Les recettes des ventes sont déjà incluses dans la variation du cash.</p>

@@ -18,6 +18,7 @@ import {buyNewsPower,newsPowerCost} from './news-powers.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import { setNewsAutoSellRule, type NewsAutoSellTrigger } from './trading/auto-sell-v8.ts'
+import { setFameV4TrailingStop, setFameV4ProfitTarget } from './trading/fame-v4-trading.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
@@ -575,6 +576,18 @@ function changeNewsAutoSellRule(assetId:string,trigger:NewsAutoSellTrigger,enabl
   const next=setNewsAutoSellRule(exact.value,assetId,trigger,enabled)
   return !!next && (next===exact.value || replaceWholeSaveExact(next))
 }
+function changeFameV4Stop(assetId:string,enabled:boolean,drawdownPct:number):boolean{
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const next=setFameV4TrailingStop(exact.value,assetId,enabled,drawdownPct)
+  return !!next && (next===exact.value || replaceWholeSaveExact(next))
+}
+function changeFameV4Target(assetId:string,slot:number,gainPct:number|null,portionPct:number):boolean{
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const next=setFameV4ProfitTarget(exact.value,assetId,slot,gainPct,portionPct)
+  return !!next && (next===exact.value || replaceWholeSaveExact(next))
+}
 function executeExactStaking(action:'deposit'|'withdraw',id:string,quantity:string):V8StakingResult{
   if(loadBlocked.value)return{ok:false,reason:'storage-error'}
   settleEconomyNow()
@@ -989,7 +1002,8 @@ onUnmounted(() => {
     <TradingScreen :purchase-news="purchaseNews" v-show="showMainPage('trading')" :style="mainPageStyle('trading')" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking"
-      :set-auto-sell-rule="changeNewsAutoSellRule" />
+      :set-auto-sell-rule="changeNewsAutoSellRule"
+      :set-fame-v4-stop="changeFameV4Stop" :set-fame-v4-target="changeFameV4Target" />
     <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
     <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase" />
     <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"

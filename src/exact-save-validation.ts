@@ -83,7 +83,7 @@ function validTradingStateShape(t:Dict):boolean {
     for(const raw of t.autoSellHistory){
       if(!object(raw)||!safe(raw.at)||raw.at<last||raw.at>t.dividendLastPaidAt||
         typeof raw.assetId!=='string'||!allowedAssets.has(raw.assetId)||
-        !['greenEnd','redStart'].includes(raw.trigger as string)||
+        !['greenEnd','redStart','trailingStop','profitTarget'].includes(raw.trigger as string)||
         amount(raw.quantity)===null||(amount(raw.quantity)??0n)<=0n||
         amount(raw.proceedsCents)===null||
         amount(raw.realizedNetProfitCents,true)===null||
@@ -119,6 +119,68 @@ function validTradingStateShape(t:Dict):boolean {
   }
   return true
 }
+/** Strict optional Fame V4 trading controls; reject forged unlocks, targets or history. */
+function validFameTradingV4(t:Dict,p:Dict):boolean {
+  if(t.fameV4Trading===undefined)return true
+  const data=t.fameV4Trading
+  if(!object(data)||data.version!==1||!object(data.stops)||!object(data.targets)||
+    !Array.isArray(data.newsLog)||data.newsLog.length>100)return false
+  const levels=object(p.fameV4)&&object(p.fameV4.levels)?p.fameV4.levels:null
+  const rank=(n:string):number=>levels&&typeof levels['fame-v4-'+n]==='number'
+    ? levels['fame-v4-'+n] as number : 0
+  const stopLevel=rank('02'),targetLevel=rank('07')
+  const minStop=[25,20,15,10,5][stopLevel-1]
+  if(Object.keys(data.stops).length>45||Object.keys(data.targets).length>45)return false
+  for(const [id,raw] of Object.entries(data.stops)){
+    if(!allowedAssets.has(id)||!object(raw)||stopLevel<1||
+      typeof raw.enabled!=='boolean'||!safe(raw.drawdownPct)||
+      ![25,20,15,10,5].includes(raw.drawdownPct as number)||
+      (minStop!==undefined&&raw.drawdownPct<minStop)||
+      !(raw.peakPrice===null||(finite(raw.peakPrice)&&raw.peakPrice>0)))return false
+  }
+  for(const [id,raw] of Object.entries(data.targets)){
+    if(!allowedAssets.has(id)||targetLevel<1||!Array.isArray(raw)||
+      raw.length> (targetLevel===5?3:1)||raw.length===0)return false
+    const seen=new Set<number>()
+    for(const item of raw){
+      if(!object(item)||!safe(item.slot)||item.slot>=(targetLevel===5?3:1)||
+        seen.has(item.slot)||!safe(item.gainPct)||item.gainPct<1||item.gainPct>10000||
+        ![25,50,75,100].includes(item.portionPct as number)||
+        (targetLevel<4&&item.portionPct>targetLevel*25))return false
+      seen.add(item.slot as number)
+    }
+  }
+  if(data.newsLog.length && rank('06')<1)return false
+  let last=-1
+  const seenNews=new Set<string>()
+  for(const raw of data.newsLog){
+    if(!object(raw)||typeof raw.id!=='string'||raw.id.length>64||seenNews.has(raw.id)||
+      typeof raw.templateId!=='string'||!getNewsTemplate(raw.templateId)||
+      !safe(raw.startedAt)||!safe(raw.endsAt)||raw.endsAt<raw.startedAt||
+      !safe(raw.recordedAt)||raw.recordedAt<raw.startedAt||raw.recordedAt<last||
+      raw.recordedAt>t.dividendLastPaidAt||
+      !['bullish','bearish','neutral'].includes(raw.direction as string)||
+      !object(raw.startPrices)||Object.keys(raw.startPrices).length>45 ||
+      Object.keys(raw.startPrices).length===0)return false
+    if(raw.closedAt!==undefined){
+      if(!safe(raw.closedAt)||raw.closedAt<raw.recordedAt||
+        raw.endsAt>raw.closedAt||raw.closedAt>t.dividendLastPaidAt||
+        !object(raw.endPrices))return false
+    }else if(raw.endPrices!==undefined)return false
+    const prices=(p:Dict)=>Object.entries(p).every(([id,price])=>
+      allowedAssets.has(id)&&finite(price)&&price>0)
+    if(!prices(raw.startPrices))return false
+    if(raw.endPrices!==undefined){
+      if(!object(raw.endPrices)||Object.keys(raw.endPrices).length!==Object.keys(raw.startPrices).length||
+        !Object.keys(raw.endPrices).every(id=>Object.hasOwn(raw.startPrices,id))||
+        !prices(raw.endPrices))return false
+    }
+    seenNews.add(raw.id)
+    last=raw.recordedAt as number
+  }
+  return true
+}
+
 function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
   const progress=object(a.progress)?a.progress:null
   const run=object(a.run)?a.run:null
@@ -186,7 +248,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
-  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s))
+  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
     !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||

@@ -1,6 +1,7 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
 import { migrateV8ToFameV4 } from './prestige/fame-v4-ledger.ts'
 import type { FameV4ShopState } from './prestige/fame-v4-catalog.ts'
+import type { FameV4TradingState } from './trading/fame-v4-trading.ts'
 import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
@@ -46,7 +47,7 @@ export interface V8StakingEntry extends Omit<StakingEntry,
 export interface V8AutoSellReceipt {
   at:number
   assetId:string
-  trigger:'greenEnd'|'redStart'
+  trigger:'greenEnd'|'redStart'|'trailingStop'|'profitTarget'
   quantity:string
   proceedsCents:string
   realizedNetProfitCents:string
@@ -57,6 +58,8 @@ export interface V8TradingState extends Omit<TradingState, 'positions'|'staking'
   autoSellHistory?: V8AutoSellReceipt[]
   /** Per-asset user preferences; optional for pre-feature V8 saves. */
   autoSellRules?: Record<string,{greenEnd:boolean;redStart:boolean}>
+  /** Optional in older V8 saves; persistent Trading Fame V4 controls & history. */
+  fameV4Trading?: FameV4TradingState
   positions: Record<string,V8Position>
   staking: Readonly<{lastAccruedAt:number; positions:Record<string,V8StakingEntry>}>
   realizedNetProfit: ExactAmount // signed cents
