@@ -11,6 +11,7 @@ import { validLegacyBoundary } from './trading/legacy-boundary.ts'
 import { decodeExactInteger } from './large-numbers.ts'
 import type { AssetDecimals } from './exact-save-v8.ts'
 import { getPurchasedFameBoostCost, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
+import { fameV4PurchasedCost } from './prestige/fame-v4-catalog.ts'
 import { ascensionSpentPoints } from './ascension/catalog.ts'
 import { getAsset, ASSETS } from './trading/catalog.ts'
 import { getNewsTemplate } from './trading/news.ts'
@@ -239,13 +240,23 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     const legacyLevels = p.fameLegacyLevels as Parameters<typeof getVersionedPurchasedFameCost>[1]
     const expectedSpent = getVersionedPurchasedFameCost(
       p.boosts as Parameters<typeof getVersionedPurchasedFameCost>[0], legacyLevels)
+    let v4Purchased=0n
+    if(p.fameV4!==undefined){
+      if(!object(p.fameV4)||p.fameV4.version!==1||!object(p.fameV4.levels))
+        return fail('Malformed Fame V4 section')
+      const cost=fameV4PurchasedCost(p.fameV4.levels)
+      const receipt=amount(p.fameV4.spentMicros)
+      if(cost===null||receipt===null||receipt!==cost*1_000_000n)
+        return fail('Fame V4 purchase ledger does not balance')
+      v4Purchased=cost
+    }
     const spent = amount(p.fameSpentMicros), forfeited = amount(p.fameForfeitedMicros)
     const cycleEarned = amount(p.cycleEarnedFameMicros)
     const cycleLevels = amount(p.cycleLevelFameMicros)
     const cycleCollections = amount(p.cycleCollectionFameMicros)
     if (expectedSpent === null || spent === null || forfeited === null ||
         cycleEarned === null || cycleLevels === null || cycleCollections === null ||
-        spent !== BigInt(expectedSpent) * 1_000_000n ||
+        spent !== (BigInt(expectedSpent) + v4Purchased) * 1_000_000n ||
         lifetimeFame !== fame + spent + forfeited ||
         cycleEarned !== cycleLevels + cycleCollections ||
         cycleEarned > lifetimeFame || cycleLevels > levelsFame || cycleCollections > collectionsFame)
@@ -258,7 +269,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
         return fail('Invalid XP V4 migration evidence')
     }
   } else {
-    if (p.fameShopLedgerVersion !== undefined || p.fameLegacyLevels !== undefined ||
+    if (p.fameV4 !== undefined || p.fameShopLedgerVersion !== undefined || p.fameLegacyLevels !== undefined ||
         p.fameSpentMicros !== undefined || p.xpRebaseV4 !== undefined)
       return fail('Ambiguous legacy Fame schema')
     const spent = getPurchasedFameBoostCost(
