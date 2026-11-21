@@ -123,6 +123,8 @@ function validTradingStateShape(t:Dict):boolean {
 function validFameTradingV4(t:Dict,p:Dict):boolean {
   if(t.fameV4Trading===undefined)return true
   const data=t.fameV4Trading
+  const recordedThrough=t.dividendLastPaidAt
+  if(!safe(recordedThrough))return false
   if(!object(data)||data.version!==1||!object(data.stops)||!object(data.targets)||
     !Array.isArray(data.newsLog)||data.newsLog.length>100)return false
   const levels=object(p.fameV4)&&object(p.fameV4.levels)?p.fameV4.levels:null
@@ -145,8 +147,8 @@ function validFameTradingV4(t:Dict,p:Dict):boolean {
     for(const item of raw){
       if(!object(item)||!safe(item.slot)||item.slot>=(targetLevel===5?3:1)||
         seen.has(item.slot)||!safe(item.gainPct)||item.gainPct<1||item.gainPct>10000||
-        ![25,50,75,100].includes(item.portionPct as number)||
-        (targetLevel<4&&item.portionPct>targetLevel*25))return false
+        !safe(item.portionPct)||![25,50,75,100].includes(item.portionPct as number)||
+        (targetLevel<4&&(item.portionPct as number)>targetLevel*25))return false
       seen.add(item.slot as number)
     }
   }
@@ -158,13 +160,13 @@ function validFameTradingV4(t:Dict,p:Dict):boolean {
       typeof raw.templateId!=='string'||!getNewsTemplate(raw.templateId)||
       !safe(raw.startedAt)||!safe(raw.endsAt)||raw.endsAt<raw.startedAt||
       !safe(raw.recordedAt)||raw.recordedAt<raw.startedAt||raw.recordedAt<last||
-      raw.recordedAt>t.dividendLastPaidAt||
+      raw.recordedAt>recordedThrough||
       !['bullish','bearish','neutral'].includes(raw.direction as string)||
       !object(raw.startPrices)||Object.keys(raw.startPrices).length>45 ||
       Object.keys(raw.startPrices).length===0)return false
     if(raw.closedAt!==undefined){
       if(!safe(raw.closedAt)||raw.closedAt<raw.recordedAt||
-        raw.endsAt>raw.closedAt||raw.closedAt>t.dividendLastPaidAt||
+        raw.endsAt>raw.closedAt||raw.closedAt>recordedThrough||
         !object(raw.endPrices))return false
     }else if(raw.endPrices!==undefined)return false
     const prices=(p:Dict)=>Object.entries(p).every(([id,price])=>
@@ -172,7 +174,7 @@ function validFameTradingV4(t:Dict,p:Dict):boolean {
     if(!prices(raw.startPrices))return false
     if(raw.endPrices!==undefined){
       if(!object(raw.endPrices)||Object.keys(raw.endPrices).length!==Object.keys(raw.startPrices).length||
-        !Object.keys(raw.endPrices).every(id=>Object.hasOwn(raw.startPrices,id))||
+        !Object.keys(raw.endPrices).every(id=>Object.hasOwn(raw.startPrices as object,id))||
         !prices(raw.endPrices))return false
     }
     seenNews.add(raw.id)
