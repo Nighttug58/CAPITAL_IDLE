@@ -121,7 +121,7 @@ function report(text:string,error=false){notice.value=text;noticeError.value=err
 function purchase(id:string,level:number){
   const result=props.purchaseBoost(id,level)
   report(result.ok
-    ? 'Achat classique confirmé · niveau '+result.receipt.newLevel+'/20 · −'+result.receipt.costFame+' Fame.'
+    ? 'Amélioration classique achetée : niveau '+result.receipt.newLevel+'/20 · −'+result.receipt.costFame+' Fame.'
     : errors[result.error],!result.ok)
 }
 function purchaseClassicMax(id:string,level:number){
@@ -165,7 +165,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
     <div class="fame-shop-summary">
       <div><span>SOLDE FAME</span><strong><span aria-hidden="true">✦</span> {{ fameBalance }}</strong></div>
       <div><span>PROGRESSION GLOBALE</span><strong data-fame-v4-total>{{ purchasedAll }} / {{ 120 + FAME_V4_TOTAL_LEVELS }}</strong>
-        <small>Classique {{ purchasedLevels }}/120 · V4 {{ purchasedV4 }}/196</small>
+        <small>Classique {{ purchasedLevels }} / 120 · V4 {{ purchasedV4 }} / 196</small>
       </div>
     </div>
 
