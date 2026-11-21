@@ -24,7 +24,7 @@ test('MAX Prestige achète tous les rangs finançables en un seul état',()=>{
   assert.equal(initial.ascension.progress.upgradeLevels['news-frequency'],0)
   assert.equal(v8BuyPrestigeUpgradeMax(initial,'news-frequency',1),null)
   let iterative=initial
-  for(let rank=0;rank<2;rank++){
+  for(let rank=0;rank<60;rank++){
     const next=v8BuyPrestigeUpgrade(iterative,'news-frequency',rank)
     assert.ok(next)
     iterative=next
@@ -45,8 +45,8 @@ test('MAX Transcendant calcule les coûts progressifs BigInt exacts',()=>{
   const initial=ready(2_800n)
   const bought=v8BuyTranscendentMax(initial,'empire',0)
   assert.ok(bought)
-  assert.equal(bought.ascension.progress.transcendentV1?.levels.empire,2)
-  assert.equal(getExactAmount(bought.ascension.progress.availablePoints),540n)
+  assert.equal(bought.ascension.progress.transcendentV1?.levels.empire,60)
+  assert.equal(getExactAmount(bought.ascension.progress.availablePoints),51n)
   assert.equal(initial.ascension.progress.transcendentV1?.levels.empire,0)
   assert.equal(v8BuyTranscendentMax(initial,'empire',1),null)
   let iterative=initial
@@ -58,7 +58,7 @@ test('MAX Transcendant calcule les coûts progressifs BigInt exacts',()=>{
   assert.deepEqual(bought,iterative)
 })
 
-test('MAX Transcendant respecte 1000 niveaux, les 10 branches et les verrous',()=>{
+test('MAX Transcendant respecte 100 niveaux, les 10 branches et les verrous',()=>{
   const initial=ready(10n**20n)
   const bought=v8BuyTranscendentMax(initial,'news-power',0)
   assert.ok(bought)
