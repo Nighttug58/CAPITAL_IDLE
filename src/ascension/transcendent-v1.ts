@@ -1,6 +1,6 @@
 /**
  * Transcendent PP Shop V2. Seven main branches and three News branches
- * can be purchased from Prestige 3. Starting capital is active from pass 5.
+ * can be purchased regardless of Prestige cycle count. Capital is granted only by actual Prestige.
  * All prices and balances use exact BigInt PP; saves store integer ranks only.
  */
 import type { V8CapitalState } from '../exact-state-v8.ts'
@@ -129,8 +129,7 @@ export function v8BuyTranscendent(
   state:V8CapitalState,id:TranscendentId,expectedRank:number,
 ):V8CapitalState|null {
   if(!TRANSCENDENT_IDS.includes(id)||
-    state.ascension.progress.shopVersion!==2||
-    state.ascension.progress.prestigeCount<3)return null
+    state.ascension.progress.shopVersion!==2)return null
   const progress=state.ascension.progress
   const section=progress.transcendentV1??zeroTranscendentV1()
   if(section.version!==2||section.levels[id]!==expectedRank||transcendentSpent(section)===null)return null

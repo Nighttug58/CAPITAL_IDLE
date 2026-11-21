@@ -2,17 +2,17 @@ import { ASCENSION_UPGRADES, ascensionSpentPoints, createZeroAscensionLevels, ne
 import type { AscensionUpgradeId } from './contracts.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 
-// All regular Prestige shop upgrades unlock across cycles 1–3.
-// Keep the established PP prices/ranks and all historic purchases unchanged.
-const prices: Partial<Record<AscensionUpgradeId, [number, number, number]>> = {
-  'news-frequency':[1,20,22], 'news-duration':[2,45,35], 'volatility-radar':[2,75,0],
-  'news-preview':[3,50,40], 'news-impact':[3,65,40], 'news-propagation':[3,160,0],
-  'crypto-staking':[3,175,0], 'market-frenzy':[3,250,0], 'time-accelerator':[3,100,64],
-  'staking-yield':[3,45,30], 'auto-compound':[3,200,0],
+// All eleven classic Prestige upgrades are available immediately whenever PP
+// are available. Removal of cycle gates preserves historical prices and ledgers.
+const prices: Partial<Record<AscensionUpgradeId, [number, number]>> = {
+  'news-frequency':[20,22], 'news-duration':[45,35], 'volatility-radar':[75,0],
+  'news-preview':[50,40], 'news-impact':[65,40], 'news-propagation':[160,0],
+  'crypto-staking':[175,0], 'market-frenzy':[250,0], 'time-accelerator':[100,64],
+  'staking-yield':[45,30], 'auto-compound':[200,0],
 }
 export const prestigeShop = ASCENSION_UPGRADES.flatMap(row => {
   const price = prices[row.id]
-  return price ? [{id:row.id,maxLevel:row.maxLevel,cycle:price[0],first:price[1],step:price[2]}] : []
+  return price ? [{id:row.id,maxLevel:row.maxLevel,first:price[0],step:price[1]}] : []
 })
 export function prestigeCost(id:string,rank:number) {
   const row=prestigeShop.find(r=>r.id===id)

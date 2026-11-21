@@ -197,7 +197,7 @@ onUnmounted(() => {
         :exact-state="exactState" :execute-exact-staking="executeExactStaking" />
       <NewsPreview v-else :news="state.trading.news" :now="state.trading.dividendLastPaidAt"
         :upcoming="upcoming" @open-news="openNews">
-        <button v-if="exactState && exactState.ascension.progress.prestigeCount>=3" type="button" class="order-submit" @click="$event.detail < 2 && activatePower(null)">Générer une news · 5 % du patrimoine · {{ powerPrices[0] }}</button>
+        <button v-if="exactState" type="button" class="order-submit" @click="$event.detail < 2 && activatePower(null)">Générer une news · 5 % du patrimoine · {{ powerPrices[0] }}</button>
         <small role="status">{{ notice }}</small>
       </NewsPreview>
     </section>
@@ -225,7 +225,7 @@ onUnmounted(() => {
         :now="state.trading.dividendLastPaidAt" :impact-multiplier="newsFactors.impactMultiplier"
          :ramp-fraction="newsFactors.rampFraction" :duration-multiplier="newsFactors.durationMultiplier"
         @close="closeDialog" @open-asset="followNewsAsset">
-        <button v-if="exactState && exactState.ascension.progress.prestigeCount>=3 && activeNews.endsAt>state.trading.dividendLastPaidAt && !activeNews.manuallyEnded" class="order-submit" @click="confirmEnd=true">Terminer cette news · 10 % du patrimoine · {{ powerPrices[1] }}</button>
+        <button v-if="exactState && activeNews.endsAt>state.trading.dividendLastPaidAt && !activeNews.manuallyEnded" class="order-submit" @click="confirmEnd=true">Terminer cette news · 10 % du patrimoine · {{ powerPrices[1] }}</button>
         <div v-if="confirmEnd && activeNews.endsAt>state.trading.dividendLastPaidAt && !activeNews.manuallyEnded">
           <p>Arrêter son effet pour {{ powerPrices[1] }} en cash ?</p>
           <button type="button" @click="confirmEnd=false; activatePower(activeNews.id)">Confirmer la dépense</button>

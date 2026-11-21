@@ -360,7 +360,7 @@ export function v8BuyPrestigeUpgrade(state: V8CapitalState, id: AscensionUpgrade
   expectedLevel: number): V8CapitalState | null {
   // Former PP Auto Click is retired; its ledger is retained for the pass-6 refund.
   const offer=prestigeShop.find(row=>row.id===id)
-  if (!offer || state.ascension.progress.shopVersion!==2 || state.ascension.progress.prestigeCount<offer.cycle) return null
+  if (!offer || state.ascension.progress.shopVersion!==2) return null
   if (state.ascension.progress.upgradeLevels[id] !== expectedLevel) return null
   const price = prestigeCost(id, expectedLevel)
   if (price === null || v(state.ascension.progress.availablePoints) < BigInt(price)) return null

@@ -69,7 +69,12 @@ test('Ten PP branches, seven purchasable main branches, seven-branch prices immu
   assert.equal(v8BuyTranscendent(future,'empire',100),null)
   const empty={...ready,ascension:{...ready.ascension,progress:{...ready.ascension.progress,availablePoints:'0'}}}
   assert.equal(v8BuyTranscendent(empty,'empire',0),null)
-  for(const earlier of [0,1,2])assert.equal(v8BuyTranscendent(cycle(earlier),'empire',0),null)
+  assert.equal(v8BuyTranscendent(cycle(0),'empire',0),null,'zero PP')
+  for(const earlier of [1,2]){
+    const bought=v8BuyTranscendent(cycle(earlier),'empire',0)
+    assert.ok(bought,'Prestige '+earlier+' should not lock a branch')
+    assert.equal(validateExactV8State(bought,decimals).valid,true)
+  }
 })
 test('Extreme PP rank ledger, 1e30 exact balances and exports do not round or mint any PP',()=>{
   let ready=cycle()

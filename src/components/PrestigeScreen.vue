@@ -67,8 +67,7 @@ const sections = computed(() => ASCENSION_CATEGORIES.map(category => ({
     offer: (() => {
       const currentLevel=progress.value.upgradeLevels[item.id]
       const nextCost=prestigeCost(item.id,currentLevel)
-      const gate=prestigeShop.find(row=>row.id===item.id)!.cycle
-      return {currentLevel,nextCost,gate,canAfford:progress.value.prestigeCount>=gate && nextCost!==null && BigInt(progress.value.availablePoints)>=BigInt(nextCost)}
+      return {currentLevel,nextCost,canAfford:nextCost!==null && BigInt(progress.value.availablePoints)>=BigInt(nextCost)}
     })(),
   })),
 })).filter(section=>section.rows.length))
@@ -278,7 +277,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
             <button type="button" class="ascension-buy" :disabled="!row.offer.canAfford || busy || confirming"
               :aria-label="'Acheter ' + row.item.label + ' niveau ' + (row.offer.currentLevel + 1)"
               @click="buy(row.item.id, row.offer.currentLevel)">
-              {{ row.offer.nextCost === null ? 'MAX' : progress.prestigeCount < row.offer.gate ? 'PRESTIGE ' + row.offer.gate + ' REQUIS' : row.offer.canAfford ? 'ACHETER' : 'PP INSUFF.' }}
+              {{ row.offer.nextCost === null ? 'MAX' : row.offer.canAfford ? 'ACHETER' : 'PP INSUFF.' }}
             </button>
             <button type="button" class="ascension-buy-max"
               :disabled="!row.offer.canAfford || busy || confirming"

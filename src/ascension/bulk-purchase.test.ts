@@ -32,12 +32,12 @@ test('MAX Prestige achète tous les rangs finançables en un seul état',()=>{
   assert.deepEqual(bought,iterative)
 })
 
-test('MAX Prestige respecte le niveau maximal et les portes de cycles',()=>{
+test('MAX Prestige respecte le niveau maximal sans portes de cycles',()=>{
   const max=v8BuyPrestigeUpgradeMax(ready(1_000_000n),'news-frequency',0)
   assert.ok(max)
   assert.equal(max.ascension.progress.upgradeLevels['news-frequency'],10)
   assert.equal(v8BuyPrestigeUpgradeMax(max,'news-frequency',10),null)
-  assert.equal(v8BuyPrestigeUpgradeMax(ready(1_000_000n,1),'time-accelerator',0),null)
+  assert.ok(v8BuyPrestigeUpgradeMax(ready(1_000_000n,0),'time-accelerator',0))
   assert.equal(max.game.balance,ready(1_000_000n).game.balance)
 })
 
@@ -58,7 +58,7 @@ test('MAX Transcendant calcule les coûts progressifs BigInt exacts',()=>{
   assert.deepEqual(bought,iterative)
 })
 
-test('MAX Transcendant respecte 100 niveaux, les 10 branches et les verrous',()=>{
+test('MAX Transcendant respecte 100 niveaux sans portes de cycles',()=>{
   const initial=ready(10n**20n)
   const bought=v8BuyTranscendentMax(initial,'news-power',0)
   assert.ok(bought)
@@ -66,7 +66,7 @@ test('MAX Transcendant respecte 100 niveaux, les 10 branches et les verrous',()=
   assert.equal(getExactAmount(bought.ascension.progress.availablePoints),
     10n**20n-transcendentSpentThrough(TRANSCENDENT_MAX_LEVEL)!)
   assert.equal(v8BuyTranscendentMax(bought,'news-power',TRANSCENDENT_MAX_LEVEL),null)
-  assert.equal(v8BuyTranscendentMax(ready(10n**20n,2),'heritage',0),null)
+  assert.ok(v8BuyTranscendentMax(ready(10n**20n,0),'heritage',0))
   assert.equal(bought.game.balance,initial.game.balance)
   assert.equal(bought.prestige.fameMicros,initial.prestige.fameMicros)
 })

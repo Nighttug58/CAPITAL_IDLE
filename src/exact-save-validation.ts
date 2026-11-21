@@ -1,4 +1,4 @@
-import { prestigeShop, prestigeSpent, prestigePoints, prestigePointsV4 } from './ascension/v2.ts'
+import { prestigeSpent, prestigePoints, prestigePointsV4 } from './ascension/v2.ts'
 import { transcendentSpent } from './ascension/transcendent-v1.ts'
 import { TRANSCENDENT_MAX_LEVEL } from './ascension/transcendent-v1.ts'
 import { startingCapitalCents } from './ascension/starting-capital-v1.ts'
@@ -272,12 +272,6 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     return fail('Invalid exact Prestige cycle counter')
   if(grantCents>0n && preciseCycles===0n)
     return fail('Starting capital granted without Prestige cycle')
-  if(progress.shopVersion===2){
-    const ranks=progress.upgradeLevels as Record<string,number>
-    const legacy=progress.legacyRanks as Record<string,number>
-    for(const offer of prestigeShop)
-      if(ranks[offer.id]>legacy[offer.id] && progress.prestigeCount<offer.cycle)return fail('Locked Prestige purchase')
-  }
   let pointsInHistory=0n
   for (const [index, item] of progress.history.entries()) {
     const expectedCycle=preciseCycles-BigInt(progress.history.length)+BigInt(index)+1n

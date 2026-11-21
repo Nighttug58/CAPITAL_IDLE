@@ -15,7 +15,6 @@ test('ten cycles, news prices and export/import including an interrupted directi
    const cycle=v8PerformPrestige(state,at)
    assert.ok(cycle.ok)
    state=cycle.state
-   if(i<2)assert.equal(buyNewsPower(state,null,0,at),null)
  }
  state=v8CreditIncome(state,'enterprises',10n**104n+1n)
  const cost=newsPowerCost(state,false)
@@ -61,4 +60,16 @@ test('profitable stock and crypto sales unlock only the corresponding cash rewar
    assert.equal(v8ClaimAchievement(reward,group+'-100'),null)
    state=reward
  }
+})
+
+test('manual News actions are available before the first Prestige',()=>{
+ const initial=v8CreditIncome(createV8CapitalState(at),'clicks',10n**20n)
+ assert.equal(initial.ascension.progress.prestigeCount,0)
+ const generated=buyNewsPower(initial,null,0,at)
+ assert.ok(generated)
+ assert.equal(generated.newsPowers?.count,1)
+ assert.ok(BigInt(generated.game.balance)<BigInt(initial.game.balance))
+ const restored=prepareV8SaveImport(exportV8Save(generated,at),at)
+ assert.ok(restored.ok)
+ if(restored.ok)assert.deepEqual(restored.state,generated)
 })

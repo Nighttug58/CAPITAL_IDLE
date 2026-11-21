@@ -46,8 +46,7 @@ function offer(id:TranscendentId){
   const rank=transcendentLevel(progress.value,id)
   const locked=false
   const cost=transcendentNextCost(rank)
-  return {rank,cost,locked,available:progress.value.prestigeCount>=3 &&
-    cost!==null&&points.value>=cost}
+  return {rank,cost,locked,available:cost!==null&&points.value>=cost}
 }
 const main=computed(()=>TRANSCENDENT_MAIN_PRESENTATION.map(entry=>({...entry,...offer(entry.id)})))
 const news=computed(()=>TRANSCENDENT_NEWS_PRESENTATION.map(entry=>({...entry,...offer(entry.id)})))
@@ -90,7 +89,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
         aria-label="Retour à la page Prestige" @click="emit('back')">
         ← Prestige
       </button>
-      <div><span class="ascension-eyebrow">EMPIRE PERMANENT · PRESTIGE 3</span>
+      <div><span class="ascension-eyebrow">EMPIRE PERMANENT · SANS CONDITION DE CYCLE</span>
         <h1>Prestige Transcendant</h1>
         <p>10 branches de 100 niveaux · le même portefeuille PP.</p>
       </div>
@@ -137,7 +136,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
             <button type="button" class="ascension-buy" :disabled="!row.available || busy"
               :aria-label="'Acheter '+row.name+' niveau '+(row.rank+1)"
               @click="purchase(row.id,row.rank,row.cost)">
-              {{ row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.available?'ACHETER':'PP INSUFF.' }}
+              {{ row.cost===null?'MAX':row.available?'ACHETER':'PP INSUFF.' }}
             </button>
             <button type="button" class="ascension-buy-max" :disabled="!row.available || busy"
               :aria-label="'Acheter MAX '+row.name" @click="purchaseMax(row.id,row.rank)">MAX</button>
@@ -170,7 +169,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
             <button type="button" class="ascension-buy" :disabled="!row.available || busy"
               :aria-label="'Acheter '+row.name+' niveau '+(row.rank+1)"
               @click="purchase(row.id,row.rank,row.cost)">
-              {{ row.cost===null?'MAX':progress.prestigeCount<3?'PRESTIGE 3 REQUIS':row.available?'ACHETER':'PP INSUFF.' }}
+              {{ row.cost===null?'MAX':row.available?'ACHETER':'PP INSUFF.' }}
             </button>
             <button type="button" class="ascension-buy-max" :disabled="!row.available || busy"
               :aria-label="'Acheter MAX '+row.name" @click="purchaseMax(row.id,row.rank)">MAX</button>

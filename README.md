@@ -189,6 +189,14 @@ Les **10 branches** comportent désormais **100 niveaux** au lieu de 1 000, sans
 
 Les sauvegardes V8 préexistantes utilisent une migration idempotente du registre Transcendant V1 vers V2 : les anciens rangs sont convertis par arrondi supérieur de niveau/10, les PP payés en trop sont remboursés une seule fois au portefeuille disponible, et les PP gagnés à vie restent inchangés. Les reçus historiques V3/V4, les dotations de capital déjà octroyées et les bonus sont conservés. Une sauvegarde brute pré-migration est archivée sous la clé dédiée `capital-idle-save-backup-v8-pre-transcendent-100-ranks`. Les nouveaux reçus Prestige portent `formulaVersion:5`.
 
+## Déblocage libre du Prestige (21.11.2026)
+
+Les onze branches de **Prestige classique** et les dix branches de **Prestige Transcendant**
+sont achetables quel que soit le nombre de Prestiges réalisés. Seuls les PP
+disponibles et les niveaux maximums comptent. Les coûts, les effets, les reçus
+et les sauvegardes V8 historiques ne changent pas. Les pouvoirs manuels News
+n'exigent plus trois cycles ; leurs frais en cash restent inchangés.
+
 ## Déploiement GitHub Pages
 
 La publication utilise **Settings → Pages → Deploy from a branch → main / (root)**. La racine contient **`index.html` compilé, `assets/` et `.nojekyll`** : GitHub Pages sert directement ces fichiers statiques.

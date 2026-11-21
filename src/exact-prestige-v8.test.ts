@@ -73,9 +73,8 @@ test('migration refunds retired ranks once and prices only new ranks at the new 
  const migrated=migratePrestigeShop({...base,ascension:{...base.ascension,progress}})
  assert.equal(migrated.ascension.progress.availablePoints,'136')
  assert.equal(migratePrestigeShop(migrated),migrated)
- assert.equal(v8BuyPrestigeUpgrade(migrated,'news-duration',1),null)
- const eligible={...migrated,ascension:{...migrated.ascension,progress:{...migrated.ascension.progress,prestigeCount:2}}}
- const purchased=v8BuyPrestigeUpgrade(eligible,'news-duration',1)!
+ const purchased=v8BuyPrestigeUpgrade(migrated,'news-duration',1)!
+ assert.ok(purchased, 'the first Prestige can buy formerly cycle-2 upgrades')
  assert.equal(purchased.ascension.progress.availablePoints,'56')
  assert.equal(prestigeSpent(purchased.ascension.progress.upgradeLevels,purchased.ascension.progress.legacyRanks),90)
 })
@@ -109,38 +108,24 @@ test('V8 load, reload, export and import refund exactly once at the historical t
  assert.deepEqual(imported.state,first.state)
 })
 
-test('Prestige V2 : les 11 améliorations sont toutes débloquées au plus tard au cycle 3', async () => {
- const { prestigeShop, prestigeCost } = await import('./ascension/v2.ts')
- const { v8BuyPrestigeUpgrade } = await import('./exact-runtime-v8.ts')
- const expectedGates = new Map<string, number>([
-  ['news-frequency', 1],
-  ['news-duration', 2], ['volatility-radar', 2],
-  ['news-preview', 3], ['news-impact', 3], ['news-propagation', 3],
-  ['crypto-staking', 3], ['market-frenzy', 3], ['time-accelerator', 3],
-  ['staking-yield', 3], ['auto-compound', 3],
- ])
- assert.equal(prestigeShop.length, 11)
- assert.equal(expectedGates.size, prestigeShop.length)
- const base = createV8CapitalState(now)
- const atCycle = (prestigeCount: number) => ({
-  ...base,
-  ascension: { ...base.ascension, progress: {
-   ...base.ascension.progress,
-   shopVersion: 2 as const,
-   prestigeCount,
-   availablePoints: '1000000',
-   lifetimePoints: '1000000',
-  } },
- })
- for (const offer of prestigeShop) {
-  assert.equal(offer.cycle, expectedGates.get(offer.id))
-  assert.ok(offer.cycle >= 1 && offer.cycle <= 3)
-  assert.equal(v8BuyPrestigeUpgrade(atCycle(offer.cycle - 1), offer.id, 0), null)
-  const purchased = v8BuyPrestigeUpgrade(atCycle(offer.cycle), offer.id, 0)
-  assert.ok(purchased)
-  assert.equal(purchased.ascension.progress.upgradeLevels[offer.id], 1)
-  assert.equal(v(purchased.ascension.progress.availablePoints),
-   1000000n - BigInt(prestigeCost(offer.id, 0)!))
+test('Prestige V2: all eleven upgrades are available at every cycle when PP suffice',async()=>{
+ const {prestigeShop,prestigeCost}=await import('./ascension/v2.ts')
+ const {v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax}=await import('./exact-runtime-v8.ts')
+ assert.equal(prestigeShop.length,11)
+ const base=createV8CapitalState(now)
+ for(const prestigeCount of [0,1,2,3]){
+  for(const offer of prestigeShop){
+   const funded={...base,ascension:{...base.ascension,progress:{
+    ...base.ascension.progress,shopVersion:2 as const,prestigeCount,
+    availablePoints:'1000000',lifetimePoints:'1000000',
+   }}}
+   const purchased=v8BuyPrestigeUpgrade(funded,offer.id,0)
+   assert.ok(purchased,'cycle '+prestigeCount+' / '+offer.id)
+   assert.equal(purchased.ascension.progress.upgradeLevels[offer.id],1)
+   assert.equal(v(purchased.ascension.progress.availablePoints),1000000n-BigInt(prestigeCost(offer.id,0)!))
+   assert.ok(v8BuyPrestigeUpgradeMax(funded,offer.id,0))
+   assert.equal(v8BuyPrestigeUpgrade(funded,offer.id,1),null)
+  }
  }
 })
 

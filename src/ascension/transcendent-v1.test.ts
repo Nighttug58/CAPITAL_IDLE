@@ -107,10 +107,13 @@ test('Advanced News purchases are atomic, rank-checked, preserve classic purchas
   assert.equal(checkpoint.state.ascension.progress.transcendentV1?.levels['news-power'],1)
   assert.equal(validateExactV8State(checkpoint.state,decimals).valid,true)
 })
-test('Earlier Prestige cycles, insufficient PP and illegal future branches cannot buy',()=>{
-  for(const cycle of [0,1,2]){
-    const state=seeded(cycle)
-    assert.equal(v8BuyTranscendentNews(state,'news-power',0),null)
+test('Transcendent News works at Prestige 1 or 2 when PP suffice',()=>{
+  assert.equal(v8BuyTranscendentNews(seeded(0),'news-power',0),null,'zero PP on fresh run')
+  for(const cycles of [1,2]){
+    const state=seeded(cycles)
+    const bought=v8BuyTranscendentNews(state,'news-power',0)
+    assert.ok(bought,'Prestige '+cycles+' should not lock a branch')
+    assert.equal(validateExactV8State(bought,decimals).valid,true)
   }
   const ready=seeded(3)
   const small={...ready,ascension:{...ready.ascension,progress:{
@@ -197,11 +200,8 @@ test('V8 engine: advanced force, intensity and duration affect positive and nega
   assert.ok(Number.isSafeInteger(generated.endsAt))
   assert.ok(v8MarketNewsEffects(state,NOW).impactMultiplier===1)
 })
-test('Manual news generate/end powers are both available exactly from Prestige 3',()=>{
-  const low=seeded(2)
-  const lowCash=v8CreditIncome(low,'clicks',10n**40n)
-  assert.equal(buyNewsPower(lowCash,null,0,NOW),null)
-  const ready=v8CreditIncome(seeded(3),'clicks',10n**40n)
+test('Manual News powers do not require three Prestiges',()=>{
+  const ready=v8CreditIncome(seeded(0),'clicks',10n**40n)
   const created=buyNewsPower(ready,null,0,NOW)
   assert.ok(created)
   const id=created.trading.news.find(x=>x.id.startsWith('power-'))?.id
