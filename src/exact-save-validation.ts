@@ -304,7 +304,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
          granted===null||startingCapitalCents(rank,item.formulaVersion!==5)!==granted||
          !object(progress.transcendentV1)||!object(progress.transcendentV1.levels)||
          !safe(progress.transcendentV1.levels['starting-capital'])||
-         (progress.transcendentV1.version===2 && item.formulaVersion!==5
+         ((progress.transcendentV1 as {version?:number}|undefined)?.version===2 && item.formulaVersion!==5
             ? Math.ceil(rank/10):rank)>progress.transcendentV1.levels['starting-capital'])
         return fail('Invalid starting capital receipt')
       historicalGrant=granted
@@ -321,9 +321,9 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
         base===null || base===0n || base!==(item.formulaVersion===4 || item.formulaVersion===5
            ? prestigePointsV4(worth,item.levelAtCompletion) : prestigePoints(worth,item.levelAtCompletion))||
         !safe(heritage)||heritage>(item.formulaVersion===5?TRANSCENDENT_MAX_LEVEL:1000) ||
-         (item.formulaVersion===5 && progress.transcendentV1?.version===1) ||
+         (item.formulaVersion===5 && (progress.transcendentV1 as {version?:number}|undefined)?.version===1) ||
         (progress.transcendentV1!==undefined &&
-          (progress.transcendentV1.version===2 && item.formulaVersion!==5
+          ((progress.transcendentV1 as {version?:number}|undefined)?.version===2 && item.formulaVersion!==5
              ? Math.ceil(heritage/10) : heritage)>(progress.transcendentV1 as {levels:{heritage:number}}).levels.heritage) ||
         (typeof museum!=='boolean') ||
         (museum && !collectionV3Snapshot(p.ownedCollectionIds as string[]).museumComplete) ||
