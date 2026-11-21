@@ -128,10 +128,10 @@ describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
     expect(updated.prestige.fameMicros).toBe(exact.prestige.fameMicros)
     expect(updated.game.balance).toBe(exact.game.balance)
   })
-  it('bloque le niveau non débloqué et lève la modale via Escape',async()=>{
-    const {wrapper}=start(2)
+  it('ouvre Héritage dès le premier Prestige et ferme la modale via Escape',async()=>{
+    const {wrapper}=start(1)
     const page=await toTranscendent(wrapper)
-    expect(page.find('[data-transcendent="heritage"] .ascension-buy').attributes('disabled')).toBeDefined()
+    expect(page.find('[data-transcendent="heritage"] .ascension-buy').attributes('disabled')).toBeUndefined()
     window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))
     await nextTick()
     expect(wrapper.find('.transcendent-screen').exists()).toBe(false)
