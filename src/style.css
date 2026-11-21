@@ -2062,3 +2062,23 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .offline-replay {display:grid;gap:4px;font-size:11px;color:#d0d8d2;margin:8px 0}
 .offline-replay progress {width:100%;height:6px;accent-color:#7dc5a1}.offline-replay small {font-size:10px;color:#a6b4ad}
 @media(max-height:560px){.offline-report-dialog{max-height:94dvh}.offline-report-header{padding:8px 12px}.offline-report-footer{padding:7px 12px}}
+
+
+/* Top-of-page collection MAX across all five categories. */
+.collection-max-bar { display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 12px; border:1px solid #5e4b5b; border-radius:11px; background:#25222b; }
+.collection-max-info { min-width:0; display:flex; flex-direction:column; gap:4px; }
+.collection-max-info strong { color:#f3dfed; font-size:12px; }
+.collection-max-info span { color:#c0b7c0; font-size:11px; overflow-wrap:anywhere; }
+.collection-max-button { flex:0 0 auto; min-height:40px; padding:9px 14px; border-radius:9px;
+  border:1px solid #e0b880; color:#281e18; font-size:11px; font-weight:850;
+  background:linear-gradient(#f4d4a2,#d6a75e); }
+.collection-max-button:disabled { background:#373339; border-color:#665c66; color:#ada3ab; }
+.collection-max-confirm { padding:11px 12px; display:flex; flex-wrap:wrap; justify-content:space-between;
+  align-items:center; gap:10px; border:1px solid #a38561; border-radius:11px; background:#362d2a;
+  color:#edd9bb; font-size:11px; }
+.collection-max-confirm>div { display:flex; gap:8px; }
+.collection-max-confirm button { padding:9px 12px; min-height:40px; font-weight:800; border-radius:8px; }
+.collection-max-notice { margin:0; }
+@media(max-width:420px) { .collection-max-bar {padding:8px 10px}
+  .collection-max-info span {font-size:10px} .collection-max-button {padding:8px 10px} }

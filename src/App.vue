@@ -11,7 +11,7 @@ import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
- v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
+ v8PayTaxes,v8BuyFameUpgrade,v8BuyCollection,v8BuyCollectionsMax,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
  quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
@@ -443,6 +443,16 @@ function executeCollectionPurchase(id: string): CollectionPurchase {
     availableFameMicros:state.prestige.fameMicros,
     ownedCount:next.prestige.ownedCollectionIds.length,
   }}
+}
+
+function executeCollectionMaxPurchase(): {ok:true;count:number;costCents:bigint;fameMicros:bigint}|{ok:false;error:'invalid-state'|'none-affordable'} {
+  if (loadBlocked.value) return {ok:false,error:'invalid-state'}
+  settleEconomyNow()
+  const purchase=v8BuyCollectionsMax(exact.value)
+  if (!purchase) return {ok:false,error:'none-affordable'}
+  syncExactState(purchase.state)
+  persist()
+  return {ok:true,count:purchase.ids.length,costCents:purchase.costCents,fameMicros:purchase.fameMicros}
 }
 
 function click(event: MouseEvent) {
@@ -944,7 +954,7 @@ onUnmounted(() => {
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
     <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
-    <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" />
+    <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase" />
     <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 

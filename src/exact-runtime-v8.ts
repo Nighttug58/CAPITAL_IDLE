@@ -8,7 +8,7 @@ import type { V8CapitalState } from './exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
 import { getExactLevel } from './exact-levels.ts'
 import { getClickValue, UPGRADES } from './game.ts'
-import { currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
+import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
@@ -408,6 +408,49 @@ export function v8BuyCollection(state: V8CapitalState, id: string): V8CapitalSta
       cycleCollectionFameMicros:s(v(state.prestige.cycleCollectionFameMicros) + gained),
     },
   }
+}
+
+
+export interface V8CollectionMaxQuote {
+  readonly ids: readonly string[]
+  readonly costCents: bigint
+}
+
+/** Cheapest first, across all five categories; always respect canonical IDs. */
+const COLLECTION_MAX_ORDER = [...CURRENT_COLLECTION_SLOTS].sort((a,b) =>
+  a.priceCents - b.priceCents || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+export function v8CollectionMaxQuote(state: V8CapitalState): V8CollectionMaxQuote {
+  const owned = new Set(state.prestige.ownedCollectionIds.map(currentCollectionId))
+  let cash = v(state.game.balance)
+  let costCents = 0n
+  const ids: string[] = []
+  for (const item of COLLECTION_MAX_ORDER) {
+    const cost = BigInt(item.priceCents)
+    if (owned.has(currentCollectionId(item.id)) || cash < cost) continue
+    cash -= cost
+    costCents += cost
+    ids.push(item.id)
+  }
+  return { ids, costCents }
+}
+
+/** Pure, one-save bulk acquisition, preserving exact sequential Fame rewards. */
+export function v8BuyCollectionsMax(state: V8CapitalState): {
+  readonly state: V8CapitalState
+  readonly ids: readonly string[]
+  readonly costCents: bigint
+  readonly fameMicros: bigint
+} | null {
+  const quote = v8CollectionMaxQuote(state)
+  if (!quote.ids.length) return null
+  let next = state
+  for (const id of quote.ids) {
+    const bought = v8BuyCollection(next, id)
+    if (!bought) return null
+    next = bought
+  }
+  return { state: next, ids: quote.ids, costCents: quote.costCents,
+    fameMicros: v(next.prestige.fameMicros) - v(state.prestige.fameMicros) }
 }
 
 function claimProgress(state: V8CapitalState, metric: AchievementMetric): bigint {

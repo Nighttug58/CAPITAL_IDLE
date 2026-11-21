@@ -6,14 +6,19 @@ import {v8PerformPrestige,previewV8PrestigePoints,v8EligiblePrestigeWorthCents} 
 import {getAsset} from './trading/catalog.ts'
 import {validateExactV8State} from './exact-save-validation.ts'
 import {v8CreditIncome} from './exact-runtime-v8.ts'
+import {prestigePoints} from './ascension/v2.ts'
+import {exportV8Save,prepareV8SaveImport} from './exact-persistence-v8.ts'
 const now=1_800_000_000_000
 
-test('BigInt prestige preview agrees with V2 formula at known powers',()=>{
+test('BigInt V4 prestige preview rewards achievable wealth exactly',()=>{
  const base=1_000_000_000_000n
- assert.equal(previewV8PrestigePoints(base,150),10n)
- assert.equal(previewV8PrestigePoints(base*100n,150),50n)
+ assert.equal(previewV8PrestigePoints(base,150),250n)
+ assert.equal(previewV8PrestigePoints(base*100n,150),2500n)
  assert.equal(previewV8PrestigePoints(base,99),0n)
- assert.equal(previewV8PrestigePoints(base*10n**200n,150),10n**71n)
+ assert.equal(previewV8PrestigePoints(base-1n,150),0n)
+ assert.equal(previewV8PrestigePoints(base*10n,150),790n)
+ assert.equal(previewV8PrestigePoints(base*1000n,150),7905n)
+ assert.equal(previewV8PrestigePoints(base*10n**200n,150),250n*10n**100n)
 })
 
 test('Prestige with 10^120 cash earns exact PP, settles tax and preserves Fame/collections',()=>{
@@ -137,4 +142,31 @@ test('Prestige V2 : les 11 améliorations sont toutes débloquées au plus tard 
   assert.equal(v(purchased.ascension.progress.availablePoints),
    1000000n - BigInt(prestigeCost(offer.id, 0)!))
  }
+})
+
+test('old V3 receipt remains valid, with its original points and export/import', () => {
+ const initial=createV8CapitalState(now)
+ const start={...initial,
+   game:{...initial.game,balance:'1000000000000',lifetimeEarned:'1000000000000'},
+   prestige:{...initial.prestige,experienceCents:(getExactLevelStartThreshold(150)*100n).toString(),
+     lastAwardedLevel:150},
+   ascension:{...initial.ascension,progress:{...initial.ascension.progress,highestFameAwardedLevel:150}}}
+ const result=v8PerformPrestige(start,now)
+ assert.ok(result.ok)
+ if(!result.ok)return
+ assert.equal(result.state.ascension.progress.history[0]?.formulaVersion,4)
+ const item=result.state.ascension.progress.history[0]!
+ const old=prestigePoints(BigInt(item.eligibleWorthCents),item.levelAtCompletion)
+ const history=[{...item,formulaVersion:3 as const,basePoints:old.toString(),earnedPoints:old.toString()}]
+ const legacy={...result.state,ascension:{...result.state.ascension,progress:{
+   ...result.state.ascension.progress,availablePoints:old.toString(),
+   lifetimePoints:old.toString(),history}}}
+ const checked=validateExactV8State(legacy,id=>getAsset(id)?.quantityDecimals??null)
+ assert.equal(checked.valid,true,checked.reason)
+ const imported=prepareV8SaveImport(exportV8Save(legacy,now),now)
+ assert.equal(imported.ok,true)
+ if(imported.ok)assert.deepEqual(imported.state,legacy)
+ const forged=JSON.parse(exportV8Save(result.state,now))
+ forged.state.ascension.progress.history[0].formulaVersion=3
+ assert.equal(prepareV8SaveImport(JSON.stringify(forged),now).ok,false)
 })

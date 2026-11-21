@@ -1,4 +1,4 @@
-import { MIN_LEVEL, MIN_WORTH_CENTS, prestigePoints as previewV8PrestigePoints } from './ascension/v2.ts'
+import { MIN_LEVEL, MIN_WORTH_CENTS, prestigePointsV4 as previewV8PrestigePoints } from './ascension/v2.ts'
 export { previewV8PrestigePoints }
 
 import type {V8CapitalState} from './exact-state-v8.ts'
@@ -6,7 +6,6 @@ import {createV8CapitalState,getExactAmount as v,withExactAmount as s} from './e
 import {getExactLevel} from './exact-levels.ts'
 import {exactTradeCost,quoteToExactFraction} from './exact-trading.ts'
 import {getAsset} from './trading/catalog.ts'
-import {liquidityQuote} from './trading/liquidity-v8.ts'
 import {v8AdvanceFiscalEconomy,v8PayTaxes} from './exact-runtime-v8.ts'
 import {MAX_ASCENSION_HISTORY} from './ascension/state.ts'
 import {MARKET_TICK_MS} from './trading/market.ts'
@@ -22,8 +21,7 @@ export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
     if(!asset)throw new RangeError('Unknown asset in portfolio')
     const price=state.trading.quotes[id]?.price??asset.referencePrice
     const units=v(item.quantity)
-    const execution=liquidityQuote(asset,price,units,'sell',units)
-    const fraction=execution&&quoteToExactFraction(execution.executionPrice)
+    const fraction=quoteToExactFraction(price)
     if(!fraction)throw new RangeError('Invalid quote')
     const fee=asset.kind==='stock'?50n:asset.kind==='crypto'?100n:150n
     const proceeds=exactTradeCost(fraction,units,asset.quantityDecimals,fee,'sell')
@@ -75,7 +73,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
     lifetimePoints:s(v(progress.lifetimePoints)+earnedPoints),
     prestigeCount:nextCycle.prestigeCount,
     ...(nextCycle.prestigeCountExact!==undefined?{prestigeCountExact:nextCycle.prestigeCountExact}:{}),
-    history:[...progress.history,{formulaVersion:3 as const,cycle:nextCycle.prestigeCount,
+    history:[...progress.history,{formulaVersion:4 as const,cycle:nextCycle.prestigeCount,
       ...(nextCycle.cycleExact>MAX_SAFE_CYCLE?{cycleExact:s(nextCycle.cycleExact)}:{}),
       completedAtRealMs:at,
       eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level,

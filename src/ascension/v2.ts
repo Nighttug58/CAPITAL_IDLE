@@ -53,3 +53,16 @@ export function prestigePoints(worth:bigint,level:number):bigint {
     x=next
   }
 }
+
+// V4 (21/11/2026): stronger Prestige rewards after order-induced pumps were removed.
+// floor(250 * sqrt(eligible wealth / $10B)); keep prestigePoints for old receipts.
+export function prestigePointsV4(worth: bigint, level: number): bigint {
+  if (level < MIN_LEVEL || worth < MIN_WORTH_CENTS) return 0n
+  const squared = 62_500n * worth / MIN_WORTH_CENTS
+  let root = 1n << BigInt(Math.ceil(squared.toString(2).length / 2))
+  for (;;) {
+    const next = (root + squared / root) >> 1n
+    if (next >= root) return root
+    root = next
+  }
+}

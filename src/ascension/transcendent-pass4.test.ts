@@ -199,11 +199,11 @@ test('Rentier increases dividends and rewards in token units only, without creat
   assert.equal(boosted.stats.earnedBySource.crypto,rewarded.stats.earnedBySource.crypto)
   assert.ok(BigInt(boosted.trading.positions.ethereum!.quantity)>BigInt(rewarded.trading.positions.ethereum!.quantity))
 })
-test('Heritage V3 PP receipts freeze cycle ranks and bonus; earlier V2 receipts untouched',()=>{
+test('Heritage V4 PP receipts freeze cycle ranks and bonus; earlier V2 receipts untouched',()=>{
   let state=cycle()
   const historical=[...state.ascension.progress.history]
   assert.equal(historical.length,3)
-  assert.ok(historical.every(row=>row.formulaVersion===3))
+  assert.ok(historical.every(row=>row.formulaVersion===4))
   const invested=withRanks(state,{heritage:1000})
   const fresh=v8CreditIncome(invested,'clicks',10n**40n)
   const worth=v8PrestigeRewardPreview(fresh,10n**40n,150)
@@ -213,7 +213,7 @@ test('Heritage V3 PP receipts freeze cycle ranks and bonus; earlier V2 receipts 
   assert.equal(done.earnedPoints,done.state.ascension.progress.history.at(-1)?.earnedPoints &&
     BigInt(done.state.ascension.progress.history.at(-1)!.earnedPoints))
   const receipt=done.state.ascension.progress.history.at(-1)!
-  assert.equal(receipt.formulaVersion,3)
+  assert.equal(receipt.formulaVersion,4)
   assert.equal(receipt.heritageLevelAtCycle,1000)
   assert.equal(receipt.museumCompleteAtCycle,false)
   assert.equal(receipt.bonusBps,20_000)

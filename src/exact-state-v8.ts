@@ -93,10 +93,10 @@ export interface V8PrestigeState extends Omit<PrestigeState,
 export interface V8CycleSummary extends Omit<AscensionCycleSummary,'eligibleWorthCents'|'earnedPoints'> {
   /** Canonical receipt index above Number.MAX_SAFE_INTEGER; legacy rows keep numeric cycle. */
   cycleExact?: ExactAmount
-  formulaVersion?: 2 | 3
+  formulaVersion?: 2 | 3 | 4
   eligibleWorthCents: ExactAmount
   earnedPoints: ExactAmount
-  /** Historical V3 receipt: original V2 reward and purchased ranks AT this cycle. */
+  /** Historical V3 or current V4 receipt: versioned reward and cycle bonuses. */
   basePoints?: ExactAmount
   heritageLevelAtCycle?: number
   museumCompleteAtCycle?: boolean

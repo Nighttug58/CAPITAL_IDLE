@@ -1,4 +1,4 @@
-import { prestigeShop, prestigeSpent, prestigePoints } from './ascension/v2.ts'
+import { prestigeShop, prestigeSpent, prestigePoints, prestigePointsV4 } from './ascension/v2.ts'
 import { transcendentSpent } from './ascension/transcendent-v1.ts'
 import { TRANSCENDENT_MAX_LEVEL } from './ascension/transcendent-v1.ts'
 import { startingCapitalCents } from './ascension/starting-capital-v1.ts'
@@ -299,7 +299,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     if(hasRank){
       const rank=item.startingCapitalLevelAtCycle
       const granted=amount(item.startingCapitalGrantedCents)
-      if(item.formulaVersion!==3 || !safe(rank)||rank>TRANSCENDENT_MAX_LEVEL||
+      if((item.formulaVersion!==3 && item.formulaVersion!==4) || !safe(rank)||rank>TRANSCENDENT_MAX_LEVEL||
          granted===null||startingCapitalCents(rank)!==granted||
          !object(progress.transcendentV1)||!object(progress.transcendentV1.levels)||
          !safe(progress.transcendentV1.levels['starting-capital'])||
@@ -309,14 +309,14 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     }
     if(index===progress.history.length-1 && historicalGrant!==grantCents)
       return fail('Starting capital witness disagrees with last cycle')
-    if(item.formulaVersion===3){
+    if(item.formulaVersion===3 || item.formulaVersion===4){
       const base=amount(item.basePoints)
       const heritage=item.heritageLevelAtCycle
       const museum=item.museumCompleteAtCycle
       const bonusBps=item.bonusBps
       if(progress.shopVersion!==2 || !safe(item.completedAtRealMs)||
         !safe(item.levelAtCompletion)||item.levelAtCompletion<150 ||
-        base===null || base===0n || base!==prestigePoints(worth,item.levelAtCompletion)||
+        base===null || base===0n || base!==(item.formulaVersion===4 ? prestigePointsV4(worth,item.levelAtCompletion) : prestigePoints(worth,item.levelAtCompletion))||
         !safe(heritage)||heritage>TRANSCENDENT_MAX_LEVEL ||
         (progress.transcendentV1!==undefined &&
           heritage>(progress.transcendentV1 as {levels:{heritage:number}}).levels.heritage) ||
@@ -325,7 +325,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
         !safe(bonusBps) ||
         bonusBps!==10_000+heritage*10+(museum?2_500:0) ||
         total!==base*BigInt(bonusBps)/10_000n)
-        return fail('Invalid Prestige V3 reward')
+        return fail('Invalid Prestige V3/V4 reward')
     } else if(item.formulaVersion===2){
       if(progress.shopVersion!==2 || !safe(item.completedAtRealMs) || !safe(item.levelAtCompletion) || total===0n || prestigePoints(worth,item.levelAtCompletion)!==total)return fail('Invalid Prestige V2 reward')
     } else if(item.formulaVersion!==undefined || !safe(item.levelAtCompletion)||item.levelAtCompletion<100||

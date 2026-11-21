@@ -5,7 +5,7 @@ import type { V8CapitalState } from '../exact-state-v8.ts'
 import { CURRENT_COLLECTION_ITEMS } from '../prestige/collections-catalog.ts'
 import { currentCollectionId, getCollectionSlot } from '../prestige/catalog.ts'
 import { collectionRarity, collectionV3Snapshot, COLLECTION_SET_REWARDS } from '../prestige/collections-v3.ts'
-import { v8CollectionReward } from '../exact-runtime-v8.ts'
+import { v8CollectionReward, v8CollectionMaxQuote } from '../exact-runtime-v8.ts'
 import { COLLECTION_CATEGORIES, FAME_BOOSTS, type CollectionCategoryId } from '../prestige/catalog.ts'
 import {
   type CollectionPurchase, type CollectionPurchaseError,
@@ -14,11 +14,15 @@ import {
 const props = defineProps<{
   state: V8CapitalState
   purchaseCollection: (id: string) => CollectionPurchase
+  purchaseCollectionMax: () => {ok:true;count:number;costCents:bigint;fameMicros:bigint}|{ok:false;error:'invalid-state'|'none-affordable'}
 }>()
 
 const category = ref<CollectionCategoryId>('watches')
 const selectedId = ref<string | null>(null)
 const confirming = ref(false)
+const bulkConfirming = ref(false)
+const bulkNotice = ref('')
+const bulkError = ref(false)
 const notice = ref('')
 const noticeError = ref(false)
 const closeButton = ref<HTMLButtonElement | null>(null)
@@ -40,6 +44,7 @@ const rows = computed(() => CURRENT_COLLECTION_ITEMS.filter(item => item.categor
 }))
 const collectionV3 = computed(() => collectionV3Snapshot(props.state.prestige.ownedCollectionIds))
 const ownedCount = computed(() => collectionV3.value.owned)
+const bulkQuote = computed(() => v8CollectionMaxQuote(props.state))
 const categorySet = computed(() => COLLECTION_SET_REWARDS[category.value])
 const categorySetName = computed(() => FAME_BOOSTS.find(row => row.id === categorySet.value.boostId)?.label ?? '')
 const selectedOffer = computed(() => rows.value.find(row => row.item.id === selectedId.value))
@@ -103,6 +108,25 @@ function buySelected() {
     ? 'Achat confirmé : +' + fame(result.receipt.awardedFameMicros) + ' Fame. Bonus permanent débloqué.'
     : errors[result.error]
 }
+function buyCollectionMax() {
+  if (bulkQuote.value.ids.length === 0) return
+  if (!bulkConfirming.value) {
+    bulkNotice.value = ''
+    bulkConfirming.value = true
+    return
+  }
+  bulkConfirming.value = false
+  const result = props.purchaseCollectionMax()
+  bulkError.value = !result.ok
+  bulkNotice.value = result.ok
+    ? result.count + ' objets acquis pour ' + formatCompactUnits(result.costCents, 2, '$') +
+      ' · +' + formatFameMicros(result.fameMicros) + ' Fame.'
+    : result.error === 'invalid-state'
+      ? 'Sauvegarde non disponible : aucun achat effectué.'
+      : 'Aucune pièce supplémentaire accessible avec le solde actuel.'
+}
+function cancelBulk() { bulkConfirming.value = false }
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Escape' || selectedId.value === null) return
   event.preventDefault()
@@ -144,6 +168,24 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       <div><span>GOLD DISPONIBLE</span><strong>{{ formatCompactUnits(BigInt(state.game.balance), 2, '$') }}</strong></div>
       <div><span>FAME DISPONIBLE</span><strong class="collection-fame-balance">✦ {{ formatFameMicros(BigInt(state.prestige.fameMicros)) }}</strong></div>
     </div>
+
+    <section class="collection-max-bar" aria-label="Achat rapide de collection">
+      <div class="collection-max-info">
+        <strong>Achat groupé</strong>
+        <span>{{ bulkQuote.ids.length }} pièce{{ bulkQuote.ids.length > 1 ? 's' : '' }} accessible{{ bulkQuote.ids.length > 1 ? 's' : '' }} · {{ formatCompactUnits(bulkQuote.costCents, 2, '$') }}</span>
+      </div>
+      <button type="button" class="collection-max-button" :disabled="bulkQuote.ids.length === 0"
+        @click="buyCollectionMax">ACHETER MAX</button>
+    </section>
+    <div v-if="bulkConfirming" class="collection-max-confirm" role="group" aria-label="Confirmer l'achat groupé">
+      <span>Confirmer {{ bulkQuote.ids.length }} achat{{ bulkQuote.ids.length > 1 ? 's' : '' }} pour {{ formatCompactUnits(bulkQuote.costCents, 2, '$') }} ?</span>
+      <div>
+        <button type="button" class="collection-cancel" @click="cancelBulk">Annuler</button>
+        <button type="button" class="collection-confirm-buy" @click="buyCollectionMax" :disabled="bulkQuote.ids.length === 0">Confirmer MAX</button>
+      </div>
+    </div>
+    <p v-if="bulkNotice" class="prestige-notice collection-max-notice"
+      :class="{ 'prestige-notice-error': bulkError }" role="status">{{ bulkNotice }}</p>
 
     <section class="collection-v3-museum" :class="{'is-complete': collectionV3.museumComplete}" aria-label="Musée impérial">
       <strong>Musée impérial · {{ ownedCount }}/100</strong>

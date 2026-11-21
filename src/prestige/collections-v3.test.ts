@@ -6,7 +6,7 @@ import {
   collectionRarity, collectionV3BonusBps, collectionV3Snapshot,
 } from './collections-v3.ts'
 import { createV8CapitalState } from '../exact-state-v8.ts'
-import { v8BuyCollection, v8Click, v8CreditIncome, v8BonusBasisPoints, v8EarningBonusBps, v8BuyTrade, v8SellTrade, v8AccrueEnterpriseUntil } from '../exact-runtime-v8.ts'
+import { v8BuyCollection, v8CollectionMaxQuote, v8BuyCollectionsMax, v8Click, v8CreditIncome, v8BonusBasisPoints, v8EarningBonusBps, v8BuyTrade, v8SellTrade, v8AccrueEnterpriseUntil } from '../exact-runtime-v8.ts'
 import { v8PerformPrestige, v8PrestigeRewardPreview } from '../exact-prestige-v8.ts'
 import { validateExactV8State } from '../exact-save-validation.ts'
 import { exportV8Save, prepareV8SaveImport } from '../exact-persistence-v8.ts'
@@ -206,4 +206,46 @@ test('Museum scales enterprise income, dividends, staking rewards and only posit
   if (!plainLoss.ok || !museumLoss.ok) return
   assert.equal(museumLoss.realizedNetProfitCents, plainLoss.realizedNetProfitCents)
   assert.equal(museumLoss.cashDeltaCents, plainLoss.cashDeltaCents)
+})
+
+test('Collection MAX chooses globally affordable missing items cheapest-first, then saves once', () => {
+  const ordered = [...CURRENT_COLLECTION_SLOTS].sort((a,b)=>a.priceCents-b.priceCents || a.id.localeCompare(b.id))
+  const [first,second] = ordered
+  assert.ok(first && second)
+  const budget = BigInt(first.priceCents) + BigInt(second.priceCents)
+  const initial=v8CreditIncome(createV8CapitalState(AT),'clicks',budget)
+  const quote=v8CollectionMaxQuote(initial)
+  assert.deepEqual(quote.ids,[first.id,second.id])
+  assert.equal(quote.costCents,budget)
+  const result=v8BuyCollectionsMax(initial)
+  assert.ok(result)
+  if(!result)return
+  assert.equal(initial.prestige.ownedCollectionIds.length,0,'preview never mutates existing save')
+  const individualFirst=v8BuyCollection(initial,first.id)!
+  const individualSecond=v8BuyCollection(individualFirst,second.id)!
+  assert.deepEqual(result.state,individualSecond,'bulk Fame includes exactly the sequential earned bonuses')
+  assert.equal(result.costCents,budget)
+  assert.equal(result.state.game.balance,'0')
+  assert.equal(result.state.prestige.ownedCollectionIds.length,2)
+  const valid=validateExactV8State(result.state,assetDecimals)
+  assert.equal(valid.valid,true,valid.reason)
+  assert.equal(v8BuyCollectionsMax(result.state),null)
+})
+
+test('Collection MAX honors legacy ownership, permanent awards and unlocks Museum',()=>{
+  const existing= CURRENT_COLLECTION_SLOTS[0]!.id.replace(/^v2:/,'')
+  const quoted=v8CollectionMaxQuote({...createV8CapitalState(AT),
+    game:{...createV8CapitalState(AT).game,balance:(10n**20n).toString()},
+    prestige:{...createV8CapitalState(AT).prestige,ownedCollectionIds:[existing]}})
+  assert.ok(!quoted.ids.includes(CURRENT_COLLECTION_SLOTS[0]!.id))
+  const rich=v8CreditIncome(createV8CapitalState(AT),'clicks',10n**20n)
+  const all=v8BuyCollectionsMax(rich)
+  assert.ok(all)
+  if(!all)return
+  assert.equal(all.ids.length,100)
+  assert.equal(collectionV3Snapshot(all.state.prestige.ownedCollectionIds).museumComplete,true)
+  assert.equal(v8CollectionMaxQuote(all.state).ids.length,0)
+  const checked=validateExactV8State(all.state,assetDecimals)
+  assert.equal(checked.valid,true,checked.reason)
+  assert.ok(all.fameMicros>0n)
 })
