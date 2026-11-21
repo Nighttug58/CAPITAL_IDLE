@@ -73,7 +73,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
     lifetimePoints:s(v(progress.lifetimePoints)+earnedPoints),
     prestigeCount:nextCycle.prestigeCount,
     ...(nextCycle.prestigeCountExact!==undefined?{prestigeCountExact:nextCycle.prestigeCountExact}:{}),
-    history:[...progress.history,{formulaVersion:4 as const,cycle:nextCycle.prestigeCount,
+    history:[...progress.history,{formulaVersion:progress.transcendentV1?.version===1 ? 4 as const : 5 as const,cycle:nextCycle.prestigeCount,
       ...(nextCycle.cycleExact>MAX_SAFE_CYCLE?{cycleExact:s(nextCycle.cycleExact)}:{}),
       completedAtRealMs:at,
       eligibleWorthCents:s(eligible),earnedPoints:s(earnedPoints),levelAtCompletion:level,

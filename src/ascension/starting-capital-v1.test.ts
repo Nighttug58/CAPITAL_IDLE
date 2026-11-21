@@ -27,7 +27,7 @@ function rankState(state:ReturnType<typeof createV8CapitalState>,level:number){
   const cost=transcendentSpentThrough(level)!-transcendentSpentThrough(section.levels['starting-capital'])!
   assert.ok(BigInt(p.availablePoints)>=cost)
   return {...state,ascension:{...state.ascension,progress:{...p,
-    transcendentV1:{version:1 as const,levels:{...section.levels,'starting-capital':level}},
+    transcendentV1:{version:2 as const,levels:{...section.levels,'starting-capital':level}},
     availablePoints:(BigInt(p.availablePoints)-cost).toString()}}}
 }
 function valid(s:unknown){
@@ -38,23 +38,23 @@ function store(){
   const db=new Map<string,string>()
   return {db,storage:{getItem:(k:string)=>db.get(k)??null,setItem:(k:string,v:string)=>{db.set(k,v)}}}
 }
-test('Exact starting capital interpolation has correct 0..1000 tiers and no float drift',()=>{
-  assert.equal(STARTING_CAPITAL_TIERS.length,8)
+test('Exact starting capital interpolation has correct 0..100 tiers and no float drift',()=>{
+  assert.equal(STARTING_CAPITAL_TIERS.length,7)
   for(const t of STARTING_CAPITAL_TIERS)assert.equal(startingCapitalCents(t.level),t.dollars*100n)
-  for(const bad of [-1,1001,NaN,Infinity,0.1,Number.MAX_SAFE_INTEGER])
+  for(const bad of [-1,101,NaN,Infinity,0.1,Number.MAX_SAFE_INTEGER])
     assert.equal(startingCapitalCents(bad),null)
   let previous=-1n
-  for(let n=0;n<=1000;n++){
+  for(let n=0;n<=100;n++){
     const v=startingCapitalCents(n)!
     assert.ok(v>previous,'non-increasing tier at level '+n)
     previous=v
   }
-  const a=STARTING_CAPITAL_TIERS[2]!,b=STARTING_CAPITAL_TIERS[3]!,n=31
+  const a=STARTING_CAPITAL_TIERS[2]!,b=STARTING_CAPITAL_TIERS[3]!,n=8
   assert.equal(startingCapitalCents(n),a.dollars*100n+
     (b.dollars-a.dollars)*100n*BigInt(n-a.level)/BigInt(b.level-a.level))
-  assert.equal(startingCapitalCents(1000),100_000_000_000_000_000n)
+  assert.equal(startingCapitalCents(100),100_000_000_000_000_000n)
 })
-test('Purchase consumes exactly 1000 PP but mints no cash before Prestige',()=>{
+test('Purchase consumes exactly 5 PP but mints no cash before Prestige',()=>{
   const old=cycle()
   assert.equal(pendingStartingCapitalCents(old.ascension.progress),0n)
   const bought=v8BuyTranscendent(old,'starting-capital',0)!
@@ -64,23 +64,23 @@ test('Purchase consumes exactly 1000 PP but mints no cash before Prestige',()=>{
   assert.equal(bought.prestige.experienceCents,old.prestige.experienceCents)
   assert.equal(bought.prestige.fameMicros,old.prestige.fameMicros)
   assert.equal(BigInt(bought.ascension.progress.availablePoints),
-    BigInt(old.ascension.progress.availablePoints)-1000n)
+    BigInt(old.ascension.progress.availablePoints)-5n)
   assert.equal(v8BuyTranscendent(bought,'starting-capital',0),null)
-  assert.equal(pendingStartingCapitalCents(bought.ascension.progress),1_000_000n)
+  assert.equal(pendingStartingCapitalCents(bought.ascension.progress),100_000_000n)
   valid(bought)
   const p=v8PerformPrestige(v8CreditIncome(bought,'clicks',10n**40n),AT)
   assert.ok(p.ok)
   if(!p.ok)return
   const next=p.state
-  assert.equal(next.game.balance,'1000000')
+  assert.equal(next.game.balance,'100000000')
   assert.equal(next.game.lifetimeEarned,'0')
   assert.equal(next.prestige.experienceCents,'0')
   assert.equal(next.prestige.fameMicros,'0')
   assert.equal(next.stats.earnedBySource.clicks,'0')
   assert.equal(next.fiscal.taxesDueCents,'0')
   assert.equal(next.achievements.cycleGiftCents,'0')
-  assert.equal(next.ascension.run.startingCapitalGrantedCents,'1000000')
-  assert.equal(next.ascension.progress.history.at(-1)?.startingCapitalGrantedCents,'1000000')
+  assert.equal(next.ascension.run.startingCapitalGrantedCents,'100000000')
+  assert.equal(next.ascension.progress.history.at(-1)?.startingCapitalGrantedCents,'100000000')
   assert.equal(next.ascension.progress.history.at(-1)?.startingCapitalLevelAtCycle,1)
   assert.equal(next.ascension.progress.transcendentV1?.levels['starting-capital'],1)
   assert.equal(v8EligiblePrestigeWorthCents(next),0n)
@@ -90,12 +90,12 @@ test('Purchase consumes exactly 1000 PP but mints no cash before Prestige',()=>{
   valid(next)
 })
 test('Portfolio or enterprise purchase from grant cannot generate free PP',()=>{
-  const ranked=rankState(cycle(),100)
+  const ranked=rankState(cycle(),10)
   valid(ranked)
   const res=v8PerformPrestige(v8CreditIncome(ranked,'clicks',10n**40n),AT)
   assert.ok(res.ok)
   if(!res.ok)return
-  const state=res.state,grant=startingCapitalCents(100)!
+  const state=res.state,grant=startingCapitalCents(10)!
   assert.equal(BigInt(state.game.balance),grant)
   assert.equal(v8EligiblePrestigeWorthCents(state),0n)
   // Kiosque requires player level 3. Earn only the XP needed to unlock it;
@@ -120,11 +120,11 @@ test('Portfolio or enterprise purchase from grant cannot generate free PP',()=>{
   valid(earned)
 })
 test('Prestige conditions and taxes do not count grant as income or PP base',()=>{
-  const source=rankState(cycle(),250)
+  const source=rankState(cycle(),25)
   const p=v8PerformPrestige(v8CreditIncome(source,'clicks',10n**40n),AT)
   assert.ok(p.ok)
   if(!p.ok)return
-  const state=p.state,grant=startingCapitalCents(250)!
+  const state=p.state,grant=startingCapitalCents(25)!
   assert.equal(BigInt(state.game.balance),grant)
   assert.equal(state.fiscal.taxesDueCents,'0')
   const low=v8CreditIncome(state,'clicks',getExactLevelStartThreshold(149)*100n)
@@ -144,12 +144,12 @@ test('Prestige conditions and taxes do not count grant as income or PP base',()=
   assert.equal(next.state.game.lifetimeEarned,'0')
   valid(next.state)
 })
-test('1000th level pays exactly 1e15 dollars, and level 1001 is forbidden',()=>{
-  const s=rankState(cycle(),999)
+test('100th level pays exactly 1e15 dollars, and level 101 is forbidden',()=>{
+  const s=rankState(cycle(),99)
   valid(s)
-  const max=v8BuyTranscendent(s,'starting-capital',999)!
+  const max=v8BuyTranscendent(s,'starting-capital',99)!
   assert.ok(max)
-  assert.equal(v8BuyTranscendent(max,'starting-capital',1000),null)
+  assert.equal(v8BuyTranscendent(max,'starting-capital',100),null)
   assert.equal(pendingStartingCapitalCents(max.ascension.progress),10n**17n)
   valid(max)
   const result=v8PerformPrestige(v8CreditIncome(max,'clicks',10n**40n),AT)
@@ -206,10 +206,10 @@ test('Pre-pass-5 V8 stays valid and idempotent, new receipts prevent forged gran
   reject(s=>s.ascension.progress.history.at(-1).startingCapitalGrantedCents='1000001')
   reject(s=>s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle=2)
   reject(s=>delete s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle)
-  reject(s=>s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle=1001)
+  reject(s=>s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle=101)
   reject(s=>s.ascension.progress.transcendentV1.levels['starting-capital']=0)
   reject(s=>s.game.balance=(BigInt(s.game.balance)+1n).toString())
   const corrupt=JSON.parse(JSON.stringify(old))
-  corrupt.ascension.run.startingCapitalGrantedCents='1000000'
+  corrupt.ascension.run.startingCapitalGrantedCents='100000000'
   assert.equal(prepareV8SaveImport(JSON.stringify(corrupt),AT).ok,false)
 })

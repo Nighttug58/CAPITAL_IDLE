@@ -9,7 +9,7 @@ import { v8PrestigeRewardPreview } from '../exact-prestige-v8.ts'
 
 const AT=1_800_000_000_000
 const empty=zeroTranscendentV1()
-const all={version:1 as const,levels:{...empty.levels,...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,1000]))}} as TranscendentShopV1
+const all={version:2 as const,levels:{...empty.levels,...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,100]))}} as TranscendentShopV1
 function wallet(points:bigint,main=all) {
   return {transcendentV1:main,availablePoints:points.toString()}
 }
@@ -18,16 +18,16 @@ function stateAt(points:bigint,main=all) {
   return {...state,ascension:{...state.ascension,
     progress:{...state.ascension.progress,transcendentV1:main,availablePoints:points.toString()}}}
 }
-test('Ultime only after the seven economic/heritage/capital trees at 1000 (news not required)',()=>{
+test('Ultime only after the seven economic/heritage/capital trees at 100 (news not required)',()=>{
   assert.equal(transcendentUltimateUnlocked(wallet(0n)),true)
   assert.equal(transcendentUltimateUnlocked({transcendentV1:empty}),false)
   for(const id of TRANSCENDENT_MAIN_IDS){
-    const almost={version:1 as const,levels:{...all.levels,[id]:999}}
+    const almost={version:2 as const,levels:{...all.levels,[id]:99}}
     assert.equal(transcendentUltimateUnlocked({transcendentV1:almost}),false,id)
     assert.equal(transcendentReserveRatio(wallet(10n**100n,almost)).numerator,1n)
   }
-  const withNews={version:1 as const,levels:{...all.levels,
-    'news-power':1000,'news-intensity':1000,'news-duration':1000}}
+  const withNews={version:2 as const,levels:{...all.levels,
+    'news-power':100,'news-intensity':100,'news-duration':100}}
   assert.equal(transcendentUltimateUnlocked({transcendentV1:withNews}),true)
   assert.equal(transcendentReserveRatio(wallet(1000n,withNews)).unlocked,true)
 })

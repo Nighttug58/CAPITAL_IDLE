@@ -22,6 +22,7 @@ export const V8_STORAGE_KEY = 'capital-idle-save-v8'
 export const V8_BACKUP_KEY = 'capital-idle-save-backup-v7'
 export const V8_FAME_REBALANCE_BACKUP_KEY = 'capital-idle-save-backup-v8-pre-fame-rebalance'
 export const V8_TRANSCENDENT_BACKUP_KEY = 'capital-idle-save-backup-v8-pre-transcendent-v1'
+export const V8_TRANSCENDENT_V2_BACKUP_KEY = 'capital-idle-save-backup-v8-pre-transcendent-100-ranks'
 const PREVIOUS_KEYS = [
   'capital-idle-save-v7','capital-idle-save-v6','capital-idle-save-v5','capital-idle-save-v4',
 ] as const
@@ -57,7 +58,7 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
       if(!validate(parsed))return{ok:false,reason:'invalid-v8'}
       const current=withoutOldBoundary(parsed as V8CapitalState)
       if(current.prestige.xpCurveVersion===4 && current.ascension.progress.shopVersion===2 &&
-         current.ascension.progress.transcendentV1!==undefined)
+         current.ascension.progress.transcendentV1?.version===2)
         return{ok:true,state:current,origin:'v8'}
       // Upgrade old saves only after validation, preserving their original bytes.
       // A V8 already on classic Prestige V2 gets a dedicated PP-shop backup.
@@ -66,7 +67,9 @@ export function loadV8CapitalState(storage: Pick<Storage,'getItem'|'setItem'>,
       if(!validate(upgraded))return{ok:false,reason:'invalid-v8'}
       const payload=JSON.stringify(upgraded)
       try {
-        const backupKey=v2Current?V8_TRANSCENDENT_BACKUP_KEY:V8_FAME_REBALANCE_BACKUP_KEY
+        const backupKey=current.ascension.progress.transcendentV1?.version===1
+          ? V8_TRANSCENDENT_V2_BACKUP_KEY : v2Current
+            ? V8_TRANSCENDENT_BACKUP_KEY : V8_FAME_REBALANCE_BACKUP_KEY
         if(storage.getItem(backupKey)===null)
           storage.setItem(backupKey,previous)
         storage.setItem(V8_STORAGE_KEY,payload)

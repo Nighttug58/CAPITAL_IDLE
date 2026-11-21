@@ -27,7 +27,7 @@ function cycle(times=3){
 function withRanks(state:ReturnType<typeof createV8CapitalState>,ranks:Record<string,number>){
   const previous=state.ascension.progress
   const base=previous.transcendentV1??zeroTranscendentV1()
-  const section={version:1 as const,levels:{...base.levels,...ranks}}
+  const section={version:2 as const,levels:{...base.levels,...ranks}}
   const oldCost=transcendentSpent(base)
   const newCost=transcendentSpent(section)
   assert.notEqual(oldCost,null)
@@ -40,47 +40,47 @@ test('Ten PP branches, seven purchasable main branches, seven-branch prices immu
   assert.equal(TRANSCENDENT_MAIN_IDS.length,7)
   assert.equal(TRANSCENDENT_MAIN_PRESENTATION.length,7)
   assert.equal(TRANSCENDENT_NEWS_IDS.length,3)
-  assert.equal(7n*transcendentSpentThrough(1000)!,24_179_470_000n)
-  assert.equal(10n*transcendentSpentThrough(1000)!,34_542_100_000n)
-  assert.equal(transcendentNextCost(999),10_230_760n)
+  assert.equal(7n*transcendentSpentThrough(100)!,60_851n)
+  assert.equal(10n*transcendentSpentThrough(100)!,86_930n)
+  assert.equal(transcendentNextCost(99),202n)
   const ready=cycle()
   for(const id of TRANSCENDENT_MAIN_IDS){
     const first=v8BuyTranscendent(ready,id,0)
     assert.ok(first!==null,id)
     if(first){
       assert.equal(first.ascension.progress.transcendentV1?.levels[id],1)
-      assert.equal(BigInt(first.ascension.progress.availablePoints),BigInt(ready.ascension.progress.availablePoints)-1000n)
+      assert.equal(BigInt(first.ascension.progress.availablePoints),BigInt(ready.ascension.progress.availablePoints)-5n)
       assert.equal(first.ascension.progress.lifetimePoints,ready.ascension.progress.lifetimePoints)
       assert.equal(first.game,ready.game)
       assert.equal(validateExactV8State(first,decimals).valid,true,id)
       assert.equal(v8BuyTranscendent(first,id,0),null,'stale rank cannot double spend')
-      assert.equal(v8BuyTranscendent(first,id,1000),null)
+      assert.equal(v8BuyTranscendent(first,id,100),null)
     }
   }
   assert.equal(v8BuyTranscendent(ready,'unknown' as 'empire',0),null)
   assert.equal(pendingStartingCapitalCents(ready.ascension.progress),0n)
   const purchased=v8BuyTranscendent(ready,'starting-capital',0)!
   assert.ok(purchased)
-  assert.equal(pendingStartingCapitalCents(purchased.ascension.progress),1_000_000n)
+  assert.equal(pendingStartingCapitalCents(purchased.ascension.progress),100_000_000n)
   assert.equal(purchased.game.balance,ready.game.balance)
   assert.equal(v8BuyTranscendent(ready,'news-power',0)?.ascension.progress.transcendentV1?.levels['news-power'],1)
   assert.equal(v8BuyTranscendentNews(ready,'empire' as 'news-power',0),null)
-  const future=withRanks(ready,{empire:1000})
-  assert.equal(v8BuyTranscendent(future,'empire',1000),null)
+  const future=withRanks(ready,{empire:100})
+  assert.equal(v8BuyTranscendent(future,'empire',100),null)
   const empty={...ready,ascension:{...ready.ascension,progress:{...ready.ascension.progress,availablePoints:'0'}}}
   assert.equal(v8BuyTranscendent(empty,'empire',0),null)
   for(const earlier of [0,1,2])assert.equal(v8BuyTranscendent(cycle(earlier),'empire',0),null)
 })
 test('Extreme PP rank ledger, 1e30 exact balances and exports do not round or mint any PP',()=>{
   let ready=cycle()
-  const state=withRanks(ready,{empire:1000,trading:1000,rentier:1000,xp:1000,fame:1000,heritage:1000})
-  assert.equal(transcendentSpent(state.ascension.progress.transcendentV1),20_725_260_000n)
+  const state=withRanks(ready,{empire:100,trading:100,rentier:100,xp:100,fame:100,heritage:100})
+  assert.equal(transcendentSpent(state.ascension.progress.transcendentV1),52_158n)
   assert.equal(validateExactV8State(state,decimals).valid,true)
   const imported=prepareV8SaveImport(exportV8Save(state,NOW),NOW)
   assert.ok(imported.ok)
   assert.deepEqual(imported.state,state)
   const forged=JSON.parse(exportV8Save(state,NOW))
-  forged.state.ascension.progress.transcendentV1.levels.empire=999
+  forged.state.ascension.progress.transcendentV1.levels.empire=99
   assert.equal(prepareV8SaveImport(JSON.stringify(forged),NOW).ok,false)
   const bought=JSON.parse(exportV8Save(state,NOW))
   bought.state.ascension.progress.transcendentV1.levels['starting-capital']=1
@@ -97,7 +97,7 @@ test('Extreme PP rank ledger, 1e30 exact balances and exports do not round or mi
   const proposed=v8BuyTranscendent(ready,'empire',0)
   assert.ok(proposed)
   assert.equal(BigInt(proposed.ascension.progress.availablePoints),
-    BigInt(ready.ascension.progress.availablePoints)-1000n)
+    BigInt(ready.ascension.progress.availablePoints)-5n)
   assert.equal(validateExactV8State(proposed,decimals).valid,false)
 })
 test('Enterprise income adds +300% to gross base, progressive tax accrued once',()=>{
@@ -106,7 +106,7 @@ test('Enterprise income adds +300% to gross base, progressive tax accrued once',
   const own={...rich,enterprises:{...rich.enterprises,owned:{
     kiosque:{level:50,investedCents:'10000000000'},
   }}}
-  const boosted=withRanks(own,{empire:1000})
+  const boosted=withRanks(own,{empire:100})
   assert.equal(transcendentEconomicBps(boosted.ascension.progress,'empire'),30_000)
   const one=v8AccrueEnterpriseUntil(own,NOW+3600_000)
   const four=v8AccrueEnterpriseUntil(boosted,NOW+3600_000)
@@ -128,7 +128,7 @@ test('Trading only amplifies realized net gains, never invested principal or los
   const old=base.trading.quotes.nvideo??createInitialQuotes(NOW).nvideo!
   const strong={...base,trading:{...base.trading,quotes:{...base.trading.quotes,
     nvideo:{...old,price:old.price*2}}}}
-  const boost=withRanks(strong,{trading:1000})
+  const boost=withRanks(strong,{trading:100})
   const normal=v8SellTrade(strong,'nvideo','10')
   const advanced=v8SellTrade(boost,'nvideo','10')
   assert.ok(normal.ok&&advanced.ok)
@@ -141,7 +141,7 @@ test('Trading only amplifies realized net gains, never invested principal or los
   const weak={...base,trading:{...base.trading,quotes:{...base.trading.quotes,
     nvideo:{...old,price:old.price/2}}}}
   const bad=v8SellTrade(weak,'nvideo','10')
-  const buffBad=v8SellTrade(withRanks(weak,{trading:1000}),'nvideo','10')
+  const buffBad=v8SellTrade(withRanks(weak,{trading:100}),'nvideo','10')
   assert.ok(bad.ok&&buffBad.ok)
   assert.ok(bad.realizedNetProfitCents<0n)
   assert.equal(buffBad.realizedNetProfitCents,bad.realizedNetProfitCents)
@@ -153,8 +153,8 @@ test('XP and Fame branches boost only their own newly created rewards; not cash 
   const ready=cycle()
   const amount=10n**13n
   const baseline=v8CreditIncome(ready,'clicks',amount)
-  const rankXP=v8CreditIncome(withRanks(ready,{xp:1000}),'clicks',amount)
-  const rankFame=v8CreditIncome(withRanks(ready,{fame:1000}),'clicks',amount)
+  const rankXP=v8CreditIncome(withRanks(ready,{xp:100}),'clicks',amount)
+  const rankFame=v8CreditIncome(withRanks(ready,{fame:100}),'clicks',amount)
   assert.equal(rankXP.game.balance,baseline.game.balance)
   assert.equal(rankFame.game.balance,baseline.game.balance)
   assert.equal(BigInt(rankXP.prestige.experienceCents),BigInt(baseline.prestige.experienceCents)*3n)
@@ -170,7 +170,7 @@ test('Rentier increases dividends and rewards in token units only, without creat
   const dividend={...ready,trading:{...ready.trading,positions:{
     ...ready.trading.positions,nvideo:{quantity:pos.toString(),costBasis:'0'},
   },quotes:{...ready.trading.quotes,nvideo:{...quote,dividendYield:0.1}}}}
-  const rich=withRanks(dividend,{rentier:1000})
+  const rich=withRanks(dividend,{rentier:100})
   const basicIncome=v8AdvanceMarketSecond(dividend)
   const extraIncome=v8AdvanceMarketSecond(rich)
   const earned0=BigInt(basicIncome.stats.earnedBySource.dividends)
@@ -190,7 +190,7 @@ test('Rentier increases dividends and rewards in token units only, without creat
   }},trading:{...ready.trading,positions:{ethereum:{quantity:units.toString(),costBasis:'0'}},
     staking:{lastAccruedAt:NOW,positions:{ethereum:entry}}}}
   const rewarded=v8SettleStaking(stakingState,NOW+3_600_000)
-  const boosted=v8SettleStaking(withRanks(stakingState,{rentier:1000}),NOW+3_600_000)
+  const boosted=v8SettleStaking(withRanks(stakingState,{rentier:100}),NOW+3_600_000)
   const standard=BigInt(rewarded.trading.staking.positions.ethereum!.lifetimeRewards)
   const deluxe=BigInt(boosted.trading.staking.positions.ethereum!.lifetimeRewards)
   assert.ok(standard>0n)
@@ -199,12 +199,12 @@ test('Rentier increases dividends and rewards in token units only, without creat
   assert.equal(boosted.stats.earnedBySource.crypto,rewarded.stats.earnedBySource.crypto)
   assert.ok(BigInt(boosted.trading.positions.ethereum!.quantity)>BigInt(rewarded.trading.positions.ethereum!.quantity))
 })
-test('Heritage V4 PP receipts freeze cycle ranks and bonus; earlier V2 receipts untouched',()=>{
+test('Heritage V5 PP receipts freeze cycle ranks and bonus; earlier V2 receipts untouched',()=>{
   let state=cycle()
   const historical=[...state.ascension.progress.history]
   assert.equal(historical.length,3)
-  assert.ok(historical.every(row=>row.formulaVersion===4))
-  const invested=withRanks(state,{heritage:1000})
+  assert.ok(historical.every(row=>row.formulaVersion===5))
+  const invested=withRanks(state,{heritage:100})
   const fresh=v8CreditIncome(invested,'clicks',10n**40n)
   const worth=v8PrestigeRewardPreview(fresh,10n**40n,150)
   assert.ok(worth.earned>worth.base)
@@ -213,8 +213,8 @@ test('Heritage V4 PP receipts freeze cycle ranks and bonus; earlier V2 receipts 
   assert.equal(done.earnedPoints,done.state.ascension.progress.history.at(-1)?.earnedPoints &&
     BigInt(done.state.ascension.progress.history.at(-1)!.earnedPoints))
   const receipt=done.state.ascension.progress.history.at(-1)!
-  assert.equal(receipt.formulaVersion,4)
-  assert.equal(receipt.heritageLevelAtCycle,1000)
+  assert.equal(receipt.formulaVersion,5)
+  assert.equal(receipt.heritageLevelAtCycle,100)
   assert.equal(receipt.museumCompleteAtCycle,false)
   assert.equal(receipt.bonusBps,20_000)
   assert.equal(BigInt(receipt.earnedPoints),BigInt(receipt.basePoints!)*2n)
@@ -225,7 +225,7 @@ test('Heritage V4 PP receipts freeze cycle ranks and bonus; earlier V2 receipts 
   assert.ok(restored.ok)
   assert.deepEqual(restored.state,done.state)
   const fake=JSON.parse(exported)
-  fake.state.ascension.progress.history.at(-1).heritageLevelAtCycle=999
+  fake.state.ascension.progress.history.at(-1).heritageLevelAtCycle=99
   assert.equal(prepareV8SaveImport(JSON.stringify(fake),NOW).ok,false)
   const fake2=JSON.parse(exported)
   fake2.state.ascension.progress.history.at(-1).basePoints='0'
@@ -238,6 +238,6 @@ test('Heritage V4 PP receipts freeze cycle ranks and bonus; earlier V2 receipts 
   assert.equal(prepareV8SaveImport(JSON.stringify(fake4),NOW).ok,false)
   const another=v8PerformPrestige(v8CreditIncome(done.state,'clicks',10n**40n),NOW)
   assert.ok(another.ok)
-  assert.equal(another.state.ascension.progress.history.at(-1)?.heritageLevelAtCycle,1000)
+  assert.equal(another.state.ascension.progress.history.at(-1)?.heritageLevelAtCycle,100)
   assert.equal(validateExactV8State(another.state,decimals).valid,true)
 })

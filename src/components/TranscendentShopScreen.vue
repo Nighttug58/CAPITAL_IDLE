@@ -92,27 +92,27 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
       </button>
       <div><span class="ascension-eyebrow">EMPIRE PERMANENT · PRESTIGE 3</span>
         <h1>Prestige Transcendant</h1>
-        <p>10 branches de 1 000 niveaux · le même portefeuille PP.</p>
+        <p>10 branches de 100 niveaux · le même portefeuille PP.</p>
       </div>
     </header>
     <div class="ascension-summary" aria-label="Solde et dépenses Prestige Transcendant">
       <div><span>POINTS DISPONIBLES</span><strong>{{ fmt(points) }} <small>PP</small></strong></div>
       <div><span>CYCLES PRESTIGE</span><strong>{{ fmt(progress.prestigeCountExact??progress.prestigeCount) }}</strong></div>
-      <div><span>AMÉLIORATIONS</span><strong>{{ fmt(totalRanks) }}/10 000</strong></div>
+      <div><span>AMÉLIORATIONS</span><strong>{{ fmt(totalRanks) }}/1 000</strong></div>
       <div><span>PP DÉPENSÉS</span><strong>{{ fmt(transcendentSpentPP) }}</strong></div>
     </div>
     <section class="transcendent-ultimate" :class="{'is-unlocked':ultimateUnlocked}"
       aria-label="Prestige Transcendant ultime" data-ultimate-reserve>
-      <strong>Prestige Transcendant ultime · {{ grouped(mainTotal) }}/7 000</strong>
+      <strong>Prestige Transcendant ultime · {{ grouped(mainTotal) }}/700</strong>
       <span v-if="ultimateUnlocked">DÉBLOQUÉ — Réserve {{ fmt(points) }} PP · facteur ×{{ reserveFactor }}</span>
-      <span v-else>Débloqué gratuitement à 7 × 1 000 niveaux sur les sept branches principales.</span>
+      <span v-else>Débloqué gratuitement à 7 × 100 niveaux sur les sept branches principales.</span>
       <small>Le facteur de réserve est inférieur à ×1,5 et ne renforce que les cinq bonus économiques. Aucun effet sur PP, capital initial ou news.</small>
     </section>
     <div class="ascension-scroll">
       <section class="transcendent-main" aria-label="Sept branches principales">
         <div class="ascension-shop-heading">
           <div><span class="ascension-eyebrow">BOUTIQUE TRANSCENDANTE</span><h2>Sept branches principales</h2></div>
-          <span>1 000 niveaux / branche</span>
+          <span>100 niveaux / branche</span>
         </div>
         <p class="transcendent-small">Bonus permanents, non rétroactifs. Ultime : les sept branches principales au maximum.</p>
         <article v-for="row in main" :key="row.id" class="ascension-upgrade"
@@ -128,7 +128,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
           <div class="ascension-upgrade-effect"><span>{{ row.effect }}</span>
             <span v-if="row.id==='heritage'">PP prochain Prestige : ×{{ (heritageBps/10_000).toFixed(3) }}</span>
             <span v-else-if="row.id==='starting-capital'">Après Prestige : {{ formatCompactUnits(startingCapitalPreview) }}</span>
-            <span v-else>Bonus acquis : +{{ (row.rank*(row.id==='empire'?.3:.2)).toFixed(1) }} %</span>
+            <span v-else>Bonus acquis : +{{ (row.rank*(row.id==='empire'?3:2)).toFixed(1) }} %</span>
           </div>
           <div class="ascension-upgrade-footer">
             <span class="ascension-upgrade-cost">
@@ -147,7 +147,7 @@ onUnmounted(()=>window.removeEventListener('keydown',keydown))
       <section class="transcendent-news" aria-label="Trois branches News avancées">
         <div class="ascension-shop-heading">
           <div><span class="ascension-eyebrow">NEWS TRANSCENDANTES</span><h2>Trois branches médiatiques</h2></div>
-          <span>1 000 niveaux / branche</span>
+          <span>100 niveaux / branche</span>
         </div>
         <div class="ascension-news-effective" aria-label="Effets actuels sur les news">
           <span>Puissance <strong>×{{ newsModifiers.impactMultiplier.toFixed(2) }}</strong></span>

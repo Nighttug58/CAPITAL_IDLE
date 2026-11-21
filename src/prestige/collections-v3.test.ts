@@ -110,7 +110,7 @@ test('100 real purchases activate museum PP in immutable V3 receipt; old receipt
   assert.ok(done.ok)
   if (!done.ok) return
   const receipt = done.state.ascension.progress.history.at(-1)!
-  assert.equal(receipt.formulaVersion, 4)
+  assert.equal(receipt.formulaVersion, 5)
   assert.equal(receipt.museumCompleteAtCycle, true)
   assert.equal(receipt.bonusBps, 12_500)
   assert.equal(BigInt(receipt.earnedPoints), BigInt(receipt.basePoints!) * 12_500n / 10_000n)

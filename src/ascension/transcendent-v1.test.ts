@@ -39,30 +39,30 @@ test('Transcendent schema: 10 canonical IDs, six core and 3 News branches enable
   assert.equal(TRANSCENDENT_IDS.length,10)
   assert.equal(new Set(TRANSCENDENT_IDS).size,10)
   assert.equal(TRANSCENDENT_NEWS_IDS.length,3)
-  assert.equal(TRANSCENDENT_MAX_LEVEL,1000)
+  assert.equal(TRANSCENDENT_MAX_LEVEL,100)
   const zero=zeroTranscendentV1()
-  assert.equal(zero.version,1)
+  assert.equal(zero.version,2)
   assert.equal(Object.keys(zero.levels).length,10)
   assert.equal(transcendentSpent(zero),0n)
-  assert.equal(transcendentNextCost(0),1000n)
-  assert.equal(transcendentNextCost(9),4060n)
-  assert.equal(transcendentNextCost(99),123760n)
-  assert.equal(transcendentNextCost(499),2615760n)
-  assert.equal(transcendentNextCost(999),10230760n)
-  assert.equal(transcendentNextCost(1000),null)
+  assert.equal(transcendentNextCost(0),5n)
+  assert.equal(transcendentNextCost(9),14n)
+  assert.equal(transcendentNextCost(99),202n)
+  assert.equal(transcendentNextCost(50),80n)
+  assert.equal(transcendentNextCost(100),null)
+  assert.equal(transcendentSpentThrough(101),null)
   assert.equal(transcendentNextCost(-1),null)
-  assert.equal(transcendentSpentThrough(1000),3454210000n)
-  assert.equal(transcendentSpentThrough(1000)!*10n,34542100000n)
+  assert.equal(transcendentSpentThrough(100),8693n)
+  assert.equal(transcendentSpentThrough(100)!*10n,86930n)
   let sum=0n
-  for(let n=0;n<1000;n++){
+  for(let n=0;n<100;n++){
     sum+=transcendentNextCost(n)!
     assert.equal(sum,transcendentSpentThrough(n+1))
   }
-  assert.equal(sum,3454210000n)
-  assert.equal(transcendentSpent({...zero,version:2}),null)
-  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,empire:1}}),1000n)
-  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'starting-capital':1}}),1000n)
-  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':1001}}),null)
+  assert.equal(sum,8693n)
+  assert.equal(transcendentSpent({...zero,version:3}),null)
+  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,empire:1}}),5n)
+  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'starting-capital':1}}),5n)
+  assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':101}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':-1}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,'news-power':1.2}}),null)
   assert.equal(transcendentSpent({...zero,levels:{...zero.levels,unknown:0}}),null)
@@ -74,13 +74,13 @@ test('Advanced News purchases are atomic, rank-checked, preserve classic purchas
   assert.equal(transcendentSpent(state.ascension.progress.transcendentV1),0n)
   assert.equal(v8BuyTranscendentNews(state,'news-power',1),null)
   assert.equal(v8BuyTranscendentNews(state,'empire' as 'news-power',0),null)
-  assert.equal(v8BuyTranscendentNews(state,'news-power',1000),null)
+  assert.equal(v8BuyTranscendentNews(state,'news-power',100),null)
   const before=BigInt(state.ascension.progress.availablePoints)
   const previous=state
   state=v8BuyTranscendentNews(state,'news-power',0)!
   assert.ok(state)
   assert.equal(state.ascension.progress.transcendentV1?.levels['news-power'],1)
-  assert.equal(BigInt(state.ascension.progress.availablePoints),before-1000n)
+  assert.equal(BigInt(state.ascension.progress.availablePoints),before-5n)
   assert.equal(state.ascension.progress.lifetimePoints,previous.ascension.progress.lifetimePoints)
   assert.equal(state.game,previous.game)
   assert.equal(v8BuyTranscendentNews(state,'news-power',0),null)
@@ -163,8 +163,8 @@ test('V8 engine: advanced force, intensity and duration affect positive and nega
   const advanced={...state,ascension:{...state.ascension,progress:{
     ...state.ascension.progress,upgradeLevels:{
       ...state.ascension.progress.upgradeLevels,'news-duration':4,'news-impact':4,'market-frenzy':1,
-    },transcendentV1:{version:1 as const,levels:{
-      ...levels,'news-power':1000,'news-intensity':1000,'news-duration':1000,
+    },transcendentV1:{version:2 as const,levels:{
+      ...levels,'news-power':100,'news-intensity':100,'news-duration':100,
     }},
     }},}
   const effective=v8MarketNewsEffects(advanced,NOW)

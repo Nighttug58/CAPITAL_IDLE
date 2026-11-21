@@ -299,33 +299,38 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     if(hasRank){
       const rank=item.startingCapitalLevelAtCycle
       const granted=amount(item.startingCapitalGrantedCents)
-      if((item.formulaVersion!==3 && item.formulaVersion!==4) || !safe(rank)||rank>TRANSCENDENT_MAX_LEVEL||
-         granted===null||startingCapitalCents(rank)!==granted||
+      if(![3,4,5].includes(item.formulaVersion as number) || !safe(rank)||
+          rank>(item.formulaVersion===5?TRANSCENDENT_MAX_LEVEL:1000)||
+         granted===null||startingCapitalCents(rank,item.formulaVersion!==5)!==granted||
          !object(progress.transcendentV1)||!object(progress.transcendentV1.levels)||
          !safe(progress.transcendentV1.levels['starting-capital'])||
-         rank>progress.transcendentV1.levels['starting-capital'])
+         (progress.transcendentV1.version===2 && item.formulaVersion!==5
+            ? Math.ceil(rank/10):rank)>progress.transcendentV1.levels['starting-capital']
         return fail('Invalid starting capital receipt')
       historicalGrant=granted
     }
     if(index===progress.history.length-1 && historicalGrant!==grantCents)
       return fail('Starting capital witness disagrees with last cycle')
-    if(item.formulaVersion===3 || item.formulaVersion===4){
+    if(item.formulaVersion===3 || item.formulaVersion===4 || item.formulaVersion===5){
       const base=amount(item.basePoints)
       const heritage=item.heritageLevelAtCycle
       const museum=item.museumCompleteAtCycle
       const bonusBps=item.bonusBps
       if(progress.shopVersion!==2 || !safe(item.completedAtRealMs)||
         !safe(item.levelAtCompletion)||item.levelAtCompletion<150 ||
-        base===null || base===0n || base!==(item.formulaVersion===4 ? prestigePointsV4(worth,item.levelAtCompletion) : prestigePoints(worth,item.levelAtCompletion))||
-        !safe(heritage)||heritage>TRANSCENDENT_MAX_LEVEL ||
+        base===null || base===0n || base!==(item.formulaVersion===4 || item.formulaVersion===5
+           ? prestigePointsV4(worth,item.levelAtCompletion) : prestigePoints(worth,item.levelAtCompletion))||
+        !safe(heritage)||heritage>(item.formulaVersion===5?TRANSCENDENT_MAX_LEVEL:1000) ||
+         (item.formulaVersion===5 && progress.transcendentV1?.version===1) ||
         (progress.transcendentV1!==undefined &&
-          heritage>(progress.transcendentV1 as {levels:{heritage:number}}).levels.heritage) ||
+          (progress.transcendentV1.version===2 && item.formulaVersion!==5
+             ? Math.ceil(heritage/10) : heritage)>(progress.transcendentV1 as {levels:{heritage:number}}).levels.heritage) ||
         (typeof museum!=='boolean') ||
         (museum && !collectionV3Snapshot(p.ownedCollectionIds as string[]).museumComplete) ||
         !safe(bonusBps) ||
-        bonusBps!==10_000+heritage*10+(museum?2_500:0) ||
+        bonusBps!==10_000+heritage*(item.formulaVersion===5?100:10)+(museum?2_500:0) ||
         total!==base*BigInt(bonusBps)/10_000n)
-        return fail('Invalid Prestige V3/V4 reward')
+        return fail('Invalid Prestige V3/V4/V5 reward')
     } else if(item.formulaVersion===2){
       if(progress.shopVersion!==2 || !safe(item.completedAtRealMs) || !safe(item.levelAtCompletion) || total===0n || prestigePoints(worth,item.levelAtCompletion)!==total)return fail('Invalid Prestige V2 reward')
     } else if(item.formulaVersion!==undefined || !safe(item.levelAtCompletion)||item.levelAtCompletion<100||
