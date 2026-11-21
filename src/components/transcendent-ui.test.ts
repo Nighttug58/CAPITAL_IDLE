@@ -67,7 +67,7 @@ describe('Passe 4 — page dédiée Prestige Transcendant',()=>{
     const page=await toTranscendent(wrapper)
     const offer=page.find('[data-transcendent="empire"]')
     expect(offer.find('.ascension-upgrade-level').text()).toContain('0/100')
-    expect(offer.find('.ascension-upgrade-cost').text()).toContain('1')
+    expect(offer.find('.ascension-upgrade-cost').text()).toContain('5 PP')
     expect(offer.find('.ascension-buy').attributes('disabled')).toBeUndefined()
     const beforePP=BigInt(exact.ascension.progress.availablePoints)
     const watch=vi.spyOn(Storage.prototype,'setItem')
