@@ -17,6 +17,7 @@ import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
 import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {getAsset} from './trading/catalog.ts'
+import { setNewsAutoSellRule, type NewsAutoSellTrigger } from './trading/auto-sell-v8.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
@@ -541,6 +542,11 @@ function executeExactTrade(side: TradeSide, assetId: string, quantity: string): 
   if(!replaceWholeSaveExact(result.state))return{ok:false,reason:'storage-error'}
   return result
 }
+function changeNewsAutoSellRule(assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean):boolean {
+  if(loadBlocked.value)return false
+  const next=setNewsAutoSellRule(exact.value,assetId,trigger,enabled)
+  return !!next && (next===exact.value || replaceWholeSaveExact(next))
+}
 function executeExactStaking(action:'deposit'|'withdraw',id:string,quantity:string):V8StakingResult{
   if(loadBlocked.value)return{ok:false,reason:'storage-error'}
   settleEconomyNow()
@@ -952,7 +958,8 @@ onUnmounted(() => {
       :purchase-branch="executeTranscendentPurchase" :purchase-branch-max="executeTranscendentMaxPurchase" :state="capital" @back="returnToPrestige" />
     <TradingScreen :purchase-news="purchaseNews" v-show="showMainPage('trading')" :style="mainPageStyle('trading')" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
-      :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking" />
+      :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking"
+      :set-auto-sell-rule="changeNewsAutoSellRule" />
     <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
     <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase" />
     <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"

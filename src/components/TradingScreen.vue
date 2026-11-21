@@ -6,6 +6,7 @@ import { getAsset } from '../trading/catalog.ts'
 import type { TradeResult, TradeSide } from '../trading/trades.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import type { V8TradeResult } from '../exact-runtime-v8.ts'
+import type { NewsAutoSellTrigger } from '../trading/auto-sell-v8.ts'
 import type { V8StakingResult } from '../exact-staking-v8.ts'
 import type { StakingResult } from '../trading/staking.ts'
 import { formatCash } from '../trading/presentation.ts'
@@ -26,6 +27,7 @@ const props = defineProps<{
   purchaseNews?: (id:string|null,count:number,cost:bigint)=>boolean
   exactState?: V8CapitalState
   executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
+  setAutoSellRule?: (assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean)=>boolean
   executeExactStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: string) => V8StakingResult
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
   executeStaking?: (action: 'deposit' | 'withdraw', assetId: string, quantity: number) => StakingResult
@@ -217,7 +219,8 @@ onUnmounted(() => {
     <div v-if="hasDialog" class="trading-modal-backdrop" @click.self="closeDialog">
       <AssetDialog
         v-if="selectedAssetId" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
-        :execute-trade="executeTrade" :exact-state="exactState" :execute-exact-trade="executeExactTrade" @close="closeDialog" @open-news="openNews"
+        :execute-trade="executeTrade" :exact-state="exactState" :execute-exact-trade="executeExactTrade"
+        :set-auto-sell-rule="setAutoSellRule" @close="closeDialog" @open-news="openNews"
       />
       <div v-if="activeNews" :class="{'trading-modal-backdrop news-overlay': selectedAssetId}" class="news-layer" @click.self="closeDialog">
       <NewsDialog

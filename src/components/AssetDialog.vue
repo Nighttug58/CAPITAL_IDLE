@@ -14,11 +14,13 @@ import { v8BuyTrade, v8SellTrade, v8MaximumBuyUnits, type V8TradeResult } from '
 import { formatCompactUnits, formatDecimalUnits } from '../large-numbers.ts'
 import { exactTradeCost, quoteToExactFraction } from '../exact-trading.ts'
 import { liquidityQuote } from '../trading/liquidity-v8.ts'
+import type { NewsAutoSellTrigger } from '../trading/auto-sell-v8.ts'
 
 const props = defineProps<{
   state: CapitalState
   exactState?: V8CapitalState
   executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
+  setAutoSellRule?: (assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean)=>boolean
   assetId: string
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
 }>()
@@ -44,6 +46,12 @@ const balance = computed(() => props.state.game.balance)
 const activeSide = ref<TradeSide>('buy')
 const quantityText = ref('')
 const status = ref<{ message: string; success: boolean } | null>(null)
+const autoSellError=ref('')
+const autoSellPreferences=computed(()=>props.exactState?.trading.autoSellRules?.[props.assetId])
+function toggleAutoSell(trigger:NewsAutoSellTrigger){
+  const enabled=!autoSellPreferences.value?.[trigger]
+  autoSellError.value=props.setAutoSellRule?.(props.assetId,trigger,enabled)?'':'Réglage non enregistré : sauvegarde indisponible.'
+}
 const dialogRoot = ref<HTMLElement | null>(null)
 
 onMounted(() => dialogRoot.value?.focus())
@@ -230,6 +238,21 @@ function submit() {
       </div>
       <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}</div>
       <MarketChart :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
+      <section v-if="exactState && setAutoSellRule" class="asset-auto-sell" aria-label="Ventes automatiques sur news">
+        <div class="asset-auto-sell-heading"><strong>Ventes automatiques</strong><small>Pour {{ asset.symbol }} uniquement</small></div>
+        <button type="button" class="asset-auto-sell-toggle" :class="{ 'is-on': autoSellPreferences?.greenEnd }"
+          :aria-pressed="!!autoSellPreferences?.greenEnd" @click="toggleAutoSell('greenEnd')">
+          <span>Fin d’une news verte<small>Vendre les unités disponibles dès sa fin.</small></span>
+          <strong>{{ autoSellPreferences?.greenEnd ? 'ACTIVÉ' : 'DÉSACTIVÉ' }}</strong>
+        </button>
+        <button type="button" class="asset-auto-sell-toggle" :class="{ 'is-on': autoSellPreferences?.redStart }"
+          :aria-pressed="!!autoSellPreferences?.redStart" @click="toggleAutoSell('redStart')">
+          <span>Apparition d’une news rouge<small>Vendre dès qu’elle affecte cet actif.</small></span>
+          <strong>{{ autoSellPreferences?.redStart ? 'ACTIVÉ' : 'DÉSACTIVÉ' }}</strong>
+        </button>
+        <small class="asset-auto-sell-footnote">Fonctionne aussi hors ligne · Staking verrouillé exclu · Frais et taxes habituels</small>
+        <small v-if="autoSellError" class="order-error" role="alert">{{ autoSellError }}</small>
+      </section>
       <div class="asset-order">
         <div class="order-side">
           <button type="button" :class="{ 'is-buy': activeSide === 'buy' }" :aria-pressed="activeSide === 'buy'" @click="activeSide = 'buy'">Acheter</button>
@@ -306,4 +329,14 @@ function submit() {
   background: rgba(39,132,90,.16); font: inherit; font-size: 12px; font-weight: 700;
 }
 .trading-asset-modal .order-profit-quick:disabled { opacity: .45; cursor: not-allowed; }
+.trading-asset-modal .asset-auto-sell { margin: 10px 0; padding: 10px; border-radius: 10px; border: 1px solid rgba(150,170,203,.24); background: rgba(17,30,51,.42); display: grid; gap: 7px; }
+.trading-asset-modal .asset-auto-sell-heading { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
+.trading-asset-modal .asset-auto-sell-heading small { color: #a8b6ca; font-size: 10px; }
+.trading-asset-modal .asset-auto-sell-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; text-align: left; padding: 9px; border-radius: 8px; border: 1px solid rgba(146,164,190,.27); color: #e5edf8; background: rgba(255,255,255,.035); font: inherit; font-size: 11px; cursor: pointer; }
+.trading-asset-modal .asset-auto-sell-toggle span { display: grid; gap: 3px; font-weight: 650; }
+.trading-asset-modal .asset-auto-sell-toggle span small { color: #9caec7; font-size: 10px; font-weight: 400; }
+.trading-asset-modal .asset-auto-sell-toggle strong { flex: none; color: #b7bfd1; font-size: 10px; }
+.trading-asset-modal .asset-auto-sell-toggle.is-on { border-color: #228b65; background: rgba(34,139,101,.16); }
+.trading-asset-modal .asset-auto-sell-toggle.is-on strong { color: #85edb5; }
+.trading-asset-modal .asset-auto-sell-footnote { color: #9caec7; font-size: 10px; line-height: 1.4; }
 </style>

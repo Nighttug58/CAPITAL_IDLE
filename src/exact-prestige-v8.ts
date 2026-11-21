@@ -89,6 +89,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   const result:V8CapitalState={...fresh,
     game:{...fresh.game,balance:s(grant)},
     ...(state.newsPowers?{newsPowers:state.newsPowers}:{}),
+    trading:{...fresh.trading,...(state.trading.autoSellRules?{autoSellRules:state.trading.autoSellRules}:{})},
     prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
       experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
       fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),

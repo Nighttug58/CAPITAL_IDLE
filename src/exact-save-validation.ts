@@ -75,6 +75,13 @@ function validMarketEvent(value:unknown):boolean {
   return (value.resolution===undefined)===(value.resolutionAt===undefined)
 }
 function validTradingStateShape(t:Dict):boolean {
+  if(t.autoSellRules!==undefined){
+    if(!map(t.autoSellRules)||Object.keys(t.autoSellRules).length>allowedAssets.size)return false
+    for(const [id,rule] of Object.entries(t.autoSellRules)){
+      if(!allowedAssets.has(id)||!object(rule)||typeof rule.greenEnd!=='boolean'||
+        typeof rule.redStart!=='boolean')return false
+    }
+  }
   if(t.schemaVersion!==1||!safe(t.seed)||t.seed<1||t.seed>0xffffffff||
     !safe(t.lastTickAt)||!(t.nextNewsAt===null||safe(t.nextNewsAt))||
     !safe(t.dividendLastPaidAt)||t.dividendLastPaidAt<t.lastTickAt||

@@ -12,6 +12,7 @@ import type { TradingState } from './trading/types.ts'
 import { ASSETS } from './trading/catalog.ts'
 import { MARKET_SPEEDS, FRENZY_ACTIVE_MS } from './ascension/market-effects.ts'
 import { transcendentNewsModifiers } from './ascension/transcendent-v1.ts'
+import { applyNewsAutoSells } from './trading/auto-sell-v8.ts'
 
 const YEAR_SECONDS = 86_400n
 const PICO_CENTS = 1_000_000_000_000n
@@ -110,5 +111,5 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
       marketClock:{...clock,realAnchorMs:at,simulatedAtMs:nextSimulatedAt}}},
   }
   const credited=due>0n?v8CreditIncome(updated,'dividends',due):updated
-  return v8AdvanceFiscalEconomy(credited,at)
+  return applyNewsAutoSells(state,v8AdvanceFiscalEconomy(credited,at),at)
 }

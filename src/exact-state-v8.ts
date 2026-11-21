@@ -41,6 +41,8 @@ export interface V8StakingEntry extends Omit<StakingEntry,
   carryPicoUnits?: ExactAmount
 }
 export interface V8TradingState extends Omit<TradingState, 'positions'|'staking'|'realizedNetProfit'|'creditedTradingProfit'|'dividendPendingCents'> {
+  /** Per-asset user preferences; optional for pre-feature V8 saves. */
+  autoSellRules?: Record<string,{greenEnd:boolean;redStart:boolean}>
   positions: Record<string,V8Position>
   staking: Readonly<{lastAccruedAt:number; positions:Record<string,V8StakingEntry>}>
   realizedNetProfit: ExactAmount // signed cents
