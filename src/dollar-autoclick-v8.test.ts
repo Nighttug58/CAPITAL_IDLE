@@ -228,7 +228,13 @@ test('Offline launch receipt measures credited cash separately from latent tradi
   const passive=v8SettlePassiveIncome(before,at)
   const after=v8CreditIncome(passive,'dividends',1234n)
   const id='nvideo'
-  const quote=after.trading.quotes[id]!
+  // Trades no longer create synthetic market quotes; fall back to the catalog
+  // until the first market tick publishes the asset's actual price.
+  const asset=getAsset(id)!
+  const quote=after.trading.quotes[id] ?? {
+    price:asset.referencePrice,momentum:0,
+    dividendYield:asset.initialDividendYield,updatedAt:after.trading.lastTickAt,
+  }
   const priced={...after,trading:{...after.trading,quotes:{...after.trading.quotes,[id]:{...quote,price:quote.price*2}}}}
   const report=makeOfflineReport(before,priced,at)
   assert.equal(offlineReportDuration(before,at),60_000)
