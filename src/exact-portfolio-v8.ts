@@ -4,6 +4,7 @@ import { getExactAmount as v } from './exact-state-v8.ts'
 import { getAsset } from './trading/catalog.ts'
 import { liquidityQuote } from './trading/liquidity-v8.ts'
 import { exactTradeCost, quoteToExactFraction } from './exact-trading.ts'
+import {v4DiscountedTradeCost} from './prestige/fame-v4-prestige.ts'
 import { formatCompactUnits, formatDecimalUnits } from './large-numbers.ts'
 import { v8DividendPicoCents } from './exact-market-v8.ts'
 
@@ -38,7 +39,7 @@ export function exactPortfolioSummary(state:V8CapitalState):{
     const fraction=execution&&quoteToExactFraction(execution.executionPrice)
     if(!fraction)continue
     const gross=exactTradeCost(fraction,units,asset.quantityDecimals,0n,'sell')
-    const net=exactTradeCost(fraction,units,asset.quantityDecimals,feeBps(asset.kind),'sell')
+    const net=v4DiscountedTradeCost(state,fraction,units,asset.quantityDecimals,feeBps(asset.kind),'sell')
     if(!gross || !net)continue
     marketValue+=gross.grossCents
     const profit=net.proceedsCents-v(holding.costBasis)
