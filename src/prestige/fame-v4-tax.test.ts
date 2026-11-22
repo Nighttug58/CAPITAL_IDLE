@@ -152,3 +152,24 @@ test('all outstanding installments and debt are paid before Prestige, without di
  assert.equal(result.state.prestige.fameV4?.levels['fame-v4-26'],5)
  assert.ok(check(result.state).valid,check(result.state).reason)
 })
+
+test('very large fiscal debt and six installments retain exact cents beyond Number.MAX_SAFE_INTEGER',()=>{
+ const cash=10n**90n
+ const current=rich(24,26)
+ let state:V8CapitalState={...current,game:{...current.game,
+  balance:cash.toString(),lifetimeEarned:cash.toString()}}
+ state=owing(state,10n**60n)
+ const due=v(state.fiscal.taxesDueCents),fee=(due+50n)/100n
+ assert.ok(due>BigInt(Number.MAX_SAFE_INTEGER))
+ assert.equal(v4ReservedTaxCents(state),due)
+ assert.equal(v4SpendableCents(state),cash-due)
+ const installment=v4StartTaxPlan(state,T)
+ assert.ok(installment)
+ assert.equal(v(installment.fiscal.taxesPaidCents),due/6n)
+ assert.equal(v(installment.game.balance),cash-fee-due/6n)
+ const completed=v8AdvanceFiscalEconomy(installment,T+FISCAL_PERIOD_MS)
+ assert.equal(completed.fiscal.taxesDueCents,'0')
+ assert.equal(v(completed.fiscal.taxesPaidCents),due)
+ assert.equal(v(completed.game.balance),cash-fee-due)
+ assert.equal(check(completed).valid,true,check(completed).reason)
+})
