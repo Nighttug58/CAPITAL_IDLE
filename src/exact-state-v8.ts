@@ -3,6 +3,7 @@ import { migrateV8ToFameV4 } from './prestige/fame-v4-ledger.ts'
 import type { FameV4ShopState } from './prestige/fame-v4-catalog.ts'
 import type { FameV4EnterpriseState } from './economy/fame-v4-enterprises.ts'
 import type { FameV4CollectionState } from './prestige/collections-v4.ts'
+import type { FameV4ClickState } from './prestige/fame-v4-clicks.ts'
 import type { FameV4TradingState } from './trading/fame-v4-trading.ts'
 import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
@@ -149,6 +150,8 @@ export interface V8MarketOrder extends Omit<AscensionMarketOrder,'quantity'> {
 export interface V8AscensionRun extends Omit<AscensionRunState,'automation'|'marketOrders'> {
   /** Auto Click purchased in dollars for this cycle (missing in older V8 saves = 0). */
   autoClickLevel?: number
+  /** Optional cycle-specific Fame V4 click mechanics, absent in older V8. */
+  fameV4Clicks?: FameV4ClickState
   /** Absent in pre-pass-5 V8 means exactly zero. */
   startingCapitalGrantedCents?: ExactAmount
   automation?: Omit<AscensionRunState['automation'],'maxOrderCents'|'cashReserveCents'|'enterpriseBudgetCents'> & {

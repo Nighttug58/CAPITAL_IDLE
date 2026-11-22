@@ -10,7 +10,7 @@ import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
 import {formatCompactUnits,formatFameMicros,decodeExactInteger} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
-import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
+import {v8ManualClick,v8ClaimLegendaryBanknote,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
  v8PayTaxes,v8BuyFameUpgrade,v8BuyFameUpgradeMax,v8BuyCollection,v8BuyCollectionsMax,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
  quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
@@ -24,6 +24,9 @@ import {v4ChooseSynergy,v4ChooseEnterprise,v4StartContract,v4StartProject, type 
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {v8BuyFameV4Upgrade,v8BuyFameV4UpgradeMax} from './prestige/fame-v4-ledger.ts'
+import {fameV4Clicks,legendaryReadyAt,LEGENDARY_COUNTS,v4ActivateOvercharge,
+  v4InitializeLegendary} from './prestige/fame-v4-clicks.ts'
+import {fameV4Level} from './trading/fame-v4-trading.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
@@ -119,6 +122,27 @@ const clickBoosts = computed(() => {
   return { ...legacy, collectionBps, totalBps: v8BonusBasisPoints(exact.value, 'click') }
 })
 const tapAnimationId = ref(0)
+const homeClockAt=ref(Date.now())
+let homeClockTimer:ReturnType<typeof setInterval>|null=null
+const clickV4=computed(()=>fameV4Clicks(exact.value))
+const clickV4Rank=(n:number)=>fameV4Level(exact.value,n)
+const clickV4Unlocked=computed(()=>[19,20,21,22,23].some(n=>clickV4Rank(n)>0))
+const legendaryDue=computed(()=>legendaryReadyAt(exact.value))
+const legendaryReady=computed(()=>legendaryDue.value!==null&&homeClockAt.value>=legendaryDue.value)
+const legendaryCount=computed(()=>LEGENDARY_COUNTS[clickV4Rank(20)]??0)
+const activePlayNow=computed(()=>exact.value.stats.activePlayMs+
+  (activeSince===null?0:Math.max(0,homeClockAt.value-activeSince)))
+const chargedReady=computed(()=>clickV4Rank(22)>0&&
+  clickV4.value.lastManualActiveMs!==null&&
+  activePlayNow.value-clickV4.value.lastManualActiveMs>=15_000)
+const frenzyActive=computed(()=>clickV4Rank(19)>0&&clickV4.value.frenzyUntil>homeClockAt.value)
+const surchargeEnds=computed(()=>clickV4.value.overcharge?.endsAt??0)
+const surchargeReadyAt=computed(()=>clickV4.value.overcharge?.readyAt??0)
+const surchargeActive=computed(()=>clickV4Rank(21)>0&&homeClockAt.value<surchargeEnds.value)
+const surchargeAvailable=computed(()=>clickV4Rank(21)>0&&autoClickLevel.value>0&&
+  homeClockAt.value>=surchargeReadyAt.value)
+function remainingClickSeconds(until:number){return Math.max(0,Math.ceil((until-homeClockAt.value)/1000))}
+const clickV4Notice=ref('')
 let nextGainId = 0
 let marketRuntime: ReturnType<typeof createV8MarketRuntime> | null = null
 let activeSince: number | null = null
@@ -445,7 +469,9 @@ function executeFameV4Purchase(id:string,expectedLevel:number):boolean {
   settleEconomyNow()
   const purchased=v8BuyFameV4Upgrade(exact.value,id,expectedLevel)
   const next=purchased&&id==='fame-v4-17'
-    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):purchased
+    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):
+    purchased&&id==='fame-v4-20'?
+      v4InitializeLegendary(purchased,purchased.enterprises.lastAccruedAt):purchased
   return !!next&&replaceWholeSaveExact(next)
 }
 function executeFameV4MaxPurchase(id:string,expectedLevel:number):{levels:number;costFame:bigint}|null {
@@ -454,7 +480,9 @@ function executeFameV4MaxPurchase(id:string,expectedLevel:number):{levels:number
   const before=v(exact.value.prestige.fameMicros)
   const purchased=v8BuyFameV4UpgradeMax(exact.value,id,expectedLevel)
   const next=purchased&&id==='fame-v4-17'
-    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):purchased
+    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):
+    purchased&&id==='fame-v4-20'?
+      v4InitializeLegendary(purchased,purchased.enterprises.lastAccruedAt):purchased
   if(!next||!replaceWholeSaveExact(next))return null
   const itemId=id as keyof NonNullable<V8CapitalState['prestige']['fameV4']>['levels']
   return {levels:next.prestige.fameV4!.levels[itemId]-expectedLevel,
@@ -502,11 +530,20 @@ function executeCollectionMaxPurchase(): {ok:true;count:number;costCents:bigint;
 }
 
 function click(event: MouseEvent) {
-  if (loadBlocked.value) return
+  if(loadBlocked.value||document.hidden)return
+  settleEconomyNow()
+  const clockAt=Date.now()
+  const at=exact.value.enterprises.lastAccruedAt
+  homeClockAt.value=clockAt
+  const extraActive=activeSince===null?0:Math.max(0,clockAt-activeSince)
+  const activeMs=exact.value.stats.activePlayMs+extraActive
+  if(!Number.isSafeInteger(activeMs))return
   const previous=v(exact.value.game.balance)
-  const updated=v8Click(exact.value)
+  const updated=v8ManualClick(exact.value,at,activeMs)
+  if(!updated)return
   const gainedCents=v(updated.game.balance)-previous
-  if (gainedCents<=0n) return
+  activeSince=clockAt
+  if(gainedCents<=0n)return
   syncExactState(updated)
   persist()
   const gained=approximateMoneyCents(gainedCents)
@@ -522,6 +559,25 @@ function click(event: MouseEvent) {
   tapAnimationId.value++
 }
 
+function claimLegendaryBanknote(){
+  if(loadBlocked.value||document.hidden)return
+  settleEconomyNow()
+  const at=exact.value.enterprises.lastAccruedAt
+  const result=v8ClaimLegendaryBanknote(exact.value,at)
+  if(!result||!replaceWholeSaveExact(result.state))return
+  homeClockAt.value=at
+  clickV4Notice.value='Billet légendaire : '+result.count+' clics normaux · +'+
+    formatCompactUnits(result.gainCents,2,'$')
+}
+function activateClickSurcharge(){
+  if(loadBlocked.value||document.hidden)return
+  settleEconomyNow()
+  const at=exact.value.enterprises.lastAccruedAt
+  const next=v4ActivateOvercharge(exact.value,at)
+  if(!next||!replaceWholeSaveExact(next))return
+  homeClockAt.value=at
+  clickV4Notice.value='Surcharge automatique : +50 % pendant '+(4*clickV4Rank(21))+' secondes.'
+}
 function removeFloatingGain(id: number) {
   floatingGains.value = floatingGains.value.filter((gain) => gain.id !== id)
 }
@@ -862,6 +918,8 @@ async function toggleFullscreen() {
 
 onMounted(() => {
   activeSince = document.hidden ? null : Date.now()
+  homeClockAt.value=Date.now()
+  homeClockTimer=setInterval(()=>{if(!document.hidden&&page.value==='home')homeClockAt.value=Date.now()},500)
   if(!loadBlocked.value){
     if(boot.ok&&boot.origin!=='new')prepareOfflineReport(Date.now())
     startMarketRuntime()
@@ -879,6 +937,7 @@ watch(page, (next) => {
 }, { flush: 'sync' })
 
 onUnmounted(() => {
+  if(homeClockTimer!==null){clearInterval(homeClockTimer);homeClockTimer=null}
   clearSlideHandles()
   document.removeEventListener('fullscreenchange', syncFullscreen)
   document.removeEventListener('visibilitychange', syncMarketVisibility)
@@ -1001,6 +1060,39 @@ onUnmounted(() => {
           <small v-if="missingAutoClickCash !== null && missingAutoClickCash > 0n">Manque {{ formatCompactUnits(missingAutoClickCash) }}</small>
         </div>
       </section>
+      <section v-if="clickV4Unlocked" class="home-fame-click-v4" aria-label="Pouvoirs Fame Clics V4">
+        <div class="home-click-v4-title"><strong>FAME · CLICS V4</strong>
+          <span v-if="clickV4Rank(19)>0">Frénésie {{ frenzyActive?'ACTIVE +'+(clickV4Rank(19)*2.5)+' %':'10 clics manuels / 3 s' }}</span>
+        </div>
+        <div class="home-click-v4-grid">
+          <div v-if="clickV4Rank(20)>0" class="home-click-v4-power" aria-label="Billet légendaire">
+            <strong>Billet légendaire</strong>
+            <button v-if="legendaryReady" type="button" :disabled="loadBlocked" @click="claimLegendaryBanknote">
+              RÉCLAMER · {{ legendaryCount }} clics</button>
+            <small v-else>Prochain billet dans {{ remainingClickSeconds(legendaryDue??homeClockAt)/60<1?
+              remainingClickSeconds(legendaryDue??homeClockAt)+' s':
+              Math.ceil(remainingClickSeconds(legendaryDue??homeClockAt)/60)+' min' }}</small>
+          </div>
+          <div v-if="clickV4Rank(21)>0" class="home-click-v4-power" aria-label="Surcharge automatique">
+            <strong>Surcharge automatique · +50 %</strong>
+            <button type="button" :disabled="loadBlocked||!surchargeAvailable" @click="activateClickSurcharge">
+              {{ autoClickLevel===0?'Auto Click requis':surchargeActive?
+                'ACTIF · '+remainingClickSeconds(surchargeEnds)+' s':
+                !surchargeAvailable?'Cooldown '+Math.ceil(remainingClickSeconds(surchargeReadyAt)/60)+' min':'ACTIVER' }}
+            </button>
+          </div>
+          <div v-if="clickV4Rank(22)>0" class="home-click-v4-power" aria-label="Clic chargé">
+            <strong>Clic chargé ×{{ clickV4Rank(22)*2 }}</strong>
+            <small>{{ chargedReady?'PRÊT · prochain clic manuel':
+              'Charge après 15 s de jeu actif sans clic manuel' }}</small>
+          </div>
+          <div v-if="clickV4Rank(23)>0" class="home-click-v4-power" aria-label="Réaction en chaîne">
+            <strong>Réaction en chaîne</strong>
+            <small>{{ (clickV4Rank(23)*0.5).toFixed(1) }} % · +3 à 5 clics supplémentaires non récursifs</small>
+          </div>
+        </div>
+        <small v-if="clickV4Notice" class="home-click-v4-notice" role="status">{{ clickV4Notice }}</small>
+      </section>
       <button
         class="tap-zone"
         type="button"
@@ -1114,3 +1206,16 @@ onUnmounted(() => {
     <OfflineReportDialog v-if="offlineReport" :report="offlineReport" @close="dismissOfflineReport" />
   </div>
 </template>
+
+<style scoped>
+.home-fame-click-v4{display:grid;gap:7px;padding:10px;margin:8px 0;border:1px solid #6d5788;border-radius:11px;background:#28243d;color:#efe5fc}
+.home-click-v4-title{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;font-size:11px}
+.home-click-v4-title span{font-size:10px;color:#d4b9f6}
+.home-click-v4-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.home-click-v4-power{display:grid;gap:4px;min-width:0;border:1px solid #48405f;border-radius:8px;background:#252e44;padding:7px}
+.home-click-v4-power strong{font-size:11px}
+.home-click-v4-power small,.home-click-v4-notice{font-size:10px;color:#c4cede;line-height:1.45}
+.home-click-v4-power button{border:1px solid #a38bc9;border-radius:7px;background:#53477b;color:#f8ebff;font-weight:700;font-size:10px;padding:7px;min-height:32px}
+.home-click-v4-power button:disabled{opacity:.5}
+@media(max-width:370px){.home-click-v4-grid{grid-template-columns:1fr}}
+</style>

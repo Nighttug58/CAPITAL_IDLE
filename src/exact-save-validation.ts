@@ -334,6 +334,58 @@ function validFameCollectionV4(p:Dict,e:Dict):boolean{
   return true
 }
 
+/** Optional, cycle-limited manual click and Auto Click V4 state.
+ * Strict shape, chronological bounds and entitlement checks. */
+function validFameClicksV4(p:Dict,a:Dict,e:Dict,st:Dict,t:Dict):boolean{
+  if(!object(a.run))return false
+  const run=a.run
+  if(run.fameV4Clicks===undefined)return true
+  const data=run.fameV4Clicks
+  if(!object(data)||data.version!==1||!Array.isArray(data.manualTimestamps)||
+    data.manualTimestamps.length>10||!safe(data.frenzyUntil)||
+    !safe(data.chainSeed)||data.chainSeed>0xffffffff||!safe(data.chainRolls)||
+    !object(p.fameV4)||!object(p.fameV4.levels))return false
+  const levels=p.fameV4.levels
+  const rank=(n:number):number=>{
+    const r=levels['fame-v4-'+String(n).padStart(2,'0')]
+    return typeof r==='number'&&Number.isSafeInteger(r)&&r>=0?r:0
+  }
+  const clock=e.lastAccruedAt,started=run.startedAtRealMs
+  if(!safe(clock)||!safe(started)||!safe(st.activePlayMs)||!safe(st.clickCount))return false
+  const manual=data.lastManualAt,active=data.lastManualActiveMs
+  if((manual!==null&&(!safe(manual)||manual<started||manual>clock))||
+    (active!==null&&(!safe(active)||active>st.activePlayMs))||
+    (manual===null)!==(active===null))return false
+  if(data.manualTimestamps.length>0&&(manual===null||rank(19)<1))return false
+  let last=started
+  for(const x of data.manualTimestamps){
+    if(!safe(x)||x<last||manual===null||x>manual||
+      x<manual-3000)return false
+    last=x
+  }
+  if(data.frenzyUntil!==0&&(rank(19)<1||manual===null||
+      data.frenzyUntil!==manual+3000))return false
+  if(data.manualTimestamps.length===10&&data.frenzyUntil===0)return false
+  if(data.chainRolls>st.clickCount||rank(23)===0&&data.chainRolls>0)return false
+  const legendary=data.legendaryAnchorAt
+  if(legendary!==null&&(rank(20)<1||!safe(legendary)||legendary<started||
+      legendary>clock))return false
+  const boost=data.overcharge
+  if(boost!==null){
+    if(rank(21)<1||!object(boost)||!safe(boost.startedAt)||
+      !safe(boost.endsAt)||!safe(boost.readyAt)||
+      boost.startedAt<started||boost.startedAt>clock||
+      boost.readyAt-boost.startedAt!==900_000||
+      boost.endsAt-boost.startedAt<4000||
+      boost.endsAt-boost.startedAt>4000*rank(21)||
+      (boost.endsAt-boost.startedAt)%4000!==0||
+      !safe(run.autoClickLevel)||run.autoClickLevel<1)return false
+  }
+  // A claim cannot advance a market or tax clock.
+  if(!safe(t.dividendLastPaidAt))return false
+  return true
+}
+
 function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
   const progress=object(a.progress)?a.progress:null
   const run=object(a.run)?a.run:null
@@ -401,7 +453,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
-  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e))
+  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e)||!validFameClicksV4(p,a,e,s,t))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
     !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||
