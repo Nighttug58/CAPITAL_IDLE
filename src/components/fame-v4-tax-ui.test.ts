@@ -34,7 +34,6 @@ function boot():VueWrapper{
 describe('Fiscal Fame V4 pass7 Stats',()=>{
  it('shows permanent fiscal powers and an exact read-only report',async()=>{
   const w=boot()
-  await w.find('button[aria-label="Navigation principale"]')?.exists()
   const stats=w.findAll('.bottom-nav button').find(b=>b.text().includes('Stats'))!
   await stats.trigger('click')
   await nextTick()
