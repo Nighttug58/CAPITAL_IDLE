@@ -89,9 +89,10 @@ test('26 plans split exact 1% fee once and installments deterministic across rep
  const start=T
  const plan=v4StartTaxPlan(state,start)
  assert.ok(plan)
- assert.equal(v(plan.game.balance),wallet-(due+50n)/100n)
+ assert.equal(v(plan.game.balance),wallet-(due+50n)/100n-due/6n)
  assert.equal(v(plan.fiscal.fameV4Tax!.managementFeesPaidCents),(due+50n)/100n)
  assert.equal(plan.fiscal.fameV4Tax!.plan?.installments,6)
+ assert.equal(plan.fiscal.fameV4Tax!.plan?.paidCount,1)
  assert.equal(v4StartTaxPlan(plan,start),null)
  const withNew=v8AccrueTax(plan,'crypto',234_567n)
  const nextAt=v4PlanNextAt(withNew)!
@@ -101,7 +102,7 @@ test('26 plans split exact 1% fee once and installments deterministic across rep
  let split=withNew
  for(let i=1;i<=6;i++)split=v8AdvanceFiscalEconomy(split,T+i*V4_TAX_INSTALLMENT_MS)
  assert.deepEqual(twice,split)
- assert.equal(v(once.fiscal.taxesDueCents),due-due/6n+v(withNew.fiscal.taxesDueCents)-due)
+ assert.equal(v(once.fiscal.taxesDueCents),due-due*2n/6n+v(withNew.fiscal.taxesDueCents)-due)
  assert.equal(v(twice.fiscal.taxesPaidCents),due+v(withNew.fiscal.taxesDueCents)-due)
  assert.equal(twice.fiscal.taxesDueCents,'0')
  assert.equal(twice.fiscal.fameV4Tax?.plan,null)
