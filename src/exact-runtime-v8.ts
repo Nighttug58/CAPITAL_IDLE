@@ -20,7 +20,7 @@ import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
 import { prestigeCycleCount } from './ascension/prestige-count-v8.ts'
 import { getAsset } from './trading/catalog.ts'
-import { exactTradeCost, quoteToExactFraction, quantityStringToUnits,
+import { quoteToExactFraction, quantityStringToUnits,
   divideCostBasis } from './exact-trading.ts'
 import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
