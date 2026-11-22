@@ -33,6 +33,7 @@ const noticeError = ref(false)
 const closeButton = ref<HTMLButtonElement | null>(null)
 const dialog = ref<HTMLElement | null>(null)
 const numbers = new Intl.NumberFormat('fr-CH', { maximumFractionDigits: 2 })
+const money = (cents: number) => numbers.format(cents / 100) + ' $'
 const fame = (micros: number) => formatFameMicros(BigInt(Math.round(micros)))
 const percentage = (bps: number) => numbers.format(bps / 100) + ' %'
 const iconByCategory: Record<CollectionCategoryId, string> = {
@@ -325,7 +326,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </span>
           <span class="collection-card-info">
             <strong>{{ offer.item.name }}</strong>
-            <span class="collection-card-price">{{ formatCompactUnits(offer.price,2,'$') }}</span>
+            <span class="collection-card-price">{{ offer.discountBps>0?formatCompactUnits(offer.price,2,'$'):money(offer.item.priceCents) }}</span>
             <span class="collection-card-rewards">
               <span>✦ +{{ offer.awardedFameMicros === null ? offer.item.fame : fame(offer.awardedFameMicros) }} Fame</span>
               <span>+{{ percentage(offer.item.bonusBps) }} objet · +{{ percentage(collectionRarity(offer.item.id)?.bonusBps ?? 0) }} rareté</span>
@@ -354,7 +355,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </div>
           <p class="collection-detail-description">{{ selectedItem.description }}</p>
           <div class="collection-detail-data">
-            <div><span>PRIX EN GOLD</span><strong>{{ formatCompactUnits(selectedOffer.price,2,'$') }}
+            <div><span>PRIX EN GOLD</span><strong>{{ selectedOffer.discountBps>0?formatCompactUnits(selectedOffer.price,2,'$'):money(selectedItem.priceCents) }}
             <small v-if="selectedOffer.discountBps>0"> · Offre −{{ selectedOffer.discountBps/100 }} %</small></strong></div>
             <div><span>{{ selectedOffer.owned ? 'FAME DE BASE' : 'FAME À RECEVOIR' }}</span><strong class="collection-fame-balance">✦ +{{ selectedOffer.awardedFameMicros === null ? selectedItem.fame : fame(selectedOffer.awardedFameMicros) }}</strong></div>
             <div><span>BONUS ORIGINAL</span><strong>+{{ percentage(selectedItem.bonusBps) }} · {{ selectedBonusName }}</strong></div>
@@ -379,7 +380,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </div>
           <div v-if="confirming" class="collection-confirm" role="alert">
             <strong>Confirmer cet achat prestigieux ?</strong>
-            <p>Vous allez dépenser {{ formatCompactUnits(selectedOffer.price,2,'$') }}. L'objet ne pourra pas être revendu.</p>
+            <p>Vous allez dépenser {{ selectedOffer.discountBps>0?formatCompactUnits(selectedOffer.price,2,'$'):money(selectedItem.priceCents) }}. L'objet ne pourra pas être revendu.</p>
             <div class="collection-confirm-actions">
               <button type="button" class="collection-cancel" @click="confirming = false">Annuler</button>
               <button type="button" class="collection-confirm-buy" @click="buySelected">Confirmer l'achat</button>
