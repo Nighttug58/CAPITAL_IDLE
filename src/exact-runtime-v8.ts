@@ -134,7 +134,7 @@ export function v8ClickBatch(state: V8CapitalState, count: bigint, at=state.ente
     return next
   }
   const base = BigInt(getClickValue(state.game.purchasedUpgrades)) * 100n * count
-  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state), state.prestige.clickCarryBps)
+  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state,at), state.prestige.clickCarryBps)
   const credited = v8CreditIncome(state, 'clicks', rate.amount)
   const total = BigInt(state.stats.clickCount) + count
   const max = BigInt(Number.MAX_SAFE_INTEGER)
@@ -168,7 +168,7 @@ export function v8ManualClick(state:V8CapitalState,at:number,activeMs:number):V8
     stats:{...credited.stats,clickCount:Math.min(Number.MAX_SAFE_INTEGER,credited.stats.clickCount+1)},
     prestige:{...credited.prestige,clickCarryBps:rate.carryBps},
   }
-  return plan.chainBonusClicks>0?v8ClickBatch(after,BigInt(plan.chainBonusClicks)):after
+  return plan.chainBonusClicks>0?v8ClickBatch(after,BigInt(plan.chainBonusClicks),at):after
 }
 /** Manual legendary-banknote claim pays normal clicks once and advances the
  * same persisted cooldown atomically, without advancing any manual counters. */
