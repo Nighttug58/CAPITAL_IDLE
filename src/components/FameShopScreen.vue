@@ -252,7 +252,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
           Niveaux permanents conservés au Prestige.
           <template v-if="currentTab.id==='trading'">Pouvoirs Trading actifs : effets économiques, outils d'analyse et ventes automatiques disponibles.</template>
           <template v-else-if="currentTab.id==='enterprises'">Pouvoirs Entreprises actifs : effets des synergies, de la R&D, des contrats, des infrastructures, des franchises et du conseil disponibles dans l’écran Entreprises.</template>
-          <template v-else-if="currentTab.id==='collections'">Pouvoirs Collections actifs : expositions, restaurations, expert en antiquités, ventes privées et ailes du musée dans l'écran Collection.</template>
+          <template v-else-if="currentTab.id==='collections'">Pouvoirs Collections actifs : effets des expositions, restaurations, expert en antiquités, ventes privées et ailes du musée dans l'écran Collection.</template>
           <template v-else>Les effets de cette catégorie sont prévus pour la passe {{ currentTab.pass }}.</template>
         </p>
         <article v-for="row in v4Rows" :key="row.item.id" class="fame-boost-card fame-v4-card" :data-v4-boost="row.item.id">
