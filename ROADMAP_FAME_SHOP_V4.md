@@ -1,7 +1,7 @@
 # CAPITAL_IDLE — ROADMAP FAME SHOP V4 (30 nouveaux pouvoirs, 8 passes)
 
 **Dépôt :** Nighttug58/CAPITAL_IDLE · **Branche :** main
-**Statut :** 2/8 passes réalisées ; passes 1–2 validées, restent les passes 3–8.
+**Statut :** 3/8 passes réalisées ; passes 1–3 validées, restent les passes 4–8.
 **Décision :** 30 pouvoirs retenus par le joueur; 196 niveaux Fame en plus; 178 100 Fame de coût additionnel, 345 810 Fame pour tout le magasin historique et V4.
 **Déclenchement :** « Next » exécute **une seule passe non terminée** avec vérification de l'état réel de main avant toute mutation. Ne jamais marquer une passe terminée sans preuves et commit.
 **Références techniques (inspection de main) :** src/prestige/catalog.ts, src/prestige/absolute-v8.ts, src/prestige/collections-v3.ts, src/exact-runtime-v8.ts, src/exact-save-validation.ts, src/exact-state-v8.ts, src/exact-prestige-v8.ts, src/exact-market-v8.ts, src/trading/auto-sell-v8.ts, src/offline-report-v8.ts, src/components/FameShopScreen.vue.
@@ -145,7 +145,11 @@ Les coûts en dollars des nouvelles fonctionnalités sont des **money sinks**. I
 **Validation passe 2 (22/11/2026) :** GitHub Actions sur branche `fame-v4-pass2-validation`, commit `9bec12a499a584db2cd3838f5dd8f550a876b37c`, rapport https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44962997405. `npm run verify:release` **réussi**, 462/462 tests Node, 125/125 tests UI Vitest/jsdom, vérification TypeScript et build Vite réussis. `npm run build:root` **réussi** (suite complète rejouée, mêmes 462+125 tests). Pas de test graphique en véritable navigateur dans cette passe : la validation UI est jsdom + vérification CSS. Workflow temporaire non intégré sur main. Aucune modification des systèmes métier des passes 3 à 8.
 
 ### Passe 3 — Trading V4
-**À faire.** Pouvoirs 01–07, stops et sorties programmées dans l'unique runtime de vente; compatibilité news autosell existantes et staking; historique borné, rapport offline, contrôle des frais/taxe/cours. Tests ticks concurrents, offline, conservation du coût de revient, événements manuels news.
+**TERMINÉE, VALIDÉE.** Pouvoirs 01–07 : indicateur de tendance réellement observée (30–300 s) ; stop suiveur 25/20/15/10/5 % avec sommet par position ; bonus dividendes +1 %/rang et diversification des actions éligibles ≥1 % (50 bps/titre, plafond 100 bps/rang) ; Radar des news par paliers sur effets/expirations observés sans fuite de future news ; journal borné des 100 news suivies après déblocage (cours observés au début et à la fin) ; sorties programmées sur bénéfice réalisé après frais, fractions 25/50/75/100 % et jusqu'à 3 objectifs au rang 5. Paramètres par actif dans la modale Trading, analytique et journal dans l'onglet News.
+
+**Intégrations métier :** même moteur exact V8 de vente, taxes, XP, bonus Trading et staking ; exécution une seule fois, priorité News auto-sell existantes → stop suiveur → sortie stratégique ; reçus exacts dans le rapport hors ligne, sans revente ni gain dupliqué. Nouvelles données V8 facultatives sur anciens snapshots, validation stricte anti-données falsifiées, permanence des réglages et du journal entre Prestiges, réinitialisation des peaks/ordres liés à une position fermée, aucun impact achat/vente sur les prix. Aucun effet des pouvoirs 08–30 encore activé. Les autres systèmes de trading et les six boosts Fame historiques restent inchangés.
+
+**Validation passe 3 (22/11/2026) :** GitHub Actions sur branche `fame-v4-pass3-validation`, commit `b9d9a0b507e73f680171f823565effe3148927e1`, rapport https://github.com/Nighttug58/CAPITAL_IDLE/actions/runs/44964330165. `npm run verify:release` **réussi** (471/471 tests Node, 127/127 tests Vitest UI, contrôle TypeScript, build Vite). `npm run build:root` **réussi** (mêmes suites rejouées). Vérifications UI automatisées dans jsdom ; pas de test visuel dans un navigateur réel annoncé. Workflow temporaire conservé uniquement sur la branche de validation.
 
 ### Passe 4 — Entreprises V4
 **À faire.** Pouvoirs 08–13 ; management des paires / cibles / cooldowns ; transactions de contrats et mégastructures en BigInt; gains/risques, expiration en arrière-plan, liquidation avant Prestige, taxes et stats. Tests sans plafond de rang entreprise et investissements extrêmes.

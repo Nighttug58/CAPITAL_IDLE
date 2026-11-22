@@ -12,6 +12,7 @@ import {MARKET_TICK_MS} from './trading/market.ts'
 import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} from './ascension/transcendent-v1.ts'
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { nextPrestigeCycle, MAX_SAFE_CYCLE } from './ascension/prestige-count-v8.ts'
+import { prestigeFameV4Trading } from './trading/fame-v4-trading.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
@@ -89,7 +90,8 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   const result:V8CapitalState={...fresh,
     game:{...fresh.game,balance:s(grant)},
     ...(state.newsPowers?{newsPowers:state.newsPowers}:{}),
-    trading:{...fresh.trading,...(state.trading.autoSellRules?{autoSellRules:state.trading.autoSellRules}:{})},
+    trading:{...fresh.trading,...(state.trading.autoSellRules?{autoSellRules:state.trading.autoSellRules}:{}),
+      ...(state.trading.fameV4Trading?{fameV4Trading:prestigeFameV4Trading(state.trading.fameV4Trading)}:{})},
     prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
       experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
       fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),

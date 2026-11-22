@@ -132,7 +132,7 @@ function purchaseClassicMax(id:string,level:number){
 function purchaseNew(id:string,level:number){
   const success=props.purchaseV4?.(id,level)??false
   report(success
-    ? 'Fame V4 : niveau '+(level+1)+' acheté. Effet activé lors d’une prochaine passe.'
+    ? 'Fame V4 : niveau '+(level+1)+' acheté. '+(FAME_V4_CATALOG.find(x=>x.id===id)?.group==='trading'?'Pouvoir Trading actif.':'Effet prévu pour une prochaine passe.')+''
     : 'Achat V4 impossible. Vérifiez le prix, le niveau et la sauvegarde.',!success)
 }
 function purchaseNewMax(id:string,level:number){
@@ -249,7 +249,9 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
           <span>ÉTAPE {{ currentTab.pass }}</span>
         </div>
         <p class="fame-v4-pending" role="note">
-          Niveaux achetables et conservés au Prestige. Les effets V4 sont des aperçus : leur activation est prévue pour la passe {{ currentTab.pass }}.
+          Niveaux permanents conservés au Prestige.
+          <template v-if="currentTab.id==='trading'">Pouvoirs Trading actifs : effets économiques, outils d'analyse et ventes automatiques disponibles.</template>
+          <template v-else>Les effets de cette catégorie sont prévus pour la passe {{ currentTab.pass }}.</template>
         </p>
         <article v-for="row in v4Rows" :key="row.item.id" class="fame-boost-card fame-v4-card" :data-v4-boost="row.item.id">
           <div class="fame-boost-heading">
@@ -293,7 +295,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
       </template>
     </div>
     <footer class="fame-shop-page-footer">
-      <p class="fame-shop-note">Achats définitifs en Fame. Les niveaux V4 persistent après le Prestige, mais leurs effets ne sont pas encore activés.</p>
+      <p class="fame-shop-note">Achats définitifs en Fame. Les niveaux V4 persistent au Prestige. Trading actif ; les autres effets ne sont pas encore activés (passes 4–8).</p>
       <p v-if="notice" role="status" aria-live="polite" class="prestige-notice"
         :class="{ 'prestige-notice-error':noticeError }">{{ notice }}</p>
     </footer>

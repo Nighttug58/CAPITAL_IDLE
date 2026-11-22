@@ -15,12 +15,15 @@ import { formatCompactUnits, formatDecimalUnits } from '../large-numbers.ts'
 import { exactTradeCost, quoteToExactFraction } from '../exact-trading.ts'
 import { liquidityQuote } from '../trading/liquidity-v8.ts'
 import type { NewsAutoSellTrigger } from '../trading/auto-sell-v8.ts'
+import { fameV4Level, minTrailingDrawdown, allowedTargetPortions, fameV4Trend } from '../trading/fame-v4-trading.ts'
 
 const props = defineProps<{
   state: CapitalState
   exactState?: V8CapitalState
   executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
   setAutoSellRule?: (assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean)=>boolean
+  setFameV4Stop?: (assetId:string,enabled:boolean,drawdownPct:number)=>boolean
+  setFameV4Target?: (assetId:string,slot:number,gainPct:number|null,portionPct:number)=>boolean
   assetId: string
   executeTrade: (side: TradeSide, assetId: string, quantity: number) => TradeResult
 }>()
@@ -51,6 +54,46 @@ const autoSellPreferences=computed(()=>props.exactState?.trading.autoSellRules?.
 function toggleAutoSell(trigger:NewsAutoSellTrigger){
   const enabled=!autoSellPreferences.value?.[trigger]
   autoSellError.value=props.setAutoSellRule?.(props.assetId,trigger,enabled)?'':'Réglage non enregistré : sauvegarde indisponible.'
+}
+const stopRank=computed(()=>props.exactState?fameV4Level(props.exactState,2):0)
+const targetRank=computed(()=>props.exactState?fameV4Level(props.exactState,7):0)
+const trendRank=computed(()=>props.exactState?fameV4Level(props.exactState,1):0)
+const trend=computed(()=>props.exactState?fameV4Trend(props.exactState,props.assetId):null)
+const v4Rules=computed(()=>props.exactState?.trading.fameV4Trading)
+const stopSettings=computed(()=>v4Rules.value?.stops[props.assetId])
+const configuredTargets=computed(()=>v4Rules.value?.targets[props.assetId]??[])
+const selectableDrawdowns=computed(()=>[25,20,15,10,5].filter(pct=>pct>=(minTrailingDrawdown(stopRank.value)??100)))
+const stopPct=ref(25)
+watch([()=>props.assetId,()=>stopSettings.value?.drawdownPct,stopRank],()=>{
+ stopPct.value=stopSettings.value?.drawdownPct??minTrailingDrawdown(stopRank.value)??25
+},{immediate:true})
+const targetSlot=ref(0)
+const targetPctText=ref('10')
+const targetPortion=ref(25)
+const tradeV4Notice=ref('')
+watch([targetSlot,configuredTargets,()=>props.assetId],()=>{
+ const selected=configuredTargets.value.find(t=>t.slot===targetSlot.value)
+ if(selected){targetPctText.value=String(selected.gainPct);targetPortion.value=selected.portionPct}
+ else {targetPctText.value='10';targetPortion.value=25}
+},{immediate:true})
+const targetSlots=computed(()=>targetRank.value===5?[0,1,2]:[0])
+const permittedPortions=computed(()=>allowedTargetPortions(targetRank.value))
+function saveStop(active:boolean){
+ const done=props.setFameV4Stop?.(props.assetId,active,stopPct.value)??false
+ tradeV4Notice.value=done?active?'Stop suiveur activé.':'Stop suiveur désactivé.':'Stop non enregistré : données ou sauvegarde indisponibles.'
+}
+function saveTarget(){
+ const text=targetPctText.value.trim()
+ const gainPct=/^\d{1,5}$/.test(text)?Number(text):NaN
+ if(!Number.isSafeInteger(gainPct)||gainPct<1||gainPct>10000){
+  tradeV4Notice.value='Objectif invalide : saisissez un gain net entier de 1 à 10 000 %.';return
+ }
+ const done=props.setFameV4Target?.(props.assetId,targetSlot.value,gainPct,targetPortion.value)??false
+ tradeV4Notice.value=done?'Sortie stratégique enregistrée.':'Objectif non enregistré : vérifiez le niveau et la sauvegarde.'
+}
+function removeTarget(slot:number){
+ const done=props.setFameV4Target?.(props.assetId,slot,null,25)??false
+ tradeV4Notice.value=done?'Objectif retiré.':'Suppression indisponible.'
 }
 const dialogRoot = ref<HTMLElement | null>(null)
 
@@ -253,6 +296,59 @@ function submit() {
         <small class="asset-auto-sell-footnote">Fonctionne aussi hors ligne · Staking verrouillé exclu · Frais et taxes habituels</small>
         <small v-if="autoSellError" class="order-error" role="alert">{{ autoSellError }}</small>
       </section>
+      <section v-if="exactState && trendRank>0" class="asset-v4-tools" aria-label="Instinct du trader">
+        <div class="asset-auto-sell-heading"><strong>Instinct du trader · {{ trendRank }}/10</strong><small>{{ trendRank*30 }} secondes</small></div>
+        <div v-if="trend" class="asset-v4-stat">
+          <span>Variation observée : <b>{{ trend.variationPct.toFixed(2) }} %</b></span>
+          <span>Première moitié {{ trend.earlierPct.toFixed(2) }} % · seconde {{ trend.recentPct.toFixed(2) }} %</span>
+          <strong>{{ trend.signal==='acceleration'?'Accélération détectée':trend.signal==='ralentissement'?'Ralentissement détecté':'Mouvement relativement stable' }}</strong>
+        </div>
+        <small v-else>Données de marché insuffisantes pour calculer l'indicateur.</small>
+        <small class="asset-auto-sell-footnote">Analyse descriptive uniquement, sans prévision garantie.</small>
+      </section>
+      <section v-if="exactState && stopRank>0 && setFameV4Stop" class="asset-auto-sell asset-v4-tools" aria-label="Stop suiveur Fame">
+        <div class="asset-auto-sell-heading"><strong>Stop suiveur · {{ stopRank }}/5</strong><small>Après news auto</small></div>
+        <p>Déclenche une vente des unités liquides après un repli depuis le plus haut observé après l'achat.</p>
+        <label class="asset-v4-input">Baisse déclenchante
+          <select v-model.number="stopPct" aria-label="Seuil de baisse du stop suiveur">
+            <option v-for="pct in selectableDrawdowns" :key="pct" :value="pct">−{{ pct }} %</option>
+          </select>
+        </label>
+        <div class="asset-v4-action-row">
+          <button type="button" class="asset-auto-sell-toggle" :class="{'is-on':stopSettings?.enabled}"
+            :aria-pressed="!!stopSettings?.enabled" @click="saveStop(!stopSettings?.enabled)">
+            {{ stopSettings?.enabled?'DÉSACTIVER':'ACTIVER LE STOP' }}
+          </button>
+          <button v-if="stopSettings?.enabled && stopPct!==stopSettings.drawdownPct" type="button" class="asset-auto-sell-toggle" @click="saveStop(true)">Changer seuil</button>
+        </div>
+        <small v-if="stopSettings?.peakPrice" class="asset-auto-sell-footnote">Sommet suivi : {{ formatPrice(stopSettings.peakPrice) }}</small>
+      </section>
+      <section v-if="exactState && targetRank>0 && setFameV4Target" class="asset-auto-sell asset-v4-tools" aria-label="Sortie stratégique Fame">
+        <div class="asset-auto-sell-heading"><strong>Sortie stratégique · {{ targetRank }}/5</strong><small>Plus-value après frais</small></div>
+        <p>Programme une vente partielle lorsque le bénéfice net estimé atteint l'objectif choisi.</p>
+        <div class="asset-v4-grid">
+          <label class="asset-v4-input">Objectif
+            <select v-model.number="targetSlot" aria-label="Emplacement d'objectif">
+              <option v-for="slot in targetSlots" :key="slot" :value="slot">Objectif {{ slot+1 }}</option>
+            </select>
+          </label>
+          <label class="asset-v4-input">Gain net cible (%)
+            <input v-model="targetPctText" type="text" inputmode="numeric" maxlength="5" placeholder="10" aria-label="Objectif de bénéfice net en pourcentage"/>
+          </label>
+          <label class="asset-v4-input">Part vendue
+            <select v-model.number="targetPortion" aria-label="Part du portefeuille à vendre">
+              <option v-for="portion in permittedPortions" :key="portion" :value="portion">{{ portion }} %</option>
+            </select>
+          </label>
+          <button type="button" class="order-submit" @click="saveTarget()">Programmer</button>
+        </div>
+        <div v-for="entry in configuredTargets" :key="entry.slot" class="asset-v4-target-row">
+          <span>Objectif {{ entry.slot+1 }} : +{{ entry.gainPct }} % · vente {{ entry.portionPct }} %</span>
+          <button type="button" :aria-label="'Annuler objectif '+(entry.slot+1)" @click="removeTarget(entry.slot)">Annuler</button>
+        </div>
+        <small class="asset-auto-sell-footnote">Ventes automatiques hors ligne · unités en staking exclues · taxes ordinaires · pas de vente à découvert.</small>
+      </section>
+      <p v-if="tradeV4Notice" role="status" class="asset-v4-notice">{{ tradeV4Notice }}</p>
       <div class="asset-order">
         <div class="order-side">
           <button type="button" :class="{ 'is-buy': activeSide === 'buy' }" :aria-pressed="activeSide === 'buy'" @click="activeSide = 'buy'">Acheter</button>
@@ -339,4 +435,16 @@ function submit() {
 .trading-asset-modal .asset-auto-sell-toggle.is-on { border-color: #228b65; background: rgba(34,139,101,.16); }
 .trading-asset-modal .asset-auto-sell-toggle.is-on strong { color: #85edb5; }
 .trading-asset-modal .asset-auto-sell-footnote { color: #9caec7; font-size: 10px; line-height: 1.4; }
+.trading-asset-modal .asset-v4-tools { margin:9px 0; padding:10px; border-radius:10px; border:1px solid rgba(143,178,213,.28); background:rgba(15,32,53,.56); display:grid; gap:8px; font-size:11px; }
+.trading-asset-modal .asset-v4-tools p { margin:0; color:#aebdd2; font-size:11px; line-height:1.45; }
+.trading-asset-modal .asset-v4-stat { display:grid; gap:5px; color:#c8d9e9; }
+.trading-asset-modal .asset-v4-stat strong { color:#9dd3fb; }
+.trading-asset-modal .asset-v4-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.trading-asset-modal .asset-v4-input { display:grid; gap:4px; font-size:10px; color:#b4c4d6; min-width:0; }
+.trading-asset-modal .asset-v4-input input,.trading-asset-modal .asset-v4-input select { min-width:0; width:100%; color:#eef5ff; background:#1a2a3c; border:1px solid #4f6884; border-radius:7px; min-height:36px; padding:5px 7px; font:inherit; font-size:12px; }
+.trading-asset-modal .asset-v4-grid .order-submit { margin:0; align-self:end; min-height:36px; }
+.trading-asset-modal .asset-v4-action-row { display:flex; gap:7px; }
+.trading-asset-modal .asset-v4-target-row { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:11px; border-top:1px solid #516079; padding-top:7px; }
+.trading-asset-modal .asset-v4-target-row button { border:1px solid #6a8caf; background:#21374d; color:#d3eaff; padding:5px 7px; border-radius:6px; font-size:10px; }
+.trading-asset-modal .asset-v4-notice { color:#b5e5ca; font-size:11px; margin:6px 0; }
 </style>

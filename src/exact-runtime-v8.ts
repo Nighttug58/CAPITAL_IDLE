@@ -11,6 +11,7 @@ import { getClickValue, UPGRADES } from './game.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { fameV4PurchasedCost } from './prestige/fame-v4-catalog.ts'
+import { onFameV4PositionChange } from './trading/fame-v4-trading.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
 import { prestigeCycleCount } from './ascension/prestige-count-v8.ts'
@@ -222,7 +223,7 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
         [assetId]: { quantity:s(previous + units),
           costBasis:s((owned ? v(owned.costBasis) : 0n) + cost.totalCents) } } },
   }
-  return { ok:true, state:next, grossCents:cost.grossCents, feeCents:cost.feeCents,
+  return { ok:true, state:{...next,trading:onFameV4PositionChange(next.trading,assetId,'buy')}, grossCents:cost.grossCents, feeCents:cost.feeCents,
     cashDeltaCents:-cost.totalCents, realizedNetProfitCents:0n }
 }
 
@@ -293,6 +294,7 @@ export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: st
     next = xpAward(next, earnings)
     next = v8AccrueTax(next, source, earnings)
   }
+  if(units===v(current.quantity))next={...next,trading:onFameV4PositionChange(next.trading,assetId,'soldAll')}
   return { ok:true, state:next, grossCents:order.grossCents, feeCents:order.feeCents,
     cashDeltaCents:order.proceedsCents + bonusCents, realizedNetProfitCents:effectiveProfit }
 }

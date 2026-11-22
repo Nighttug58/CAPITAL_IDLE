@@ -12,7 +12,8 @@ import type { TradingState } from './trading/types.ts'
 import { ASSETS } from './trading/catalog.ts'
 import { MARKET_SPEEDS, FRENZY_ACTIVE_MS } from './ascension/market-effects.ts'
 import { transcendentNewsModifiers } from './ascension/transcendent-v1.ts'
-import { applyNewsAutoSells } from './trading/auto-sell-v8.ts'
+import { applyNewsAutoSells, applyFameV4AutoSells } from './trading/auto-sell-v8.ts'
+import { v4DividendBonusBps,observeFameV4News } from './trading/fame-v4-trading.ts'
 
 const YEAR_SECONDS = 86_400n
 const PICO_CENTS = 1_000_000_000_000n
@@ -99,7 +100,10 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
   const carry=trading.dividendCarryPicoCents!==undefined?v(trading.dividendCarryPicoCents):
     BigInt(Math.round(trading.dividendCarry*Number(PICO_CENTS)))
   const pending=v(trading.dividendPendingCents)
-  const earnedPico=v8DividendPicoCents(trading)*bonus.numerator/bonus.denominator
+  // Add Fame V4 direct + diversification to the historical dividend reward once.
+  // The absolute Fame multiplier is restricted to the six classic powers.
+  const earnedPico=v8DividendPicoCents(trading)*bonus.numerator*
+    BigInt(10_000+v4DividendBonusBps(state))/(bonus.denominator*10_000n)
   const total=carry+pending*PICO_CENTS+earnedPico
   const due=total/PICO_CENTS
   const rem=total%PICO_CENTS
@@ -111,5 +115,6 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
       marketClock:{...clock,realAnchorMs:at,simulatedAtMs:nextSimulatedAt}}},
   }
   const credited=due>0n?v8CreditIncome(updated,'dividends',due):updated
-  return applyNewsAutoSells(state,v8AdvanceFiscalEconomy(credited,at),at)
+  const observed=observeFameV4News(state,v8AdvanceFiscalEconomy(credited,at),at)
+  return applyFameV4AutoSells(applyNewsAutoSells(state,observed,at),at)
 }
