@@ -99,7 +99,7 @@ describe('Enterprise Fame V4 pass 4 UI',()=>{
   expect(s.find('.enterprise-v4-confirm').text()).toContain('Dépenser définitivement')
   await s.find('.enterprise-v4-confirm button').trigger('click')
   const after=readV8Raw()
-  expect(v(after.game.balance)-v(before.game.balance)).toBe(-10n**12n+
+  expect(v(after.game.balance)-v(before.game.balance)).toBe(-(10n**12n)+
     v(after.stats.earnedBySource.enterprises)-v(before.stats.earnedBySource.enterprises))
   expect(after.enterprises.fameV4Enterprise?.usedProjectTiers).toEqual([0])
   expect(project.text()).toContain('30m')
