@@ -1,5 +1,5 @@
 /** Player-facing V4 effects. These levels are paid now but do not change
- * game economics until their corresponding implementation pass (3-8). */
+ * game economics through their dedicated implementation passes (3-8). */
 import { type FameV4Id } from './fame-v4-catalog.ts'
 export interface FameV4Presentation {
   readonly description:string
@@ -48,7 +48,7 @@ export const FAME_V4_GROUP_TABS = Object.freeze([
 ] as const)
 export type FameV4Tab=typeof FAME_V4_GROUP_TABS[number]['id']
 
-/** Pure preview for the requested rank; no effect is activated in pass 2. */
+/** Static preview for purchased V4 rank; the active effect is computed by V8. */
 export function fameV4RankPreview(id:FameV4Id,level:number):string {
  if(!Number.isSafeInteger(level)||level<0)return '—'
  if(level===0)return 'Non acquis'
