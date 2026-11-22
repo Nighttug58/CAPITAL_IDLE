@@ -1,0 +1,24 @@
+name: Fame V4 pass 8 isolated validation
+
+on:
+  push:
+    branches: [fame-v4-pass8-validation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Dependencies
+        run: npm install --no-audit --no-fund
+      - name: verify release
+        run: npm run verify:release
+      - name: build root
+        run: npm run build:root
