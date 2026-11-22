@@ -14,6 +14,7 @@ import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { nextPrestigeCycle, MAX_SAFE_CYCLE } from './ascension/prestige-count-v8.ts'
 import { prestigeFameV4Trading } from './trading/fame-v4-trading.ts'
 import { prestigeFameV4Collections } from './prestige/collections-v4.ts'
+import {v4PrestigeFiscal} from './prestige/fame-v4-tax.ts'
 import { v4ContractEarlyExitWorth,v4ForceContractsBeforePrestige,v4PrestigeEnterpriseData } from './economy/fame-v4-enterprises.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
@@ -63,7 +64,7 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   // Closing every active contract at 85% before computing PP prevents a
   // phantom principal in eligible wealth and never credits failure as income.
   const exited=v4ForceContractsBeforePrestige(settled,at)
-  const afterTax=v8PayTaxes(exited,at,true)
+  const afterTax=v4PrestigeFiscal(v8PayTaxes(exited,at,true))
   const level=getExactLevel(v(afterTax.prestige.experienceCents))
   if(level<MIN_LEVEL)return{ok:false,reason:'insufficient-level'}
   const eligible=v8EligiblePrestigeWorthCents(afterTax)
