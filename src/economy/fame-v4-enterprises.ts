@@ -2,6 +2,7 @@
  * All cash is integer cents (BigInt), never a monetary Number.
  * Timed work is settled only by the enterprise/fiscal authority.
  */
+import {v4CanSpend} from '../prestige/fame-v4-tax.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from '../exact-state-v8.ts'
 import { getEnterprise, ENTERPRISES, getEnterpriseUpgradeCostCentsExact } from './catalog.ts'
@@ -141,7 +142,7 @@ export function v4UpgradeBatchCost(state:V8CapitalState,id:string,from:number,to
 export function v4StartContract(state:V8CapitalState,stakeCents:bigint,minutes:Duration,at:number):V8CapitalState|null{
   const rank=fameV4Level(state,10),data=enterpriseV4(state)
   if(rank<1||!validNow(state,at)||!V4_CONTRACT_DURATIONS_MINUTES.includes(minutes)||
-    stakeCents<V4_CONTRACT_MIN_STAKE_CENTS||v(state.game.balance)<stakeCents||
+    stakeCents<V4_CONTRACT_MIN_STAKE_CENTS||!v4CanSpend(state,stakeCents)||
     data.contracts.length>=rank||!Number.isSafeInteger(data.nextContractId)||
     data.nextContractId>=Number.MAX_SAFE_INTEGER)return null
   const endsAt=at+minutes*60_000
@@ -165,7 +166,7 @@ export function v4StartProject(state:V8CapitalState,tier:number,category:Enterpr
   if(!Number.isSafeInteger(tier)||tier<0||tier>=rank||cost===undefined||
     !validNow(state,at)||!Number.isSafeInteger(endsAt)||
     !['small','local','services','industry','major'].includes(category)||
-    data.usedProjectTiers.includes(tier)||v(state.game.balance)<cost ||
+    data.usedProjectTiers.includes(tier)||!v4CanSpend(state,cost) ||
     !ENTERPRISES.some(item=>item.category===category&&state.enterprises.owned[item.id]))return null
   const active=data.projects.filter(p=>p.endsAt>at&&p.category===category)
   if(active.length>=3)return null
