@@ -1,0 +1,20 @@
+name: Validate Fame V4 click powers pass 6
+on:
+  push:
+    branches: [fame-v4-pass6-validation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Verify release
+        run: npm run verify:release
+      - name: Build root
+        run: npm run build:root

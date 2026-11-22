@@ -15,6 +15,7 @@ import { v4CollectionsBonusBps, v4CollectionPriceCents, v4ClaimPrivateOffer, v4R
   nextV4CollectionEventTime } from './prestige/collections-v4.ts'
 import { v4UpgradeCost,v4UpgradeBatchCost,enterpriseV4BonusBps,nextV4EnterpriseEventTime,v4SettleTimedEnterprise } from './economy/fame-v4-enterprises.ts'
 import { onFameV4PositionChange } from './trading/fame-v4-trading.ts'
+import {v4PrepareManualClick, v4LegendaryRewardClicks} from './prestige/fame-v4-clicks.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
 import { prestigeCycleCount } from './ascension/prestige-count-v8.ts'
@@ -139,6 +140,42 @@ export function v8ClickBatch(state: V8CapitalState, count: bigint): V8CapitalSta
   }
 }
 
+/** One exact manual transaction: normal click, additive Frenzy/Charged
+ * multiplier, and at most one nonrecursive 3–5 click Chain reward. */
+export function v8ManualClick(state:V8CapitalState,at:number,activeMs:number):V8CapitalState|null {
+  if(!Number.isSafeInteger(activeMs)||activeMs<state.stats.activePlayMs||
+    !Number.isSafeInteger(at)||at<state.ascension.run.startedAtRealMs||
+    at<state.enterprises.lastAccruedAt)return null
+  const baseState:V8CapitalState={...state,stats:{...state.stats,activePlayMs:activeMs}}
+  const levels=baseState.prestige.fameV4?.levels
+  const any=!!levels&&(levels['fame-v4-19']>0||
+    levels['fame-v4-22']>0||levels['fame-v4-23']>0)
+  if(!any)return v8Click(baseState)
+  const plan=v4PrepareManualClick(baseState,at,activeMs)
+  if(!plan)return null
+  const base=BigInt(getClickValue(plan.state.game.purchasedUpgrades))*100n
+  const historical=v8V4ClickRate(plan.state)
+  const rate=v8ScaleRewardCents(base,{
+    numerator:historical.numerator*BigInt(plan.manualMultiplierBps),
+    denominator:historical.denominator*10_000n,
+  },plan.state.prestige.clickCarryBps)
+  const credited=v8CreditIncome(plan.state,'clicks',rate.amount)
+  const after:V8CapitalState={...credited,
+    stats:{...credited.stats,clickCount:Math.min(Number.MAX_SAFE_INTEGER,credited.stats.clickCount+1)},
+    prestige:{...credited.prestige,clickCarryBps:rate.carryBps},
+  }
+  return plan.chainBonusClicks>0?v8ClickBatch(after,BigInt(plan.chainBonusClicks)):after
+}
+/** Manual legendary-banknote claim pays normal clicks once and advances the
+ * same persisted cooldown atomically, without advancing any manual counters. */
+export function v8ClaimLegendaryBanknote(state:V8CapitalState,at:number):
+  {state:V8CapitalState;count:number;gainCents:bigint}|null{
+  const claimed=v4LegendaryRewardClicks(state,at)
+  if(!claimed)return null
+  const credited=v8ClickBatch(claimed.state,BigInt(claimed.count))
+  return{state:credited,count:claimed.count,
+    gainCents:v(credited.game.balance)-v(state.game.balance)}
+}
 export function v8UpgradeClick(state: V8CapitalState): V8CapitalState | null {
   const next = UPGRADES[state.game.purchasedUpgrades]
   const level = getExactLevel(v(state.prestige.experienceCents))
