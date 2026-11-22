@@ -56,7 +56,7 @@ export function v4CanSpend(state:V8CapitalState,cost:bigint):boolean {
 export function v4PlanNextAt(state:V8CapitalState):number|null {
   const plan=state.fiscal.fameV4Tax?.plan
   return plan&&plan.paidCount<plan.installments
-    ?plan.startedAt+(plan.paidCount+1)*V4_TAX_INSTALLMENT_MS:null
+    ?plan.startedAt+plan.paidCount*V4_TAX_INSTALLMENT_MS:null
 }
 /** Debit a portion of EXISTING dueBySource. New taxable income stays due. */
 function payPortion(state:V8CapitalState,bySource:V8TaxBreakdown):V8CapitalState {
@@ -105,14 +105,16 @@ export function v4StartTaxPlan(state:V8CapitalState,at:number):V8CapitalState|nu
   if(level<1||data.plan||data.eligiblePeriodAt!==null||due<=0n||
     !Number.isSafeInteger(at)||at!==state.enterprises.lastAccruedAt||
     at<state.fiscal.periodStartedAt||
-    at+installments*V4_TAX_INSTALLMENT_MS>state.fiscal.periodStartedAt+FISCAL_PERIOD_MS)return null
+    at+(installments-1)*V4_TAX_INSTALLMENT_MS>state.fiscal.periodStartedAt+FISCAL_PERIOD_MS)return null
   const fee=(due+50n)/100n
   if(!v4CanSpend(state,fee))return null
   const plan:V4TaxPlan={startedAt:at,installments,paidCount:0,
     initialCents:enc(due),remainingBySourceCents:{...state.fiscal.dueBySourceCents}}
-  return {...state,game:{...state.game,balance:enc(number(state.game.balance)-fee)},
+  const created={...state,game:{...state.game,balance:enc(number(state.game.balance)-fee)},
     fiscal:{...state.fiscal,fameV4Tax:{...data,plan,
       managementFeesPaidCents:enc(number(data.managementFeesPaidCents)+fee)}}}
+  // The first installment is collected at activation, then one every 12h.
+  return v4ApplyPlanInstallment(created,at)
 }
 /** Unified actual tax settlement. Preserves normal 72h anchor at Prestige. */
 export function v4SettleFiscalTaxes(state:V8CapitalState,at:number,preserveAnchor=false):V8CapitalState {
