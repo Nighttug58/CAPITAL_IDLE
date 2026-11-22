@@ -133,7 +133,7 @@ export function v4UpgradeBatchCost(state:V8CapitalState,id:string,from:number,to
     if(lastQ<firstQ)continue
     const n=BigInt(lastQ-firstQ+1)
     const a=anchor*discount
-    const b=(anchor*(20n+BigInt(r))+19n)/20n*discount+a*BigInt(firstQ)
+    const b=(anchor*(20n+BigInt(r))+10n)/20n*discount+a*BigInt(firstQ)
     sum+=floorSum(n,10_000n,a,b)
   }
   return sum
