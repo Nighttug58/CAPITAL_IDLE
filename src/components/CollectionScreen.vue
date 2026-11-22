@@ -365,7 +365,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </div>
           <p class="collection-detail-note">Achat unique, permanent et non revendable. La Fame est attribuée au moment de l'achat.</p>
           <div v-if="selectedOffer.owned&&v4Rank(15)>0" class="collection-v4-restoration" aria-label="Restaurer cette pièce">
-            <strong>{{ v4Data.restoredIds.some(x=>currentCollectionId(x)===currentCollectionId(selectedItem.id))?
+            <strong>{{ v4Data.restoredIds.some(x=>currentCollectionId(x)===currentCollectionId(selectedItem?.id??''))?
               'Restauration déjà acquise · +0,25 % revenus':'Restauration · +0,25 % revenus éligibles' }}</strong>
             <p>Coût : {{ selectedRestoreCost===null?'indisponible':formatCompactUnits(selectedRestoreCost,2,'$') }} ·
               {{ v4Data.restoredIds.length }}/{{ v4Rank(15)*2 }} pièces restaurées.</p>
