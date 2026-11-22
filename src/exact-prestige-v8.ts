@@ -12,7 +12,7 @@ import {MARKET_TICK_MS} from './trading/market.ts'
 import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} from './ascension/transcendent-v1.ts'
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { nextPrestigeCycle, MAX_SAFE_CYCLE } from './ascension/prestige-count-v8.ts'
-import { prestigeFameV4Trading } from './trading/fame-v4-trading.ts'
+import { prestigeFameV4Trading,fameV4Level } from './trading/fame-v4-trading.ts'
 import { prestigeFameV4Collections } from './prestige/collections-v4.ts'
 import {v4PrestigeFiscal} from './prestige/fame-v4-tax.ts'
 import {v4NewPrestigeRun,v4DiscountedTradeCost} from './prestige/fame-v4-prestige.ts'
@@ -111,7 +111,8 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
       fameV4Enterprise:v4PrestigeEnterpriseData(afterTax)}:{})},
     ascension:{...fresh.ascension,progress:nextProgress,
       run:{...fresh.ascension.run,startingCapitalGrantedCents:s(grant),
-        fameV4Prestige:v4NewPrestigeRun(afterTax,at,nextCycle.cycleExact)}},
+        ...([28,29,30].some(n=>fameV4Level(afterTax,n)>0)?{
+          fameV4Prestige:v4NewPrestigeRun(afterTax,at,nextCycle.cycleExact)}:{})}},
     achievements:{claimedIds:[...afterTax.achievements.claimedIds],cycleGiftCents:'0'},
   }
   return{ok:true,state:result,earnedPoints,cycle:nextCycle.prestigeCount,worthCents:eligible}
