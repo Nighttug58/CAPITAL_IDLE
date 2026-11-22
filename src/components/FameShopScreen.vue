@@ -251,7 +251,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
         <p class="fame-v4-pending" role="note">
           Niveaux permanents conservés au Prestige.
           <template v-if="currentTab.id==='trading'">Pouvoirs Trading actifs : effets économiques, outils d'analyse et ventes automatiques disponibles.</template>
-          <template v-else-if="currentTab.id==='enterprises'">Pouvoirs Entreprises actifs : synergies, R&D, contrats, infrastructures, franchise et conseil disponibles dans l’écran Entreprises.</template>
+          <template v-else-if="currentTab.id==='enterprises'">Pouvoirs Entreprises actifs : effets des synergies, de la R&D, des contrats, des infrastructures, des franchises et du conseil disponibles dans l’écran Entreprises.</template>
           <template v-else>Les effets de cette catégorie sont prévus pour la passe {{ currentTab.pass }}.</template>
         </p>
         <article v-for="row in v4Rows" :key="row.item.id" class="fame-boost-card fame-v4-card" :data-v4-boost="row.item.id">
@@ -296,7 +296,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
       </template>
     </div>
     <footer class="fame-shop-page-footer">
-      <p class="fame-shop-note">Achats définitifs en Fame. Les niveaux V4 persistent au Prestige. Trading et Entreprises actifs ; les pouvoirs Collections, Clics, Fiscalité et Prestige restent prévus pour les passes 5–8.</p>
+      <p class="fame-shop-note">Achats définitifs en Fame. Les niveaux V4 persistent au Prestige. Trading et Entreprises actifs ; les effets ne sont pas encore activés pour Collections, Clics, Fiscalité et Prestige (passes 5–8).</p>
       <p v-if="notice" role="status" aria-live="polite" class="prestige-notice"
         :class="{ 'prestige-notice-error':noticeError }">{{ notice }}</p>
     </footer>
