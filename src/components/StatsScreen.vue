@@ -170,7 +170,7 @@ const planPossible=computed(()=>{
   if(!st||fiscalRank(26)<1||installmentPlan.value||fiscalV4.value?.eligiblePeriodAt!==null&&
     fiscalV4.value?.eligiblePeriodAt!==undefined||v(st.fiscal.taxesDueCents)<=0n)return false
   const n=Math.min(6,fiscalRank(26)+1)
-  return st.enterprises.lastAccruedAt+n*V4_TAX_INSTALLMENT_MS<=
+  return st.enterprises.lastAccruedAt+(n-1)*V4_TAX_INSTALLMENT_MS<=
     st.fiscal.periodStartedAt+FISCAL_PERIOD_MS&&v4SpendableCents(st)>=planFee.value
 })
 const confirmingPlan=ref(false)
@@ -452,13 +452,13 @@ function pay() {
               <strong>{{ installmentPlan ? (installmentPlan.paidCount+'/'+installmentPlan.installments+' versements') : 'AUCUN PLAN ACTIF' }}</strong></div>
             <div><span>FRAIS DE GESTION CUMULÉS</span><strong>{{ importMoney(fiscalV4?.managementFeesPaidCents??'0') }}</strong></div>
           </div>
-          <p v-if="installmentPlan" class="stats-footnote">Prochain versement : {{ new Date(installmentPlan.startedAt+(installmentPlan.paidCount+1)*V4_TAX_INSTALLMENT_MS).toLocaleString('fr-CH') }}. Les nouveaux impôts restent dus à l’échéance de 72 h ; le Prestige solde tout.</p>
+          <p v-if="installmentPlan" class="stats-footnote">Prochain versement : {{ new Date(installmentPlan.startedAt+installmentPlan.paidCount*V4_TAX_INSTALLMENT_MS).toLocaleString('fr-CH') }}. Les nouveaux impôts restent dus à l’échéance de 72 h ; le Prestige solde tout.</p>
           <button v-else-if="fiscalRank(26)>0" type="button" class="stats-tax-pay" :disabled="!planPossible" @click="confirmingPlan=true">
             Activer {{ fiscalRank(26)+1 }} versements de 12 h · frais {{ importMoney(planFee.toString()) }}
           </button>
           <div v-if="confirmingPlan" class="stats-tax-confirm" role="alertdialog" aria-label="Confirmer l'échelonnement fiscal">
             <strong>Créer un plan fiscal irréversible ?</strong>
-            <p>La dette actuelle sera fractionnée en {{ fiscalRank(26)+1 }} versements espacés de 12 h. Frais de 1 % débités immédiatement, sans XP/Fame. Aucun report de l’échéance de 72 h.</p>
+            <p>La dette actuelle sera fractionnée en {{ fiscalRank(26)+1 }} versements espacés de 12 h. Premier versement et frais de 1 % débités immédiatement, sans XP/Fame. Aucun report de l’échéance de 72 h.</p>
             <div><button type="button" @click="confirmingPlan=false">Annuler</button>
               <button type="button" class="stats-tax-confirm-pay" @click="activatePlan">Confirmer</button></div>
           </div>
