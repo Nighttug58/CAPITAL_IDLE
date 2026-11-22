@@ -36,7 +36,7 @@ describe('Fame Shop V4 pass 2 integration',()=>{
     await tab(w,label).trigger('click')
     await nextTick()
     count+=w.findAll('.fame-v4-card').length
-    expect(w.find('.fame-v4-pending').text()).toMatch(label==='Prestige'?/passe 8/:/actif/i)
+    expect(w.find('.fame-v4-pending').text()).toMatch(label==='Prestige'?/passe 8/:/activ/i)
     expect(w.findAll('.fame-v4-card .fame-v4-buttons')).toHaveLength(w.findAll('.fame-v4-card').length)
   }
   expect(count).toBe(30)
