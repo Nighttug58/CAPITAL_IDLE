@@ -2,6 +2,7 @@
  * All economic values are canonical BigInt cents. No duplicate collection
  * ownership, Fame rewards or Museum rewards are ever created by these powers.
  */
+import {v4CanSpend} from './fame-v4-tax.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from '../exact-state-v8.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot } from './catalog.ts'
@@ -67,7 +68,7 @@ export function v4RestoreCollection(state:V8CapitalState,id:string,at:number):V8
   if(rank<1||!slot||!validAt(state,at)||!own(state,id)||
     data.restoredIds.length>=rank*2||data.restoredIds.some(x=>currentCollectionId(x)===currentCollectionId(id)))return null
   const cost=v4RestoreCostCents(id)!
-  if(v(state.game.balance)<cost)return null
+  if(!v4CanSpend(state,cost))return null
   return {...state,game:{...state.game,balance:s(v(state.game.balance)-cost)},
     prestige:{...state.prestige,fameV4Collections:{...data,
       restoredIds:[...data.restoredIds,slot.id],
@@ -78,7 +79,7 @@ export function v4BuyMuseumWing(state:V8CapitalState,tier:number,at:number):V8Ca
   if(!Number.isSafeInteger(tier)||tier<0||tier>=rank||tier>=5||
     !validAt(state,at)||data.wingTiers.includes(tier))return null
   const cost=V4_WING_COSTS_CENTS[tier]!
-  if(v(state.game.balance)<cost)return null
+  if(!v4CanSpend(state,cost))return null
   return {...state,game:{...state.game,balance:s(v(state.game.balance)-cost)},
     prestige:{...state.prestige,fameV4Collections:{...data,
       wingTiers:[...data.wingTiers,tier].sort((a,b)=>a-b),
@@ -120,7 +121,7 @@ export function v4StartExhibition(state:V8CapitalState,at:number):V8CapitalState
   const cooldownUntil=at+V4_EXHIBITION_COOLDOWN_MS
   if(!Number.isSafeInteger(endsAt)||!Number.isSafeInteger(cooldownUntil))return null
   const cost=v4ExhibitionCostCents(state)
-  if(cost===null||v(state.game.balance)<cost)return null
+  if(cost===null||!v4CanSpend(state,cost))return null
   return {...state,game:{...state.game,balance:s(v(state.game.balance)-cost)},
     prestige:{...state.prestige,fameV4Collections:{...data,
       exhibition:{startedAt:at,endsAt,cooldownUntil,costCents:s(cost)},

@@ -5,6 +5,7 @@ import type { FameV4EnterpriseState } from './economy/fame-v4-enterprises.ts'
 import type { FameV4CollectionState } from './prestige/collections-v4.ts'
 import type { FameV4ClickState } from './prestige/fame-v4-clicks.ts'
 import type { FameV4TradingState } from './trading/fame-v4-trading.ts'
+import type { FameV4TaxState } from './prestige/fame-v4-tax.ts'
 import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
@@ -83,6 +84,8 @@ export type V8TaxBreakdown = Record<TaxSource, ExactAmount>
 export type V8EarningsBreakdown = Record<EarningsSource, ExactAmount>
 export type V8LossBreakdown = Record<'stocks'|'crypto'|'memecoins', ExactAmount>
 export interface V8FiscalState extends Omit<FiscalState,'taxesDueCents'|'taxesPaidCents'|'dueBySourceCents'|'paidBySourceCents'> {
+  /** Optional strict tax V4 registry, absent in all previous V8 snapshots. */
+  fameV4Tax?: FameV4TaxState
   taxesDueCents: ExactAmount
   taxesPaidCents: ExactAmount
   dueBySourceCents: V8TaxBreakdown

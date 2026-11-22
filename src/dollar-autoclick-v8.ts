@@ -2,6 +2,7 @@
  * Each purchased rank grants one ordinary click each real elapsed second.
  * Historical PP Auto Click levels are preserved solely for the pass-6 refund.
  */
+import {v4CanSpend} from './prestige/fame-v4-tax.ts'
 import type { V8CapitalState } from './exact-state-v8.ts'
 import { getExactAmount as cents, withExactAmount as exact } from './exact-state-v8.ts'
 
@@ -26,7 +27,7 @@ export function buyDollarAutoClick(state: V8CapitalState, at: number): V8Capital
   const level = getDollarAutoClickLevel(state)
   const price = dollarAutoClickPriceCents(level)
   if (price === null || !Number.isSafeInteger(at) || at < state.ascension.run.startedAtRealMs ||
-      cents(state.game.balance) < price) return null
+      !v4CanSpend(state,price)) return null
   return {
     ...state,
     game: { ...state.game, balance: exact(cents(state.game.balance) - price) },

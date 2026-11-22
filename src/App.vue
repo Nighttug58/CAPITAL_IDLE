@@ -11,7 +11,7 @@ import {formatCompactUnits,formatFameMicros,decodeExactInteger} from './large-nu
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8ManualClick,v8ClaimLegendaryBanknote,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
- v8PayTaxes,v8BuyFameUpgrade,v8BuyFameUpgradeMax,v8BuyCollection,v8BuyCollectionsMax,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
+ v8BuyFameUpgrade,v8BuyFameUpgradeMax,v8BuyCollection,v8BuyCollectionsMax,v8BuyPrestigeUpgrade,v8BuyPrestigeUpgradeMax,v8ClaimAvailableAchievements,
  quoteV8ClickMax,v8UpgradeClickMax,v8BuyEnterpriseMax,v8BonusBasisPoints} from './exact-runtime-v8.ts'
 import {v8ChangeStaking, type V8StakingResult} from './exact-staking-v8.ts'
 import {buyNewsPower,newsPowerCost} from './news-powers.ts'
@@ -30,6 +30,7 @@ import {fameV4Level} from './trading/fame-v4-trading.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
+import {v4SpendableCents,v4PayTaxEarly,v4StartTaxPlan} from './prestige/fame-v4-tax.ts'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type CSSProperties } from 'vue'
 import {PRIMARY_PAGES, adjacentPage, nextPageToward, isPrimaryPage, isSwipeDirectionHorizontal, shouldCompleteSwipe, NAV_ADJACENT_MS, NAV_PASS_THROUGH_MS, NAV_LAST_HOP_MS, type PrimaryPage} from './navigation/swipe.ts'
 import {
@@ -97,15 +98,15 @@ const xpLabel = computed(() => formatCompactUnits(v(exact.value.prestige.experie
 const nextUpgrade = computed(() => getNextUpgrade(game.value))
 const upgradeUnlocked = computed(() => !!nextUpgrade.value && level.value >= nextUpgrade.value.requiredLevel)
 const upgradeAffordable = computed(() => upgradeUnlocked.value && !!nextUpgrade.value &&
-  v(exact.value.game.balance) >= BigInt(nextUpgrade.value.price)*100n)
+  v4SpendableCents(exact.value) >= BigInt(nextUpgrade.value.price)*100n)
 const clickMaxQuote = computed(() => quoteV8ClickMax(exact.value))
 const clickMaxNotice = ref('')
 const nextGain = computed(() => (nextUpgrade.value?.clickValue ?? 0) * (1 + v8BonusBasisPoints(exact.value, 'click') / 10_000))
 const autoClickLevel = computed(() => getDollarAutoClickLevel(exact.value))
 const autoClickCost = computed(() => dollarAutoClickPriceCents(autoClickLevel.value))
-const autoClickAffordable = computed(() => autoClickCost.value !== null && v(exact.value.game.balance) >= autoClickCost.value)
+const autoClickAffordable = computed(() => autoClickCost.value !== null && v4SpendableCents(exact.value) >= autoClickCost.value)
 const missingAutoClickCash = computed(() => autoClickCost.value===null ? null
-  : autoClickCost.value > v(exact.value.game.balance) ? autoClickCost.value-v(exact.value.game.balance) : 0n)
+  : autoClickCost.value > v4SpendableCents(exact.value) ? autoClickCost.value-v4SpendableCents(exact.value) : 0n)
 const page = ref<PrimaryPage | 'fame' | 'prestige' | 'transcendent'>('home')
 const fameLaunch = ref<HTMLButtonElement | null>(null)
 const prestigeLaunch = ref<HTMLButtonElement | null>(null)
@@ -743,9 +744,17 @@ function payTaxes():EarlyTaxPaymentResult{
   const due=v(exact.value.fiscal.taxesDueCents)
   if(due===0n)return{ok:false,state:capital.value,error:'nothing-due'}
   if(at<period||at>=period+FISCAL_PERIOD_MS)return{ok:false,state:capital.value,error:'invalid-clock'}
-  const next=v8PayTaxes(exact.value,at)
-  if(!replaceWholeSaveExact(next))return{ok:false,state:capital.value,error:'money-overflow'}
+  const next=v4PayTaxEarly(exact.value,at)
+  if(!next||!replaceWholeSaveExact(next))return{ok:false,state:capital.value,error:'money-overflow'}
   return{ok:true,state:capital.value,amountCents:Number(due>BigInt(Number.MAX_SAFE_INTEGER)?BigInt(Number.MAX_SAFE_INTEGER):due)}
+}
+/** A plan creation debits its 1% fee once and saves the full V8 snapshot. */
+function startTaxPlan():boolean{
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const at=exact.value.enterprises.lastAccruedAt
+  const next=v4StartTaxPlan(exact.value,at)
+  return !!next&&replaceWholeSaveExact(next)
 }
 function startMarketRuntime(){
   if(loadBlocked.value)return
@@ -1137,7 +1146,7 @@ onUnmounted(() => {
     <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact"
       :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase"
       :execute-fame-v4-collection="executeFameV4Collection" />
-    <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
+    <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes" :start-tax-plan="startTaxPlan"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">

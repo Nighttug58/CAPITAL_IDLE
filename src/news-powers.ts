@@ -1,4 +1,5 @@
 import type { V8CapitalState } from './exact-state-v8.ts'
+import {v4CanSpend} from './prestige/fame-v4-tax.ts'
 import { v8EligiblePrestigeWorthCents } from './exact-prestige-v8.ts'
 import { getCollectionBookValueCents } from './prestige/collections-catalog.ts'
 import { createRandom } from './trading/market.ts'
@@ -16,7 +17,7 @@ export function buyNewsPower(state:V8CapitalState,eventId:string|null,expectedCo
   if(count!==expectedCount || !Number.isSafeInteger(count+1))return null
   if(!Number.isSafeInteger(at)||at<state.trading.dividendLastPaidAt||at-state.trading.dividendLastPaidAt>=1000)return null
   const cost=newsPowerCost(state,eventId!==null)
-  if(cost<=0n||BigInt(state.game.balance)<cost)return null
+  if(cost<=0n||!v4CanSpend(state,cost))return null
   const random=createRandom(state.trading.seed)
   at=state.trading.dividendLastPaidAt
   let news=[...state.trading.news]
