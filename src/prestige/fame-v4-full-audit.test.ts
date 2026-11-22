@@ -42,7 +42,7 @@ test('all 30 powers permanently buy 196 exact ranks once; duplicate MAX does not
  assert.equal(Object.values(levels).reduce((a,b)=>a+b,0),FAME_V4_TOTAL_LEVELS)
  assert.equal(v(state.prestige.fameV4!.spentMicros),FAME_V4_TOTAL_COST*1_000_000n)
  assert.equal(fameV4PurchasedCost(levels),FAME_V4_TOTAL_COST)
- assert.equal(v(state.prestige.fameMicros),400_000n*1_000_000n-FAME_V4_TOTAL_COST*1_000_000n)
+ assert.equal(v(state.prestige.fameMicros),v(createV8CapitalState(NOW).prestige.fameMicros)+400_000n*1_000_000n-FAME_V4_TOTAL_COST*1_000_000n)
  assert.equal(v(state.prestige.lifetimeFameMicros),
    v(state.prestige.fameMicros)+v(state.prestige.fameSpentMicros)+v(state.prestige.fameForfeitedMicros))
  for(const definition of FAME_V4_CATALOG)
