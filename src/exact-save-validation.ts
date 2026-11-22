@@ -351,7 +351,7 @@ function validFameClicksV4(p:Dict,a:Dict,e:Dict,st:Dict,t:Dict):boolean{
     return typeof r==='number'&&Number.isSafeInteger(r)&&r>=0?r:0
   }
   const clock=e.lastAccruedAt,started=run.startedAtRealMs
-  if(!safe(clock)||!safe(started)||!safe(st.activePlayMs))return false
+  if(!safe(clock)||!safe(started)||!safe(st.activePlayMs)||!safe(st.clickCount))return false
   const manual=data.lastManualAt,active=data.lastManualActiveMs
   if((manual!==null&&(!safe(manual)||manual<started||manual>clock))||
     (active!==null&&(!safe(active)||active>st.activePlayMs))||
