@@ -103,7 +103,7 @@ test('26 plans split exact 1% fee once and installments deterministic across rep
  for(let i=1;i<=6;i++)split=v8AdvanceFiscalEconomy(split,T+i*V4_TAX_INSTALLMENT_MS)
  assert.deepEqual(twice,split)
  assert.equal(v(once.fiscal.taxesDueCents),v(withNew.fiscal.taxesDueCents)-(due*2n/6n-due/6n))
- assert.equal(v(twice.fiscal.taxesPaidCents),due+v(withNew.fiscal.taxesDueCents)-due)
+ assert.equal(v(twice.fiscal.taxesPaidCents),due+(v(withNew.fiscal.taxesDueCents)-(due-due/6n)))
  assert.equal(twice.fiscal.taxesDueCents,'0')
  assert.equal(twice.fiscal.fameV4Tax?.plan,null)
  assert.equal(check(twice).valid,true,check(twice).reason)
