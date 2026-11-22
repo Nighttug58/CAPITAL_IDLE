@@ -21,12 +21,14 @@ import {getCollectionBookValueCents} from '../prestige/collections-catalog.ts'
 import { collectionV3Snapshot, COLLECTION_SET_REWARDS } from '../prestige/collections-v3.ts'
 import { COLLECTION_CATEGORIES, type FameBoostId } from '../prestige/catalog.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
+import {v4ReservedTaxCents,v4SpendableCents,v4FiscalReport,V4_TAX_INSTALLMENT_MS} from '../prestige/fame-v4-tax.ts'
 import {formatCompactUnits,formatDecimalUnits,formatFameMicros} from '../large-numbers.ts'
 
 const props = defineProps<{
   state: CapitalState
   exactState?: V8CapitalState
   payTaxes: () => EarlyTaxPaymentResult
+  startTaxPlan: () => boolean
   exportSave: () => boolean
   importSave: (state: V8CapitalState) => boolean
   resetSave: () => boolean
@@ -143,7 +145,7 @@ const hours = (ms: number) => {
   return d ? `${d} j ${h} h ${m} min` : `${h} h ${m} min`
 }
 
-const dueAt = computed(() => props.state.fiscal.periodStartedAt + FISCAL_PERIOD_MS)
+const dueAt = computed(() => (props.exactState?.fiscal.periodStartedAt??props.state.fiscal.periodStartedAt) + FISCAL_PERIOD_MS)
 const remaining = computed(() => {
   // La réactivité provient du MarketRuntime déjà présent dans l'application.
   const ms = Math.max(0, dueAt.value - Date.now())
@@ -154,6 +156,30 @@ const remaining = computed(() => {
   return `${d}j ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`
 })
 
+const fiscalRank=(id:number):number=>props.exactState?.prestige.fameV4?.levels[
+  ('fame-v4-'+String(id).padStart(2,'0')) as keyof NonNullable<V8CapitalState['prestige']['fameV4']>['levels']
+]??0
+const fiscalV4=computed(()=>props.exactState?.fiscal.fameV4Tax)
+const reserveCents=computed(()=>props.exactState?v4ReservedTaxCents(props.exactState):0n)
+const spendableCents=computed(()=>props.exactState?v4SpendableCents(props.exactState):0n)
+const taxReport=computed(()=>props.exactState&&fiscalRank(27)>0?v4FiscalReport(props.exactState):null)
+const installmentPlan=computed(()=>fiscalV4.value?.plan)
+const planFee=computed(()=>props.exactState ? (v(props.exactState.fiscal.taxesDueCents)+50n)/100n:0n)
+const planPossible=computed(()=>{
+  const st=props.exactState
+  if(!st||fiscalRank(26)<1||installmentPlan.value||fiscalV4.value?.eligiblePeriodAt!==null&&
+    fiscalV4.value?.eligiblePeriodAt!==undefined||v(st.fiscal.taxesDueCents)<=0n)return false
+  const n=Math.min(6,fiscalRank(26)+1)
+  return st.enterprises.lastAccruedAt+n*V4_TAX_INSTALLMENT_MS<=
+    st.fiscal.periodStartedAt+FISCAL_PERIOD_MS&&v4SpendableCents(st)>=planFee.value
+})
+const confirmingPlan=ref(false)
+function activatePlan(){
+  const ok=props.startTaxPlan()
+  confirmingPlan.value=false
+  notice.value=ok?'Échelonnement fiscal activé. Frais de gestion débités une seule fois.':
+    'Impossible de démarrer le plan : échéance trop proche, remise en attente ou liquidités insuffisantes.'
+}
 const confirming = ref(false)
 const notice = ref('')
 const sources = [
@@ -246,10 +272,12 @@ function closeReset() {
 }
 
 function pay() {
+  const before=props.exactState?v(props.exactState.fiscal.taxesPaidCents):0n
   const result = props.payTaxes()
   confirming.value = false
+  const actual=props.exactState?v(props.exactState.fiscal.taxesPaidCents)-before:null
   notice.value = result.ok
-    ? `Paiement de ${props.exactState ? importMoney(props.exactState.fiscal.taxesPaidCents) : money(result.amountCents)} effectué. Nouvelle échéance dans 72 h.`
+    ? `Paiement de ${actual!==null ? importMoney(actual.toString()) : money(result.amountCents)} effectué. Nouvelle échéance dans 72 h.`
     : result.error === 'nothing-due'
       ? 'Aucune taxe à payer pour cette période.'
       : 'Paiement impossible pour le moment. Vérifiez votre horloge ou votre sauvegarde.'
@@ -402,6 +430,48 @@ function pay() {
           <div class="stats-tax-total">
             <span>Toutes taxes déjà payées</span>
             <strong>{{ exactState ? importMoney(exactState.fiscal.taxesPaidCents) : money(state.fiscal.taxesPaidCents) }}</strong>
+          </div>
+        </div>
+        <div v-if="exactState && [24,25,26,27].some(id=>fiscalRank(id)>0)" class="stats-tax-v4" aria-label="Fiscalité Fame V4">
+          <div class="stats-section-heading"><h3>Fiscalité Fame V4</h3><span>POUVOIRS ACTIFS</span></div>
+          <div v-if="fiscalRank(24)>0" class="stats-mini-grid">
+            <div><span>RÉSERVE PROTÉGÉE ({{ fiscalRank(24)*20 }} %)</span>
+              <strong>{{ importMoney(reserveCents.toString()) }}</strong></div>
+            <div><span>CASH UTILISABLE POUR ACHATS</span>
+              <strong>{{ importMoney(spendableCents.toString()) }}</strong></div>
+          </div>
+          <p v-if="fiscalRank(24)>0" class="stats-footnote">La réserve bloque les achats, sans retirer d'argent ni augmenter la fortune. Les prélèvements fiscaux peuvent toujours rendre le solde négatif.</p>
+          <div v-if="fiscalRank(25)>0" class="stats-mini-grid">
+            <div><span>FIDÉLITÉ FISCALE</span><strong>−{{ fiscalRank(25) }} % sur l'échéance admissible</strong></div>
+            <div><span>REMISE FUTURE</span><strong>{{ fiscalV4?.eligiblePeriodAt===exactState.fiscal.periodStartedAt?'ACQUISE · NON UTILISÉE':'NON ACQUISE' }}</strong></div>
+            <div><span>REMISES ACCORDÉES</span><strong>{{ importMoney(fiscalV4?.discountsGrantedCents??'0') }}</strong></div>
+          </div>
+          <p v-if="fiscalRank(25)>0" class="stats-footnote">Pour débloquer la remise sur la prochaine période : paiement anticipé d’au moins 1 M$ effectué 24 h avant l’échéance. Une qualification maximum par 72 h réelles. Jamais de remise rétroactive.</p>
+          <div v-if="fiscalRank(26)>0" class="stats-mini-grid">
+            <div><span>ÉCHELONNEMENT</span>
+              <strong>{{ installmentPlan ? (installmentPlan.paidCount+'/'+installmentPlan.installments+' versements') : 'AUCUN PLAN ACTIF' }}</strong></div>
+            <div><span>FRAIS DE GESTION CUMULÉS</span><strong>{{ importMoney(fiscalV4?.managementFeesPaidCents??'0') }}</strong></div>
+          </div>
+          <p v-if="installmentPlan" class="stats-footnote">Prochain versement : {{ new Date(installmentPlan.startedAt+(installmentPlan.paidCount+1)*V4_TAX_INSTALLMENT_MS).toLocaleString('fr-CH') }}. Les nouveaux impôts restent dus à l’échéance de 72 h ; le Prestige solde tout.</p>
+          <button v-else-if="fiscalRank(26)>0" type="button" class="stats-tax-pay" :disabled="!planPossible" @click="confirmingPlan=true">
+            Activer {{ fiscalRank(26)+1 }} versements de 12 h · frais {{ importMoney(planFee.toString()) }}
+          </button>
+          <div v-if="confirmingPlan" class="stats-tax-confirm" role="alertdialog" aria-label="Confirmer l'échelonnement fiscal">
+            <strong>Créer un plan fiscal irréversible ?</strong>
+            <p>La dette actuelle sera fractionnée en {{ fiscalRank(26)+1 }} versements espacés de 12 h. Frais de 1 % débités immédiatement, sans XP/Fame. Aucun report de l’échéance de 72 h.</p>
+            <div><button type="button" @click="confirmingPlan=false">Annuler</button>
+              <button type="button" class="stats-tax-confirm-pay" @click="activatePlan">Confirmer</button></div>
+          </div>
+          <div v-if="taxReport" class="stats-tax-sources" aria-label="Optimisation patrimoniale : bilan exact">
+            <div class="stats-section-heading"><h3>Optimisation patrimoniale</h3><span>BILAN V8</span></div>
+            <div><span>Gains cumulés enregistrés (trading net de frais)</span><strong>{{ importMoney(taxReport.recordedIncomeCents.toString()) }}</strong></div>
+            <div><span>Pertes trading réalisées</span><strong>−{{ importMoney(taxReport.recordedTradingLossCents.toString()) }}</strong></div>
+            <div><span>Taxes déjà réglées</span><strong>−{{ importMoney(taxReport.recordedTaxCents.toString()) }}</strong></div>
+            <div><span>Frais d'échelonnement enregistrés</span><strong>−{{ importMoney(taxReport.feesCents.toString()) }}</strong></div>
+            <div><span>Revenu comptable net de ces charges</span><strong>{{ importMoney(taxReport.estimatedNetCents.toString()) }}</strong></div>
+            <div><span>Dette fiscale restante</span><strong>{{ importMoney(taxReport.dueCents.toString()) }}</strong></div>
+            <div><span>Simulation : prochaine dette avec remise théorique</span><strong>{{ importMoney(taxReport.simulatedNextTaxCents.toString()) }}</strong></div>
+            <p class="stats-footnote">Simulation pure, non prédictive : elle suppose la dette constante et une remise admissible. Les frais historiques de trading étaient déjà inclus dans les plus-values nettes, et ne sont pas disponibles séparément dans les anciennes sauvegardes. Aucun montant n'est ajouté à la progression.</p>
           </div>
         </div>
         <p class="stats-tax-help">Barème progressif de 15 à 70 % sur les gains du cycle. Seuls les revenus d'entreprises et les bénéfices réalisés du trading sont taxés. La dette s'accumule et est prélevée toutes les 72 heures réelles, même en cas de solde négatif.</p>
