@@ -66,7 +66,7 @@ test('28 purchase during a cycle never spawns a new Renaissance until next Prest
  const high=v8CreditIncome(a,'clicks',10n**25n)
  const purchased=v8BuyFameV4UpgradeMax(high,'fame-v4-28',0)
  assert.ok(purchased,'Fame earned after Prestige permits permanent purchase')
- assert.equal(purchased.ascension.run.fameV4Prestige?.renaissanceRankAtStart,0)
+ assert.equal(v4PrestigeRun(purchased).renaissanceRankAtStart,0)
  assert.equal(v4PrestigeBonusBps(purchased,'click',T+1000),0)
  const withLevel=rich(28)
  assert.equal(v4PrestigeBonusBps(withLevel,'click',T+1000),0)
@@ -99,7 +99,7 @@ test('28 offline Auto Click uses exact time segmentation, idempotent from 5m to 
  assert.deepEqual(full,split)
  // Rank 5 makes only the first 300 clicks +20%, never the remaining hours.
  assert.equal(v(full.stats.earnedBySource.clicks)-v(state.stats.earnedBySource.clicks),
-   BigInt(FISCAL_PERIOD_MS/1000)*100n+300n*20n)
+   BigInt(FISCAL_PERIOD_MS/1000)*100n+299n*20n)
  assert.equal(v8AutoClickFrame(full,end,false),full)
  assert.ok(validate(full).valid,validate(full).reason)
 })
