@@ -13,6 +13,7 @@ import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} f
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { nextPrestigeCycle, MAX_SAFE_CYCLE } from './ascension/prestige-count-v8.ts'
 import { prestigeFameV4Trading } from './trading/fame-v4-trading.ts'
+import { prestigeFameV4Collections } from './prestige/collections-v4.ts'
 import { v4ContractEarlyExitWorth,v4ForceContractsBeforePrestige,v4PrestigeEnterpriseData } from './economy/fame-v4-enterprises.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
@@ -96,7 +97,10 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
     ...(state.newsPowers?{newsPowers:state.newsPowers}:{}),
     trading:{...fresh.trading,...(state.trading.autoSellRules?{autoSellRules:state.trading.autoSellRules}:{}),
       ...(state.trading.fameV4Trading?{fameV4Trading:prestigeFameV4Trading(state.trading.fameV4Trading)}:{})},
-    prestige:{...previousPrestige,experienceCents:'0',lastAwardedLevel:1,
+    prestige:{...previousPrestige,
+      ...(afterTax.prestige.fameV4Collections?{
+        fameV4Collections:prestigeFameV4Collections(afterTax.prestige.fameV4Collections)}:{}),
+      experienceCents:'0',lastAwardedLevel:1,
       experienceCarryBps:0,clickCarryBps:0,tradingCarryBps:0,
       fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),
       cycleEarnedFameMicros:'0',cycleLevelFameMicros:'0',cycleCollectionFameMicros:'0'},

@@ -11,6 +11,8 @@ import { getClickValue, UPGRADES } from './game.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { fameV4PurchasedCost } from './prestige/fame-v4-catalog.ts'
+import { v4CollectionsBonusBps, v4CollectionPriceCents, v4ClaimPrivateOffer, v4RefreshPrivateOffers,
+  nextV4CollectionEventTime } from './prestige/collections-v4.ts'
 import { v4UpgradeCost,v4UpgradeBatchCost,enterpriseV4BonusBps,nextV4EnterpriseEventTime,v4SettleTimedEnterprise } from './economy/fame-v4-enterprises.ts'
 import { onFameV4PositionChange } from './trading/fame-v4-trading.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
@@ -102,9 +104,14 @@ export function v8CreditIncome(state: V8CapitalState, source: V8Source,
   return xpAward(credited, grossCents)
 }
 
+function v8V4ClickRate(state:V8CapitalState){
+  const old=v8ExactRewardRate(state,'click')
+  const bps=v4CollectionsBonusBps(state,'click',state.enterprises.lastAccruedAt)
+  return bps===0?old:{numerator:old.numerator*BigInt(10_000+bps),denominator:old.denominator*10_000n}
+}
 export function v8Click(state: V8CapitalState): V8CapitalState {
   const base = BigInt(getClickValue(state.game.purchasedUpgrades)) * 100n
-  const rate = v8ScaleRewardCents(base, v8ExactRewardRate(state, 'click'), state.prestige.clickCarryBps)
+  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state), state.prestige.clickCarryBps)
   const credited = v8CreditIncome(state, 'clicks', rate.amount)
   return { ...credited,
     stats: { ...credited.stats, clickCount: credited.stats.clickCount + 1 },
@@ -122,7 +129,7 @@ export function v8ClickBatch(state: V8CapitalState, count: bigint): V8CapitalSta
     return next
   }
   const base = BigInt(getClickValue(state.game.purchasedUpgrades)) * 100n * count
-  const rate = v8ScaleRewardCents(base, v8ExactRewardRate(state, 'click'), state.prestige.clickCarryBps)
+  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state), state.prestige.clickCarryBps)
   const credited = v8CreditIncome(state, 'clicks', rate.amount)
   const total = BigInt(state.stats.clickCount) + count
   const max = BigInt(Number.MAX_SAFE_INTEGER)
@@ -429,20 +436,24 @@ export function v8CollectionReward(state: V8CapitalState, fame: number): bigint 
 }
 
 export function v8BuyCollection(state: V8CapitalState, id: string): V8CapitalState | null {
-  const key = currentCollectionId(id)
-  const item = getCollectionSlot('v2:' + key)
-  if (!item || state.prestige.ownedCollectionIds.some(owned => currentCollectionId(owned) === key) ||
-      v(state.game.balance) < BigInt(item.priceCents)) return null
-  const gained = v8CollectionReward(state, item.fame)
-  return { ...state,
-    game:{ ...state.game, balance:s(v(state.game.balance) - BigInt(item.priceCents)) },
-    prestige:{ ...state.prestige,
-      ownedCollectionIds:[...state.prestige.ownedCollectionIds, item.id],
-      fameMicros:s(v(state.prestige.fameMicros) + gained),
-      lifetimeFameMicros:s(v(state.prestige.lifetimeFameMicros) + gained),
-      collectionFameMicros:s(v(state.prestige.collectionFameMicros) + gained),
-      cycleEarnedFameMicros:s(v(state.prestige.cycleEarnedFameMicros) + gained),
-      cycleCollectionFameMicros:s(v(state.prestige.cycleCollectionFameMicros) + gained),
+  const prepared=v4RefreshPrivateOffers(state,state.enterprises.lastAccruedAt)
+  const key=currentCollectionId(id)
+  const item=getCollectionSlot('v2:' + key)
+  const price=v4CollectionPriceCents(prepared,id)
+  if(!item||price===null||
+    prepared.prestige.ownedCollectionIds.some(owned=>currentCollectionId(owned)===key)||
+    v(prepared.game.balance)<price)return null
+  const claimed=v4ClaimPrivateOffer(prepared,id,prepared.enterprises.lastAccruedAt)
+  const gained=v8CollectionReward(claimed,item.fame)
+  return {...claimed,
+    game:{...claimed.game,balance:s(v(claimed.game.balance)-price)},
+    prestige:{...claimed.prestige,
+      ownedCollectionIds:[...claimed.prestige.ownedCollectionIds,item.id],
+      fameMicros:s(v(claimed.prestige.fameMicros)+gained),
+      lifetimeFameMicros:s(v(claimed.prestige.lifetimeFameMicros)+gained),
+      collectionFameMicros:s(v(claimed.prestige.collectionFameMicros)+gained),
+      cycleEarnedFameMicros:s(v(claimed.prestige.cycleEarnedFameMicros)+gained),
+      cycleCollectionFameMicros:s(v(claimed.prestige.cycleCollectionFameMicros)+gained),
     },
   }
 }
@@ -457,13 +468,18 @@ export interface V8CollectionMaxQuote {
 const COLLECTION_MAX_ORDER = [...CURRENT_COLLECTION_SLOTS].sort((a,b) =>
   a.priceCents - b.priceCents || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 export function v8CollectionMaxQuote(state: V8CapitalState): V8CollectionMaxQuote {
-  const owned = new Set(state.prestige.ownedCollectionIds.map(currentCollectionId))
-  let cash = v(state.game.balance)
-  let costCents = 0n
-  const ids: string[] = []
-  for (const item of COLLECTION_MAX_ORDER) {
-    const cost = BigInt(item.priceCents)
-    if (owned.has(currentCollectionId(item.id)) || cash < cost) continue
+  const prepared=v4RefreshPrivateOffers(state,state.enterprises.lastAccruedAt)
+  const owned=new Set(prepared.prestige.ownedCollectionIds.map(currentCollectionId))
+  let cash=v(prepared.game.balance)
+  let costCents=0n
+  const ids:string[]=[]
+  const ordered=[...COLLECTION_MAX_ORDER].sort((a,b)=>{
+    const pa=v4CollectionPriceCents(prepared,a.id)!,pb=v4CollectionPriceCents(prepared,b.id)!
+    return pa<pb?-1:pa>pb?1:a.id.localeCompare(b.id)
+  })
+  for(const item of ordered){
+    const cost=v4CollectionPriceCents(prepared,item.id)!
+    if(owned.has(currentCollectionId(item.id))||cash<cost)continue
     cash -= cost
     costCents += cost
     ids.push(item.id)
@@ -480,7 +496,7 @@ export function v8BuyCollectionsMax(state: V8CapitalState): {
 } | null {
   const quote = v8CollectionMaxQuote(state)
   if (!quote.ids.length) return null
-  let next = state
+  let next=v4RefreshPrivateOffers(state,state.enterprises.lastAccruedAt)
   for (const id of quote.ids) {
     const bought = v8BuyCollection(next, id)
     if (!bought) return null
@@ -643,7 +659,8 @@ function v8AccrueEnterpriseSegment(state:V8CapitalState,now:number):V8CapitalSta
   for(const [id,holding] of Object.entries(state.enterprises.owned)) {
     const micros=getEnterpriseIncomeMicrosPerSecondExact(id,holding.level)
     if(micros!==null){
-      const v4bps=enterpriseV4BonusBps(state,id,state.enterprises.lastAccruedAt)
+      const v4bps=Math.min(10_000,enterpriseV4BonusBps(state,id,state.enterprises.lastAccruedAt)+
+        v4CollectionsBonusBps(state,'enterprise',state.enterprises.lastAccruedAt))
       rate+=micros*BigInt(10_000+v4bps)/10_000n
     }
   }
@@ -668,7 +685,7 @@ export function v8AccrueEnterpriseUntil(state:V8CapitalState,now:number):V8Capit
   let next=state
   let cursor=state.enterprises.lastAccruedAt
   for(let i=0;i<12;i++){
-    const end=nextV4EnterpriseEventTime(next,cursor,now)
+    const end=nextV4CollectionEventTime(next,cursor,nextV4EnterpriseEventTime(next,cursor,now))
     if(end>cursor)next=v8AccrueEnterpriseSegment(next,end)
     next=v4SettleTimedEnterprise(next,end)
     if(end>=now)return next
@@ -684,11 +701,11 @@ export function v8AdvanceFiscalEconomy(state:V8CapitalState,now:number):V8Capita
   const last=state.enterprises.lastAccruedAt
   if(!Number.isSafeInteger(now)||now<start||now<last)return state
   const periods=Math.floor((now-start)/FISCAL_PERIOD_MS)
-  if(periods===0)return v8AccrueEnterpriseUntil(state,now)
+  if(periods===0)return v4RefreshPrivateOffers(v8AccrueEnterpriseUntil(state,now),now)
   const deadline=start+periods*FISCAL_PERIOD_MS
   if(!Number.isSafeInteger(deadline))return state
   const prepared=last>deadline?state:v8AccrueEnterpriseUntil(state,deadline)
   if(prepared.enterprises.lastAccruedAt<deadline)return state
   const paid=v8PayTaxes(prepared,deadline)
-  return v8AccrueEnterpriseUntil(paid,now)
+  return v4RefreshPrivateOffers(v8AccrueEnterpriseUntil(paid,now),now)
 }
