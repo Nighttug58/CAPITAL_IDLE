@@ -102,7 +102,7 @@ describe('Enterprise Fame V4 pass 4 UI',()=>{
   expect(v(after.game.balance)-v(before.game.balance)).toBe(-(10n**12n)+
     v(after.stats.earnedBySource.enterprises)-v(before.stats.earnedBySource.enterprises))
   expect(after.enterprises.fameV4Enterprise?.usedProjectTiers).toEqual([0])
-  expect(project.text()).toContain('30m')
+  expect(project.text()).toContain('Bonus +5 % actif pendant encore')
   expect(project.find('button').attributes('disabled')).toBeDefined()
   expect(prepareV8SaveImport(JSON.stringify(after),Date.now()).ok).toBe(true)
  })
