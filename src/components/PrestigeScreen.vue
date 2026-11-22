@@ -313,7 +313,7 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
             <div class="prestige-v4-choices">
               <button v-for="choice in destinyChoices" :key="choice.id" type="button"
                 :disabled="busy || confirming" :aria-label="'Choisir '+choice.label"
-                @click="chooseDestiny(choice)"><strong>{{ choice.label }}</strong>
+                @click="chooseDestiny(choice.id)"><strong>{{ choice.label }}</strong>
                 <small>{{ choice.effect }}</small></button>
             </div>
             <div v-if="destinySelection!==null" class="prestige-v4-confirm" role="alertdialog"
