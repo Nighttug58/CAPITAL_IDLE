@@ -23,6 +23,7 @@ import { V4_WING_COSTS_CENTS,v4RestoreCostCents,V4_EXHIBITION_DURATION_MS,
 import { MAX_SAFE_CYCLE, projectedPrestigeCycle } from './ascension/prestige-count-v8.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
+import {V4_TAX_INSTALLMENT_MS} from './prestige/fame-v4-tax.ts'
 
 export interface ExactSaveValidation {
   readonly valid: boolean
@@ -386,6 +387,44 @@ function validFameClicksV4(p:Dict,a:Dict,e:Dict,st:Dict,t:Dict):boolean{
   return true
 }
 
+/** Strict optional fiscal Fame V4 state: one liability, one ledger, one plan.
+ * All historical saves without this field remain valid.
+ */
+function validFameTaxV4(f:Dict,p:Dict,e:Dict):boolean {
+  if(f.fameV4Tax===undefined)return true
+  const data=f.fameV4Tax
+  if(!object(data)||data.version!==1||
+    !object(p.fameV4)||!object(p.fameV4.levels)||
+    amount(data.discountsGrantedCents)===null||
+    amount(data.managementFeesPaidCents)===null)return false
+  const levels=p.fameV4.levels
+  const rank=(id:string)=>typeof levels['fame-v4-'+id]==='number'?levels['fame-v4-'+id] as number:0
+  if(data.lastQualifiedAt!==null&&(!safe(data.lastQualifiedAt)||rank('25')===0||
+    data.lastQualifiedAt>e.lastAccruedAt))return false
+  if(data.eligiblePeriodAt!==null&&
+    (!safe(data.eligiblePeriodAt)||data.eligiblePeriodAt!==f.periodStartedAt||
+    data.lastQualifiedAt===null||rank('25')===0))return false
+  const plan=data.plan
+  if(plan===null)return true
+  if(!object(plan)||rank('26')<1||data.eligiblePeriodAt!==null||
+    !safe(plan.startedAt)||!safe(plan.installments)||!safe(plan.paidCount)||
+    plan.installments<2||plan.installments>Math.min(6,rank('26')+1)||
+    plan.paidCount>=plan.installments||
+    plan.startedAt<f.periodStartedAt||plan.startedAt>e.lastAccruedAt||
+    plan.startedAt+plan.installments*V4_TAX_INSTALLMENT_MS>Number(f.periodStartedAt)+72*60*60*1000||
+    !object(plan.remainingBySourceCents)||Object.keys(plan.remainingBySourceCents).length!==4)return false
+  const initial=amount(plan.initialCents)
+  if(initial===null||initial===0n)return false
+  let remaining=0n
+  for(const key of TAX_SOURCES){
+    const part=amount(plan.remainingBySourceCents[key])
+    const available=object(f.dueBySourceCents)?amount(f.dueBySourceCents[key]):null
+    if(part===null||available===null||part>available)return false
+    remaining+=part
+  }
+  return remaining===initial-initial*BigInt(plan.paidCount)/BigInt(plan.installments)&&remaining>0n
+}
+
 function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
   const progress=object(a.progress)?a.progress:null
   const run=object(a.run)?a.run:null
@@ -453,7 +492,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
-  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e)||!validFameClicksV4(p,a,e,s,t))
+  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e)||!validFameClicksV4(p,a,e,s,t)||!validFameTaxV4(f,p,e))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
     !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||
