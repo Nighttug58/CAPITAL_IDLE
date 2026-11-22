@@ -6,6 +6,7 @@ import type { FameV4CollectionState } from './prestige/collections-v4.ts'
 import type { FameV4ClickState } from './prestige/fame-v4-clicks.ts'
 import type { FameV4TradingState } from './trading/fame-v4-trading.ts'
 import type { FameV4TaxState } from './prestige/fame-v4-tax.ts'
+import type { FameV4PrestigeRun } from './prestige/fame-v4-prestige.ts'
 import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
@@ -155,6 +156,8 @@ export interface V8AscensionRun extends Omit<AscensionRunState,'automation'|'mar
   autoClickLevel?: number
   /** Optional cycle-specific Fame V4 click mechanics, absent in older V8. */
   fameV4Clicks?: FameV4ClickState
+  /** Optional per-Prestige V4 cycle registry; pre-pass-8 saves remain neutral. */
+  fameV4Prestige?: FameV4PrestigeRun
   /** Absent in pre-pass-5 V8 means exactly zero. */
   startingCapitalGrantedCents?: ExactAmount
   automation?: Omit<AscensionRunState['automation'],'maxOrderCents'|'cashReserveCents'|'enterpriseBudgetCents'> & {
