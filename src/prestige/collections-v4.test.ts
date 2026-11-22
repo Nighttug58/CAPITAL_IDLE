@@ -63,8 +63,18 @@ test('15: restorations cost exactly 20% rounded-up, respect owned and unique cap
  assert.equal(v4CollectionsBonusBps(state,'enterprise',NOW),25)
  const once=v4RestoreCollection(state,CURRENT_COLLECTION_SLOTS[1]!.id,NOW)!
  assert.equal(fameV4Collections(once).restoredIds.length,2)
- assert.equal(v4RestoreCollection(once,CURRENT_COLLECTION_SLOTS[2]!.id,NOW),null)
- assert.equal(valid(once).valid,true,valid(once).reason)
+ const third=v4RestoreCollection(once,CURRENT_COLLECTION_SLOTS[2]!.id,NOW)
+ assert.ok(third,'Rang 10 permet bien 20 restaurations')
+ let capped=collect(seed(15),21)
+ for(let i=0;i<20;i++){
+  const restored=v4RestoreCollection(capped,CURRENT_COLLECTION_SLOTS[i]!.id,NOW)
+  assert.ok(restored,'Restoration #'+(i+1))
+  capped=restored
+ }
+ assert.equal(fameV4Collections(capped).restoredIds.length,20)
+ assert.equal(v4RestoreCollection(capped,CURRENT_COLLECTION_SLOTS[20]!.id,NOW),null)
+ assert.equal(valid(capped).valid,true,valid(capped).reason)
+ assert.equal(valid(third!).valid,true,valid(third!).reason)
 })
 test('18: permanent museum wings cost exact BigInt and never enter the 100 objects',()=>{
  let state=seed(18)
