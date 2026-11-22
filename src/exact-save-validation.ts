@@ -392,6 +392,7 @@ function validFameClicksV4(p:Dict,a:Dict,e:Dict,st:Dict,t:Dict):boolean{
  */
 function validFameTaxV4(f:Dict,p:Dict,e:Dict):boolean {
   if(f.fameV4Tax===undefined)return true
+  if(!safe(e.lastAccruedAt)||!safe(f.periodStartedAt))return false
   const data=f.fameV4Tax
   if(!object(data)||data.version!==1||
     !object(p.fameV4)||!object(p.fameV4.levels)||
