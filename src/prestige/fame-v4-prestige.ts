@@ -133,7 +133,7 @@ export function v4PrestigeClickBoundaries(state:V8CapitalState,from:number,to:nu
       ?data.renaissanceStartedAt+data.renaissanceRankAtStart*V4_RENAISSANCE_MS:null,
     data?.challengeBoost?.startedAt??null,data?.challengeBoost?.endsAt??null,
     exhibition?.startedAt??null,exhibition?.endsAt??null]
-  return candidates.filter((n):n is number=>n!==null&&n>from&&n<to)
+  return candidates.filter((n):n is number=>n!==null&&n>from&&n<=to)
 }
 /** Trader reduces the actual charged fee, not the market quote or cost basis
  * already paid in a previous cycle. Fee remains at least one cent on trades.
