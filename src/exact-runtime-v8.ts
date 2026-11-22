@@ -25,6 +25,7 @@ import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordable
 import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
+import {v4SpendableCents,v4CanSpend,v4SettleFiscalTaxes,v4PlanNextAt,v4ApplyPlanInstallment} from './prestige/fame-v4-tax.ts'
 import { progressiveTaxNumerator } from './economy/tax-curve.ts'
 import { getV2NextFameBoostCost as fameCost } from './prestige/catalog.ts'
 import { prestigeShop, prestigeCost } from './ascension/v2.ts'
@@ -180,7 +181,7 @@ export function v8UpgradeClick(state: V8CapitalState): V8CapitalState | null {
   const next = UPGRADES[state.game.purchasedUpgrades]
   const level = getExactLevel(v(state.prestige.experienceCents))
   const cost = next && BigInt(next.price) * 100n
-  if (!next || level < next.requiredLevel || cost === null || v(state.game.balance) < cost) return null
+  if (!next || level < next.requiredLevel || cost === null || v4SpendableCents(state) < cost) return null
   return { ...state, game: { ...state.game, balance: s(v(state.game.balance) - cost),
     purchasedUpgrades: state.game.purchasedUpgrades + 1 } }
 }
@@ -260,7 +261,7 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
   if (!cost) return rejectTrade('invalid-cost')
   const sale = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
   if (!sale?.proceedsCents) return rejectTrade('amount-too-small')
-  if (v(state.game.balance) < cost.totalCents) return rejectTrade('insufficient-funds')
+  if (v4SpendableCents(state) < cost.totalCents) return rejectTrade('insufficient-funds')
   const next: V8CapitalState = { ...state,
     game: { ...state.game, balance: s(v(state.game.balance) - cost.totalCents) },
     trading: { ...state.trading,
@@ -275,7 +276,7 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
 export function v8MaximumBuyUnits(state: V8CapitalState, assetId: string): bigint {
   const entry = priceFor(state, assetId)
   if (!entry) return 0n
-  const cash = v(state.game.balance)
+  const cash = v4SpendableCents(state)
   const upper = affordableExactQuantity(cash, entry.fraction,
     entry.asset.quantityDecimals, feeBps(entry.asset.kind))
   return upper
@@ -365,26 +366,9 @@ export function v8AccrueTax(state: V8CapitalState, source: TaxSource,
   }
 }
 
-/** Pay taxes into negative cash exactly; optional fiscal anchor preservation. */
+/** Pay exact tax liability once, including Fame V4 discounts and active plans. */
 export function v8PayTaxes(state: V8CapitalState, at: number, preserveAnchor = false): V8CapitalState {
-  if (!Number.isSafeInteger(at) || at < state.fiscal.periodStartedAt) {
-    throw new RangeError('Invalid tax settlement time')
-  }
-  const due = v(state.fiscal.taxesDueCents)
-  const paidBySource = { ...state.fiscal.paidBySourceCents }
-  const dueBySourceCents = { ...state.fiscal.dueBySourceCents }
-  for (const source of ['enterprises','stocks','crypto','memecoins'] as const) {
-    paidBySource[source] = s(v(paidBySource[source]) + v(dueBySourceCents[source]))
-    dueBySourceCents[source] = '0'
-  }
-  return { ...state,
-    game: { ...state.game, balance:s(v(state.game.balance) - due) },
-    fiscal: { ...state.fiscal,
-      periodStartedAt: preserveAnchor ? state.fiscal.periodStartedAt : at,
-      taxesDueCents:'0', taxesPaidCents:s(v(state.fiscal.taxesPaidCents) + due),
-      dueBySourceCents, paidBySourceCents: paidBySource,
-    },
-  }
+  return v4SettleFiscalTaxes(state,at,preserveAnchor)
 }
 
 /** Exact bookstore ledgers remain permanent; Fame Shop prices change in pass 5. */
@@ -479,7 +463,7 @@ export function v8BuyCollection(state: V8CapitalState, id: string): V8CapitalSta
   const price=v4CollectionPriceCents(prepared,id)
   if(!item||price===null||
     prepared.prestige.ownedCollectionIds.some(owned=>currentCollectionId(owned)===key)||
-    v(prepared.game.balance)<price)return null
+    !v4CanSpend(prepared,price))return null
   const claimed=v4ClaimPrivateOffer(prepared,id,prepared.enterprises.lastAccruedAt)
   const gained=v8CollectionReward(claimed,item.fame)
   return {...claimed,
@@ -507,7 +491,7 @@ const COLLECTION_MAX_ORDER = [...CURRENT_COLLECTION_SLOTS].sort((a,b) =>
 export function v8CollectionMaxQuote(state: V8CapitalState): V8CollectionMaxQuote {
   const prepared=v4RefreshPrivateOffers(state,state.enterprises.lastAccruedAt)
   const owned=new Set(prepared.prestige.ownedCollectionIds.map(currentCollectionId))
-  let cash=v(prepared.game.balance)
+  let cash=v4SpendableCents(prepared)
   let costCents=0n
   const ids:string[]=[]
   const ordered=[...COLLECTION_MAX_ORDER].sort((a,b)=>{
@@ -613,7 +597,7 @@ export function v8BuyEnterprise(state: V8CapitalState, id: string, at: number, u
   if (!Number.isSafeInteger(targetLevel) || targetLevel < 1 || targetLevel >= Number.MAX_SAFE_INTEGER)
     return {ok:false,reason:'max-level'}
   const cost = previous ? v4UpgradeCost(settled,id,previous.level) ?? -1n : BigInt(business.purchaseCostCents)
-  if (cost < 0n || v(settled.game.balance)<cost) return {ok:false,reason:cost < 0n?'max-level':'insufficient-funds'}
+  if (cost < 0n || !v4CanSpend(settled,cost)) return {ok:false,reason:cost < 0n?'max-level':'insufficient-funds'}
   const invested = previous ? v(previous.investedCents) : 0n
   const updated:V8CapitalState = { ...settled,
     game:{...settled.game,balance:s(v(settled.game.balance)-cost)},
@@ -639,7 +623,7 @@ export function quoteV8EnterpriseMax(state: V8CapitalState, id: string): V8Enter
   const max = Number.MAX_SAFE_INTEGER - 1
   if (!Number.isSafeInteger(current) || current < 0 || current >= max) return null
   if (current === 0 && !isEnterpriseUnlocked(id,getExactLevel(v(state.prestige.experienceCents)))) return null
-  const budget = v(state.game.balance)
+  const budget = v4SpendableCents(state)
   const acquisition = current === 0 ? BigInt(business.purchaseCostCents) : 0n
   const start = Math.max(1,current)
   const costTo = (target: number) => acquisition +
@@ -733,11 +717,36 @@ export function v8AccrueEnterpriseUntil(state:V8CapitalState,now:number):V8Capit
 }
 
 /** Catch-up crosses fiscal boundaries without refunding taxable income. */
+/** Fiscal replay crosses each 12h plan installment before the 72h deadline.
+ * If neither a plan nor loyalty applies, keep the previous O(1) multi-period path.
+ */
 export function v8AdvanceFiscalEconomy(state:V8CapitalState,now:number):V8CapitalState {
   const {periodStartedAt:start}=state.fiscal
   const last=state.enterprises.lastAccruedAt
   if(!Number.isSafeInteger(now)||now<start||now<last)return state
   const periods=Math.floor((now-start)/FISCAL_PERIOD_MS)
+  const fiscalV4=state.fiscal.fameV4Tax
+  const special=!!fiscalV4?.plan||fiscalV4?.eligiblePeriodAt===start
+  if(special){
+    const deadline=start+FISCAL_PERIOD_MS
+    if(!Number.isSafeInteger(deadline))return state
+    const through=Math.min(now,deadline)
+    let next=state
+    // At most 6 installments; a plan is required to fit the current 72h period.
+    for(let i=0;i<6;i++){
+      const at=v4PlanNextAt(next)
+      if(at===null||at>through)break
+      if(at<next.enterprises.lastAccruedAt)return state
+      next=v8AccrueEnterpriseUntil(next,at)
+      if(next.enterprises.lastAccruedAt!==at)return state
+      next=v4ApplyPlanInstallment(next,at)
+    }
+    next=v8AccrueEnterpriseUntil(next,through)
+    if(next.enterprises.lastAccruedAt!==through)return state
+    if(now<deadline)return v4RefreshPrivateOffers(next,now)
+    const paid=v8PayTaxes(next,deadline)
+    return now===deadline?v4RefreshPrivateOffers(paid,now):v8AdvanceFiscalEconomy(paid,now)
+  }
   if(periods===0)return v4RefreshPrivateOffers(v8AccrueEnterpriseUntil(state,now),now)
   const deadline=start+periods*FISCAL_PERIOD_MS
   if(!Number.isSafeInteger(deadline))return state
