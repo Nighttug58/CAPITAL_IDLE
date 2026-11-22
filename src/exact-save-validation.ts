@@ -183,6 +183,94 @@ function validFameTradingV4(t:Dict,p:Dict):boolean {
   return true
 }
 
+/** Optional enterprise V4 state, strict even when imported from an old V8.
+ * All principal, payout, tax bases and project tiers remain canonical cents. */
+function validFameEnterpriseV4(e:Dict,p:Dict,g:Dict,a:Dict,gifts:Dict):boolean{
+  if(e.fameV4Enterprise===undefined)return true
+  const data=e.fameV4Enterprise
+  if(!object(data)||data.version!==1||
+    !object(data) || !Array.isArray(data.projects)||!Array.isArray(data.contracts)||
+    !Array.isArray(data.usedProjectTiers)||!Array.isArray(data.contractHistory)||
+    !safe(data.nextContractId)||data.nextContractId<1||
+    data.projects.length>5||data.contracts.length>5||
+    data.usedProjectTiers.length>5||data.contractHistory.length>20)return false
+  const levels=object(p.fameV4)&&object(p.fameV4.levels)?p.fameV4.levels:null
+  const rank=(n:string)=>levels&&typeof levels['fame-v4-'+n]==='number'
+    ? levels['fame-v4-'+n] as number : 0
+  const owned=object(e.owned)?e.owned:null
+  const ownedId=(id:unknown):id is string=>typeof id==='string'&&
+    !!owned&&Object.hasOwn(owned,id)&&!!ENTERPRISES.find(x=>x.id===id)
+  const at=e.lastAccruedAt
+  if(!safe(at))return false
+  if(data.synergy!==null){
+    if(rank('08')<1||!Array.isArray(data.synergy)||data.synergy.length!==2||
+      !ownedId(data.synergy[0])||!ownedId(data.synergy[1])||
+      data.synergy[0]===data.synergy[1])return false
+  }
+  for(const [key,level] of [['franchise','12'],['board','13']] as const){
+    const choice=data[key]
+    if(choice===null)continue
+    if(rank(level)<1||!object(choice)||!ownedId(choice.id)||
+      !safe(choice.chosenAt)||choice.chosenAt>at)return false
+  }
+  const used=new Set<number>()
+  let previous=-1
+  for(const tier of data.usedProjectTiers){
+    if(!safe(tier)||tier>4||tier>=rank('11')||tier<=previous)return false
+    used.add(tier);previous=tier
+  }
+  const activeTier=new Set<number>(),counts=new Map<string,number>()
+  for(const item of data.projects){
+    if(!object(item)||!safe(item.tier)||!used.has(item.tier)||activeTier.has(item.tier)||
+      !['small','local','services','industry','major'].includes(item.category as string)||
+      !safe(item.startedAt)||!safe(item.endsAt)||item.startedAt>at||
+      item.endsAt<=at||item.endsAt-item.startedAt!==1_800_000 ||
+      !ENTERPRISES.some(x=>x.category===item.category&&ownedId(x.id)))return false
+    activeTier.add(item.tier as number)
+    counts.set(item.category as string,(counts.get(item.category as string)??0)+1)
+  }
+  if([...counts.values()].some(n=>n>3))return false
+  if(data.contracts.length>rank('10'))return false
+  const ids=new Set<number>()
+  for(const item of data.contracts){
+    if(!object(item)||!safe(item.id)||item.id<1||item.id>=data.nextContractId||
+      ids.has(item.id)||!safe(item.startedAt)||item.startedAt>at||
+      !safe(item.endsAt)||item.endsAt<=at||
+      ![30,60,90,120].includes((item.endsAt-item.startedAt)/60_000)||
+      (amount(item.principalCents)??0n)<100_000_000n||
+      !safe(item.seedAtStart)||item.seedAtStart<1||item.seedAtStart>0xffffffff||
+      typeof item.success!=='boolean'||
+      item.success!==((BigInt(item.seedAtStart)*1_103_515_245n+
+        BigInt(item.id)*2_654_435_761n+BigInt(item.startedAt)+
+        (amount(item.principalCents)??0n))%10_000n<7500n)||
+      !safe(item.successBps)||
+      item.successBps!==({30:0,60:200,90:300,120:500} as Record<number,number>)[(item.endsAt-item.startedAt)/60_000])return false
+    ids.add(item.id as number)
+  }
+  // The locked principal cannot exceed all legitimate sources of cash, even
+  // if an imported snapshot fabricates a very large contract principal.
+  const gifted=amount(gifts.cycleGiftCents)
+  const starting=object(a.run)?(a.run.startingCapitalGrantedCents===undefined?0n:amount(a.run.startingCapitalGrantedCents)):null
+  const lifetime=amount(g.lifetimeEarned)
+  if(gifted===null||lifetime===null||starting===null)return false
+  const locked=data.contracts.reduce((sum:bigint,item:Dict)=>
+    sum+(amount(item.principalCents)??0n),0n)
+  if(locked>lifetime+gifted+starting)return false
+  previous=-1
+  for(const item of data.contractHistory){
+    if(!object(item)||!safe(item.id)||item.id<1||!safe(item.at)||item.at>at||
+      item.at<previous||typeof item.forced!=='boolean')return false
+    const principal=amount(item.principalCents),payout=amount(item.payoutCents),
+      profit=amount(item.profitCents,true)
+    if(principal===null||principal<100_000_000n||payout===null||profit===null||
+      payout-principal!==profit||profit < -(principal*15n+99n)/100n||
+      profit>principal*5n/100n||
+      (item.forced&&payout!==principal*85n/100n))return false
+    previous=item.at as number
+  }
+  return true
+}
+
 function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
   const progress=object(a.progress)?a.progress:null
   const run=object(a.run)?a.run:null
@@ -250,7 +338,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
-  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p))
+  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
     !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||

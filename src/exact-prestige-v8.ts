@@ -13,10 +13,11 @@ import {transcendentLevel,transcendentHeritageBps,pendingStartingCapitalCents} f
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
 import { nextPrestigeCycle, MAX_SAFE_CYCLE } from './ascension/prestige-count-v8.ts'
 import { prestigeFameV4Trading } from './trading/fame-v4-trading.ts'
+import { v4ContractEarlyExitWorth,v4ForceContractsBeforePrestige,v4PrestigeEnterpriseData } from './economy/fame-v4-enterprises.ts'
 
 /** Exact Prestige eligible wealth, excluding persistent luxury collections. */
 export function v8EligiblePrestigeWorthCents(state:V8CapitalState):bigint{
-  let gross=v(state.game.balance)-v(state.fiscal.taxesDueCents)
+  let gross=v(state.game.balance)-v(state.fiscal.taxesDueCents)+v4ContractEarlyExitWorth(state)
   for(const [id,item]of Object.entries(state.trading.positions)){
     const asset=getAsset(id)
     if(!asset)throw new RangeError('Unknown asset in portfolio')
@@ -58,7 +59,10 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
   if(settled.enterprises.lastAccruedAt!==at)return{ok:false,reason:'money-overflow'}
   if(at-settled.trading.lastTickAt>=MARKET_TICK_MS||
     at-settled.trading.dividendLastPaidAt>=1000)return{ok:false,reason:'pending-market-replay'}
-  const afterTax=v8PayTaxes(settled,at,true)
+  // Closing every active contract at 85% before computing PP prevents a
+  // phantom principal in eligible wealth and never credits failure as income.
+  const exited=v4ForceContractsBeforePrestige(settled,at)
+  const afterTax=v8PayTaxes(exited,at,true)
   const level=getExactLevel(v(afterTax.prestige.experienceCents))
   if(level<MIN_LEVEL)return{ok:false,reason:'insufficient-level'}
   const eligible=v8EligiblePrestigeWorthCents(afterTax)
@@ -97,6 +101,8 @@ export function v8PerformPrestige(state:V8CapitalState,at:number):V8PrestigeResu
       fameMicros:'0',fameForfeitedMicros:s(v(previousPrestige.fameForfeitedMicros)+v(previousPrestige.fameMicros)),
       cycleEarnedFameMicros:'0',cycleLevelFameMicros:'0',cycleCollectionFameMicros:'0'},
     fiscal:afterTax.fiscal,
+    enterprises:{...fresh.enterprises,...(v4PrestigeEnterpriseData(afterTax)?{
+      fameV4Enterprise:v4PrestigeEnterpriseData(afterTax)}:{})},
     ascension:{...fresh.ascension,progress:nextProgress,
       run:{...fresh.ascension.run,startingCapitalGrantedCents:s(grant)}},
     achievements:{claimedIds:[...afterTax.achievements.claimedIds],cycleGiftCents:'0'},

@@ -1,6 +1,7 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
 import { migrateV8ToFameV4 } from './prestige/fame-v4-ledger.ts'
 import type { FameV4ShopState } from './prestige/fame-v4-catalog.ts'
+import type { FameV4EnterpriseState } from './economy/fame-v4-enterprises.ts'
 import type { FameV4TradingState } from './trading/fame-v4-trading.ts'
 import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
@@ -70,6 +71,8 @@ export interface V8TradingState extends Omit<TradingState, 'positions'|'staking'
 }
 export interface V8EnterpriseHolding { readonly level: number; readonly investedCents: ExactAmount }
 export interface V8EnterpriseState extends Omit<EnterpriseState, 'owned'> {
+  /** Optional on all earlier V8 saves; exact economic Fame enterprise registry. */
+  fameV4Enterprise?: FameV4EnterpriseState
   owned: Record<string, V8EnterpriseHolding>
   /** Legacy float remainder is retained only for migration compatibility. */
   revenueCarryNanoCents?: ExactAmount

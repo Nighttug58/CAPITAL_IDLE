@@ -7,7 +7,7 @@ import {makeOfflineReport,offlineReportDuration,OFFLINE_REPORT_MIN_MS,type Offli
 import OfflineReportDialog from './components/OfflineReportDialog.vue'
 import {v8SettlePassiveIncome} from './exact-autoclick-frame.ts'
 import {getExactLevel,getExactLevelProgress} from './exact-levels.ts'
-import {formatCompactUnits,formatFameMicros} from './large-numbers.ts'
+import {formatCompactUnits,formatFameMicros,decodeExactInteger} from './large-numbers.ts'
 import {finiteNumberDecimal} from './exact-save-v8.ts'
 import { DOLLAR_AUTOCLICK_MAX_LEVEL, dollarAutoClickPriceCents, getDollarAutoClickLevel, buyDollarAutoClick } from './dollar-autoclick-v8.ts'
 import {v8Click,v8UpgradeClick,v8BuyTrade,v8SellTrade, type V8TradeResult,v8BuyEnterprise,
@@ -20,6 +20,7 @@ import {getAsset} from './trading/catalog.ts'
 import { setNewsAutoSellRule, type NewsAutoSellTrigger } from './trading/auto-sell-v8.ts'
 import { setFameV4TrailingStop, setFameV4ProfitTarget } from './trading/fame-v4-trading.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
+import {v4ChooseSynergy,v4ChooseEnterprise,v4StartContract,v4StartProject, type FameV4EnterpriseCommand} from './economy/fame-v4-enterprises.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
 import {v8BuyFameV4Upgrade,v8BuyFameV4UpgradeMax} from './prestige/fame-v4-ledger.ts'
@@ -605,6 +606,25 @@ function executeStaking(action:'deposit'|'withdraw',id:string,quantity:number):S
   if(!replaceWholeSaveExact(changed.state))return{ok:false,state:capital.value,error:'storage-error'}
   return {ok:true,state:capital.value,receipt:{assetId:id,action,quantity,unlockAt:changed.unlockAt}}
 }
+/** One settle-and-save boundary for all Fame V4 enterprise purchases/assignments.
+ * The economy cursor is settled to the precise action timestamp first. */
+function executeFameV4Enterprise(command:FameV4EnterpriseCommand):boolean{
+  if(loadBlocked.value)return false
+  const at=Date.now()
+  const settled=v8SettlePassiveIncome(exact.value,at)
+  if(settled.enterprises.lastAccruedAt!==at)return false
+  let next:V8CapitalState|null=null
+  if(command.kind==='synergy')
+    next=v4ChooseSynergy(settled,command.first,command.second,at)
+  else if(command.kind==='assign')
+    next=v4ChooseEnterprise(settled,command.role,command.id,at)
+  else if(command.kind==='contract'){
+    const principal=decodeExactInteger(command.principalCents,false)
+    next=principal===null?null:v4StartContract(settled,principal,command.minutes,at)
+  }else if(command.kind==='project')
+    next=v4StartProject(settled,command.tier,command.category,at)
+  return !!next&&replaceWholeSaveExact(next)
+}
 function executeEnterpriseMax(id:string,expectedLevel:number) {
   if(loadBlocked.value)return{ok:false as const,error:'money-overflow' as const}
   settleEconomyNow()
@@ -1004,7 +1024,9 @@ onUnmounted(() => {
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking"
       :set-auto-sell-rule="changeNewsAutoSellRule"
       :set-fame-v4-stop="changeFameV4Stop" :set-fame-v4-target="changeFameV4Target" />
-    <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')" :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise" :execute-enterprise-max="executeEnterpriseMax" />
+    <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')"
+      :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise"
+      :execute-enterprise-max="executeEnterpriseMax" :execute-fame-v4-enterprise="executeFameV4Enterprise" />
     <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase" />
     <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
