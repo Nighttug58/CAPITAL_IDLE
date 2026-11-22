@@ -13,6 +13,9 @@ import { type AscensionPurchase, type AscensionShopError } from '../ascension/sh
 import type { AscensionError, AscensionResult } from '../ascension/engine.ts'
 import { MARKET_SPEEDS, marketSpeed, frenzyActive, type MarketActionResult } from '../ascension/market-effects.ts'
 import PrestigeTabs from './PrestigeTabs.vue'
+import {v4PrestigeRun,v4ChallengeProgress,V4_CHALLENGES,V4_RENAISSANCE_MS,
+  type V4Destiny} from '../prestige/fame-v4-prestige.ts'
+import {fameV4Level} from '../trading/fame-v4-trading.ts'
 
 const props = defineProps<{
   exact: V8CapitalState
@@ -23,6 +26,8 @@ const props = defineProps<{
   performCycle: () => AscensionResult
   selectSpeed: (speed: number) => MarketActionResult
   activateFrenzy: () => MarketActionResult
+  selectDestiny?: (choice:V4Destiny)=>boolean
+  claimPrestigeChallenge?: (slot:number)=>boolean
 }>()
 const emit = defineEmits<{ back: []; 'open-transcendent': [] }>()
 
@@ -44,6 +49,58 @@ const level = computed(() => getExactLevel(BigInt(props.exact.prestige.experienc
 const pointPreview = computed(() => v8PrestigeRewardPreview(props.exact,worth.value,level.value).earned)
 const nextCycleCapital = computed(() => pendingStartingCapitalCents(props.exact.ascension.progress))
 const progress = computed(() => props.exact.ascension.progress)
+const prestigeRank=(n:number)=>fameV4Level(props.exact,n)
+const prestigeV4=computed(()=>v4PrestigeRun(props.exact))
+const prestigeClock=computed(()=>props.exact.enterprises.lastAccruedAt)
+const renaissanceRemaining=computed(()=>{
+  const data=prestigeV4.value
+  return data.renaissanceStartedAt===null?0:Math.max(0,
+    data.renaissanceStartedAt+data.renaissanceRankAtStart*V4_RENAISSANCE_MS-prestigeClock.value)
+})
+const challengeActive=computed(()=>prestigeV4.value.challengeBoost!==null&&
+  prestigeV4.value.challengeBoost.endsAt>prestigeClock.value)
+const activeChallengeRemaining=computed(()=>Math.max(0,
+  (prestigeV4.value.challengeBoost?.endsAt??0)-prestigeClock.value))
+const prestigeChallengeRows=computed(()=>V4_CHALLENGES
+  .filter(item=>item.slot<=prestigeRank(29))
+  .map(item=>{
+    const progress=v4ChallengeProgress(props.exact,item.slot)??0n
+    const claimed=prestigeV4.value.claimedChallenges.includes(item.slot)
+    return {...item,progress,claimed,ready:progress>=item.target&&!claimed&&!challengeActive.value}
+  }))
+const destinySelection=ref<V4Destiny|null>(null)
+const destinyChoices=computed(()=>[
+  {id:'trader' as const,label:'Trader',effect:'−'+prestigeRank(30)*2+' % du montant des frais de Trading'},
+  {id:'industrial' as const,label:'Industriel',effect:'+'+prestigeRank(30)*2+' % des revenus entreprises'},
+  {id:'collector' as const,label:'Collectionneur',effect:'+'+prestigeRank(30)+' % sur clics, entreprises et dividendes'},
+])
+function chooseDestiny(choice:V4Destiny){
+  if(busy.value||confirming.value||prestigeV4.value.specialization!==null||
+    prestigeRank(30)<1)return
+  destinySelection.value=choice
+}
+function confirmDestinyChoice(){
+  if(destinySelection.value===null||busy.value||!props.selectDestiny)return
+  busy.value=true
+  try{
+    const choice=destinySelection.value
+    const ok=props.selectDestiny(choice)
+    noticeError.value=!ok
+    notice.value=ok?'Spécialisation choisie et verrouillée pour ce cycle Prestige.':
+      'Choix indisponible ou sauvegarde non enregistrée.'
+    if(ok)destinySelection.value=null
+  }finally{busy.value=false}
+}
+function claimV4Challenge(slot:number){
+  if(busy.value||confirming.value||!props.claimPrestigeChallenge)return
+  busy.value=true
+  try{
+    const ok=props.claimPrestigeChallenge(slot)
+    noticeError.value=!ok
+    notice.value=ok?'Défi #'+slot+' validé : +5 % pendant 10 minutes, une seule fois.':
+      'Défi déjà récupéré, incomplet ou bonus encore actif.'
+  }finally{busy.value=false}
+}
 const currentSpeed = computed(() => marketSpeed(props.state))
 const unlockedSpeedLevel = computed(() => progress.value.upgradeLevels['time-accelerator'])
 const hasFrenzy = computed(() => progress.value.upgradeLevels['market-frenzy'] > 0)
@@ -231,6 +288,60 @@ onUnmounted(() => window.removeEventListener('keydown', keyboard))
           @click="openConfirmation">
           {{ affordPrestige ? 'EFFECTUER LE PRESTIGE' : 'PRESTIGE VERROUILLÉ' }}
         </button>
+      </section>
+
+      <section v-if="prestigeRank(28)+prestigeRank(29)+prestigeRank(30)>0"
+        class="ascension-powers prestige-fame-v4" aria-label="Prestige Fame V4" data-fame-v4-prestige>
+        <div class="ascension-panel-title">
+          <div><span class="ascension-eyebrow">FAME V4 · CYCLE COURANT</span>
+          <h2>Destin du magnat</h2></div>
+        </div>
+        <div v-if="prestigeRank(28)>0" class="prestige-v4-block" data-v4-renaissance>
+          <strong>28 · Renaissance fulgurante</strong>
+          <p>Bonus +20 % aux clics et entreprises durant {{ prestigeRank(28) }} minute(s) après chaque nouveau Prestige.
+          <b v-if="renaissanceRemaining>0">Actif · {{ Math.ceil(renaissanceRemaining/1000) }} s restantes</b>
+          <b v-else>Inactif · démarrera au prochain Prestige</b></p>
+          <p class="ascension-help">L'amélioration achetée en cours de cycle n'active pas un nouveau départ.</p>
+        </div>
+        <div v-if="prestigeRank(30)>0" class="prestige-v4-block" data-v4-destiny>
+          <strong>30 · Spécialisation du cycle</strong>
+          <p v-if="prestigeV4.specialization!==null">Spécialisation verrouillée :
+            <b>{{ destinyChoices.find(x=>x.id===prestigeV4.specialization)?.label }}</b>.
+            Le choix redeviendra disponible au prochain Prestige.</p>
+          <template v-else>
+            <p>Choisis une unique spécialisation. Décision irréversible pour ce cycle.</p>
+            <div class="prestige-v4-choices">
+              <button v-for="choice in destinyChoices" :key="choice.id" type="button"
+                :disabled="busy || confirming" :aria-label="'Choisir '+choice.label"
+                @click="chooseDestiny(choice)"><strong>{{ choice.label }}</strong>
+                <small>{{ choice.effect }}</small></button>
+            </div>
+            <div v-if="destinySelection!==null" class="prestige-v4-confirm" role="alertdialog"
+              aria-label="Confirmer la spécialisation">
+              <p>Verrouiller {{ destinyChoices.find(x=>x.id===destinySelection)?.label }} jusqu'au prochain Prestige ?</p>
+              <button type="button" @click="destinySelection=null">Annuler</button>
+              <button type="button" :disabled="busy" @click="confirmDestinyChoice">Confirmer le choix</button>
+            </div>
+          </template>
+        </div>
+        <div v-if="prestigeRank(29)>0" class="prestige-v4-block" data-v4-challenges>
+          <strong>29 · Défis de milliardaire</strong>
+          <p>{{ prestigeV4.claimedChallenges.length }} / {{ prestigeRank(29) }} réclamés ce cycle.
+          Chaque défi donne un bonus de +5 % pendant 10 minutes à sa source, après validation manuelle.</p>
+          <p v-if="challengeActive" class="ascension-help">Un bonus de défi est actif ·
+            {{ prestigeV4.challengeBoost?.source==='click'?'Clics':'Entreprises' }}
+            · {{ Math.ceil(activeChallengeRemaining/1000) }} s restantes</p>
+          <div class="prestige-v4-challenge-list">
+            <div v-for="item in prestigeChallengeRows" :key="item.slot"
+              class="prestige-v4-challenge" :data-v4-challenge="item.slot">
+              <div><strong>#{{ item.slot }} · {{ item.description }}</strong>
+                <small>{{ item.source==='click'?fmt(item.progress):formatCompactUnits(item.progress) }}
+                  / {{ item.source==='click'?fmt(item.target):formatCompactUnits(item.target) }}</small></div>
+              <button type="button" :disabled="item.claimed || !item.ready || busy || confirming || !claimPrestigeChallenge"
+                @click="claimV4Challenge(item.slot)">{{ item.claimed?'RÉCUPÉRÉ':item.ready?'RÉCUPÉRER':'EN COURS' }}</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="ascension-powers" aria-label="Commandes Prestige des marchés">
