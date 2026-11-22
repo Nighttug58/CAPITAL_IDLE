@@ -11,6 +11,7 @@ import { getClickValue, UPGRADES } from './game.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
 import { fameV4PurchasedCost } from './prestige/fame-v4-catalog.ts'
+import { v4UpgradeCost,v4UpgradeBatchCost,enterpriseV4BonusBps,nextV4EnterpriseEventTime,v4SettleTimedEnterprise } from './economy/fame-v4-enterprises.ts'
 import { onFameV4PositionChange } from './trading/fame-v4-trading.ts'
 import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
@@ -18,7 +19,7 @@ import { prestigeCycleCount } from './ascension/prestige-count-v8.ts'
 import { getAsset } from './trading/catalog.ts'
 import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
   divideCostBasis } from './exact-trading.ts'
-import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, getEnterpriseUpgradeCostCentsExact, getEnterpriseUpgradeBatchCostCentsExact, isEnterpriseUnlocked }
+import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
 import { progressiveTaxNumerator } from './economy/tax-curve.ts'
@@ -558,7 +559,7 @@ export function v8BuyEnterprise(state: V8CapitalState, id: string, at: number, u
   const targetLevel = previous ? previous.level+1:1
   if (!Number.isSafeInteger(targetLevel) || targetLevel < 1 || targetLevel >= Number.MAX_SAFE_INTEGER)
     return {ok:false,reason:'max-level'}
-  const cost = previous ? getEnterpriseUpgradeCostCentsExact(id,previous.level) ?? -1n : BigInt(business.purchaseCostCents)
+  const cost = previous ? v4UpgradeCost(settled,id,previous.level) ?? -1n : BigInt(business.purchaseCostCents)
   if (cost < 0n || v(settled.game.balance)<cost) return {ok:false,reason:cost < 0n?'max-level':'insufficient-funds'}
   const invested = previous ? v(previous.investedCents) : 0n
   const updated:V8CapitalState = { ...settled,
@@ -589,7 +590,7 @@ export function quoteV8EnterpriseMax(state: V8CapitalState, id: string): V8Enter
   const acquisition = current === 0 ? BigInt(business.purchaseCostCents) : 0n
   const start = Math.max(1,current)
   const costTo = (target: number) => acquisition +
-    getEnterpriseUpgradeBatchCostCentsExact(id,start,target)!
+    v4UpgradeBatchCost(state,id,start,target)!
   if (budget < costTo(current + 1)) return null
   let low = current + 1, high = max
   while (low < high) {
@@ -631,16 +632,22 @@ export function v8BuyEnterpriseMax(
  * Real-time enterprise income, including a persistent 1/10-millionth cent
  * carry and the original 15% tax debt. Rebalanced ROI is applied to future accrual only.
  */
-export function v8AccrueEnterpriseUntil(state:V8CapitalState, now:number):V8CapitalState {
+/** Accrue at the exact boundaries of contracts and timed infrastructure.
+ * MAX seven? At most five projects + five contracts, so O(11) segments even
+ * for years offline; the historical enterprise rate and carry are preserved.
+ */
+function v8AccrueEnterpriseSegment(state:V8CapitalState,now:number):V8CapitalState {
   const elapsed=now-state.enterprises.lastAccruedAt
-  if(!Number.isSafeInteger(now)||elapsed<0||!Number.isSafeInteger(elapsed))return state
-  if(elapsed===0)return state
+  if(elapsed<=0)return state
   let rate=0n
   for(const [id,holding] of Object.entries(state.enterprises.owned)) {
     const micros=getEnterpriseIncomeMicrosPerSecondExact(id,holding.level)
-    if(micros!==null)rate+=micros
+    if(micros!==null){
+      const v4bps=enterpriseV4BonusBps(state,id,state.enterprises.lastAccruedAt)
+      rate+=micros*BigInt(10_000+v4bps)/10_000n
+    }
   }
-  const enterpriseRate = v8ExactRewardRate(state,'enterprise')
+  const enterpriseRate=v8ExactRewardRate(state,'enterprise')
   const nano=rate*BigInt(elapsed)*enterpriseRate.numerator/enterpriseRate.denominator +
     (state.enterprises.revenueCarryNanoCents!==undefined ? v(state.enterprises.revenueCarryNanoCents):
       BigInt(Math.round(state.enterprises.revenueCarryCents*10_000_000)))
@@ -654,6 +661,21 @@ export function v8AccrueEnterpriseUntil(state:V8CapitalState, now:number):V8Capi
     next=v8AccrueTax(next,'enterprises',earned)
   }
   return next
+}
+export function v8AccrueEnterpriseUntil(state:V8CapitalState,now:number):V8CapitalState{
+  const elapsed=now-state.enterprises.lastAccruedAt
+  if(!Number.isSafeInteger(now)||elapsed<0||!Number.isSafeInteger(elapsed))return state
+  let next=state
+  let cursor=state.enterprises.lastAccruedAt
+  for(let i=0;i<12;i++){
+    const end=nextV4EnterpriseEventTime(next,cursor,now)
+    if(end>cursor)next=v8AccrueEnterpriseSegment(next,end)
+    next=v4SettleTimedEnterprise(next,end)
+    if(end>=now)return next
+    if(end<=cursor)return state
+    cursor=end
+  }
+  return state
 }
 
 /** Catch-up crosses fiscal boundaries without refunding taxable income. */
