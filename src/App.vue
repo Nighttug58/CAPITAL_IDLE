@@ -27,6 +27,7 @@ import {v8BuyFameV4Upgrade,v8BuyFameV4UpgradeMax} from './prestige/fame-v4-ledge
 import {fameV4Clicks,legendaryReadyAt,LEGENDARY_COUNTS,v4ActivateOvercharge,
   v4InitializeLegendary} from './prestige/fame-v4-clicks.ts'
 import {fameV4Level} from './trading/fame-v4-trading.ts'
+import {v4SelectDestiny,v4ClaimChallenge,type V4Destiny} from './prestige/fame-v4-prestige.ts'
 import {prestigeCost as nextAscensionCost} from './ascension/v2.ts'
 import {v8BuyTranscendent,v8BuyTranscendentMax,transcendentNextCost,type TranscendentId} from './ascension/transcendent-v1.ts'
 import {FISCAL_PERIOD_MS} from './economy/state.ts'
@@ -867,6 +868,21 @@ function executePrestigeCycle():AscensionResult{
     earnedPoints:limited(changed.earnedPoints),totalPoints:limited(v(changed.state.ascension.progress.availablePoints)),
     eligibleWorthCents:limited(changed.worthCents),taxesSettledCents:limited(tax),completedAt:at}}
 }
+/** Pure cycle-scoped selection; settle once, persist once, never reselect. */
+function executeDestinyChoice(choice:V4Destiny):boolean{
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const at=exact.value.enterprises.lastAccruedAt
+  const next=v4SelectDestiny(exact.value,choice,at)
+  return !!next&&replaceWholeSaveExact(next)
+}
+function executePrestigeChallenge(slot:number):boolean{
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const at=exact.value.enterprises.lastAccruedAt
+  const next=v4ClaimChallenge(exact.value,slot,at)
+  return !!next&&replaceWholeSaveExact(next)
+}
 function executeMarketSpeed(speed:number):MarketActionResult{
   const result=selectMarketSpeed(capital.value,speed,Date.now())
   if(!result.ok||result.state===capital.value)return result
@@ -1132,6 +1148,7 @@ onUnmounted(() => {
     <PrestigeScreen :exact="exact" v-if="page === 'prestige'" :state="capital" :focus-transcendent-on-mount="focusTranscendentReturn"
       :purchase-upgrade="executePrestigePurchase" :purchase-upgrade-max="executePrestigeMaxPurchase" :perform-cycle="executePrestigeCycle"
       :select-speed="executeMarketSpeed" :activate-frenzy="executeMarketFrenzy"
+      :select-destiny="executeDestinyChoice" :claim-prestige-challenge="executePrestigeChallenge"
       @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />
     <TranscendentShopScreen v-if="page === 'transcendent'" :exact="exact"
       :purchase-branch="executeTranscendentPurchase" :purchase-branch-max="executeTranscendentMaxPurchase" :state="capital" @back="returnToPrestige" />

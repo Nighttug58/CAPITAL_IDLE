@@ -3,12 +3,13 @@
  * ownership, Fame rewards or Museum rewards are ever created by these powers.
  */
 import {v4CanSpend} from './fame-v4-tax.ts'
+import {v4DiscountedTradeCost} from './fame-v4-prestige.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from '../exact-state-v8.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot } from './catalog.ts'
 import { fameV4Level } from '../trading/fame-v4-trading.ts'
 import { v4ContractEarlyExitWorth } from '../economy/fame-v4-enterprises.ts'
-import { exactTradeCost, quoteToExactFraction } from '../exact-trading.ts'
+import { quoteToExactFraction } from '../exact-trading.ts'
 import { getAsset } from '../trading/catalog.ts'
 
 export const V4_EXHIBITION_DURATION_MS = 30 * 60_000
@@ -97,7 +98,7 @@ export function v4ExhibitionWealthCents(state:V8CapitalState):bigint{
     const fraction=quoteToExactFraction(state.trading.quotes[id]?.price??asset.referencePrice)
     if(!fraction)continue
     const fee=asset.kind==='stock'?50n:asset.kind==='crypto'?100n:150n
-    const sale=exactTradeCost(fraction,v(holding.quantity),asset.quantityDecimals,fee,'sell')
+    const sale=v4DiscountedTradeCost(state,fraction,v(holding.quantity),asset.quantityDecimals,fee,'sell')
     if(sale)worth+=sale.proceedsCents
   }
   for(const business of Object.values(state.enterprises.owned))worth+=v(business.investedCents)

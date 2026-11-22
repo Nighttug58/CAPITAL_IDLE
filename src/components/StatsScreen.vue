@@ -22,6 +22,7 @@ import { collectionV3Snapshot, COLLECTION_SET_REWARDS } from '../prestige/collec
 import { COLLECTION_CATEGORIES, type FameBoostId } from '../prestige/catalog.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
 import {v4ReservedTaxCents,v4SpendableCents,v4FiscalReport,V4_TAX_INSTALLMENT_MS} from '../prestige/fame-v4-tax.ts'
+import {v4DiscountedTradeCost} from '../prestige/fame-v4-prestige.ts'
 import {formatCompactUnits,formatDecimalUnits,formatFameMicros} from '../large-numbers.ts'
 
 const props = defineProps<{
@@ -91,7 +92,7 @@ const exactBalance = computed(() => {
     const quote=liquidation&&quoteToExactFraction(liquidation.executionPrice)
     if(!quote)continue
     const gross=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,0n,'sell')
-    const fee=exactTradeCost(quote,v(item.quantity),asset.quantityDecimals,
+    const fee=v4DiscountedTradeCost(state,quote,v(item.quantity),asset.quantityDecimals,
       asset.kind==='stock'?50n:asset.kind==='crypto'?100n:150n,'sell')
     market+=gross?.grossCents??0n
     marketNet+=fee?.proceedsCents??0n

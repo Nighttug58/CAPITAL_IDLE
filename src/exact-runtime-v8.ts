@@ -20,12 +20,14 @@ import { getRewardRateUnits } from './prestige/bonuses.ts'
 import { v8ExactRewardRate, v8ScaleRewardUnits, v8ScaleRewardCents, v8RateDisplayBonusBps } from './prestige/exact-bonuses-v8.ts'
 import { prestigeCycleCount } from './ascension/prestige-count-v8.ts'
 import { getAsset } from './trading/catalog.ts'
-import { exactTradeCost, quoteToExactFraction, quantityStringToUnits, affordableExactQuantity,
+import { quoteToExactFraction, quantityStringToUnits,
   divideCostBasis } from './exact-trading.ts'
 import { getEnterprise, getEnterpriseIncomeMicrosPerSecondExact, isEnterpriseUnlocked }
   from './economy/catalog.ts'
 import { FISCAL_PERIOD_MS, type TaxSource } from './economy/state.ts'
 import {v4SpendableCents,v4CanSpend,v4SettleFiscalTaxes,v4PlanNextAt,v4ApplyPlanInstallment} from './prestige/fame-v4-tax.ts'
+import {v4PrestigeBonusBps,v4NextPrestigeEvent,
+  v4DiscountedTradeCost,v4MaximumBuyUnits} from './prestige/fame-v4-prestige.ts'
 import { progressiveTaxNumerator } from './economy/tax-curve.ts'
 import { getV2NextFameBoostCost as fameCost } from './prestige/catalog.ts'
 import { prestigeShop, prestigeCost } from './ascension/v2.ts'
@@ -106,14 +108,15 @@ export function v8CreditIncome(state: V8CapitalState, source: V8Source,
   return xpAward(credited, grossCents)
 }
 
-function v8V4ClickRate(state:V8CapitalState){
+function v8V4ClickRate(state:V8CapitalState,at=state.enterprises.lastAccruedAt){
   const old=v8ExactRewardRate(state,'click')
-  const bps=v4CollectionsBonusBps(state,'click',state.enterprises.lastAccruedAt)
+  // All V4 bonuses add on one historical base, never compound each other.
+  const bps=v4CollectionsBonusBps(state,'click',at)+v4PrestigeBonusBps(state,'click',at)
   return bps===0?old:{numerator:old.numerator*BigInt(10_000+bps),denominator:old.denominator*10_000n}
 }
-export function v8Click(state: V8CapitalState): V8CapitalState {
+export function v8Click(state: V8CapitalState, at=state.enterprises.lastAccruedAt): V8CapitalState {
   const base = BigInt(getClickValue(state.game.purchasedUpgrades)) * 100n
-  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state), state.prestige.clickCarryBps)
+  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state,at), state.prestige.clickCarryBps)
   const credited = v8CreditIncome(state, 'clicks', rate.amount)
   return { ...credited,
     stats: { ...credited.stats, clickCount: credited.stats.clickCount + 1 },
@@ -123,15 +126,15 @@ export function v8Click(state: V8CapitalState): V8CapitalState {
 
 /** Aggregate elapsed Auto Clicks without iterating through offline seconds.
  * Long catch-up uses the reward rates at settlement, like enterprise income. */
-export function v8ClickBatch(state: V8CapitalState, count: bigint): V8CapitalState {
+export function v8ClickBatch(state: V8CapitalState, count: bigint, at=state.enterprises.lastAccruedAt): V8CapitalState {
   if (count <= 0n) return state
   if (count <= 20n && state.stats.clickCount <= Number.MAX_SAFE_INTEGER - Number(count)) {
     let next = state
-    for (let i = 0; i < Number(count); i++) next = v8Click(next)
+    for (let i = 0; i < Number(count); i++) next = v8Click(next,at)
     return next
   }
   const base = BigInt(getClickValue(state.game.purchasedUpgrades)) * 100n * count
-  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state), state.prestige.clickCarryBps)
+  const rate = v8ScaleRewardCents(base, v8V4ClickRate(state,at), state.prestige.clickCarryBps)
   const credited = v8CreditIncome(state, 'clicks', rate.amount)
   const total = BigInt(state.stats.clickCount) + count
   const max = BigInt(Number.MAX_SAFE_INTEGER)
@@ -151,11 +154,11 @@ export function v8ManualClick(state:V8CapitalState,at:number,activeMs:number):V8
   const levels=baseState.prestige.fameV4?.levels
   const any=!!levels&&(levels['fame-v4-19']>0||
     levels['fame-v4-22']>0||levels['fame-v4-23']>0)
-  if(!any)return v8Click(baseState)
+  if(!any)return v8Click(baseState,at)
   const plan=v4PrepareManualClick(baseState,at,activeMs)
   if(!plan)return null
   const base=BigInt(getClickValue(plan.state.game.purchasedUpgrades))*100n
-  const historical=v8V4ClickRate(plan.state)
+  const historical=v8V4ClickRate(plan.state,at)
   const rate=v8ScaleRewardCents(base,{
     numerator:historical.numerator*BigInt(plan.manualMultiplierBps),
     denominator:historical.denominator*10_000n,
@@ -165,7 +168,7 @@ export function v8ManualClick(state:V8CapitalState,at:number,activeMs:number):V8
     stats:{...credited.stats,clickCount:Math.min(Number.MAX_SAFE_INTEGER,credited.stats.clickCount+1)},
     prestige:{...credited.prestige,clickCarryBps:rate.carryBps},
   }
-  return plan.chainBonusClicks>0?v8ClickBatch(after,BigInt(plan.chainBonusClicks)):after
+  return plan.chainBonusClicks>0?v8ClickBatch(after,BigInt(plan.chainBonusClicks),at):after
 }
 /** Manual legendary-banknote claim pays normal clicks once and advances the
  * same persisted cooldown atomically, without advancing any manual counters. */
@@ -256,9 +259,9 @@ export function v8BuyTrade(state: V8CapitalState, assetId: string, quantity: str
   if (units === null || units <= 0n) return rejectTrade('invalid-quantity')
   const owned = state.trading.positions[assetId]
   const previous = owned ? v(owned.quantity) : 0n
-  const cost = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'buy')
+  const cost = v4DiscountedTradeCost(state,entry.fraction,units,asset.quantityDecimals,feeBps(asset.kind),'buy')
   if (!cost) return rejectTrade('invalid-cost')
-  const sale = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
+  const sale = v4DiscountedTradeCost(state,entry.fraction,units,asset.quantityDecimals,feeBps(asset.kind),'sell')
   if (!sale?.proceedsCents) return rejectTrade('amount-too-small')
   if (v4SpendableCents(state) < cost.totalCents) return rejectTrade('insufficient-funds')
   const next: V8CapitalState = { ...state,
@@ -276,8 +279,8 @@ export function v8MaximumBuyUnits(state: V8CapitalState, assetId: string): bigin
   const entry = priceFor(state, assetId)
   if (!entry) return 0n
   const cash = v4SpendableCents(state)
-  const upper = affordableExactQuantity(cash, entry.fraction,
-    entry.asset.quantityDecimals, feeBps(entry.asset.kind))
+  const upper = v4MaximumBuyUnits(state,cash,entry.fraction,
+    entry.asset.quantityDecimals,feeBps(entry.asset.kind))
   return upper
 }
 
@@ -290,7 +293,7 @@ export function v8SellTrade(state: V8CapitalState, assetId: string, quantity: st
   const current = state.trading.positions[assetId]
   if (!current || units > v(current.quantity)) return rejectTrade('insufficient-holdings')
   if (units > v(current.quantity) - reservedUnits(state, assetId)) return rejectTrade('staked-holdings')
-  const order = exactTradeCost(entry.fraction, units, asset.quantityDecimals, feeBps(asset.kind), 'sell')
+  const order = v4DiscountedTradeCost(state,entry.fraction,units,asset.quantityDecimals,feeBps(asset.kind),'sell')
   if (!order) return rejectTrade('invalid-cost')
 
   // Staking rewards are sold first at zero cost basis. Purchased units retain
@@ -680,7 +683,8 @@ function v8AccrueEnterpriseSegment(state:V8CapitalState,now:number):V8CapitalSta
     const micros=getEnterpriseIncomeMicrosPerSecondExact(id,holding.level)
     if(micros!==null){
       const v4bps=Math.min(10_000,enterpriseV4BonusBps(state,id,state.enterprises.lastAccruedAt)+
-        v4CollectionsBonusBps(state,'enterprise',state.enterprises.lastAccruedAt))
+        v4CollectionsBonusBps(state,'enterprise',state.enterprises.lastAccruedAt)+
+        v4PrestigeBonusBps(state,'enterprise',state.enterprises.lastAccruedAt))
       rate+=micros*BigInt(10_000+v4bps)/10_000n
     }
   }
@@ -704,8 +708,9 @@ export function v8AccrueEnterpriseUntil(state:V8CapitalState,now:number):V8Capit
   if(!Number.isSafeInteger(now)||elapsed<0||!Number.isSafeInteger(elapsed))return state
   let next=state
   let cursor=state.enterprises.lastAccruedAt
-  for(let i=0;i<12;i++){
-    const end=nextV4CollectionEventTime(next,cursor,nextV4EnterpriseEventTime(next,cursor,now))
+  for(let i=0;i<18;i++){
+    const end=v4NextPrestigeEvent(next,cursor,
+      nextV4CollectionEventTime(next,cursor,nextV4EnterpriseEventTime(next,cursor,now)))
     if(end>cursor)next=v8AccrueEnterpriseSegment(next,end)
     next=v4SettleTimedEnterprise(next,end)
     if(end>=now)return next

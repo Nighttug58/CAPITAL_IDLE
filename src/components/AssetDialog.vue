@@ -12,7 +12,8 @@ import type { V8CapitalState } from '../exact-state-v8.ts'
 import { getExactAmount as v } from '../exact-state-v8.ts'
 import { v8BuyTrade, v8SellTrade, v8MaximumBuyUnits, type V8TradeResult } from '../exact-runtime-v8.ts'
 import { formatCompactUnits, formatDecimalUnits } from '../large-numbers.ts'
-import { exactTradeCost, quoteToExactFraction } from '../exact-trading.ts'
+import { quoteToExactFraction } from '../exact-trading.ts'
+import {v4DiscountedTradeCost} from '../prestige/fame-v4-prestige.ts'
 import { liquidityQuote } from '../trading/liquidity-v8.ts'
 import type { NewsAutoSellTrigger } from '../trading/auto-sell-v8.ts'
 import { fameV4Level, minTrailingDrawdown, allowedTargetPortions, fameV4Trend } from '../trading/fame-v4-trading.ts'
@@ -56,6 +57,8 @@ function toggleAutoSell(trigger:NewsAutoSellTrigger){
   autoSellError.value=props.setAutoSellRule?.(props.assetId,trigger,enabled)?'':'Réglage non enregistré : sauvegarde indisponible.'
 }
 const stopRank=computed(()=>props.exactState?fameV4Level(props.exactState,2):0)
+const traderFeeDiscount=computed(()=>props.exactState?.ascension.run.fameV4Prestige?.specialization==='trader'
+  ?fameV4Level(props.exactState,30)*2:0)
 const targetRank=computed(()=>props.exactState?fameV4Level(props.exactState,7):0)
 const trendRank=computed(()=>props.exactState?fameV4Level(props.exactState,1):0)
 const trend=computed(()=>props.exactState?fameV4Trend(props.exactState,props.assetId):null)
@@ -187,7 +190,7 @@ function netSale(price: number, units: bigint, held: bigint): bigint | null {
   const impact = liquidityQuote(asset.value, price, units, 'sell', held)
   const fraction = impact && quoteToExactFraction(impact.executionPrice)
   const fee = asset.value.kind === 'stock' ? 50n : asset.value.kind === 'crypto' ? 100n : 150n
-  return fraction ? exactTradeCost(fraction, units, asset.value.quantityDecimals, fee, 'sell')?.proceedsCents ?? null : null
+  return fraction && props.exactState ? v4DiscountedTradeCost(props.exactState,fraction,units,asset.value.quantityDecimals,fee,'sell')?.proceedsCents ?? null : null
 }
 const profitWithdrawal = computed(() => {
   const state = props.exactState
@@ -375,7 +378,7 @@ function submit() {
           </button>
         </div>
         <div class="order-calculation">
-          <span>Frais ({{ formatRate(feeRate(asset.kind)) }})</span><strong>{{ displayFee }}</strong>
+          <span>Frais ({{ formatRate(feeRate(asset.kind)) }}<template v-if="traderFeeDiscount"> · Destin Trader −{{ traderFeeDiscount }} % des frais</template>)</span><strong>{{ displayFee }}</strong>
           <template v-if="displayImpact">
             <span>Impact de l'ordre sur le cours</span><strong>{{ displayImpact }}</strong>
           </template>

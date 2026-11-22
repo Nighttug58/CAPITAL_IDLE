@@ -16,6 +16,7 @@ import {formatCompactUnits} from '../large-numbers.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
 import { marketNewsEffects, peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
 import {newsPowerCost} from '../news-powers.ts'
+import {v4SpendableCents} from '../prestige/fame-v4-tax.ts'
 import {v8MarketNewsEffects} from '../exact-market-v8.ts'
 import AssetList from './AssetList.vue'
 import PortfolioPanel from './PortfolioPanel.vue'
@@ -44,7 +45,7 @@ function activatePower(id:string|null){
   if(!state || !props.purchaseNews)return
   const cost=newsPowerCost(state,id!==null)
   const count=state.newsPowers?.count??0
-  if(cost<=0n || BigInt(state.game.balance)<cost){notice.value='Cash disponible insuffisant.';return}
+  if(cost<=0n || v4SpendableCents(state)<cost){notice.value='Cash disponible insuffisant.';return}
 
   notice.value=props.purchaseNews(id,count,cost)?'Achat enregistré.':'Achat refusé. Vérifie le prix et le cash disponible.'
 }

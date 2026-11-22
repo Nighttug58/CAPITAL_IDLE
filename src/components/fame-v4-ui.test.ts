@@ -36,7 +36,7 @@ describe('Fame Shop V4 pass 2 integration',()=>{
     await tab(w,label).trigger('click')
     await nextTick()
     count+=w.findAll('.fame-v4-card').length
-    expect(w.find('.fame-v4-pending').text()).toMatch(label==='Prestige'?/passe 8/:/(actif|active)/i)
+    expect(w.find('.fame-v4-pending').text()).toMatch(/(actif|active)/i)
     expect(w.findAll('.fame-v4-card .fame-v4-buttons')).toHaveLength(w.findAll('.fame-v4-card').length)
   }
   expect(count).toBe(30)
@@ -64,7 +64,7 @@ describe('Fame Shop V4 pass 2 integration',()=>{
   expect(card.text()).toContain('30 s analysées')
   expect(w.find('[data-fame-v4-total]').text()).toContain('1 / 316')
   expect(prepareV8SaveImport(JSON.stringify(after),Date.now()).ok).toBe(true)
-  expect(w.text()).toContain('seul Prestige V4 (passe 8) est encore inactif')
+  expect(w.text()).toContain('Les 30 pouvoirs Fame V4 sont actifs')
  })
  it('buys the affordable V4 MAX atomically and does not duplicate stale levels',async()=>{
   const w=funded(5500n)

@@ -24,6 +24,7 @@ import { MAX_SAFE_CYCLE, projectedPrestigeCycle } from './ascension/prestige-cou
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
 import {V4_TAX_INSTALLMENT_MS} from './prestige/fame-v4-tax.ts'
+import {V4_CHALLENGES,V4_CHALLENGE_BOOST_MS,V4_RENAISSANCE_MS} from './prestige/fame-v4-prestige.ts'
 
 export interface ExactSaveValidation {
   readonly valid: boolean
@@ -426,6 +427,57 @@ function validFameTaxV4(f:Dict,p:Dict,e:Dict):boolean {
   return remaining===initial-initial*BigInt(plan.paidCount)/BigInt(plan.installments)&&remaining>0n
 }
 
+/** Optional V8 Prestige V4 contract. A missing registry is always neutral for
+ * imported old saves. No forged bonus windows, Prestige cycles or challenges.
+ */
+function validFamePrestigeV4(p:Dict,a:Dict,e:Dict,stats:Dict):boolean{
+  if(!object(a.run)||!object(a.progress))return false
+  const run=a.run,progress=a.progress
+  if(run.fameV4Prestige===undefined)return true
+  const data=run.fameV4Prestige
+  if(!object(data)||data.version!==1||!object(p.fameV4)||
+    !object(p.fameV4.levels)||!safe(run.startedAtRealMs)||
+    !safe(e.lastAccruedAt)||!safe(progress.prestigeCount)||
+    !Array.isArray(data.claimedChallenges)||data.claimedChallenges.length>10)return false
+  const levels=p.fameV4.levels
+  const rank=(n:number):number=>{
+    const level=levels['fame-v4-'+String(n).padStart(2,'0')]
+    return safe(level)?level:0
+  }
+  const exactCycle=progress.prestigeCountExact===undefined
+    ?BigInt(progress.prestigeCount):amount(progress.prestigeCountExact)
+  if(exactCycle===null||amount(data.cycleExact)!==exactCycle||
+    data.cycleExact!==exactCycle.toString())return false
+  const rr=data.renaissanceRankAtStart
+  if(!safe(rr)||rr>5||rr>rank(28))return false
+  if(rr===0){
+    if(data.renaissanceStartedAt!==null)return false
+  }else if(data.renaissanceStartedAt!==run.startedAtRealMs||
+    !Number.isSafeInteger(run.startedAtRealMs+rr*V4_RENAISSANCE_MS))return false
+  let last=0
+  for(const slot of data.claimedChallenges){
+    if(!safe(slot)||slot<1||slot>rank(29)||slot<=last)return false
+    const def=V4_CHALLENGES[slot-1]
+    if(!def||def.slot!==slot||!object(stats.earnedBySource)||!safe(stats.clickCount))return false
+    const observed=def.source==='click'?BigInt(stats.clickCount):
+      amount(stats.earnedBySource.enterprises)
+    if(observed===null||observed<def.target)return false
+    last=slot
+  }
+  if(data.challengeBoost!==null){
+    const boost=data.challengeBoost
+    if(!object(boost)||!safe(boost.slot)||!data.claimedChallenges.includes(boost.slot)||
+      !safe(boost.startedAt)||!safe(boost.endsAt)||
+      boost.startedAt<run.startedAtRealMs||boost.startedAt>e.lastAccruedAt||
+      boost.endsAt-boost.startedAt!==V4_CHALLENGE_BOOST_MS||
+      V4_CHALLENGES[boost.slot-1]?.source!==boost.source)return false
+  }
+  if(data.specialization!==null &&
+    (rank(30)<1||!['trader','industrial','collector'].includes(data.specialization as string)))
+    return false
+  return true
+}
+
 function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
   const progress=object(a.progress)?a.progress:null
   const run=object(a.run)?a.run:null
@@ -493,7 +545,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
-  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e)||!validFameClicksV4(p,a,e,s,t)||!validFameTaxV4(f,p,e))
+  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e)||!validFameClicksV4(p,a,e,s,t)||!validFameTaxV4(f,p,e)||!validFamePrestigeV4(p,a,e,s))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
     !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||

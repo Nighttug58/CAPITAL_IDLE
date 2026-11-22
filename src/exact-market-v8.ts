@@ -15,6 +15,7 @@ import { transcendentNewsModifiers } from './ascension/transcendent-v1.ts'
 import { applyNewsAutoSells, applyFameV4AutoSells } from './trading/auto-sell-v8.ts'
 import { v4DividendBonusBps,observeFameV4News } from './trading/fame-v4-trading.ts'
 import { v4CollectionsBonusBps } from './prestige/collections-v4.ts'
+import {v4PrestigeBonusBps} from './prestige/fame-v4-prestige.ts'
 
 const YEAR_SECONDS = 86_400n
 const PICO_CENTS = 1_000_000_000_000n
@@ -104,7 +105,8 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
   // Add Fame V4 direct + diversification to the historical dividend reward once.
   // The absolute Fame multiplier is restricted to the six classic powers.
   const newV4Bps=Math.min(4500,v4DividendBonusBps(state)+
-    v4CollectionsBonusBps(state,'dividend',previous))
+    v4CollectionsBonusBps(state,'dividend',previous)+
+    v4PrestigeBonusBps(state,'dividend',previous))
   const earnedPico=v8DividendPicoCents(trading)*bonus.numerator*
     BigInt(10_000+newV4Bps)/(bonus.denominator*10_000n)
   const total=carry+pending*PICO_CENTS+earnedPico

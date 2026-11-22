@@ -132,12 +132,12 @@ function purchaseClassicMax(id:string,level:number){
 function purchaseNew(id:string,level:number){
   const success=props.purchaseV4?.(id,level)??false
   report(success
-    ? 'Fame V4 : niveau '+(level+1)+' acheté. '+(['trading','enterprises','collections','clicks','tax'].includes(FAME_V4_CATALOG.find(x=>x.id===id)?.group??'')?'Pouvoir actif.':'Effet prévu pour une prochaine passe.')+''
+    ? 'Fame V4 : niveau '+(level+1)+' acheté. '+(['trading','enterprises','collections','clicks','tax','prestige'].includes(FAME_V4_CATALOG.find(x=>x.id===id)?.group??'')?'Pouvoir actif.':'Effet prévu pour une prochaine passe.')+''
     : 'Achat V4 impossible. Vérifiez le prix, le niveau et la sauvegarde.',!success)
 }
 function purchaseNewMax(id:string,level:number){
   const result=props.purchaseV4Max?.(id,level)
-  report(result ? 'MAX V4 : +'+result.levels+' niveaux achetés · −'+formatCost(result.costFame)+'. '+(['trading','enterprises','collections','clicks','tax'].includes(FAME_V4_CATALOG.find(x=>x.id===id)?.group??'')?'Pouvoir actif.':'Effet prévu.')
+  report(result ? 'MAX V4 : +'+result.levels+' niveaux achetés · −'+formatCost(result.costFame)+'. '+(['trading','enterprises','collections','clicks','tax','prestige'].includes(FAME_V4_CATALOG.find(x=>x.id===id)?.group??'')?'Pouvoir actif.':'Effet prévu.')
     : 'Aucun palier V4 acheté. Vérifiez le solde ou la sauvegarde.',!result)
 }
 function changeTab(tab:FameV4Tab){activeTab.value=tab;notice.value='';noticeError.value=false}
@@ -255,7 +255,8 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
           <template v-else-if="currentTab.id==='collections'">Pouvoirs Collections actifs : effets des expositions, restaurations, expert en antiquités, ventes privées et ailes du musée dans l'écran Collection.</template>
           <template v-else-if="currentTab.id==='clicks'">Pouvoirs Clics actifs : effets Frénésie, Billet légendaire, Surcharge automatique, Clic chargé et Réaction en chaîne dans l'écran Accueil.</template>
           <template v-else-if="currentTab.id==='tax'">Fiscalité V4 active : réserve de liquidités, fidélité fiscale, échelonnement et bilan avancé dans Statistiques.</template>
-          <template v-else>Les effets de cette catégorie sont prévus pour la passe {{ currentTab.pass }}.</template>
+          <template v-else-if="currentTab.id==='prestige'">Prestige V4 actif : Renaissance au nouveau cycle, Défis de milliardaire et spécialisation dans la page Prestige.</template>
+          <template v-else>Les effets sont activés dans leur page respective.</template>
         </p>
         <article v-for="row in v4Rows" :key="row.item.id" class="fame-boost-card fame-v4-card" :data-v4-boost="row.item.id">
           <div class="fame-boost-heading">
@@ -270,7 +271,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
             <span :style="{width:(row.level/row.item.maxLevel*100)+'%'}"></span>
           </div>
           <div class="fame-v4-effect">
-            <div><span>{{ currentTab.id==='prestige' ? 'EFFET PRÉVU ACQUIS' : 'EFFET ACQUIS' }}</span><strong>{{ fameV4RankPreview(row.item.id,row.level) }}</strong></div>
+            <div><span>EFFET ACQUIS</span><strong>{{ fameV4RankPreview(row.item.id,row.level) }}</strong></div>
             <div><span>PROCHAIN NIVEAU</span><strong>{{ row.cost===null?'COMPLET':fameV4RankPreview(row.item.id,row.level+1) }}</strong></div>
           </div>
           <p class="fame-v4-mechanic">{{ row.presentation.effect }}</p>
@@ -299,7 +300,7 @@ onMounted(()=>{void nextTick(()=>returnButton.value?.focus())})
       </template>
     </div>
     <footer class="fame-shop-page-footer">
-      <p class="fame-shop-note">Achats définitifs en Fame. Les niveaux V4 persistent au Prestige. Trading, Entreprises, Collections, Clics et Fiscalité actifs ; seul Prestige V4 (passe 8) est encore inactif.</p>
+      <p class="fame-shop-note">Achats définitifs en Fame. Les niveaux V4 persistent au Prestige. Les 30 pouvoirs Fame V4 sont actifs ; Renaissance démarre au nouveau cycle Prestige, défis et spécialisation sont disponibles dans la page Prestige.</p>
       <p v-if="notice" role="status" aria-live="polite" class="prestige-notice"
         :class="{ 'prestige-notice-error':noticeError }">{{ notice }}</p>
     </footer>
