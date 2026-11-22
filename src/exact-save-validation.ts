@@ -409,9 +409,9 @@ function validFameTaxV4(f:Dict,p:Dict,e:Dict):boolean {
   if(!object(plan)||rank('26')<1||data.eligiblePeriodAt!==null||
     !safe(plan.startedAt)||!safe(plan.installments)||!safe(plan.paidCount)||
     plan.installments<2||plan.installments>Math.min(6,rank('26')+1)||
-    plan.paidCount>=plan.installments||
+    plan.paidCount<1||plan.paidCount>=plan.installments||
     plan.startedAt<f.periodStartedAt||plan.startedAt>e.lastAccruedAt||
-    plan.startedAt+plan.installments*V4_TAX_INSTALLMENT_MS>Number(f.periodStartedAt)+72*60*60*1000||
+    plan.startedAt+(plan.installments-1)*V4_TAX_INSTALLMENT_MS>Number(f.periodStartedAt)+72*60*60*1000||
     !object(plan.remainingBySourceCents)||Object.keys(plan.remainingBySourceCents).length!==4)return false
   const initial=amount(plan.initialCents)
   if(initial===null||initial===0n)return false
