@@ -201,8 +201,7 @@ export interface V8ClickMaxQuote {
 export function quoteV8ClickMax(state: V8CapitalState): V8ClickMaxQuote | null {
   const current = state.game.purchasedUpgrades
   if (!Number.isSafeInteger(current) || current < 0 || current >= UPGRADES.length) return null
-  const budget = v(state.game.balance)
-  if (budget < 0n) return null
+  const budget = v4SpendableCents(state)
   const level = getExactLevel(v(state.prestige.experienceCents))
   let low = current, high = UPGRADES.length
   while (low < high) {
