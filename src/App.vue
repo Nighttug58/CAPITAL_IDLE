@@ -53,6 +53,8 @@ import { type AscensionResult } from './ascension/engine.ts'
 import { activateMarketFrenzy, selectMarketSpeed, type MarketActionResult } from './ascension/market-effects.ts'
 import { getBonusBreakdown } from './prestige/bonuses.ts'
 import { collectionV3BonusBps, collectionV3Snapshot } from './prestige/collections-v3.ts'
+import { v4RestoreCollection,v4BuyMuseumWing,v4StartExhibition,v4CollectionPriceCents,v4RefreshPrivateOffers,
+  type FameV4CollectionCommand } from './prestige/collections-v4.ts'
 import { type FameShopPurchase } from './prestige/shop.ts'
 import { type CollectionPurchase } from './prestige/collections.ts'
 import type { EarlyTaxPaymentResult } from './economy/fiscal.ts'
@@ -441,33 +443,47 @@ function executeFameMaxPurchase(id:string,expectedLevel:number):{levels:number;c
 function executeFameV4Purchase(id:string,expectedLevel:number):boolean {
   if(loadBlocked.value)return false
   settleEconomyNow()
-  const next=v8BuyFameV4Upgrade(exact.value,id,expectedLevel)
+  const purchased=v8BuyFameV4Upgrade(exact.value,id,expectedLevel)
+  const next=purchased&&id==='fame-v4-17'
+    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):purchased
   return !!next&&replaceWholeSaveExact(next)
 }
 function executeFameV4MaxPurchase(id:string,expectedLevel:number):{levels:number;costFame:bigint}|null {
   if(loadBlocked.value)return null
   settleEconomyNow()
   const before=v(exact.value.prestige.fameMicros)
-  const next=v8BuyFameV4UpgradeMax(exact.value,id,expectedLevel)
+  const purchased=v8BuyFameV4UpgradeMax(exact.value,id,expectedLevel)
+  const next=purchased&&id==='fame-v4-17'
+    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):purchased
   if(!next||!replaceWholeSaveExact(next))return null
   const itemId=id as keyof NonNullable<V8CapitalState['prestige']['fameV4']>['levels']
   return {levels:next.prestige.fameV4!.levels[itemId]-expectedLevel,
     costFame:(before-v(next.prestige.fameMicros))/1_000_000n}
 }
 
+function executeFameV4Collection(command:FameV4CollectionCommand):boolean{
+  if(loadBlocked.value)return false
+  settleEconomyNow()
+  const at=exact.value.enterprises.lastAccruedAt
+  let next:V8CapitalState|null=null
+  if(command.kind==='restore')next=v4RestoreCollection(exact.value,command.id,at)
+  else if(command.kind==='wing')next=v4BuyMuseumWing(exact.value,command.tier,at)
+  else if(command.kind==='exhibition')next=v4StartExhibition(exact.value,at)
+  return !!next&&replaceWholeSaveExact(next)
+}
 function executeCollectionPurchase(id: string): CollectionPurchase {
   if (loadBlocked.value) return {ok:false,state:capital.value,error:'invalid-state'}
   settleEconomyNow()
   const slot = getCollectionSlot(id)
   if (!slot) return {ok:false,state:capital.value,error:'unknown-item'}
   const oldFame=v(exact.value.prestige.fameMicros)
-  const next = v8BuyCollection(exact.value,id)
-  if (!next) return {ok:false,state:capital.value,error:'insufficient-funds'}
-  syncExactState(next)
-  persist()
+  const paid=v4CollectionPriceCents(exact.value,id)
+  const next=v8BuyCollection(exact.value,id)
+  if(!next||paid===null)return {ok:false,state:capital.value,error:'insufficient-funds'}
+  if(!replaceWholeSaveExact(next))return {ok:false,state:capital.value,error:'invalid-state'}
   const state=capital.value
   return {ok:true,state,receipt:{itemId:id,category:slot.category,
-    priceCents:slot.priceCents,baseFame:slot.fame,
+    priceCents:Number(paid),baseFame:slot.fame,
     awardedFameMicros:Number(v(next.prestige.fameMicros)-oldFame),
     boostId:slot.boostId,bonusBps:slot.bonusBps,
     remainingCashCents:approximateMoneyCents(v(next.game.balance))*100,
@@ -481,8 +497,7 @@ function executeCollectionMaxPurchase(): {ok:true;count:number;costCents:bigint;
   settleEconomyNow()
   const purchase=v8BuyCollectionsMax(exact.value)
   if (!purchase) return {ok:false,error:'none-affordable'}
-  syncExactState(purchase.state)
-  persist()
+  if(!replaceWholeSaveExact(purchase.state))return {ok:false,error:'invalid-state'}
   return {ok:true,count:purchase.ids.length,costCents:purchase.costCents,fameMicros:purchase.fameMicros}
 }
 
@@ -1027,7 +1042,9 @@ onUnmounted(() => {
     <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')"
       :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise"
       :execute-enterprise-max="executeEnterpriseMax" :execute-fame-v4-enterprise="executeFameV4Enterprise" />
-    <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact" :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase" />
+    <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact"
+      :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase"
+      :execute-fame-v4-collection="executeFameV4Collection" />
     <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 

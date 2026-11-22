@@ -18,6 +18,8 @@ import { getNewsTemplate } from './trading/news.ts'
 import { getExactLevel, getExactV3Level, rebaseV3ExperienceCents } from './exact-levels.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot } from './prestige/catalog.ts'
 import { collectionV3Snapshot } from './prestige/collections-v3.ts'
+import { V4_WING_COSTS_CENTS,v4RestoreCostCents,V4_EXHIBITION_DURATION_MS,
+  V4_EXHIBITION_COOLDOWN_MS,V4_PRIVATE_OFFER_MS } from './prestige/collections-v4.ts'
 import { MAX_SAFE_CYCLE, projectedPrestigeCycle } from './ascension/prestige-count-v8.ts'
 import { ENTERPRISES } from './economy/catalog.ts'
 import { previewPrestigePoints } from './ascension/contracts.ts'
@@ -271,6 +273,67 @@ function validFameEnterpriseV4(e:Dict,p:Dict,g:Dict,a:Dict,gifts:Dict):boolean{
   return true
 }
 
+/** Optional V4 collection registry; provenance and costs derive from the
+ * immutable 100-item catalog, not from any client-supplied amount. */
+function validFameCollectionV4(p:Dict,e:Dict):boolean{
+  if(p.fameV4Collections===undefined)return true
+  const data=p.fameV4Collections
+  if(!object(data)||data.version!==1||!Array.isArray(data.restoredIds)||
+    !Array.isArray(data.wingTiers)||data.restoredIds.length>20||data.wingTiers.length>5||
+    !object(p.fameV4)||!object(p.fameV4.levels))return false
+  const levels=p.fameV4.levels
+  const rank=(n:string):number=>typeof levels['fame-v4-'+n]==='number'?
+    levels['fame-v4-'+n] as number:0
+  const owned=new Set((p.ownedCollectionIds as string[]).map(currentCollectionId))
+  if(data.restoredIds.length>rank('15')*2||data.wingTiers.length>rank('18'))return false
+  let permanent=0n
+  const restored=new Set<string>()
+  for(const raw of data.restoredIds){
+    if(typeof raw!=='string'||!getCollectionSlot(raw)||!owned.has(currentCollectionId(raw))||
+      restored.has(currentCollectionId(raw)))return false
+    restored.add(currentCollectionId(raw))
+    const cost=v4RestoreCostCents(raw)
+    if(cost===null)return false
+    permanent+=cost
+  }
+  let previous=-1
+  for(const tier of data.wingTiers){
+    if(!safe(tier)||tier>=5||tier>=rank('18')||tier<=previous)return false
+    permanent+=V4_WING_COSTS_CENTS[tier]!
+    previous=tier
+  }
+  if(amount(data.permanentSpentCents)!==permanent)return false
+  const spending=amount(data.exhibitionSpentCents)
+  if(spending===null)return false
+  const at=e.lastAccruedAt
+  if(!safe(at))return false
+  if(data.exhibition!==null){
+    const show=data.exhibition
+    if(rank('14')<1||!object(show)||!safe(show.startedAt)||
+      !safe(show.endsAt)||!safe(show.cooldownUntil)||
+      show.startedAt>at||
+      show.endsAt-show.startedAt!==V4_EXHIBITION_DURATION_MS||
+      show.cooldownUntil-show.startedAt!==V4_EXHIBITION_COOLDOWN_MS||
+      (amount(show.costCents)??0n)<100_000_000n||
+      (amount(show.costCents)??0n)>spending||
+      owned.size<3)return false
+  }
+  if(data.offers!==null){
+    const offers=data.offers
+    if(rank('17')<1||!object(offers)||!safe(offers.generatedAt)||
+      !safe(offers.expiresAt)||offers.expiresAt-offers.generatedAt!==V4_PRIVATE_OFFER_MS||
+      offers.generatedAt>at||!Array.isArray(offers.items)||
+      offers.items.length>rank('17'))return false
+    const ids=new Set<string>()
+    for(const item of offers.items){
+      if(!object(item)||typeof item.itemId!=='string'||!getCollectionSlot(item.itemId)||
+        ids.has(currentCollectionId(item.itemId))||typeof item.used!=='boolean')return false
+      ids.add(currentCollectionId(item.itemId))
+    }
+  }
+  return true
+}
+
 function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
   const progress=object(a.progress)?a.progress:null
   const run=object(a.run)?a.run:null
@@ -338,7 +401,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
-  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts))
+  if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
     !Array.isArray(value.newsPowers.recent) || value.newsPowers.recent.length!==Math.min(50,value.newsPowers.count) ||
