@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createV8CapitalState,getExactAmount as v,type V8CapitalState} from '../exact-state-v8.ts'
 import {v8BuyFameV4UpgradeMax} from './fame-v4-ledger.ts'
-import {v8AccrueTax,v8AdvanceFiscalEconomy,v8PayTaxes,v8UpgradeClick,v8BuyTrade} from '../exact-runtime-v8.ts'
+import {v8AccrueTax,v8AdvanceFiscalEconomy,v8PayTaxes,v8UpgradeClick,v8BuyTrade,v8CreditIncome} from '../exact-runtime-v8.ts'
 import {v8PerformPrestige} from '../exact-prestige-v8.ts'
 import {validateExactV8State} from '../exact-save-validation.ts'
 import {getAsset} from '../trading/catalog.ts'
@@ -140,6 +140,7 @@ test('all outstanding installments and debt are paid before Prestige, without di
  let state=owing(rich(24,26),12_345_678n)
  const due=v(state.fiscal.taxesDueCents)
  state=v4StartTaxPlan(state,T)!
+ state=v8CreditIncome(state,'enterprises',10n**27n)
  const result=v8PerformPrestige(state,T)
  assert.equal(result.ok,true,result.reason)
  if(!result.ok)return
