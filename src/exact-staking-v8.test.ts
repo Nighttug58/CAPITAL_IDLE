@@ -1,21 +1,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createV8CapitalState,getExactAmount as v} from './exact-state-v8.ts'
-import {v8BuyTrade,v8SellTrade} from './exact-runtime-v8.ts'
+import {v8BuyTrade,v8SellTrade,v8CreditIncome,v8BuyPrestigeUpgrade} from './exact-runtime-v8.ts'
+import {v8PerformPrestige} from './exact-prestige-v8.ts'
 import {v8ChangeStaking,v8SettleStaking} from './exact-staking-v8.ts'
 import {getAsset} from './trading/catalog.ts'
 import {validateExactV8State} from './exact-save-validation.ts'
 
 const now=1_800_000_000_000
 function capital(){
- const st=createV8CapitalState(now)
- return {...st,game:{...st.game,balance:(10n**80n).toString(),lifetimeEarned:(10n**80n).toString()},
-   ascension:{...st.ascension,progress:{...st.ascension.progress,
-     availablePoints:'0',lifetimePoints:'40',prestigeCount:1,highestFameAwardedLevel:100,
-     history:[{cycle:1,completedAtRealMs:now-1,eligibleWorthCents:'40000000000',earnedPoints:'40',levelAtCompletion:100}],
-     legacyRanks:{...st.ascension.progress.upgradeLevels,'crypto-staking':1},
-     upgradeLevels:{...st.ascension.progress.upgradeLevels,'crypto-staking':1}}},
- }
+ const rich=v8CreditIncome(createV8CapitalState(now),'clicks',10n**25n)
+ const prestiged=v8PerformPrestige(rich,now)
+ assert.ok(prestiged.ok)
+ if(!prestiged.ok)throw Error(prestiged.reason)
+ const unlocked=v8BuyPrestigeUpgrade(prestiged.state,'crypto-staking',0)
+ assert.ok(unlocked)
+ if(!unlocked)throw Error('Missing crypto-staking upgrade')
+ return {...unlocked,game:{...unlocked.game,
+   balance:(10n**80n).toString(),lifetimeEarned:(10n**80n).toString()}}
 }
 const valid=(s:ReturnType<typeof capital>)=>validateExactV8State(s,id=>getAsset(id)?.quantityDecimals??null)
 
