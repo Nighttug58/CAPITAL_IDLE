@@ -1,4 +1,4 @@
-import { prestigeSpent, prestigePoints, prestigePointsV4 } from './ascension/v2.ts'
+import { prestigeSpent, prestigeSpentV9, prestigePoints, prestigePointsV4 } from './ascension/v2.ts'
 import { transcendentSpent } from './ascension/transcendent-v1.ts'
 import { TRANSCENDENT_MAX_LEVEL } from './ascension/transcendent-v1.ts'
 import { startingCapitalCents } from './ascension/starting-capital-v1.ts'
@@ -10,7 +10,7 @@ import { validLegacyBoundary } from './trading/legacy-boundary.ts'
  */
 import { decodeExactInteger } from './large-numbers.ts'
 import type { AssetDecimals } from './exact-save-v8.ts'
-import { getPurchasedFameBoostCost, getVersionedPurchasedFameCost } from './prestige/catalog.ts'
+import { getPurchasedFameBoostCost, getVersionedPurchasedFameCost, getV9PurchasedFameCost } from './prestige/catalog.ts'
 import { fameV4PurchasedCost } from './prestige/fame-v4-catalog.ts'
 import { ascensionSpentPoints } from './ascension/catalog.ts'
 import { getAsset, ASSETS } from './trading/catalog.ts'
@@ -538,7 +538,8 @@ function validLedgerShape(g:Dict, e:Dict, f:Dict,p:Dict,a:Dict,s:Dict):boolean {
 /** Inspects cross-ledger invariants as exact BigInts, without Number coercion. */
 export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals): ExactSaveValidation {
   const fail = (reason: string): ExactSaveValidation => ({ valid: false, reason })
-  if (!object(value) || value.version !== 8) return fail('Expected exact V8 snapshot')
+  if (!object(value) || (value.version !== 8 && value.version !== 9)) return fail('Expected exact V8/V9 snapshot')
+  const v9=value.version===9
   const { game, fiscal, trading, enterprises, prestige, ascension, achievements, stats } = value
   if (![game, fiscal, trading, enterprises, prestige, ascension, achievements, stats].every(object))
     return fail('Missing V8 domain section')
@@ -594,12 +595,16 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   if(collectionsFame < baseCollections)return fail('Collection Fame ledger too small')
   if (!object(p.boosts)) return fail('Missing Fame boost ledger')
   if (p.xpCurveVersion === 4) {
-    if (p.fameShopLedgerVersion !== 2 || !object(p.fameLegacyLevels))
+    if(v9 && (p.fameLegacyLevels!==undefined||p.fameShopLedgerVersion!==undefined||
+       p.xpRebaseV4!==undefined))return fail('Historical Fame purchase fields forbidden in V9')
+    if(!v9 && (p.fameShopLedgerVersion!==2||!object(p.fameLegacyLevels)))
       return fail('Missing versioned Fame purchase ledger')
-    const legacyLevels = p.fameLegacyLevels as Parameters<typeof getVersionedPurchasedFameCost>[1]
-    const expectedSpent = getVersionedPurchasedFameCost(
-      p.boosts as Parameters<typeof getVersionedPurchasedFameCost>[0], legacyLevels)
+    const expectedSpent=v9 ? getV9PurchasedFameCost(p.boosts)
+      : getVersionedPurchasedFameCost(
+          p.boosts as Parameters<typeof getVersionedPurchasedFameCost>[0],
+          p.fameLegacyLevels as Parameters<typeof getVersionedPurchasedFameCost>[1])
     let v4Purchased=0n
+    if(v9&&p.fameV4===undefined)return fail('V9 requires Fame V4 catalogue')
     if(p.fameV4!==undefined){
       if(!object(p.fameV4)||p.fameV4.version!==1||!object(p.fameV4.levels))
         return fail('Malformed Fame V4 section')
@@ -615,7 +620,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     const cycleCollections = amount(p.cycleCollectionFameMicros)
     if (expectedSpent === null || spent === null || forfeited === null ||
         cycleEarned === null || cycleLevels === null || cycleCollections === null ||
-        spent !== (BigInt(expectedSpent) + v4Purchased) * 1_000_000n ||
+        spent !== (expectedSpent + v4Purchased) * 1_000_000n ||
         lifetimeFame !== fame + spent + forfeited ||
         cycleEarned !== cycleLevels + cycleCollections ||
         cycleEarned > lifetimeFame || cycleLevels > levelsFame || cycleCollections > collectionsFame)
@@ -642,7 +647,12 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   if (availablePP === null || lifetimePP === null || availablePP > lifetimePP ||
       !object(progress.upgradeLevels)) return fail('Invalid PP ledger')
   if(progress.shopVersion!==undefined && progress.shopVersion!==2)return fail('Unknown Prestige tariff')
-  const shopPP = progress.shopVersion===2 ? prestigeSpent(progress.upgradeLevels,progress.legacyRanks) : ascensionSpentPoints(progress.upgradeLevels as Record<string, number>)
+  if(v9&&(progress.shopVersion!==2||progress.legacyRanks!==undefined||
+      !object(progress.transcendentV1)||(progress.transcendentV1 as Dict).version!==2))
+    return fail('Historical Prestige purchase fields forbidden in V9')
+  const shopPP=v9?prestigeSpentV9(progress.upgradeLevels)
+    :progress.shopVersion===2?prestigeSpent(progress.upgradeLevels,progress.legacyRanks)
+    :ascensionSpentPoints(progress.upgradeLevels as Record<string, number>)
   // Classic historical ranks and advanced V1 ranks debit the same PP wallet.
   // An absent V1 section is a valid pre-pass-3 save and costs exactly zero.
   const advancedPP = progress.transcendentV1===undefined?0n:transcendentSpent(progress.transcendentV1)
