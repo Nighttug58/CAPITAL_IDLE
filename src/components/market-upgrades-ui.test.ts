@@ -1,4 +1,4 @@
-import {readV8LegacyUI} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -33,7 +33,7 @@ function buyLevels(state: CapitalState, id: string, amount: number): CapitalStat
   return current
 }
 function mountGame(state: CapitalState) {
-  localStorage.setItem(SAVED, JSON.stringify(state))
+  seedLegacyUIFixtureAsV9(state)
   const wrapper = mount(App, { attachTo: document.body })
   wrappers.push(wrapper)
   return { wrapper, stored: () => readV8LegacyUI() }
