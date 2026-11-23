@@ -63,36 +63,17 @@ test('V7 restores existing held boundary state without discarding positions, the
   assert.equal(read.lastTickAt,state.lastTickAt)
   assert.notEqual(advanceMarketTick(read).quotes.bitcoin!.price,read.quotes.bitcoin!.price)
 })
-test('V8 accepts a previously valid held boundary, strips it on read/import/write without changing economic state',()=>{
-  const initial=createV8CapitalState(now)
-  const legacy={...initial,trading:{...initial.trading,quotes:{bitcoin:oldQuote('bitcoin')}}}
-  assert.equal(validateExactV8State(legacy,decimals).valid,true)
-  const storage=memoryStorage()
-  const original=JSON.stringify(legacy)
-  storage.setItem(V8_STORAGE_KEY,original)
-  const loaded=loadV8CapitalState(storage,now)
-  assert.equal(loaded.ok,true)
-  if(!loaded.ok)return
-  assert.equal(storage.getItem(V8_STORAGE_KEY),original,'do not rewrite existing save on read')
-  assert.equal(loaded.state.trading.quotes.bitcoin!.price,legacy.trading.quotes.bitcoin.price)
-  assert.equal('boundary' in loaded.state.trading.quotes.bitcoin!,false)
-  assert.equal(loaded.state.game.balance,legacy.game.balance)
-  assert.equal(loaded.state.trading.seed,legacy.trading.seed)
-  assert.equal(validateExactV8State(loaded.state,decimals).valid,true)
-  const imported=prepareV8SaveImport(original,now)
-  assert.equal(imported.ok,true)
-  if(imported.ok)assert.equal('boundary' in imported.state.trading.quotes.bitcoin!,false)
-  assert.equal(saveV8CapitalState(storage,legacy),true)
-  assert.equal((JSON.parse(storage.getItem(V8_STORAGE_KEY)!) as any).trading.quotes.bitcoin.boundary,undefined)
-  const reloaded=loadV8CapitalState(storage,now)
-  assert.equal(reloaded.ok,true)
-  if(!reloaded.ok)return
-  let direct=loaded.state,restored=reloaded.state
-  for(let i=0;i<20;i++){
-    direct=v8AdvanceMarketSecond(direct)
-    restored=v8AdvanceMarketSecond(restored)
-  }
-  assert.deepEqual(restored,direct,'unchanged seeded market continuation')
+test('V9 rejects obsolete quote-boundary fields rather than silently migrating them',()=>{
+ const current=createV8CapitalState(now)
+ const legacy={...current,trading:{...current.trading,quotes:{bitcoin:oldQuote('bitcoin')}}}
+ assert.equal(validateExactV8State(legacy,decimals).valid,false)
+ const storage=memoryStorage()
+ const original=JSON.stringify(legacy)
+ storage.setItem(V8_STORAGE_KEY,original)
+ assert.deepEqual(loadV8CapitalState(storage,now),{ok:false,reason:'invalid-v9'})
+ assert.equal(storage.getItem(V8_STORAGE_KEY),original)
+ assert.equal(prepareV8SaveImport(original,now).ok,false)
+ assert.equal(saveV8CapitalState(storage,legacy),false)
 })
 test('corrupted old boundary metadata is still rejected, not used as a reset or a free price event',()=>{
   const old=oldQuote('bitcoin')
