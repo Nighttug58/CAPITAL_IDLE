@@ -67,6 +67,20 @@ export const V2_FAME_BOOSTS: readonly FameBoostDefinition[] = Object.freeze(FAME
   return Object.freeze({ ...boost, costs, totalCost: costs.reduce((sum, cost) => sum + cost, 0) })
 }))
 export const TOTAL_V2_FAME_SHOP_COST = V2_FAME_BOOSTS.reduce((sum, boost) => sum + boost.totalCost, 0)
+/** Current V9 classic tariff, no legacy rank witness. */
+export function getV9PurchasedFameCost(levels:unknown):bigint|null {
+  if(!levels||typeof levels!=='object'||Array.isArray(levels))return null
+  const ranks=levels as Record<string,unknown>
+  if(Object.keys(ranks).length!==V2_FAME_BOOSTS.length)return null
+  let total=0n
+  for(const row of V2_FAME_BOOSTS){
+    if(!Object.hasOwn(ranks,row.id))return null
+    const level=ranks[row.id]
+    if(typeof level!=='number'||!Number.isSafeInteger(level)||level<0||level>MAX_FAME_BOOST_LEVEL)return null
+    for(let i=0;i<level;i++)total+=BigInt(row.costs[i]!)
+  }
+  return total
+}
 const v2ById = new Map<FameBoostId, FameBoostDefinition>(V2_FAME_BOOSTS.map(boost => [boost.id, boost]))
 
 export function getV2NextFameBoostCost(id: string, level: number): number | null {
