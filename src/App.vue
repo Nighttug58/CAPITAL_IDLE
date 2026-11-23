@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {createV8CapitalState, getExactAmount as v, type V8CapitalState} from './exact-state-v8.ts'
 import {projectV8ForLegacyUI, approximateMoneyCents} from './exact-view-v8.ts'
-import {loadV8CapitalState, saveV8CapitalState, exportV8Save} from './exact-persistence-v8.ts'
+import {loadV9CapitalState, saveV9CapitalState, exportV9Save} from './exact-persistence-v8.ts'
 import {createV8MarketRuntime} from './exact-clock-v8.ts'
 import {makeOfflineReport,offlineReportDuration,OFFLINE_REPORT_MIN_MS,type OfflineReport} from './offline-report-v8.ts'
 import OfflineReportDialog from './components/OfflineReportDialog.vue'
@@ -77,7 +77,7 @@ interface FloatingGain {
 
 // V8 is the single authoritative state. The old numeric model is a read-only
 // compatibility projection for existing Vue screens, NEVER a save authority.
-const boot = loadV8CapitalState(localStorage)
+const boot = loadV9CapitalState(localStorage)
 const loadBlocked = ref(!boot.ok)
 const loadError = ref(boot.ok ? '' : boot.reason)
 const exact = ref<V8CapitalState>(boot.ok ? boot.state : createV8CapitalState())
@@ -757,7 +757,7 @@ function persist():boolean {
       syncExactState({...exact.value,stats:{...exact.value.stats,activePlayMs:exact.value.stats.activePlayMs+elapsed}})
     }
   }
-  return saveV8CapitalState(localStorage,exact.value)
+  return saveV9CapitalState(localStorage,exact.value)
 }
 function settleEconomyNow(){
   if(loadBlocked.value)return
@@ -806,7 +806,7 @@ function startMarketRuntime(){
 function replaceWholeSaveExact(next:V8CapitalState):boolean {
   marketRuntime?.stop()
   marketRuntime=null
-  if(!saveV8CapitalState(localStorage,next)){
+  if(!saveV9CapitalState(localStorage,next)){
     if(!loadBlocked.value)startMarketRuntime()
     return false
   }
@@ -827,7 +827,7 @@ function exportSave():boolean {
     settleEconomyNow()
     if(!persist())return false
     const at=Date.now()
-    const blob=new Blob([exportV8Save(exact.value,at)],{type:'application/json;charset=utf-8'})
+    const blob=new Blob([exportV9Save(exact.value,at)],{type:'application/json;charset=utf-8'})
     url=URL.createObjectURL(blob)
     const link=document.createElement('a')
     link.href=url
