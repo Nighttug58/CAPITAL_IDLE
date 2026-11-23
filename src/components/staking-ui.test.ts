@@ -1,42 +1,34 @@
-import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import App from '../App.vue'
-import { createCapitalState, type CapitalState } from '../capital.ts'
-import { performPrestige } from '../ascension/engine.ts'
-import { buyAscensionUpgrade } from '../ascension/shop.ts'
-import { creditExperience } from '../prestige/state.ts'
-import { buyAsset } from '../trading/trades.ts'
+import type {CapitalState} from '../capital.ts'
+import {createV9CapitalState,type V9CapitalState} from '../exact-state-v8.ts'
+import {v8CreditIncome,v8BuyTrade,v8BuyPrestigeUpgrade} from '../exact-runtime-v8.ts'
+import {v8PerformPrestige} from '../exact-prestige-v8.ts'
+import {V9_STORAGE_KEY} from '../exact-persistence-v8.ts'
 
-const KEY = 'capital-idle-save-v7'
 const mounted: VueWrapper[] = []
 beforeEach(() => {localStorage.clear(); vi.spyOn(Date,'now').mockReturnValue(1_800_000_000_000)})
 afterEach(() => {mounted.splice(0).forEach(wrapper => wrapper.unmount()); vi.restoreAllMocks()})
 
-function ready(): CapitalState {
-  const now = Date.now()
-  const wealth = 1_000_000_000
-  const seed = createCapitalState({ balance: wealth, lifetimeEarned: wealth, purchasedUpgrades: 0 }, now)
-  const cycle = performPrestige(seed, now)
-  if (!cycle.ok) throw new Error('Fixture Prestige failed')
-  const unlock = buyAscensionUpgrade(cycle.state, 'crypto-staking', 0)
-  if (!unlock.ok) throw new Error('Staking PP fixture failed')
-  const withXP = creditExperience(unlock.state, 100_000 * 100)
-  if (!withXP) throw new Error('Fixture XP failed')
-  const withCash = {
-    ...withXP,
-    game: { ...withXP.game, balance: 100_000, lifetimeEarned: 100_000 },
-    stats: { ...withXP.stats, earnedBySource: { ...withXP.stats.earnedBySource, unclassified: 100_000 } },
-  }
-  const order = buyAsset(withCash, 'ethereum', 10)
-  if (!order.ok) throw new Error('Fixture ETH buy failed')
-  return order.state
+function ready():V9CapitalState {
+ const now=Date.now()
+ const rich=v8CreditIncome(createV9CapitalState(now),'clicks',10n**35n)
+ const prestiged=v8PerformPrestige(rich,now)
+ if(!prestiged.ok)throw Error(prestiged.reason)
+ const unlocked=v8BuyPrestigeUpgrade(prestiged.state,'crypto-staking',0)
+ if(!unlocked)throw Error('V9 staking PP fixture failed')
+ const paid=v8CreditIncome(unlocked,'clicks',100_000_000n)
+ const traded=v8BuyTrade(paid,'ethereum','10')
+ if(!traded.ok)throw Error('V9 ETH purchase fixture failed: '+traded.reason)
+ return traded.state
 }
-function mountState(state: CapitalState) {
-  seedLegacyUIFixtureAsV9(state)
-  const wrapper = mount(App, { attachTo: document.body })
-  mounted.push(wrapper)
-  return { wrapper, stored: (): CapitalState => readV8LegacyUI() }
+function mountState(state:V9CapitalState) {
+ localStorage.setItem(V9_STORAGE_KEY,JSON.stringify(state))
+ const wrapper=mount(App,{attachTo:document.body})
+ mounted.push(wrapper)
+ return {wrapper,stored:():CapitalState=>readV8LegacyUI()}
 }
 async function openStaking(wrapper: VueWrapper) {
   await wrapper.findAll('.bottom-nav button')[1]!.trigger('click')
@@ -47,7 +39,7 @@ async function openStaking(wrapper: VueWrapper) {
 
 describe('Trading — interface Staking Prestige', () => {
   it('n’expose pas le Staking avant l’achat et préserve les cinq onglets principaux', async () => {
-    const { wrapper } = mountState(createCapitalState(undefined, Date.now()))
+    const { wrapper } = mountState(createV9CapitalState(Date.now()))
     await wrapper.findAll('.bottom-nav button')[1]!.trigger('click')
     expect(wrapper.findAll('.trading-tab').map(x => x.text())).toEqual(['Portfolio', 'Actions', 'Crypto', 'News'])
     expect(wrapper.findAll('.bottom-nav button').at(-1)?.text()).toBe('Stats')
