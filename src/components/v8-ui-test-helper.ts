@@ -29,7 +29,7 @@ export function readV8Raw():V8CapitalState {
  * No migration is performed by the game or by V9 import/load code.
  * Preserve fixture gameplay values while re-pricing purchased ranks at current
  * Fame and Prestige tariffs so exact ledger validation still holds. */
-export function seedLegacyUIFixtureAsV9(source:CapitalState):void {
+export function prepareLegacyUIFixtureAsV9(source:CapitalState):V8CapitalState {
   const restored={...source,achievements:restoreAchievementsState(source.achievements)}
   const v8=convertValidatedV7ToV8(restored)
   const p=v8.prestige
@@ -57,5 +57,8 @@ export function seedLegacyUIFixtureAsV9(source:CapitalState):void {
   }
   const checked=validateExactV8State(adjusted,id=>getAsset(id)?.quantityDecimals??null)
   if(!checked.valid)throw Error('Invalid V9 UI fixture: '+checked.reason)
-  localStorage.setItem(V9_STORAGE_KEY,JSON.stringify(adjusted))
+  return adjusted
+}
+export function seedLegacyUIFixtureAsV9(source:CapitalState):void {
+ localStorage.setItem(V9_STORAGE_KEY,JSON.stringify(prepareLegacyUIFixtureAsV9(source)))
 }
