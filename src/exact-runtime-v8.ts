@@ -384,7 +384,7 @@ export function v8BuyFameUpgrade(state: V8CapitalState, id: FameBoostId,
   const v4Spent = state.prestige.fameV4 ? fameV4PurchasedCost(state.prestige.fameV4.levels) : 0n
   if (spent === null || v4Spent === null ||
       (state.prestige.fameV4 && v(state.prestige.fameV4.spentMicros) !== v4Spent*FAME_MICROS) ||
-      v(state.prestige.fameSpentMicros) !== (spent+v4Spent)*FAME_MICROS ||
+      v(state.prestige.fameSpentMicros) !== (BigInt(spent)+v4Spent)*FAME_MICROS ||
       v(state.prestige.lifetimeFameMicros) !== v(state.prestige.fameMicros) +
         v(state.prestige.fameSpentMicros) + v(state.prestige.fameForfeitedMicros)) return null
   return { ...state, prestige: { ...state.prestige,
