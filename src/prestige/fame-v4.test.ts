@@ -32,29 +32,22 @@ test('Fame V4: 30 powers, 196 ranks, 178100 exact Fame, immutable catalogue',()=
  assert.equal(fameV4PurchasedCost({...levels,'fame-v4-01':11}),null)
  assert.equal(fameV4NextCost('bad-key',0),null)
 })
-test('Fame V4: zero-cost idempotent migration, import/export and backup',()=>{
+test('Fame V4: V9 current catalogue loads unchanged and V8 imports are refused',()=>{
  const current=createV8CapitalState(now)
+ assert.equal(current.version,9)
  assert.deepEqual(current.prestige.fameV4,createEmptyFameV4Shop())
+ assert.equal(current.prestige.fameLegacyLevels,undefined)
  assert.ok(isValid(current))
- const {fameV4,...oldPrestige}=current.prestige
- const old={...current,prestige:oldPrestige}
- assert.ok(isValid(old))
- assert.deepEqual(migrateV8ToFameV4(old),current)
- assert.equal(migrateV8ToFameV4(current),current)
- const data=new Map<string,string>([[V8_STORAGE_KEY,JSON.stringify(old)]])
+ const data=new Map<string,string>([[V8_STORAGE_KEY,JSON.stringify(current)]])
  const store={getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>{data.set(k,v)}}
- const migrated=loadV8CapitalState(store,now)
- assert.equal(migrated.ok,true)
- if(!migrated.ok)return
- assert.equal(migrated.origin,'migrated')
- assert.deepEqual(migrated.state,current)
- assert.equal(store.getItem(V8_FAME_V4_BACKUP_KEY),JSON.stringify(old))
- const again=loadV8CapitalState(store,now)
- assert.equal(again.ok,true)
- if(again.ok)assert.equal(again.origin,'v8')
+ const loaded=loadV8CapitalState(store,now)
+ assert.equal(loaded.ok,true)
+ if(loaded.ok)assert.equal(loaded.origin,'v9')
  const reimport=prepareV8SaveImport(exportV8Save(current,now),now)
  assert.equal(reimport.ok,true)
  if(reimport.ok)assert.deepEqual(reimport.state,current)
+ const old={...current,version:8}
+ assert.equal(prepareV8SaveImport(JSON.stringify(old),now).ok,false)
 })
 test('Fame V4: atomic purchases and old Fame ledger coexist, tampering rejected',()=>{
  const state=createV8CapitalState(now),p=state.prestige
