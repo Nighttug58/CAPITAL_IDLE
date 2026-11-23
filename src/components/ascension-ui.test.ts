@@ -1,4 +1,4 @@
-import {readV8LegacyUI} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -32,7 +32,7 @@ function fixture(withPoints = false): CapitalState {
 }
 
 function mountState(state: CapitalState) {
-  localStorage.setItem(STORAGE, JSON.stringify(state))
+  seedLegacyUIFixtureAsV9(state)
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
   const saved = (): CapitalState => readV8LegacyUI()
