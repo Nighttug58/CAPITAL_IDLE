@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import App from '../App.vue'
 import { createCapitalState } from '../capital.ts'
 import { getAchievementOffers } from '../achievements.ts'
-import { prepareV8SaveImport } from '../exact-persistence-v8.ts'
+import { prepareV8SaveImport,V8_STORAGE_KEY } from '../exact-persistence-v8.ts'
 
 const mounted: VueWrapper[] = []
 beforeEach(() => { localStorage.clear() })
@@ -91,7 +91,7 @@ describe('Achievements : navigation et récompenses groupées', () => {
     expect(savedAfter.game.lifetimeEarned).toBe(1_500)
     expect(savedAfter.achievements.claimedIds).toContain('clicks-100')
     expect(card.find('.achievement-claim').exists()).toBe(false)
-    expect(prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!, Date.now()).ok).toBe(true)
+    expect(prepareV8SaveImport(localStorage.getItem(V8_STORAGE_KEY)!, Date.now()).ok).toBe(true)
     await wrapper.find('.achievements-back').trigger('click')
     await nextTick()
     await wrapper.find('.achievements-launch').trigger('click')
@@ -112,7 +112,7 @@ describe('Achievements : navigation et récompenses groupées', () => {
     expect(read().game.balance).toBe(expectedCash)
     expect(read().achievements.claimedIds).toEqual(expect.arrayContaining(['clicks-100','earnings-1000']))
     expect(button.attributes('disabled')).toBeDefined()
-    expect(prepareV8SaveImport(localStorage.getItem('capital-idle-save-v8')!,Date.now()).ok).toBe(true)
+    expect(prepareV8SaveImport(localStorage.getItem(V8_STORAGE_KEY)!,Date.now()).ok).toBe(true)
   })
 
   it('échec de sauvegarde : aucun cadeau ne passe en mémoire', async () => {
