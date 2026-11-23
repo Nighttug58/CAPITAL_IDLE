@@ -1,0 +1,18 @@
+name: V9 isolated validation
+on:
+  push:
+    branches: [refactor/v9-fresh-only-20261123]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-v9:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run verify:release
+      - run: npm run build:root
