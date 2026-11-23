@@ -120,45 +120,22 @@ test('Transcendent News works at Prestige 1 or 2 when PP suffice',()=>{
     ...ready.ascension.progress,availablePoints:'0'}}}
   assert.equal(v8BuyTranscendentNews(small,'news-power',0),null)
 })
-test('Legacy V8 loads, migrates once with backup, exports, imports idempotently without PP changes',()=>{
-  const state=seeded(3)
-  const old=JSON.parse(JSON.stringify(state))
-  delete old.ascension.progress.transcendentV1
-  // A genuinely pre-Transcendent V8 snapshot also predates the grant receipts.
-  delete old.ascension.run.startingCapitalGrantedCents
-  for (const receipt of old.ascension.progress.history) {
-    delete receipt.startingCapitalLevelAtCycle
-    delete receipt.startingCapitalGrantedCents
-  }
-  const original=JSON.stringify(old)
-  const {entries,storage}=store()
-  entries.set(V8_STORAGE_KEY,original)
-  const loaded=loadV8CapitalState(storage,NOW)
-  assert.ok(loaded.ok)
-  assert.equal(loaded.origin,'migrated')
-  assert.equal(loaded.state.ascension.progress.availablePoints,state.ascension.progress.availablePoints)
-  assert.equal(loaded.state.ascension.progress.lifetimePoints,state.ascension.progress.lifetimePoints)
-  assert.deepEqual(loaded.state.ascension.progress.transcendentV1,zeroTranscendentV1())
-  assert.equal(entries.get(V8_TRANSCENDENT_BACKUP_KEY),original)
-  const once=entries.get(V8_STORAGE_KEY)
-  const again=loadV8CapitalState(storage,NOW)
-  assert.ok(again.ok)
-  assert.equal(again.origin,'v8')
-  assert.equal(entries.get(V8_STORAGE_KEY),once)
-  assert.equal(entries.get(V8_TRANSCENDENT_BACKUP_KEY),original)
-  assert.strictEqual(migrateTranscendentV1(loaded.state),loaded.state)
-  assert.equal(saveV8CapitalState(storage,loaded.state),true)
-  const imported=prepareV8SaveImport(exportV8Save(old,NOW),NOW)
-  assert.ok(imported.ok)
-  assert.deepEqual(imported.state,loaded.state)
-  const corrupt={...old,ascension:{...old.ascension,progress:{
-    ...old.ascension.progress,transcendentV1:{version:1,levels:{'news-power':0}}
-  }}}
-  assert.equal(prepareV8SaveImport(JSON.stringify(corrupt),NOW).ok,false)
-  entries.set(V8_STORAGE_KEY,JSON.stringify(corrupt))
-  const failed=loadV8CapitalState(storage,NOW)
-  assert.equal(failed.ok,false)
-  assert.deepEqual(entries.get(V8_STORAGE_KEY),JSON.stringify(corrupt))
+test('V9 preserves current Transcendent purchases but rejects old schema imports',()=>{
+ const state=seeded(3)
+ const {entries,storage}=store()
+ assert.equal(saveV8CapitalState(storage,state),true)
+ const loaded=loadV8CapitalState(storage,NOW)
+ assert.ok(loaded.ok)
+ if(loaded.ok)assert.deepEqual(loaded.state,state)
+ const imported=prepareV8SaveImport(exportV8Save(state,NOW),NOW)
+ assert.ok(imported.ok)
+ const old=JSON.parse(JSON.stringify(state))
+ old.version=8
+ assert.equal(prepareV8SaveImport(JSON.stringify(old),NOW).ok,false)
+ const oldShop=JSON.parse(JSON.stringify(state))
+ oldShop.ascension.progress.transcendentV1={version:1,levels:{'news-power':0}}
+ assert.equal(prepareV8SaveImport(JSON.stringify(oldShop),NOW).ok,false)
+ assert.equal(entries.get(V8_STORAGE_KEY),JSON.stringify(state))
 })
 test('V8 engine: advanced force, intensity and duration affect positive and negative pressure symmetrically',()=>{
   let state=seeded(3)
