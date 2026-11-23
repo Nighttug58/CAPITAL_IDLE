@@ -135,7 +135,7 @@ const v4Errors:Record<FameV4PurchaseError,string>={
   'stale-level':'Le niveau a changé. Réessayez sur le palier actualisé.',
   'max-level':'Ce pouvoir est déjà au niveau maximum.',
   'insufficient-fame':'Fame insuffisante. Consultez votre solde et le prix exact du prochain palier.',
-  'invalid-state':'Achat refusé : les compteurs de la sauvegarde V8 ne concordent pas. Exportez votre sauvegarde depuis Statistiques avant toute manipulation.',
+  'invalid-state':'Achat refusé : les compteurs de la sauvegarde V9 ne concordent pas. Exportez votre sauvegarde depuis Statistiques avant toute manipulation.',
   'storage-error':'Achat non enregistré : le navigateur refuse la sauvegarde. Vérifiez l’espace de stockage et exportez votre partie depuis Statistiques.',
 }
 function purchaseNew(id:string,level:number){
