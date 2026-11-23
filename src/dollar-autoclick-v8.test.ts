@@ -137,7 +137,7 @@ test('The V8 schema accepts pre-pass-4 saves without Auto Click; new saves persi
     assert.equal(valid(tampered).valid,false)
     const badDb=storage()
     badDb.setItem(V8_STORAGE_KEY,JSON.stringify(tampered))
-    assert.deepEqual(loadV8CapitalState(badDb,NOW),{ok:false,reason:'invalid-v8'})
+    assert.deepEqual(loadV8CapitalState(badDb,NOW),{ok:false,reason:'invalid-v9'})
   }
 })
 
