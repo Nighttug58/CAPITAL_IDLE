@@ -620,7 +620,7 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
     const cycleCollections = amount(p.cycleCollectionFameMicros)
     if (expectedSpent === null || spent === null || forfeited === null ||
         cycleEarned === null || cycleLevels === null || cycleCollections === null ||
-        spent !== (expectedSpent + v4Purchased) * 1_000_000n ||
+        spent !== (BigInt(expectedSpent) + v4Purchased) * 1_000_000n ||
         lifetimeFame !== fame + spent + forfeited ||
         cycleEarned !== cycleLevels + cycleCollections ||
         cycleEarned > lifetimeFame || cycleLevels > levelsFame || cycleCollections > collectionsFame)
