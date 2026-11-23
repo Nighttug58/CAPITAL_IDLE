@@ -101,8 +101,8 @@ export interface V8PrestigeState extends Omit<PrestigeState,
   /** Active XP curve: existing v8-3 saves are migrated once before gameplay. */
   xpCurveVersion: 4
   /** Historical purchases remain at their original prices, future ranks use V2. */
-  fameShopLedgerVersion: 2
-  fameLegacyLevels: PrestigeState['boosts']
+  fameShopLedgerVersion?: 2
+  fameLegacyLevels?: PrestigeState['boosts']
   fameSpentMicros: ExactAmount
   /** Optional only for earlier V8; purchases add into the permanent Fame spent total. */
   fameV4?: FameV4ShopState
@@ -176,7 +176,7 @@ export interface V8Achievements extends Omit<AchievementsState,'cycleGiftCents'>
 }
 export interface V8CapitalState extends Omit<CapitalState,'version'|'game'|'trading'|'enterprises'|'fiscal'|'stats'|'prestige'|'ascension'|'achievements'> {
   newsPowers?: { count:number; spentCents:string; recent:readonly {eventId:string; action:"generate"|"end"; at:number; costCents:string}[] }
-  version: 8
+  version: 8 | 9
   game: V8GameState
   trading: V8TradingState
   enterprises: V8EnterpriseState
@@ -193,10 +193,17 @@ export function getExactAmount(text: ExactAmount): bigint {
   return value
 }
 export function withExactAmount(value: bigint): ExactAmount { return encodeExactInteger(value) }
+/** V9 never imports older saves. Legacy code is used here only to initialize empty defaults. */
 export function createV8CapitalState(now = Date.now()): V8CapitalState {
-  const v7 = createCapitalState(undefined, now)
-  return convertValidatedV7ToV8(v7)
+  const initial=convertValidatedV7ToV8(createCapitalState(undefined,now))
+  const {fameShopLedgerVersion: _oldTariff, fameLegacyLevels: _oldLevels,
+    xpRebaseV4: _rebase, ...prestige}=initial.prestige
+  const {legacyRanks: _oldRanks,...progress}=initial.ascension.progress
+  void _oldTariff;void _oldLevels;void _rebase;void _oldRanks
+  return {...initial,version:9,prestige,ascension:{...initial.ascension,progress}}
 }
+export type V9CapitalState = V8CapitalState
+export const createV9CapitalState = createV8CapitalState
 export function convertValidatedV7ToV8(source: CapitalState): V8CapitalState {
   const decimals = (id: string) => getAsset(id)?.quantityDecimals ?? null
   const converted = projectValidatedV7ToExactV8(source, decimals)
