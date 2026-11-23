@@ -1,4 +1,4 @@
-import {readV8LegacyUI} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -15,7 +15,7 @@ afterEach(() => { mounted.splice(0).forEach(wrapper => wrapper.unmount()) })
 function start(saved = createCapitalState({
   balance: 1_500, lifetimeEarned: 1_500, purchasedUpgrades: 0,
 }, Date.now())) {
-  localStorage.setItem('capital-idle-save-v7', JSON.stringify(saved))
+  seedLegacyUIFixtureAsV9(saved)
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
   return { wrapper, read: () => readV8LegacyUI() }
