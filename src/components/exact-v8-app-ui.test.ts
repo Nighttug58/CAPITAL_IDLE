@@ -18,17 +18,17 @@ function start(){
 }
 
 describe('V8 active App accounting, migration and resilience',()=>{
- it('migrates an actual V7 save, keeps legacy original, then clicks ONLY V8',async()=>{
+ it('starts a fresh V9 account and ignores the old V7 save without deleting it',async()=>{
   const legacy=createCapitalState({balance:1000,lifetimeEarned:1000,purchasedUpgrades:0},Date.now())
   const original=JSON.stringify(legacy)
   localStorage.setItem('capital-idle-save-v7',original)
   const wrapper=start()
-  expect(readV8Raw().version).toBe(8)
-  expect(readV8Raw().game.balance).toBe('100000')
-  expect(localStorage.getItem(V8_BACKUP_KEY)).toBe(original)
+  expect(readV8Raw().version).toBe(9)
+  expect(readV8Raw().game.balance).toBe('0')
+  expect(localStorage.getItem(V8_BACKUP_KEY)).toBeNull()
   await wrapper.find('.tap-zone').trigger('click')
   await nextTick()
-  expect(readV8Raw().game.balance).toBe('100100')
+  expect(readV8Raw().game.balance).toBe('100')
   expect(readV8Raw().stats.clickCount).toBe(1)
   expect(localStorage.getItem('capital-idle-save-v7')).toBe(original)
  })
