@@ -289,9 +289,11 @@ describe('Prestige absolu — écran et sauvegarde', () => {
     expect(stats.find('.stats-absolute-factor').text()).toContain('1,06152')
     const summary = stats.find('.stats-prestige-summary').text()
     expect(summary).toContain('600')
-    expect(summary).toContain('25.3K')
-    expect(summary).toContain('20.2K')
-    expect(summary).toContain('24.7K')
+    // Current V9 Fame ranks have one modern tariff, not the old V7 totals.
+    const p=readV8Raw().prestige
+    expect(summary).toContain(formatFameMicros(BigInt(p.cycleEarnedFameMicros)))
+    expect(summary).toContain(formatFameMicros(BigInt(p.cycleCollectionFameMicros)))
+    expect(summary).toContain(formatFameMicros(BigInt(p.fameSpentMicros)))
     expect(summary).toContain('50 / 100')
     expect(stats.findAll('.stats-prestige-boost')).toHaveLength(6)
     expect(stats.find('.stats-prestige-boost[data-boost="click"]').text()).toContain('avec Prestige')
