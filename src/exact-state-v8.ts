@@ -1,13 +1,13 @@
 import { migratePrestigeShop } from './ascension/v2.ts'
 import { migrateV8ToFameV4 } from './prestige/fame-v4-ledger.ts'
-import type { FameV4ShopState } from './prestige/fame-v4-catalog.ts'
+import {createEmptyFameV4Shop,type FameV4ShopState} from './prestige/fame-v4-catalog.ts'
 import type { FameV4EnterpriseState } from './economy/fame-v4-enterprises.ts'
 import type { FameV4CollectionState } from './prestige/collections-v4.ts'
 import type { FameV4ClickState } from './prestige/fame-v4-clicks.ts'
 import type { FameV4TradingState } from './trading/fame-v4-trading.ts'
 import type { FameV4TaxState } from './prestige/fame-v4-tax.ts'
 import type { FameV4PrestigeRun } from './prestige/fame-v4-prestige.ts'
-import { migrateTranscendentV1, type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
+import { migrateTranscendentV1,zeroTranscendentV1,type TranscendentShopV1 } from './ascension/transcendent-v1.ts'
 /**
  * Version 8 domain contract: economic values are CANONICAL decimal strings.
  * BigInts are materialized only inside transaction functions and never
@@ -193,14 +193,31 @@ export function getExactAmount(text: ExactAmount): bigint {
   return value
 }
 export function withExactAmount(value: bigint): ExactAmount { return encodeExactInteger(value) }
-/** V9 never imports older saves. Legacy code is used here only to initialize empty defaults. */
+/** Fresh V9 factory: assemble current Fame/PP/Transcendent registries directly.
+ * Only zero-valued base fields reuse the existing initial game-state projection;
+ * no saved V1–V8 player data or migration/refund path can reach this constructor.
+ */
 export function createV8CapitalState(now = Date.now()): V8CapitalState {
-  const initial=convertValidatedV7ToV8(createCapitalState(undefined,now))
-  const {fameShopLedgerVersion: _oldTariff, fameLegacyLevels: _oldLevels,
-    xpRebaseV4: _rebase, ...prestige}=initial.prestige
-  const {legacyRanks: _oldRanks,...progress}=initial.ascension.progress
-  void _oldTariff;void _oldLevels;void _rebase;void _oldRanks
-  return {...initial,version:9,prestige,ascension:{...initial.ascension,progress}}
+  const decimals=(id:string)=>getAsset(id)?.quantityDecimals??null
+  const seed=projectValidatedV7ToExactV8(createCapitalState(undefined,now),decimals) as unknown as V8CapitalState
+  const {automation:_oldAutomation,marketOrders:_oldOrders,nextOrderId:_oldOrderId,
+    lastStrategyAtRealMs:_oldStrategy,...run}=seed.ascension.run
+  void _oldAutomation;void _oldOrders;void _oldOrderId;void _oldStrategy
+  const fresh:V8CapitalState={
+    ...seed,version:9,
+    prestige:{...seed.prestige,xpCurveVersion:4,
+      fameSpentMicros:'0',fameForfeitedMicros:'0',
+      cycleEarnedFameMicros:seed.prestige.lifetimeFameMicros,
+      cycleLevelFameMicros:seed.prestige.levelFameMicros,
+      cycleCollectionFameMicros:seed.prestige.collectionFameMicros,
+      fameV4:createEmptyFameV4Shop()},
+    ascension:{...seed.ascension,
+      progress:{...seed.ascension.progress,shopVersion:2,transcendentV1:zeroTranscendentV1()},
+      run},
+  }
+  const check=validateExactV8State(fresh,decimals)
+  if(!check.valid)throw Error('Invalid fresh V9 state: '+check.reason)
+  return fresh
 }
 export type V9CapitalState = V8CapitalState
 export const createV9CapitalState = createV8CapitalState
