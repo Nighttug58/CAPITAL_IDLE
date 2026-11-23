@@ -79,33 +79,30 @@ test('migration refunds retired ranks once and prices only new ranks at the new 
  assert.equal(prestigeSpent(purchased.ascension.progress.upgradeLevels,purchased.ascension.progress.legacyRanks),90)
 })
 
-test('V8 load, reload, export and import refund exactly once at the historical tariff',async()=>{
- const {V8_STORAGE_KEY,loadV8CapitalState,prepareV8SaveImport,exportV8Save}=await import('./exact-persistence-v8.ts')
- const {createCapitalState}=await import('./capital.ts')
- const {performPrestige}=await import('./ascension/engine.ts')
- const {buyAscensionUpgrade}=await import('./ascension/shop.ts')
- const {projectValidatedV7ToExactV8}=await import('./exact-save-v8.ts')
- const {migratePreV2V8Save}=await import('./fame-cycle-v8.ts')
- const reset=performPrestige(createCapitalState({balance:10_000_000_000,lifetimeEarned:10_000_000_000,purchasedUpgrades:0},now),now)
- assert.ok(reset.ok)
- const bot=buyAscensionUpgrade(reset.state,'auto-investor',0)
- assert.ok(bot.ok)
- const retained=buyAscensionUpgrade(bot.state,'crypto-staking',0)
- assert.ok(retained.ok)
- const old=migratePreV2V8Save(projectValidatedV7ToExactV8(retained.state,id=>getAsset(id)?.quantityDecimals??null) as unknown as ReturnType<typeof createV8CapitalState>)
- const data=new Map([[V8_STORAGE_KEY,JSON.stringify(old)]])
- const storage={getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>{data.set(key,value)}}
- const first=loadV8CapitalState(storage,now)
- assert.ok(first.ok)
- assert.equal(first.state.ascension.progress.availablePoints,String(retained.state.ascension.progress.availablePoints+30))
- assert.equal(first.state.ascension.progress.upgradeLevels['crypto-staking'],1)
- assert.equal(first.state.ascension.run.automation,undefined)
- const second=loadV8CapitalState(storage,now)
- assert.ok(second.ok)
- assert.deepEqual(second.state,first.state)
- const imported=prepareV8SaveImport(exportV8Save(second.state,now),now)
+test('V9 current PP purchases survive save, reload and export without historical refunds',async()=>{
+ const {V9_STORAGE_KEY,loadV9CapitalState,saveV9CapitalState,prepareV9SaveImport,exportV9Save}=
+   await import('./exact-persistence-v8.ts')
+ const {v8BuyPrestigeUpgrade}=await import('./exact-runtime-v8.ts')
+ const rich=v8CreditIncome(createV8CapitalState(now),'clicks',10n**35n)
+ const cycle=v8PerformPrestige(rich,now)
+ assert.ok(cycle.ok)
+ if(!cycle.ok)return
+ const next=v8BuyPrestigeUpgrade(cycle.state,'crypto-staking',0)
+ assert.ok(next)
+ if(!next)return
+ assert.equal(next.ascension.progress.legacyRanks,undefined)
+ assert.equal(v(cycle.state.ascension.progress.availablePoints)-v(next.ascension.progress.availablePoints),175n)
+ const data=new Map([[V9_STORAGE_KEY,JSON.stringify(cycle.state)]])
+ const disk={getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>{data.set(key,value)}}
+ assert.equal(saveV9CapitalState(disk,next),true)
+ const loaded=loadV9CapitalState(disk,now)
+ assert.ok(loaded.ok)
+ if(!loaded.ok)return
+ assert.deepEqual(loaded.state,next)
+ const imported=prepareV9SaveImport(exportV9Save(loaded.state,now),now)
  assert.ok(imported.ok)
- assert.deepEqual(imported.state,first.state)
+ if(imported.ok)assert.deepEqual(imported.state,next)
+ assert.equal(prepareV9SaveImport(JSON.stringify({...next,version:8}),now).ok,false)
 })
 
 test('Prestige V2: all eleven upgrades are available at every cycle when PP suffice',async()=>{
