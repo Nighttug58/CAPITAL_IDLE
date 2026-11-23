@@ -1,4 +1,4 @@
-import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9,prepareLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -202,7 +202,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     mounted.push(wrapper)
     await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
     const encoded = JSON.stringify({
-      format: 'CAPITAL_IDLE_SAVE', formatVersion: 1, exportedAt: now - 30_000, state: loaded,
+      format: 'CAPITAL_IDLE_SAVE', formatVersion: 1, exportedAt: now - 30_000, state: prepareLegacyUIFixtureAsV9(loaded),
     })
 
     async function choose(content: string) {
