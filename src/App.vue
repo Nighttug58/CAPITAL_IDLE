@@ -444,7 +444,13 @@ function executeFamePurchase(id: string, currentLevel: number): FameShopPurchase
   const price = getV2NextFameBoostCost(id,currentLevel)
   const oldFame = v(exact.value.prestige.fameMicros)
   const next = v8BuyFameUpgrade(exact.value,id as keyof V8CapitalState['prestige']['boosts'],currentLevel)
-  if (!next || price===null) return {ok:false,state:capital.value,error:'insufficient-fame'}
+  if (!next || price===null) {
+    const key=id as keyof V8CapitalState['prestige']['boosts']
+    const error=price===null ? 'max-level'
+      :exact.value.prestige.boosts[key]!==currentLevel ? 'stale-level'
+      :oldFame<BigInt(price)*1_000_000n ? 'insufficient-fame' : 'invalid-state'
+    return {ok:false,state:capital.value,error}
+  }
   if(!replaceWholeSaveExact(next))return {ok:false,state:capital.value,error:'invalid-state'}
   const state=capital.value
   const actualCost = oldFame-v(next.prestige.fameMicros)
@@ -476,7 +482,7 @@ function fameV4PurchaseError(id:string,expectedLevel:number):FameV4PurchaseError
   if(!item)return 'unknown-boost'
   const level=exact.value.prestige.fameV4?.levels[item.id]
   if(level!==expectedLevel)return 'stale-level'
-  const cost=fameV4NextCost(item.id,level)
+  const cost=fameV4NextCost(item.id,expectedLevel)
   if(cost===null)return 'max-level'
   if(v(exact.value.prestige.fameMicros)<cost*1_000_000n)return 'insufficient-fame'
   return 'invalid-state'
