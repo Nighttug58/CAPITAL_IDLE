@@ -1,4 +1,4 @@
-import {readV8LegacyUI} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -20,7 +20,7 @@ function mountSaved(balance: number, earned: number = balance) {
   const state = createCapitalState({
     balance, lifetimeEarned: earned, purchasedUpgrades: 0,
   }, Date.now())
-  localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
+  seedLegacyUIFixtureAsV9(state)
   const wrapper = mount(App, { attachTo: document.body })
   mounted.push(wrapper)
   const current = () => readV8LegacyUI()
@@ -41,7 +41,7 @@ describe('Click rewards — tranches de 50 niveaux', () => {
       const state = createCapitalState({
         balance: earned, lifetimeEarned: earned, purchasedUpgrades: upgrades,
       }, Date.now())
-      localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
+      seedLegacyUIFixtureAsV9(state)
       const wrapper = mount(App, { attachTo: document.body })
       mounted.push(wrapper)
       const upgradeCard = wrapper.find('.home-upgrade-row[aria-label="Amélioration du clic"]')
@@ -268,7 +268,7 @@ describe('Prestige absolu — écran et sauvegarde', () => {
   it('120/120 : Prestige est gratuit, facteur ×1,01⁶ et Fame ventilée avec bonus non multipliés', async () => {
     const endgame = completedPrestigeState()
     expect(getAbsolutePrestigeStatus(endgame).factor).toBe(1.01 ** 6)
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(endgame))
+    seedLegacyUIFixtureAsV9(endgame)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.find('.fame-shop-launch').trigger('click')
@@ -302,7 +302,7 @@ describe('Prestige absolu — écran et sauvegarde', () => {
 
   it('Prestige rechargé n’est ni remboursé ni obtenu une seconde fois, puis RESET le désactive', async () => {
     const initial = completedPrestigeState()
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(initial))
+    seedLegacyUIFixtureAsV9(initial)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
