@@ -122,7 +122,7 @@ describe('Achievements : navigation et récompenses groupées', () => {
     const before=JSON.stringify(read())
     const storage=Storage.prototype.setItem
     Storage.prototype.setItem=function(key:string,value:string){
-      if(key==='capital-idle-save-v8')throw new Error('Quota')
+      if(key===V8_STORAGE_KEY)throw new Error('Quota')
       return storage.call(this,key,value)
     }
     try{
