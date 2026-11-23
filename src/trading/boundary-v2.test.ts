@@ -87,7 +87,7 @@ test('corrupted old boundary metadata is still rejected, not used as a reset or 
   assert.equal(validateExactV8State(forged,decimals).valid,false)
   const storage=memoryStorage()
   storage.setItem(V8_STORAGE_KEY,JSON.stringify(forged))
-  assert.deepEqual(loadV8CapitalState(storage,now),{ok:false,reason:'invalid-v8'})
+  assert.deepEqual(loadV8CapitalState(storage,now),{ok:false,reason:'invalid-v9'})
 })
 test('limit and take-profit trigger prices can exceed former stock/crypto/memecoin maxima',()=>{
   for(const id of ['nvideo','bitcoin','turbo']){
