@@ -4,11 +4,13 @@ Clicker économique et simulateur de Trading **fictif**, gratuit, jouable dans l
 
 **Jouer :** https://nighttug58.github.io/CAPITAL_IDLE/
 
-## Moteur économique V8 — grands nombres et migration
+## CAPITAL_IDLE V9 — nouveau départ, sans migration
 
-Depuis la **passe 1 de la refonte**, la sauvegarde active utilise `capital-idle-save-v8` et un moteur exact en **BigInt**. Le cash, les dépenses, les investissements, le prix de revient, le staking, les revenus, l'XP, la Fame, les PP et les impôts sont calculés en unités entières, puis conservés dans le JSON sous forme de **chaînes décimales canoniques**. Les grands nombres apparaissent en K, M, B, T, Q, QQ, AA, AB, AC… sans perdre les valeurs comptables.
+**Rupture volontaire de compatibilité (23.11.2026).** La version active démarre une **nouvelle partie à zéro** et utilise exclusivement `capital-idle-save-v9`. Les sauvegardes locales et exports V1 à V8 sont **ignorés et non importables**. Les anciennes clés restent en place uniquement pour permettre un retour manuel à une version historique ; elles ne sont jamais consultées par la V9. Aucun compte ni synchronisation cloud.
 
-La première ouverture d'une sauvegarde locale **v1 à v7** effectue une migration contrôlée vers V8 : l'original n'est pas effacé et, pour v7, une copie `capital-idle-save-backup-v7` est conservée. Les imports manuels v4–v7 sont acceptés après validation stricte. Une sauvegarde corrompue bloque l'écriture et demande import ou réinitialisation explicite : **aucun reset silencieux**. L'export manuel utilise désormais les champs exacts V8. `src/capital.ts` reste un modèle v7 de compatibilité/affichage, non l'autorité économique active.
+Le moteur exact `BigInt` reste en place : cash, XP, Fame, fiscalité, actifs, collections, PP et revenus hors ligne sont conservés sans conversions en `Number`. Les bonus et prix du Fame Shop V4 ainsi que le Prestige sont inchangés, mais le registre des achats ne garde plus les anciens prix Fame et anciens rangs PP. La sauvegarde V9 rejette toute incohérence comptable, refuse les imports anciens et bloque les écritures non vérifiées sans réinitialisation silencieuse.
+
+Les fichiers internes `exact-*-v8.ts` gardent provisoirement leurs noms pour éviter un renommage de dizaines d'importations qui n'améliorerait pas la fiabilité. Le **schéma de sauvegarde et la partie active sont bien V9**. Les paragraphes historiques du README ci-dessous décrivent des étapes de développement antérieures, et non des fonctionnalités de migration encore disponibles.
 
 ## Prestige V2 et pouvoirs News
 
@@ -108,13 +110,17 @@ La page **Stats** est l'onglet le plus à droite de la navigation principale. El
 
 **Fortune nette = cash (éventuellement négatif) + valeur de marché des titres + montant investi dans les entreprises + valeur comptable des collections − taxes encore dues.** La valeur des entreprises est **comptable** et ne signifie pas qu'elles sont revendables. Les taxes déjà payées sont incluses dans le cash et non déduites une deuxième fois. Les recettes historiques dont l'origine ne peut pas être reconstituée apparaissent dans **Historique non ventilé**, sans inventer des gains par source.
 
-## Sauvegarde locale, import/export et rattrapage hors ligne
+## Sauvegarde V9, import/export et revenus hors ligne
 
-- Sauvegarde automatique **V8** en `localStorage` : **v1 à v7** locales sont migrées selon leur format, sans effacement silencieux des originaux ni des preuves historiques, et l'import accepte les exports v4 à v8. Le JSON V8 conserve le cash, les titres, les taxes, l'XP/Fame, les collections, les succès et les **reçus PP versionnés** en chaînes entières canoniques. Aucun compte ni synchronisation cloud.
-- Tout en bas de **Stats** : **Exporter** télécharge un JSON V8 complet et versionné ; **Importer** valide les formats **v4/v5/v6/v7/v8** (taille maximale **16 Mo**, champs exacts, horloges, portefeuille, reçus et cohérence des ledgers), montre un aperçu et exige une **confirmation avant remplacement** ; **Réinitialiser** nécessite la saisie exacte de `RESET`.
-- Import et reset remplacent la sauvegarde **V8** après arrêt de l'ancien runtime ; aucun fichier invalide ou écriture non confirmée ne remplace volontairement une partie valide. Lorsqu'une V8 existe, elle prime sur les anciennes clés : une V8 corrompue bloque le chargement et ne ressuscite jamais une V7 historique.
-- La restauration conserve les dates de simulation ; le revenu d'entreprises et les taxes sont repris sur toute la durée écoulée. Le **Trading/News/dividendes** conserve volontairement son rejeu **par tranches bornées** : une très longue absence peut demander plusieurs cycles pour rattraper ce sous-système, sans limiter les revenus fixes des entreprises.
+- Sauvegarde automatique au format **V9 uniquement**, sous la clé `capital-idle-save-v9`.
+- La première ouverture après V8 initialise une **partie vierge** : aucun ancien niveau, solde ou inventaire n'est récupéré.
+- **Exporter** produit un JSON V9. **Importer** accepte seulement V9 valide, puis demande une confirmation avant remplacement.
+- Les imports V1–V8 sont rejetés, y compris sous un emballage JSON moderne.
+- Les soldes exacts `BigInt`, les achats permanents Fame et PP, le Prestige, les taxes et les revenus hors ligne restent protégés par une validation atomique.
+- Une V9 corrompue bloque la sauvegarde : aucune réinitialisation automatique n'efface les données locales.
+
 - La sauvegarde et les historiques peuvent utiliser plusieurs mégaoctets. Si le stockage local est bloqué/saturé, la session peut rester jouable, mais la progression n'est pas garantie après fermeture. **Exporter régulièrement** une copie JSON sécurise la partie. Les JSON sont modifiables par l'utilisateur : la validation vérifie la structure, ce n'est pas un système anti-triche ni une preuve cryptographique.
+
 
 ## Interface
 
