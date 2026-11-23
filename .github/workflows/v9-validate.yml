@@ -3,6 +3,9 @@ on:
   push:
     branches: [refactor/v9-fresh-only-20261123]
   workflow_dispatch:
+concurrency:
+  group: v9-isolated-validation
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
