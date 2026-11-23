@@ -31,28 +31,20 @@ const store=(initial:Record<string,string>={})=>{
 }
 const earned=(cents=10n**32n)=>v8CreditIncome(createV8CapitalState(AT),'clicks',cents)
 
-test('Pass 8 matrix: fresh V8, old V8 without Transcendent, old V7, and exact 10^100 balance',()=>{
-  const newSave=createV8CapitalState(AT)
-  const all=[
-    {name:'fresh',payload:exportV8Save(newSave,AT),expected:8},
-    {name:'pre-transcendent-V8',payload:JSON.stringify({...newSave,
-      ascension:{...newSave.ascension,progress:{...newSave.ascension.progress,transcendentV1:undefined}}}),expected:8},
-    {name:'historical-V7',payload:createSaveExport(createCapitalState(undefined,AT),AT),expected:7},
-    {name:'huge-V8',payload:exportV8Save({...newSave,game:{...newSave.game,
-      balance:(10n**100n).toString(),lifetimeEarned:(10n**100n).toString()}},AT),expected:8},
-  ] as const
-  for(const row of all){
-    const imported=prepareV8SaveImport(row.payload,AT)
-    assert.equal(imported.ok,true,row.name)
-    if(!imported.ok)continue
-    assert.equal(imported.sourceVersion,row.expected,row.name)
-    assert.equal(imported.state.version,8)
-    assert.ok(imported.state.ascension.progress.transcendentV1,row.name)
-    assertValid(imported.state)
-    const round=prepareV8SaveImport(exportV8Save(imported.state,AT),AT)
-    assert.ok(round.ok,row.name)
-    if(round.ok)assert.deepEqual(round.state,imported.state,row.name)
-  }
+test('V9 accepts fresh and 10^100 snapshots and rejects V7/V8 imports',()=>{
+ const fresh=createV8CapitalState(AT)
+ for(const candidate of [
+   fresh,
+   {...fresh,game:{...fresh.game,balance:(10n**100n).toString(),lifetimeEarned:(10n**100n).toString()}},
+ ]){
+   assert.equal(candidate.version,9)
+   assertValid(candidate)
+   const imported=prepareV8SaveImport(exportV8Save(candidate,AT),AT)
+   assert.equal(imported.ok,true)
+   if(imported.ok)assert.deepEqual(imported.state,candidate)
+ }
+ assert.equal(prepareV8SaveImport(JSON.stringify({...fresh,version:8}),AT).ok,false)
+ assert.equal(prepareV8SaveImport(createSaveExport(createCapitalState(undefined,AT),AT),AT).ok,false)
 })
 
 test('Pass 8 no silent reset, no old-save resurrection, and write failure preserves bytes',()=>{
@@ -60,7 +52,7 @@ test('Pass 8 no silent reset, no old-save resurrection, and write failure preser
   const backup=JSON.stringify(createCapitalState(undefined,AT))
   const damaged=JSON.stringify({version:8,prestige:{fameMicros:'999'}})
   const bad=store({[V8_STORAGE_KEY]:damaged,'capital-idle-save-v7':backup})
-  assert.deepEqual(loadV8CapitalState(bad,AT),{ok:false,reason:'invalid-v8'})
+  assert.deepEqual(loadV8CapitalState(bad,AT),{ok:false,reason:'invalid-v9'})
   assert.equal(bad.getItem(V8_STORAGE_KEY),damaged)
   assert.equal(bad.getItem('capital-idle-save-v7'),backup)
   const unavailable={getItem:(_:string)=>before,setItem:(_:string,__:string)=>{throw Error('QuotaExceeded')}}
@@ -136,7 +128,7 @@ test('Pass 8 taxes create debt, cannot provide purchase credit and may make cash
   assertValid(paid)
 })
 
-test('Pass 8 complete 100 collections and 7×1000 Transcendent: PP and cash boundaries do not feed bonuses',()=>{
+test('V9 complete 100 collections and 7×100 Transcendent: PP and cash boundaries do not feed bonuses',()=>{
   const base=earned(10n**40n)
   let state=base
   for(const item of CURRENT_COLLECTION_SLOTS){
@@ -148,8 +140,8 @@ test('Pass 8 complete 100 collections and 7×1000 Transcendent: PP and cash boun
   assert.equal(museum.owned,100)
   assert.equal(museum.museumComplete,true)
   const section=zeroTranscendentV1()
-  const all={version:1 as const,levels:{...section.levels,
-    ...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,1000]))}}
+  const all={version:2 as const,levels:{...section.levels,
+    ...Object.fromEntries(TRANSCENDENT_MAIN_IDS.map(id=>[id,100]))}}
   const advancedSpent=transcendentSpent(all)
   assert.ok(advancedSpent)
   if(advancedSpent===null)return
