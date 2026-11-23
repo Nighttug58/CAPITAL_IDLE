@@ -1,4 +1,4 @@
-import {readV8LegacyUI} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -78,7 +78,7 @@ describe('Stats / fiscalité', () => {
     const taxed = accrueProfitTax(state, 'stocks', 10_000)
     expect(taxed).not.toBeNull()
     state = taxed!
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
+    seedLegacyUIFixtureAsV9(state)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     const nav = wrapper.findAll('.bottom-nav button')
@@ -115,7 +115,7 @@ describe('Stats : progression et patrimoine complet', () => {
   it('comptabilise un clic réel puis l affiche sur Stats sans changer le cumul historique', async () => {
     const now = Date.now()
     const state = createCapitalState({ balance: 100, lifetimeEarned: 100, purchasedUpgrades: 0 }, now)
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
+    seedLegacyUIFixtureAsV9(state)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.find('.tap-zone').trigger('click')
@@ -158,7 +158,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     const original = createCapitalState({ balance: 567, lifetimeEarned: 567, purchasedUpgrades: 0 }, now)
     original.fiscal.taxesDueCents = 750
     original.fiscal.dueBySourceCents.stocks = 750
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(original))
+    seedLegacyUIFixtureAsV9(original)
     localStorage.setItem('capital-idle-save-v4', JSON.stringify({ version: 4, game: original.game, trading: original.trading }))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
@@ -197,7 +197,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     loaded.trading.quotes.nvideo = { price: 110, momentum: 0, dividendYield: 0.05, updatedAt: now - 30_000 }
     loaded.fiscal.taxesDueCents = 75
     loaded.fiscal.dueBySourceCents.stocks = 75
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(original))
+    seedLegacyUIFixtureAsV9(original)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
