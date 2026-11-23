@@ -1,4 +1,4 @@
-import {readV8LegacyUI} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
@@ -103,7 +103,7 @@ describe('Entreprises : écran mobile et achats sans franchise', () => {
     onTestFinished(() => vi.restoreAllMocks())
     const now = Date.now()
     const state = createCapitalState({ balance: 1_000_000, lifetimeEarned: 1_000_000, purchasedUpgrades: 0 }, now)
-    localStorage.setItem('capital-idle-save-v7', JSON.stringify(state))
+    seedLegacyUIFixtureAsV9(state)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
     const buttons = wrapper.findAll('.bottom-nav button')
