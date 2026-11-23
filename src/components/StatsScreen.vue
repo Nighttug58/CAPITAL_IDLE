@@ -8,7 +8,7 @@ import { marginalTaxRateBps } from '../economy/tax-curve.ts'
 import { getCapitalStatsOverview } from '../economy/stats-overview.ts'
 import { getFameStatsOverview } from '../prestige/overview.ts'
 import {MAX_IMPORT_FILE_BYTES} from '../save-transfer.ts'
-import {prepareV8SaveImport} from '../exact-persistence-v8.ts'
+import {prepareV9SaveImport} from '../exact-persistence-v8.ts'
 import type {V8CapitalState} from '../exact-state-v8.ts'
 import {getExactLevelProgress} from '../exact-levels.ts'
 import {getEnterpriseIncomeMicrosPerSecondExact} from '../economy/catalog.ts'
@@ -191,7 +191,7 @@ const sources = [
 ] as const
 
 const backupFileInput = ref<HTMLInputElement | null>(null)
-const pendingImport = ref<{state:V8CapitalState;sourceVersion:4|5|6|7|8;exportedAt:number|null}|null>(null)
+const pendingImport = ref<{state:V8CapitalState;sourceVersion:9;exportedAt:number|null}|null>(null)
 const importName = ref('')
 const importError = ref('')
 const backupNotice = ref('')
@@ -202,7 +202,7 @@ const importing = ref(false)
 const importErrors: Record<'file-too-large' | 'invalid-json' | 'unsupported-version' | 'invalid-save', string> = {
   'file-too-large': 'Fichier trop volumineux (16 Mo maximum).',
   'invalid-json': 'Ce fichier n’est pas un JSON valide.',
-  'unsupported-version': 'Format ou version de sauvegarde incompatible (v4 / v5 / v6 / v7 / v8).',
+  'unsupported-version': 'Sauvegarde incompatible : seuls les fichiers V9 sont acceptés. Les anciennes parties V1–V8 ne sont pas importables.',
   'invalid-save': 'Sauvegarde corrompue ou incohérente : aucune donnée n’a été remplacée.',
 }
 function openImportChooser() {
@@ -226,7 +226,7 @@ async function readImportFile(event: Event) {
   importing.value = true
   try {
     const contents = await file.text()
-    const result = prepareV8SaveImport(contents)
+    const result = prepareV9SaveImport(contents)
     if (result.ok) {
       const raw=JSON.parse(contents) as Record<string,unknown>
       pendingImport.value={state:result.state,sourceVersion:result.sourceVersion,
@@ -340,7 +340,7 @@ function pay() {
           <div><span>Plus-values réalisées positives</span><strong>{{ exactTradingTotal(false)!==null ? importMoney(exactTradingTotal(false)!) : cash(overview.totalRealizedTradingProfit) }}</strong></div>
           <div><span>Pertes réalisées (actions et cryptos)</span><strong class="tax-debt">−{{ exactTradingTotal(true)!==null ? importMoney(exactTradingTotal(true)!) : cash(overview.totalRealizedTradingLoss) }}</strong></div>
         </div>
-        <p class="stats-footnote">« Historique non ventilé » : revenus issus d’une ancienne sauvegarde, impossibles à répartir avec certitude. Les recettes par source ne sont pas additionnables directement à l’XP, dont le Trading protège les niveaux contre le double crédit après une perte.</p>
+        <p class="stats-footnote">Les recettes par source ne sont pas additionnables directement à l’XP : le Trading protège les niveaux contre le double crédit après une perte.</p>
       </section>
 
       <section class="stats-section stats-enterprises" aria-label="Statistiques des entreprises">
