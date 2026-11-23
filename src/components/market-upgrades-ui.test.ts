@@ -1,42 +1,43 @@
-import {readV8LegacyUI,seedLegacyUIFixtureAsV9} from './v8-ui-test-helper.ts'
+import {readV8LegacyUI} from './v8-ui-test-helper.ts'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import App from '../App.vue'
-import { createCapitalState, type CapitalState } from '../capital.ts'
-import { performPrestige } from '../ascension/engine.ts'
-import { buyAscensionUpgrade } from '../ascension/shop.ts'
+import { createV9CapitalState,type V9CapitalState } from '../exact-state-v8.ts'
+import {v8CreditIncome,v8BuyPrestigeUpgrade} from '../exact-runtime-v8.ts'
+import {v8PerformPrestige} from '../exact-prestige-v8.ts'
+import {V9_STORAGE_KEY} from '../exact-persistence-v8.ts'
 import { getAsset } from '../trading/catalog.ts'
 
-const SAVED = 'capital-idle-save-v7'
 const wrappers: VueWrapper[] = []
 beforeEach(() => localStorage.clear())
 afterEach(() => wrappers.splice(0).forEach(wrapper => wrapper.unmount()))
 
-function withPP(cycles = 1): CapitalState {
-  const now = Date.now()
-  const initial = createCapitalState({ balance: 10_000_000_000, lifetimeEarned: 10_000_000_000, purchasedUpgrades: 0 }, now)
-  const cycle = performPrestige(initial, now)
-  if (!cycle.ok) throw new Error('Prestige fixture invalid')
-  const progress=cycle.state.ascension.progress
-  const history=Array.from({length:cycles}, (_,i)=>({...progress.history[0]!,cycle:i+1}))
-  return {...cycle.state,ascension:{...cycle.state.ascension,progress:{...progress,history,
-    prestigeCount:cycles,lifetimePoints:progress.lifetimePoints*cycles,availablePoints:progress.availablePoints*cycles}}}
+function withPP(cycles=1):V9CapitalState {
+ const now=Date.now()
+ let exact=createV9CapitalState(now)
+ for(let i=0;i<cycles;i++){
+  exact=v8CreditIncome(exact,'clicks',10n**38n)
+  const result=v8PerformPrestige(exact,now)
+  if(!result.ok)throw Error('Current V9 Prestige fixture: '+result.reason)
+  exact=result.state
+ }
+ return exact
 }
-function buyLevels(state: CapitalState, id: string, amount: number): CapitalState {
-  let current = state
-  for (let i = 0; i < amount; i++) {
-    const bought = buyAscensionUpgrade(current, id, i)
-    if (!bought.ok) throw new Error('Fixture PP too low: ' + id)
-    current = bought.state
-  }
-  return current
+function buyLevels(state:V9CapitalState,id:string,amount:number):V9CapitalState {
+ let next=state
+ for(let i=0;i<amount;i++){
+  const purchased=v8BuyPrestigeUpgrade(next,id as keyof V9CapitalState['ascension']['progress']['upgradeLevels'],i)
+  if(!purchased)throw Error('V9 PP purchase failed: '+id)
+  next=purchased
+ }
+ return next
 }
-function mountGame(state: CapitalState) {
-  seedLegacyUIFixtureAsV9(state)
-  const wrapper = mount(App, { attachTo: document.body })
-  wrappers.push(wrapper)
-  return { wrapper, stored: () => readV8LegacyUI() }
+function mountGame(state:V9CapitalState) {
+ localStorage.setItem(V9_STORAGE_KEY,JSON.stringify(state))
+ const wrapper=mount(App,{attachTo:document.body})
+ wrappers.push(wrapper)
+ return {wrapper,stored:()=>readV8LegacyUI()}
 }
 
 describe('Prestige marché — contrôles interactifs et affichage', () => {
