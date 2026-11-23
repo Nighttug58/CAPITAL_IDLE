@@ -14,6 +14,8 @@ function launch(withBoost=false){
  const now=Date.now()
  let state=v8CreditIncome(createV9CapitalState(now),'clicks',getExactLevelStartThreshold(30)*100n)
  if(withBoost){
+  // Provide enough earned Fame for both modern 260 and 338 ranks.
+  state=v8CreditIncome(state,'clicks',getExactLevelStartThreshold(40)*100n)
   const next=v8BuyFameUpgrade(state,'click',0)
   if(!next)throw Error('V9 click Fame seed failed')
   state=next
