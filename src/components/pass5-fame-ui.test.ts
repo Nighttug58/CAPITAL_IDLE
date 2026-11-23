@@ -12,7 +12,7 @@ beforeEach(()=>localStorage.clear())
 afterEach(()=>mounted.splice(0).forEach(w=>w.unmount()))
 function launch(withBoost=false){
  const now=Date.now()
- let state=v8CreditIncome(createV9CapitalState(now),'clicks',getExactLevelStartThreshold(30))
+ let state=v8CreditIncome(createV9CapitalState(now),'clicks',getExactLevelStartThreshold(30)*100n)
  if(withBoost){
   const next=v8BuyFameUpgrade(state,'click',0)
   if(!next)throw Error('V9 click Fame seed failed')
