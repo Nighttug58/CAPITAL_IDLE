@@ -1,6 +1,6 @@
 /** Pure V4 Fame ledger and purchase model. No V4 gameplay effects in pass 1. */
 import { decodeExactInteger } from '../large-numbers.ts'
-import { getVersionedPurchasedFameCost } from './catalog.ts'
+import { getVersionedPurchasedFameCost,getV9PurchasedFameCost } from './catalog.ts'
 import { createEmptyFameV4Shop, fameV4NextCost, fameV4PurchasedCost,
  getFameV4Definition, type FameV4Id } from './fame-v4-catalog.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
@@ -29,7 +29,7 @@ export function v8BuyFameV4Upgrade(state:V8CapitalState,id:string,expectedLevel:
  const current=section.levels[item.id]
  const cost=fameV4NextCost(id,current)
  if(cost===null||current!==expectedLevel)return null
- const classic=getVersionedPurchasedFameCost(p.boosts,p.fameLegacyLevels)
+ const classic=state.version===9 ? getV9PurchasedFameCost(p.boosts) : getVersionedPurchasedFameCost(p.boosts,p.fameLegacyLevels!)
  const v4=fameV4PurchasedCost(section.levels)
  const fame=decodeExactInteger(p.fameMicros)
  const spent=decodeExactInteger(p.fameSpentMicros)
@@ -38,7 +38,7 @@ export function v8BuyFameV4Upgrade(state:V8CapitalState,id:string,expectedLevel:
  const forfeited=decodeExactInteger(p.fameForfeitedMicros)
  if(classic===null||v4===null||fame===null||spent===null||v4Spent===null||
   lifetime===null||forfeited===null||v4Spent!==v4*MICROS||
-  spent!==(BigInt(classic)+v4)*MICROS||lifetime!==fame+spent+forfeited||
+  spent!==(classic+v4)*MICROS||lifetime!==fame+spent+forfeited||
   fame<cost*MICROS)return null
  return {...state,prestige:{...p,
    fameMicros:(fame-cost*MICROS).toString(),
@@ -73,7 +73,7 @@ export function v8BuyFameV4UpgradeMax(state:V8CapitalState,id:string,expectedLev
  const quote=quoteFameV4Max(state,id,expectedLevel)
  if(!quote)return null
  const p=state.prestige,section=p.fameV4!
- const classic=getVersionedPurchasedFameCost(p.boosts,p.fameLegacyLevels)
+ const classic=state.version===9 ? getV9PurchasedFameCost(p.boosts) : getVersionedPurchasedFameCost(p.boosts,p.fameLegacyLevels!)
  const v4=fameV4PurchasedCost(section.levels)
  const fame=decodeExactInteger(p.fameMicros),spent=decodeExactInteger(p.fameSpentMicros)
  const v4Spent=decodeExactInteger(section.spentMicros)
@@ -81,7 +81,7 @@ export function v8BuyFameV4UpgradeMax(state:V8CapitalState,id:string,expectedLev
  const cost=quote.costFame*MICROS
  if(classic===null||v4===null||fame===null||spent===null||v4Spent===null||
   lifetime===null||forfeited===null||v4Spent!==v4*MICROS||
-  spent!==(BigInt(classic)+v4)*MICROS||lifetime!==fame+spent+forfeited||cost>fame)return null
+  spent!==(classic+v4)*MICROS||lifetime!==fame+spent+forfeited||cost>fame)return null
  const item=getFameV4Definition(id)!
  return {...state,prestige:{...p,
   fameMicros:(fame-cost).toString(),
