@@ -12,7 +12,7 @@ import {
 } from '../economy/enterprises.ts'
 import { getEnterpriseUpgradeCostCents, getEnterpriseUpgradeBatchCostCentsExact } from '../economy/catalog.ts'
 import { createV8CapitalState } from '../exact-state-v8.ts'
-import { saveV8CapitalState } from '../exact-persistence-v8.ts'
+import { saveV8CapitalState,V8_STORAGE_KEY } from '../exact-persistence-v8.ts'
 
 const START = 1_800_000_000_000
 const mounted: VueWrapper[] = []
@@ -162,7 +162,7 @@ it('V8 enterprise screen displays and upgrades a level 1000 company with huge ex
   expect(kiosk.find('button.enterprise-action').attributes('disabled')).toBeUndefined()
   await kiosk.find('button.enterprise-action').trigger('click')
   await nextTick()
-  const after=JSON.parse(localStorage.getItem('capital-idle-save-v8')!)
+  const after=JSON.parse(localStorage.getItem(V8_STORAGE_KEY)!)
   expect(after.enterprises.owned.kiosque.level).toBe(1001)
   expect(after.enterprises.owned.kiosque.investedCents).toBe((987654321n+expectedCost).toString())
   expect(kiosk.text()).not.toContain('NIVEAU MAX')
@@ -195,12 +195,12 @@ describe('Pass 1 — enterprise MAX controls',()=>{
     const writes=vi.spyOn(Storage.prototype,'setItem')
     await max.trigger('click')
     await nextTick()
-    const saved=JSON.parse(localStorage.getItem('capital-idle-save-v8')!)
+    const saved=JSON.parse(localStorage.getItem(V8_STORAGE_KEY)!)
     expect(saved.enterprises.owned.kiosque.level).toBeGreaterThan(20)
     expect(saved.enterprises.owned.kiosque.investedCents).not.toBe('987654321')
     expect(kiosk.find('.enterprise-notice').text()).toContain('MAX : +')
     const snapshots=writes.mock.calls
-      .filter(([key])=>key==='capital-idle-save-v8')
+      .filter(([key])=>key===V8_STORAGE_KEY)
       .map(([,payload])=>JSON.parse(payload))
     expect(snapshots.some(s=>s.enterprises.owned.kiosque?.level===saved.enterprises.owned.kiosque.level)).toBe(true)
     expect(snapshots.every(s=>!s.enterprises.owned.kiosque ||
