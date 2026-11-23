@@ -9,6 +9,7 @@ import {prestigeSpentV9} from '../ascension/v2.ts'
 import {transcendentSpent} from '../ascension/transcendent-v1.ts'
 import {validateExactV8State} from '../exact-save-validation.ts'
 import {getAsset} from '../trading/catalog.ts'
+import {restoreAchievementsState} from '../achievements.ts'
 import {V8_STORAGE_KEY,V9_STORAGE_KEY} from '../exact-persistence-v8.ts'
 
 export function readV8LegacyUI():CapitalState {
@@ -29,7 +30,8 @@ export function readV8Raw():V8CapitalState {
  * Preserve fixture gameplay values while re-pricing purchased ranks at current
  * Fame and Prestige tariffs so exact ledger validation still holds. */
 export function seedLegacyUIFixtureAsV9(source:CapitalState):void {
-  const v8=convertValidatedV7ToV8(source)
+  const restored={...source,achievements:restoreAchievementsState(source.achievements)}
+  const v8=convertValidatedV7ToV8(restored)
   const p=v8.prestige
   const {fameLegacyLevels:_levels,fameShopLedgerVersion:_tariff,xpRebaseV4:_xp,
     ...prestige}=p
