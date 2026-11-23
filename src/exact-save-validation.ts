@@ -546,6 +546,8 @@ export function validateExactV8State(value: unknown, decimalsFor: AssetDecimals)
   const g = game as Dict, f = fiscal as Dict, t = trading as Dict,
     e = enterprises as Dict, p = prestige as Dict, a = ascension as Dict,
     gifts = achievements as Dict, s = stats as Dict
+  if(v9&&object(t.quotes)&&Object.values(t.quotes).some(q=>object(q)&&q.boundary!==undefined))
+    return fail('Historical market quote boundary is not part of V9')
   if(!validTradingStateShape(t)||!validLedgerShape(g,e,f,p,a,s)||!validFameTradingV4(t,p)||!validFameEnterpriseV4(e,p,g,a,gifts)||!validFameCollectionV4(p,e)||!validFameClicksV4(p,a,e,s,t)||!validFameTaxV4(f,p,e)||!validFamePrestigeV4(p,a,e,s))
     return fail('Invalid V8 market, timestamps, account or XP shape')
   if(value.newsPowers!==undefined && (!object(value.newsPowers) || !safe(value.newsPowers.count) || amount(value.newsPowers.spentCents)===null ||
