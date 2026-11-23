@@ -38,7 +38,7 @@ export function v8BuyFameV4Upgrade(state:V8CapitalState,id:string,expectedLevel:
  const forfeited=decodeExactInteger(p.fameForfeitedMicros)
  if(classic===null||v4===null||fame===null||spent===null||v4Spent===null||
   lifetime===null||forfeited===null||v4Spent!==v4*MICROS||
-  spent!==(classic+v4)*MICROS||lifetime!==fame+spent+forfeited||
+  spent!==(BigInt(classic)+v4)*MICROS||lifetime!==fame+spent+forfeited||
   fame<cost*MICROS)return null
  return {...state,prestige:{...p,
    fameMicros:(fame-cost*MICROS).toString(),
@@ -81,7 +81,7 @@ export function v8BuyFameV4UpgradeMax(state:V8CapitalState,id:string,expectedLev
  const cost=quote.costFame*MICROS
  if(classic===null||v4===null||fame===null||spent===null||v4Spent===null||
   lifetime===null||forfeited===null||v4Spent!==v4*MICROS||
-  spent!==(classic+v4)*MICROS||lifetime!==fame+spent+forfeited||cost>fame)return null
+  spent!==(BigInt(classic)+v4)*MICROS||lifetime!==fame+spent+forfeited||cost>fame)return null
  const item=getFameV4Definition(id)!
  return {...state,prestige:{...p,
   fameMicros:(fame-cost).toString(),
