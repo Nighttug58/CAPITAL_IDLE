@@ -29,6 +29,22 @@ export function prestigeSpent(levels:unknown,legacy:unknown):number|null {
   }
   return spent
 }
+/** V9 Prestige ledger: new tariff only, with no historical prices or ranks. */
+export function prestigeSpentV9(levels:unknown):bigint|null {
+  if(ascensionSpentPoints(levels)===null)return null
+  const current=levels as ReturnType<typeof createZeroAscensionLevels>
+  let total=0n
+  for(const row of ASCENSION_UPGRADES){
+    const level=current[row.id]
+    if(!prices[row.id]&&level!==0)return null
+    for(let i=0;i<level;i++){
+      const price=prestigeCost(row.id,i)
+      if(price===null)return null
+      total+=BigInt(price)
+    }
+  }
+  return total
+}
 export function migratePrestigeShop(state:V8CapitalState):V8CapitalState {
   const {progress,run}=state.ascension
   if(progress.shopVersion===2)return state
