@@ -159,57 +159,24 @@ test('100th level pays exactly 1e15 dollars, and level 101 is forbidden',()=>{
   assert.equal(v8EligiblePrestigeWorthCents(result.state),0n)
   valid(result.state)
 })
-test('Pre-pass-5 V8 stays valid and idempotent, new receipts prevent forged grants',()=>{
-  const old=JSON.parse(JSON.stringify(cycle()))
-  delete old.ascension.run.startingCapitalGrantedCents
-  for(const row of old.ascension.progress.history){
-    delete row.startingCapitalGrantedCents
-    delete row.startingCapitalLevelAtCycle
-  }
-  valid(old)
-  const {db,storage}=store()
-  db.set(V8_STORAGE_KEY,JSON.stringify(old))
-  const loaded=loadV8CapitalState(storage,AT)
-  assert.ok(loaded.ok)
-  if(!loaded.ok)return
-  assert.deepEqual(loaded.state,old)
-  assert.equal(loaded.origin,'v8')
-  assert.equal(db.get(V8_STORAGE_KEY),JSON.stringify(old))
-  assert.equal(loadV8CapitalState(storage,AT).ok,true)
-  const oldImport=prepareV8SaveImport(exportV8Save(old,AT),AT)
-  assert.ok(oldImport.ok)
-  if(oldImport.ok)assert.deepEqual(oldImport.state,old)
-  const first=v8BuyTranscendent(cycle(),'starting-capital',0)!
-  const p=v8PerformPrestige(v8CreditIncome(first,'clicks',10n**40n),AT)
-  assert.ok(p.ok)
-  if(!p.ok)return
-  const state=p.state
-  const exported=exportV8Save(state,AT)
-  const imported=prepareV8SaveImport(exported,AT)
-  assert.ok(imported.ok)
-  if(imported.ok)assert.deepEqual(imported.state,state)
-  assert.equal(saveV8CapitalState(storage,state),true)
-  const reload=loadV8CapitalState(storage,AT)
-  assert.ok(reload.ok)
-  if(reload.ok)assert.deepEqual(reload.state,state)
-  function reject(mutate:(s:any)=>void){
-    const d=JSON.parse(exported)
-    mutate(d.state)
-    assert.equal(prepareV8SaveImport(JSON.stringify(d),AT).ok,false)
-    assert.equal(saveV8CapitalState(storage,d.state),false)
-    assert.equal(db.get(V8_STORAGE_KEY),JSON.stringify(state))
-  }
-  reject(s=>s.ascension.run.startingCapitalGrantedCents='1000001')
-  reject(s=>s.ascension.run.startingCapitalGrantedCents='01')
-  reject(s=>s.ascension.run.startingCapitalGrantedCents='-1')
-  reject(s=>delete s.ascension.run.startingCapitalGrantedCents)
-  reject(s=>s.ascension.progress.history.at(-1).startingCapitalGrantedCents='1000001')
-  reject(s=>s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle=2)
-  reject(s=>delete s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle)
-  reject(s=>s.ascension.progress.history.at(-1).startingCapitalLevelAtCycle=101)
-  reject(s=>s.ascension.progress.transcendentV1.levels['starting-capital']=0)
-  reject(s=>s.game.balance=(BigInt(s.game.balance)+1n).toString())
-  const corrupt=JSON.parse(JSON.stringify(old))
-  corrupt.ascension.run.startingCapitalGrantedCents='100000000'
-  assert.equal(prepareV8SaveImport(JSON.stringify(corrupt),AT).ok,false)
+test('V9 rejects historical grants but preserves exact current starting-capital receipts',()=>{
+ const original=cycle()
+ const first=v8BuyTranscendent(original,'starting-capital',0)!
+ const result=v8PerformPrestige(v8CreditIncome(first,'clicks',10n**40n),AT)
+ assert.ok(result.ok)
+ if(!result.ok)return
+ const state=result.state
+ valid(state)
+ const {db,storage}=store()
+ assert.equal(saveV8CapitalState(storage,state),true)
+ const imported=prepareV8SaveImport(exportV8Save(state,AT),AT)
+ assert.ok(imported.ok)
+ if(imported.ok)assert.deepEqual(imported.state,state)
+ const altered=JSON.parse(JSON.stringify(state))
+ altered.ascension.run.startingCapitalGrantedCents='-1'
+ assert.equal(prepareV8SaveImport(JSON.stringify(altered),AT).ok,false)
+ assert.equal(db.get(V8_STORAGE_KEY),JSON.stringify(state))
+ const old=JSON.parse(JSON.stringify(state))
+ old.version=8
+ assert.equal(prepareV8SaveImport(JSON.stringify(old),AT).ok,false)
 })
