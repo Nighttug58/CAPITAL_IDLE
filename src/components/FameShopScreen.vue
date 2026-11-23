@@ -14,7 +14,8 @@ import { collectionV3Snapshot, collectionV3BonusBps } from '../prestige/collecti
 import { getFameShopOffers, type FameShopError, type FameShopPurchase } from '../prestige/shop.ts'
 import { quoteV8FameBoostMax } from '../exact-runtime-v8.ts'
 import { FAME_V4_CATALOG, FAME_V4_TOTAL_LEVELS, fameV4NextCost } from '../prestige/fame-v4-catalog.ts'
-import { quoteFameV4Max } from '../prestige/fame-v4-ledger.ts'
+import { quoteFameV4Max, type FameV4PurchaseError, type FameV4PurchaseResult,
+  type FameV4MaxPurchaseResult } from '../prestige/fame-v4-ledger.ts'
 import { FAME_V4_PRESENTATION, FAME_V4_GROUP_TABS, fameV4RankPreview,
   type FameV4Tab } from '../prestige/fame-v4-presentation.ts'
 
@@ -23,8 +24,8 @@ const props = defineProps<{
   exactState?: V8CapitalState
   purchaseBoost: (id: string, currentLevel: number) => FameShopPurchase
   purchaseBoostMax?: (id: string, currentLevel: number) => {levels:number;costFame:bigint}|null
-  purchaseV4?: (id: string, currentLevel: number) => boolean
-  purchaseV4Max?: (id: string, currentLevel: number) => {levels:number;costFame:bigint}|null
+  purchaseV4?: (id: string, currentLevel: number) => FameV4PurchaseResult
+  purchaseV4Max?: (id: string, currentLevel: number) => FameV4MaxPurchaseResult
 }>()
 const emit = defineEmits<{ back: [] }>()
 const returnButton = ref<HTMLButtonElement | null>(null)
@@ -129,16 +130,25 @@ function purchaseClassicMax(id:string,level:number){
   report(result ? 'MAX classique : +'+result.levels+' niveaux · −'+formatCost(result.costFame)+'.'
     : 'Aucun palier MAX acheté. Vérifiez le solde ou la sauvegarde.',!result)
 }
+const v4Errors:Record<FameV4PurchaseError,string>={
+  'unknown-boost':'Pouvoir Fame introuvable. Aucun achat effectué.',
+  'stale-level':'Le niveau a changé. Réessayez sur le palier actualisé.',
+  'max-level':'Ce pouvoir est déjà au niveau maximum.',
+  'insufficient-fame':'Fame insuffisante. Consultez votre solde et le prix exact du prochain palier.',
+  'invalid-state':'Achat refusé : les compteurs de la sauvegarde V8 ne concordent pas. Exportez votre sauvegarde depuis Statistiques avant toute manipulation.',
+  'storage-error':'Achat non enregistré : le navigateur refuse la sauvegarde. Vérifiez l’espace de stockage et exportez votre partie depuis Statistiques.',
+}
 function purchaseNew(id:string,level:number){
-  const success=props.purchaseV4?.(id,level)??false
-  report(success
-    ? 'Fame V4 : niveau '+(level+1)+' acheté. '+(['trading','enterprises','collections','clicks','tax','prestige'].includes(FAME_V4_CATALOG.find(x=>x.id===id)?.group??'')?'Pouvoir actif.':'Effet prévu pour une prochaine passe.')+''
-    : 'Achat V4 impossible. Vérifiez le prix, le niveau et la sauvegarde.',!success)
+  const result=props.purchaseV4?.(id,level)??{ok:false as const,error:'invalid-state' as const}
+  report(result.ok
+    ? 'Fame V4 : niveau '+(level+1)+' acheté. Pouvoir actif.'
+    : v4Errors[result.error],!result.ok)
 }
 function purchaseNewMax(id:string,level:number){
-  const result=props.purchaseV4Max?.(id,level)
-  report(result ? 'MAX V4 : +'+result.levels+' niveaux achetés · −'+formatCost(result.costFame)+'. '+(['trading','enterprises','collections','clicks','tax','prestige'].includes(FAME_V4_CATALOG.find(x=>x.id===id)?.group??'')?'Pouvoir actif.':'Effet prévu.')
-    : 'Aucun palier V4 acheté. Vérifiez le solde ou la sauvegarde.',!result)
+  const result=props.purchaseV4Max?.(id,level)??{ok:false as const,error:'invalid-state' as const}
+  report(result.ok
+    ? 'MAX V4 : +'+result.levels+' niveaux achetés · −'+formatCost(result.costFame)+'. Pouvoir actif.'
+    : v4Errors[result.error],!result.ok)
 }
 function changeTab(tab:FameV4Tab){activeTab.value=tab;notice.value='';noticeError.value=false}
 function returnHome(){emit('back')}

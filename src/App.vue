@@ -23,7 +23,10 @@ import {getEnterpriseIncomeMicrosPerSecondExact} from './economy/catalog.ts'
 import {v4ChooseSynergy,v4ChooseEnterprise,v4StartContract,v4StartProject, type FameV4EnterpriseCommand} from './economy/fame-v4-enterprises.ts'
 
 import {getCollectionSlot,getV2NextFameBoostCost,FAME_BOOST_BPS_PER_LEVEL} from './prestige/catalog.ts'
-import {v8BuyFameV4Upgrade,v8BuyFameV4UpgradeMax} from './prestige/fame-v4-ledger.ts'
+import {v8BuyFameV4Upgrade,v8BuyFameV4UpgradeMax, type FameV4PurchaseError,
+  type FameV4PurchaseResult,type FameV4MaxPurchaseResult} from './prestige/fame-v4-ledger.ts'
+import {fameV4NextCost,getFameV4Definition} from './prestige/fame-v4-catalog.ts'
+import {validateExactV8State} from './exact-save-validation.ts'
 import {fameV4Clicks,legendaryReadyAt,LEGENDARY_COUNTS,v4ActivateOvercharge,
   v4InitializeLegendary} from './prestige/fame-v4-clicks.ts'
 import {fameV4Level} from './trading/fame-v4-trading.ts'
@@ -466,31 +469,49 @@ function executeFameMaxPurchase(id:string,expectedLevel:number):{levels:number;c
   return {levels:next.prestige.boosts[key]-expectedLevel,
     costFame:(before-v(next.prestige.fameMicros))/1_000_000n}
 }
-function executeFameV4Purchase(id:string,expectedLevel:number):boolean {
-  if(loadBlocked.value)return false
+/** Show the actual failure instead of misreporting every rejected buy as insufficient Fame.
+ * Every purchase still runs the original exact, atomic V8 ledger and verified save. */
+function fameV4PurchaseError(id:string,expectedLevel:number):FameV4PurchaseError {
+  const item=getFameV4Definition(id)
+  if(!item)return 'unknown-boost'
+  const level=exact.value.prestige.fameV4?.levels[item.id]
+  if(level!==expectedLevel)return 'stale-level'
+  const cost=fameV4NextCost(item.id,level)
+  if(cost===null)return 'max-level'
+  if(v(exact.value.prestige.fameMicros)<cost*1_000_000n)return 'insufficient-fame'
+  return 'invalid-state'
+}
+function fameV4SaveError(state:V8CapitalState):FameV4PurchaseError {
+  return validateExactV8State(state,id=>getAsset(id)?.quantityDecimals??null).valid
+    ? 'storage-error' : 'invalid-state'
+}
+function executeFameV4Purchase(id:string,expectedLevel:number):FameV4PurchaseResult {
+  if(loadBlocked.value)return {ok:false,error:'invalid-state'}
   settleEconomyNow()
   const purchased=v8BuyFameV4Upgrade(exact.value,id,expectedLevel)
-  const next=purchased&&id==='fame-v4-17'
-    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):
-    purchased&&id==='fame-v4-20'?
-      v4InitializeLegendary(purchased,purchased.enterprises.lastAccruedAt):purchased
-  return !!next&&replaceWholeSaveExact(next)
+  if(!purchased)return {ok:false,error:fameV4PurchaseError(id,expectedLevel)}
+  const next=id==='fame-v4-17'
+    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt)
+    :id==='fame-v4-20'
+      ?v4InitializeLegendary(purchased,purchased.enterprises.lastAccruedAt):purchased
+  if(!replaceWholeSaveExact(next))return {ok:false,error:fameV4SaveError(next)}
+  return {ok:true}
 }
-function executeFameV4MaxPurchase(id:string,expectedLevel:number):{levels:number;costFame:bigint}|null {
-  if(loadBlocked.value)return null
+function executeFameV4MaxPurchase(id:string,expectedLevel:number):FameV4MaxPurchaseResult {
+  if(loadBlocked.value)return {ok:false,error:'invalid-state'}
   settleEconomyNow()
   const before=v(exact.value.prestige.fameMicros)
   const purchased=v8BuyFameV4UpgradeMax(exact.value,id,expectedLevel)
-  const next=purchased&&id==='fame-v4-17'
-    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt):
-    purchased&&id==='fame-v4-20'?
-      v4InitializeLegendary(purchased,purchased.enterprises.lastAccruedAt):purchased
-  if(!next||!replaceWholeSaveExact(next))return null
+  if(!purchased)return {ok:false,error:fameV4PurchaseError(id,expectedLevel)}
+  const next=id==='fame-v4-17'
+    ?v4RefreshPrivateOffers(purchased,purchased.enterprises.lastAccruedAt)
+    :id==='fame-v4-20'
+      ?v4InitializeLegendary(purchased,purchased.enterprises.lastAccruedAt):purchased
+  if(!replaceWholeSaveExact(next))return {ok:false,error:fameV4SaveError(next)}
   const itemId=id as keyof NonNullable<V8CapitalState['prestige']['fameV4']>['levels']
-  return {levels:next.prestige.fameV4!.levels[itemId]-expectedLevel,
+  return {ok:true,levels:next.prestige.fameV4!.levels[itemId]-expectedLevel,
     costFame:(before-v(next.prestige.fameMicros))/1_000_000n}
 }
-
 function executeFameV4Collection(command:FameV4CollectionCommand):boolean{
   if(loadBlocked.value)return false
   settleEconomyNow()

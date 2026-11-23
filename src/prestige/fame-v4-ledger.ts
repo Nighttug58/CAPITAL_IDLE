@@ -4,6 +4,14 @@ import { getVersionedPurchasedFameCost } from './catalog.ts'
 import { createEmptyFameV4Shop, fameV4NextCost, fameV4PurchasedCost,
  getFameV4Definition, type FameV4Id } from './fame-v4-catalog.ts'
 import type { V8CapitalState } from '../exact-state-v8.ts'
+export type FameV4PurchaseError =
+ | 'unknown-boost' | 'stale-level' | 'max-level' | 'insufficient-fame'
+ | 'invalid-state' | 'storage-error'
+export type FameV4PurchaseResult =
+ | {readonly ok:true} | {readonly ok:false; readonly error:FameV4PurchaseError}
+export type FameV4MaxPurchaseResult =
+ | {readonly ok:true; readonly levels:number; readonly costFame:bigint}
+ | {readonly ok:false; readonly error:FameV4PurchaseError}
 const MICROS=1_000_000n
 /** Idempotent migration; use only after source V8 validation and V2 fame migration. */
 export function migrateV8ToFameV4(state:V8CapitalState):V8CapitalState {

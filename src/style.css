@@ -2190,6 +2190,15 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
   .fame-shop-screen .fame-shop-page-footer { padding-block:6px; }
 }
 
+/* Fame Shop V4: override the global .app-shell > main display:block rule.
+   Keep the actions and error feedback reachable on mobile; only cards scroll. */
+.app-shell > main.fame-shop-screen {
+  display:flex; flex-direction:column; min-height:0; overflow:hidden; padding:0;
+}
+.app-shell .fame-shop-screen > .fame-shop-page-scroll {
+  flex:1 1 auto; min-height:0; height:auto; overflow-y:auto; overflow-x:hidden;
+}
+
 /* Fame Prestige V4: compact, mobile-first cycle controls. */
 .prestige-fame-v4{display:grid;gap:12px}
 .prestige-v4-block{display:grid;gap:7px;min-width:0;padding:12px;border:1px solid rgba(180,152,237,.28);border-radius:11px;background:rgba(119,97,170,.09)}

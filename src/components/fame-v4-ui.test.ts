@@ -1,4 +1,4 @@
-import {beforeEach, afterEach, describe, it, expect} from 'vitest'
+import {beforeEach, afterEach, describe, it, expect, vi} from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import App from '../App.vue'
@@ -100,4 +100,33 @@ describe('Fame Shop V4 pass 2 integration',()=>{
   await tab(w,'Trading').trigger('click')
   expect(w.find('.fame-v4-factor-preview').exists()).toBe(false)
  })
+ it('disables an unaffordable V4 purchase rather than mutating the wallet',async()=>{
+  const w=funded(100n)
+  await w.find('.fame-shop-launch').trigger('click')
+  await tab(w,'Trading').trigger('click')
+  const before=readV8Raw()
+  const card=w.find('[data-v4-boost="fame-v4-01"]')
+  expect(card.find('.fame-buy-button').attributes('disabled')).toBeDefined()
+  expect(card.find('.fame-buy-button').text()).toContain('FAME INSUFF.')
+  expect(card.text()).toContain('180')
+  expect(readV8Raw()).toEqual(before)
+ })
+ it('reports a failed V8 storage write and never claims a Fame purchase succeeded',async()=>{
+  const w=funded(500n)
+  await w.find('.fame-shop-launch').trigger('click')
+  await tab(w,'Trading').trigger('click')
+  const before=readV8Raw()
+  const nativeSet=Storage.prototype.setItem
+  const write=vi.spyOn(Storage.prototype,'setItem').mockImplementation(function(this:Storage,key:string,value:string){
+   if(key===V8_STORAGE_KEY)throw new Error('storage blocked')
+   return nativeSet.call(this,key,value)
+  })
+  try{
+   await w.find('[data-v4-boost="fame-v4-01"] .fame-buy-button').trigger('click')
+   await nextTick()
+   expect(w.find('.prestige-notice-error').text()).toContain('navigateur refuse la sauvegarde')
+   expect(readV8Raw().prestige.fameV4?.levels['fame-v4-01']).toBe(before.prestige.fameV4?.levels['fame-v4-01'])
+  }finally{write.mockRestore()}
+ })
+
 })
