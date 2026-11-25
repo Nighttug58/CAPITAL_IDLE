@@ -1,5 +1,7 @@
 import test from 'node:test'
-import {createV8MarketRuntime} from './exact-clock-v8.ts'
+import {catchUpV8,createV8MarketRuntime,REPLAY_SLICE_BUDGET_MS} from './exact-clock-v8.ts'
+import {v8BuyTrade} from './exact-runtime-v8.ts'
+import {setNewsAutoSellRule} from './trading/auto-sell-v8.ts'
 import {createV9CapitalState} from './exact-state-v8.ts'
 import assert from 'node:assert/strict'
 import { createCapitalState } from './capital.ts'
@@ -99,5 +101,59 @@ test('live V8 runtime publishes once per tick and checkpoints every five seconds
   assert.equal(writes,beforePause+1)
   assert.equal(scheduled,undefined)
   assert.equal(state.trading.dividendLastPaidAt,at)
+  runtime.stop()
+})
+
+
+test('time-budgeted replay preserves exact dividends, market seed, automatic sales and fiscal ledger',()=>{
+  const base=createV9CapitalState(now)
+  const funded={...base,game:{...base.game,balance:'1000000000',lifetimeEarned:'1000000000'}}
+  const purchase=v8BuyTrade(funded,'nvideo','5')
+  assert.ok(purchase.ok)
+  const enabled=setNewsAutoSellRule(purchase.state,'nvideo','greenEnd',true)
+  assert.ok(enabled)
+  const initial:V8CapitalState={...enabled,trading:{...enabled.trading,news:[{
+    id:'budget-green',templateId:'chip-breakthrough',startedAt:now-200000,
+    endsAt:now+12000,affectedAssetIds:['nvideo'],impact:1,phase:'active',
+  }]}}
+  const target=now+60_000
+  const full=catchUpV8(initial,target)
+  assert.equal(full.pendingSeconds,0)
+  assert.equal(full.state.trading.positions.nvideo,undefined)
+  assert.ok(full.state.trading.autoSellHistory?.some(row=>row.trigger==='greenEnd'))
+  assert.ok(v(full.state.stats.earnedBySource.dividends)>0n)
+  let state=initial,remaining=60,slices=0,clock=0
+  while(remaining>0){
+    const partial=catchUpV8(state,target,256,{now:()=>clock++,maxMs:3})
+    assert.ok(partial.processedSeconds>0&&partial.processedSeconds<=3)
+    assert.equal(partial.pendingSeconds,remaining-partial.processedSeconds)
+    remaining=partial.pendingSeconds
+    state=partial.state
+    slices++
+  }
+  assert.ok(slices>1)
+  assert.deepEqual(state,full.state)
+})
+
+test('runtime yields during long replay and always publishes its final offline report',()=>{
+  const target=now+60_000
+  let state=createV9CapitalState(now)
+  let clock=0, scheduled:(()=>void)|undefined, delay=0
+  const reports:number[]=[]
+  const runtime=createV8MarketRuntime({
+    getState:()=>state,setState:next=>{state=next},
+    persist:()=>true,now:()=>target,monotonicNow:()=>clock+=REPLAY_SLICE_BUDGET_MS,
+    initialOfflineTarget:target,onOfflineReplay:(_state,pending)=>reports.push(pending),
+    schedule:(cb,ms)=>{scheduled=cb;delay=ms;return 1 as unknown as ReturnType<typeof setTimeout>},
+    cancel:()=>{scheduled=undefined},
+  })
+  runtime.start()
+  assert.equal(state.trading.dividendLastPaidAt,now+1000)
+  assert.equal(delay,16)
+  assert.equal(reports[0],59)
+  for(let i=0;i<59;i++){assert.ok(scheduled);scheduled!()}
+  assert.equal(state.trading.dividendLastPaidAt,target)
+  assert.equal(reports.at(-1),0)
+  assert.ok(reports.length<60)
   runtime.stop()
 })

@@ -8,6 +8,9 @@ import {v8SettlePassiveIncome} from './exact-autoclick-frame.ts'
 const SAVE_INTERVAL_MS=5000
 const REPLAY_PAUSE_MS=16
 const MAX_CATCH_UP_SECONDS=256
+export const REPLAY_SLICE_BUDGET_MS=8
+export const REPLAY_REPORT_INTERVAL_MS=250
+const REPLAY_STALLED_RETRY_MS=1000
 const MARKET_HISTORY_MS=3_600_000
 
 export interface V8RuntimeOptions {
@@ -15,6 +18,8 @@ export interface V8RuntimeOptions {
  setState:(state:V8CapitalState)=>void
  persist:()=>boolean|void
  now?:()=>number
+ /** Monotonic CPU scheduling clock, never used for economic timestamps. */
+ monotonicNow?:()=>number
  schedule?:(cb:()=>void,delay:number)=>ReturnType<typeof setTimeout>
  cancel?:(handle:ReturnType<typeof setTimeout>)=>void
  isForeground?:()=>boolean
@@ -23,7 +28,9 @@ export interface V8RuntimeOptions {
  onOfflineReplay?:(state:V8CapitalState,pendingSeconds:number,incomplete:boolean)=>void
 }
 
-export function catchUpV8(state:V8CapitalState,now:number,maxSeconds=MAX_CATCH_UP_SECONDS){
+export interface V8ReplayBudget {now:()=>number;maxMs:number}
+
+export function catchUpV8(state:V8CapitalState,now:number,maxSeconds=MAX_CATCH_UP_SECONDS,timeBudget?:V8ReplayBudget){
  const last=state.trading.dividendLastPaidAt
  if(!Number.isSafeInteger(now)||now<0||!Number.isSafeInteger(last)||now<=last)
    return{state,processedSeconds:0,pendingSeconds:0}
@@ -34,7 +41,11 @@ export function catchUpV8(state:V8CapitalState,now:number,maxSeconds=MAX_CATCH_U
  let updated=state
  let processedSeconds=0
  const cutoff=now-MARKET_HISTORY_MS
+ const deadline=timeBudget?timeBudget.now()+Math.max(0,timeBudget.maxMs):Infinity
  for(let i=0;i<count;i++){
+   // Always attempt one complete second. Yield only between atomic ticks;
+   // the exact cursor, random seed, trades and fractional carries are retained.
+   if(processedSeconds>0&&timeBudget&&timeBudget.now()>=deadline)break
    const nextSecond=updated.trading.dividendLastPaidAt+1000
    const result=v8AdvanceMarketSecond(updated,nextSecond>cutoff)
    if(result===updated)break
@@ -46,12 +57,14 @@ export function catchUpV8(state:V8CapitalState,now:number,maxSeconds=MAX_CATCH_U
 
 export function createV8MarketRuntime(options:V8RuntimeOptions){
  const now=options.now??Date.now
+ const monotonicNow=options.monotonicNow??(()=>performance.now())
  const schedule=options.schedule??((callback,ms)=>setTimeout(callback,ms))
  const cancel=options.cancel??clearTimeout
  let started=false,paused=false,processing=false,dirty=false,lastPersistedAt=0
  let timer:ReturnType<typeof setTimeout>|null=null
  let reportTarget=options.initialOfflineTarget
  let replaying=false
+ let lastReportAt=-Infinity
  const clear=()=>{if(timer!==null){cancel(timer);timer=null}}
  function saveIfDirty(force=false){
    if(!dirty)return
@@ -75,7 +88,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
        saveIfDirty(true)
      }
      const staked=v8SettleStaking(forcePersist?options.getState():passive,timestamp)
-     const replay=catchUpV8(staked,timestamp)
+     const replay=catchUpV8(staked,timestamp,MAX_CATCH_UP_SECONDS,{now:monotonicNow,maxMs:REPLAY_SLICE_BUDGET_MS})
      const final=replay.state
      if(final!==options.getState()){options.setState(final);dirty=true}
      // Normal live ticks respect the five-second save interval. Force a
@@ -85,11 +98,17 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
      saveIfDirty((forcePersist && replay.pendingSeconds===0)||replayFinished)
      if(reportTarget!==undefined){
        const incomplete=replay.pendingSeconds>0&&replay.processedSeconds===0
-       options.onOfflineReplay?.(options.getState(),replay.pendingSeconds,incomplete)
+       const reportClock=monotonicNow()
+       // Rendering the detailed receipt can be expensive for large portfolios.
+       // Publish the first and final results immediately, at most 4 Hz between.
+       if(forcePersist||replay.pendingSeconds===0||incomplete||reportClock-lastReportAt>=REPLAY_REPORT_INTERVAL_MS){
+         lastReportAt=reportClock
+         options.onOfflineReplay?.(options.getState(),replay.pendingSeconds,incomplete)
+       }
        if(replay.pendingSeconds===0||incomplete)reportTarget=undefined
      }
      if(!started||paused)return
-     const delay=replay.pendingSeconds>0?REPLAY_PAUSE_MS:
+     const delay=replay.pendingSeconds>0?(replay.processedSeconds===0?REPLAY_STALLED_RETRY_MS:REPLAY_PAUSE_MS):
        Math.max(50,Math.min(1000,final.trading.dividendLastPaidAt+1000-timestamp))
      timer=schedule(process,delay)
    }finally{processing=false}
