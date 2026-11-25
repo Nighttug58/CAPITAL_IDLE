@@ -68,12 +68,13 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
  let replaying=false
  let lastReportAt=-Infinity
  const clear=()=>{if(timer!==null){cancel(timer);timer=null}}
- function saveIfDirty(force=false){
-   if(!dirty)return
+ function saveIfDirty(force=false):boolean{
+   if(!dirty)return false
    const timestamp=now()
-   if(!force&&timestamp-lastPersistedAt<SAVE_INTERVAL_MS)return
-   try{if(options.persist()===false)return}catch{return}
+   if(!force&&timestamp-lastPersistedAt<SAVE_INTERVAL_MS)return false
+   try{if(options.persist()===false)return false}catch{return false}
    lastPersistedAt=timestamp;dirty=false
+   return true
  }
  function process(forcePersist=false){
    if(!started||paused||processing)return
@@ -115,8 +116,8 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
      timer=schedule(process,delay)
    }finally{processing=false}
  }
- function start(){if(started)return;started=true;paused=false;process(true)}
- function pause(){if(!started||paused)return;paused=true;clear();saveIfDirty(true)}
+ function start(){if(started)return;started=true;paused=options.isForeground?.()===false;if(!paused)process(true)}
+ function pause():boolean{if(!started||paused)return false;paused=true;clear();return saveIfDirty(true)}
  function resume(){if(!started||!paused)return;paused=false;process(true)}
  function wake(){if(started&&!paused)process()}
  function stop(){if(!started)return;started=false;paused=false;clear();saveIfDirty(true)}

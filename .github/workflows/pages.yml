@@ -32,9 +32,8 @@ jobs:
           node-version: '22'
       - name: Dependencies
         run: npm install --no-audit --no-fund
-      - name: Test
-        run: npm test
-      - name: Build static site in repository root
+      # build:root already runs verify:release (all tests and type-checked build).
+      - name: Verify release and build static site in repository root
         run: npm run build:root
       - name: Commit static site to main
         run: |

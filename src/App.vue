@@ -817,13 +817,14 @@ function startMarketRuntime(){
 }
 /** Stop timers, persist a verified V8 snapshot, and only then publish the
  * new in-memory state. Failed writes leave the previous game untouched. */
-function replaceWholeSaveExact(next:V8CapitalState):boolean {
+function replaceWholeSaveExact(next:V8CapitalState,replaceSession=false):boolean {
   marketRuntime?.stop()
   marketRuntime=null
   if(!saveV9CapitalState(localStorage,next)){
     if(!loadBlocked.value)startMarketRuntime()
     return false
   }
+  if(replaceSession)dismissOfflineReport()
   loadBlocked.value=false
   loadError.value=''
   syncExactState(next)
@@ -853,9 +854,9 @@ function exportSave():boolean {
     return true
   }catch{if(url!==null)URL.revokeObjectURL(url);return false}
 }
-function importSave(next:V8CapitalState):boolean{return replaceWholeSaveExact(next)}
+function importSave(next:V8CapitalState):boolean{return replaceWholeSaveExact(next,true)}
 function resetSave():boolean{
-  if(!replaceWholeSaveExact(createV8CapitalState(Date.now())))return false
+  if(!replaceWholeSaveExact(createV8CapitalState(Date.now()),true))return false
   // A deliberate RESET means complete erasure, unlike the automatic V7->V8
   // migration which keeps a backup. The new V8 key is already authoritative.
   for(const key of ['capital-idle-save-v1','capital-idle-save-v2','capital-idle-save-v3',
@@ -944,8 +945,7 @@ function syncMarketVisibility() {
   documentVisible.value=!document.hidden
   if (document.hidden) {
     floatingGains.value=[]
-    marketRuntime?.pause()
-    persist()
+    if(!marketRuntime?.pause())persist()
     activeSince = null
   } else {
     activeSince = Date.now()
@@ -962,8 +962,7 @@ function syncMarketPageShow() {
 function syncMarketPageHide() {
   documentVisible.value=false
   floatingGains.value=[]
-  marketRuntime?.pause()
-  persist()
+  if(!marketRuntime?.pause())persist()
   activeSince = null
 }
 

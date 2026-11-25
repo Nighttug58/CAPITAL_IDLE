@@ -368,3 +368,32 @@ describe('Trading interface mobile',()=>{
     expect(wrapper.find('.home-screen').isVisible()).toBe(true)
   })
 })
+
+
+it('battery mode keeps live quotes and exact chart statistics while reducing rendered geometry',async()=>{
+  const {wrapper}=setup()
+  const state=wrapper.props('state') as CapitalState
+  const quote=state.trading.quotes.nvideo!
+  const history=Array.from({length:720},(_,i)=>({at:NOW-(719-i)*5000,price:quote.price*(i===100?2:i===200?.5:1+i/10000)}))
+  await wrapper.setProps({state:{...state,trading:{...state.trading,history:{...state.trading.history,nvideo:history}}}})
+  await openNvideo(wrapper)
+  const chart=wrapper.find('.market-chart')
+  await chart.findAll('.chart-tools button')[4]!.trigger('click')
+  const summary=chart.find('.chart-stats').text()
+  const points=chart.find('polyline').attributes('points')!.split(' ').length
+  assertChartPoints(points)
+  expect(wrapper.findAll('.sparkline').length).toBe(20)
+  await wrapper.setProps({batterySaver:true})
+  expect(wrapper.findAll('.sparkline')).toHaveLength(0)
+  expect(chart.find('polygon').exists()).toBe(false)
+  expect(chart.find('polyline').attributes('points')!.split(' ').length).toBeLessThanOrEqual(120)
+  expect(chart.find('.chart-stats').text()).toBe(summary)
+  const next=wrapper.props('state') as CapitalState
+  const live={...quote,updatedAt:NOW+1000,price:quote.price*1.5}
+  await wrapper.setProps({state:{...next,trading:{...next.trading,quotes:{...next.trading.quotes,nvideo:live}}}})
+  expect(chart.find('svg g[color] text').text()).toBe(formatPrice(live.price))
+  expect(history).toHaveLength(720)
+  await wrapper.setProps({batterySaver:false})
+  expect(wrapper.findAll('.sparkline')).toHaveLength(20)
+})
+function assertChartPoints(points:number){expect(points).toBe(720)}

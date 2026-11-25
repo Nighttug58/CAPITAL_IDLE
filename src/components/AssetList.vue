@@ -10,7 +10,10 @@ const props = defineProps<{
   quotes: TradingState['quotes']
   history: TradingState['history']
 }>()
-const rows = computed(() => getAssetRows(props.kind, props.quotes, props.history,!props.batterySaver))
+// Stable computed inputs avoid rescanning all series on wallet-only state updates.
+const quotes = computed(()=>props.quotes)
+const history = computed(()=>props.history)
+const rows = computed(() => getAssetRows(props.kind, quotes.value, history.value,!props.batterySaver))
 const title = computed(() => props.kind === 'stock' ? '20 entreprises' : '15 cryptos · 10 memecoins')
 </script>
 

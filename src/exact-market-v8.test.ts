@@ -158,3 +158,63 @@ test('runtime yields during long replay and always publishes its final offline r
   assert.ok(reports.length<60)
   runtime.stop()
 })
+
+
+test('hidden startup and repeated pause/resume/stop own at most one timer; no ticks after stop',()=>{
+  let at=now,state=createV9CapitalState(now),foreground=false,writes=0
+  let id=0
+  const queue=new Map<number,()=>void>()
+  const runtime=createV8MarketRuntime({
+    getState:()=>state,setState:next=>{state=next},persist:()=>{writes++;return true},
+    now:()=>at,monotonicNow:()=>0,isForeground:()=>foreground,
+    schedule:cb=>{queue.set(++id,cb);return id as unknown as ReturnType<typeof setTimeout>},
+    cancel:handle=>{queue.delete(handle as unknown as number)},
+  })
+  runtime.start()
+  assert.equal(queue.size,0)
+  assert.equal(writes,0)
+  at+=10_000;foreground=true;runtime.resume();runtime.resume()
+  assert.equal(queue.size,1)
+  assert.equal(state.trading.dividendLastPaidAt,at)
+  for(let i=0;i<20;i++){
+    at+=1000
+    const cb=[...queue.values()][0]!
+    cb()
+    assert.equal(queue.size,1)
+    const before=writes
+    const saved=runtime.pause()
+    assert.equal(queue.size,0)
+    assert.equal(writes-before,saved?1:0)
+    runtime.resume()
+    assert.equal(queue.size,1)
+  }
+  runtime.stop();runtime.stop()
+  assert.equal(queue.size,0)
+  const snapshot=state
+  at+=1000;runtime.wake();runtime.resume()
+  assert.equal(state,snapshot)
+})
+
+test('battery receipt cadence does not alter any exact economic state',()=>{
+  const initial=createV9CapitalState(now)
+  function replay(interval:number){
+    let at=now+300_000,state=initial,clock=0,cb:(()=>void)|undefined
+    let pending=-1
+    const reports:number[]=[]
+    const runtime=createV8MarketRuntime({
+      getState:()=>state,setState:next=>{state=next},persist:()=>true,now:()=>at,
+      monotonicNow:()=>clock+=8,initialOfflineTarget:at,offlineReportIntervalMs:()=>interval,
+      onOfflineReplay:(_s,p)=>{pending=p;reports.push(p)},
+      schedule:callback=>{cb=callback;return 1 as unknown as ReturnType<typeof setTimeout>},
+      cancel:()=>{cb=undefined},
+    })
+    runtime.start()
+    for(let i=0;i<300&&pending!==0;i++)cb!()
+    assert.equal(pending,0)
+    runtime.stop()
+    return {state,reports}
+  }
+  const normal=replay(250),eco=replay(1000)
+  assert.deepEqual(eco.state,normal.state)
+  assert.ok(eco.reports.length<normal.reports.length)
+})

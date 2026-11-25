@@ -2238,5 +2238,5 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .app-shell.battery-saver .banknotes{animation-play-state:paused}
 .app-shell.battery-saver .bundle-shadow{animation:none}
 .app-shell.battery-saver .home-xp-fill{transition:none;box-shadow:none}
-.app-shell.battery-saver .market-asset-row-lite{grid-template-columns:36px minmax(0,1fr) minmax(80px,auto)}
+.app-shell.battery-saver .market-asset-row-lite{gap:10px}
 .app-shell.battery-saver :is(.prestige-overlay,.ascension-confirm-overlay,.fame-shop-overlay),.app-shell.battery-saver .offline-report-dialog::backdrop{backdrop-filter:none}
