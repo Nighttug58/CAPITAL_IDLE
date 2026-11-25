@@ -127,6 +127,7 @@ const clickBoosts = computed(() => {
   return { ...legacy, collectionBps, totalBps: v8BonusBasisPoints(exact.value, 'click') }
 })
 const tapAnimationId = ref(0)
+const documentVisible=ref(!document.hidden)
 const homeClockAt=ref(Date.now())
 let homeClockTimer:ReturnType<typeof setInterval>|null=null
 const clickV4=computed(()=>fameV4Clicks(exact.value))
@@ -927,7 +928,9 @@ function executeMarketFrenzy():MarketActionResult{
 }
 
 function syncMarketVisibility() {
+  documentVisible.value=!document.hidden
   if (document.hidden) {
+    floatingGains.value=[]
     marketRuntime?.pause()
     persist()
     activeSince = null
@@ -938,11 +941,14 @@ function syncMarketVisibility() {
 }
 
 function syncMarketPageShow() {
+  documentVisible.value=!document.hidden
   activeSince = document.hidden ? null : Date.now()
-  marketRuntime?.resume()
+  if(documentVisible.value)marketRuntime?.resume()
 }
 
 function syncMarketPageHide() {
+  documentVisible.value=false
+  floatingGains.value=[]
   marketRuntime?.pause()
   persist()
   activeSince = null
@@ -971,7 +977,7 @@ async function toggleFullscreen() {
 onMounted(() => {
   activeSince = document.hidden ? null : Date.now()
   homeClockAt.value=Date.now()
-  homeClockTimer=setInterval(()=>{if(!document.hidden&&page.value==='home')homeClockAt.value=Date.now()},500)
+  syncHomeClock()
   if(!loadBlocked.value){
     if(boot.ok&&boot.origin!=='new')prepareOfflineReport(Date.now())
     startMarketRuntime()
@@ -982,6 +988,15 @@ onMounted(() => {
   window.addEventListener('pagehide', syncMarketPageHide)
   window.addEventListener('pageshow', syncMarketPageShow)
 })
+
+// Only the visible home with unlocked timed powers needs a UI clock.
+function syncHomeClock(){
+  if(homeClockTimer!==null){clearInterval(homeClockTimer);homeClockTimer=null}
+  if(!documentVisible.value||page.value!=='home'||!clickV4Unlocked.value)return
+  homeClockAt.value=Date.now()
+  homeClockTimer=setInterval(()=>{homeClockAt.value=Date.now()},500)
+}
+watch([documentVisible,page,clickV4Unlocked],syncHomeClock)
 
 // A hidden home must never keep click popups to replay when it is shown again.
 watch(page, (next) => {
@@ -1003,7 +1018,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="appRoot" class="app-shell" @pointerdown.capture="beginPageGesture" @pointermove.capture="movePageGesture"
+  <div ref="appRoot" class="app-shell" :class="{'visuals-suspended':!documentVisible,'banknote-suspended':!!offlineReport||!showMainPage('home')}" @pointerdown.capture="beginPageGesture" @pointermove.capture="movePageGesture"
     @pointerup.capture="endPageGesture" @pointercancel.capture="cancelPageGesture"
     @click.capture="preventSwipeClick" @transitionend.capture="onSlideTransitionEnd">
     <div v-if="loadBlocked" class="save-load-blocked" role="alert">

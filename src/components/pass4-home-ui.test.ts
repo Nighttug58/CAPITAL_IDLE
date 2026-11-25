@@ -211,3 +211,24 @@ describe('Bilan hors ligne au lancement',()=>{
     expect(wrapper.find('.offline-report-dialog').exists()).toBe(false)
   })
 })
+
+
+it('pauses hidden-page visuals and discards in-flight gains without resetting the sprite',async()=>{
+  const wrapper=start()
+  const sprite=wrapper.find('.banknotes').element
+  await wrapper.find('.tap-zone').trigger('click')
+  expect(wrapper.findAll('.floating-gain')).toHaveLength(1)
+  const hidden=vi.spyOn(document,'hidden','get').mockReturnValue(true)
+  try{
+    document.dispatchEvent(new Event('visibilitychange'))
+    await nextTick()
+    expect(wrapper.classes()).toContain('visuals-suspended')
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(0)
+    hidden.mockReturnValue(false)
+    document.dispatchEvent(new Event('visibilitychange'))
+    await nextTick()
+    expect(wrapper.classes()).not.toContain('visuals-suspended')
+    expect(wrapper.find('.banknotes').element).toBe(sprite)
+    expect(wrapper.findAll('.floating-gain')).toHaveLength(0)
+  }finally{hidden.mockRestore()}
+})

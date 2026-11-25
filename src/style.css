@@ -145,7 +145,7 @@ button:disabled { cursor: not-allowed; }
 }
 .tap-zone:active { background: radial-gradient(ellipse 65% 51% at 50% 43%, rgba(190, 135, 54, .29), transparent 82%), #182023; }
 .tap-content { display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; gap: clamp(7px, 1.5dvh, 15px); }
-.banknotes { font-size: clamp(82px, 14dvh, 116px); line-height: 1.22; filter: drop-shadow(0 9px 18px #0008) drop-shadow(0 0 25px #e5b46127); transform: translateZ(0) scale(1); transform-origin: center; transition: transform 120ms cubic-bezier(.2,.7,.2,1); will-change: transform; }
+.banknotes { font-size: clamp(82px, 14dvh, 116px); line-height: 1.22; filter: drop-shadow(0 9px 18px #0008) drop-shadow(0 0 25px #e5b46127); transform: translateZ(0) scale(1); transform-origin: center; transition: transform 120ms cubic-bezier(.2,.7,.2,1); }
 .tap-zone:active .banknotes { transform: translateZ(0) scale(1.14); }
 .banknotes-popping { animation: banknotes-pop 240ms ease-out both; }
 @keyframes banknotes-pop {
@@ -166,7 +166,6 @@ button:disabled { cursor: not-allowed; }
   font-size: clamp(22px, 6vw, 29px);
   white-space: nowrap;
   text-shadow: 0 2px 9px #000, 0 0 16px rgba(255, 205, 107, .52);
-  will-change: transform, opacity;
   animation: coin-rise 600ms cubic-bezier(.22,.72,.31,1) both;
 }
 /* Pixels plutôt que pourcentages : la montée reste nette, quelle que soit la taille du montant. */
@@ -1347,7 +1346,7 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .home-progression .boost-trigger{background:#243630;border:1px solid #486453;border-radius:7px;color:#c5e9d9;padding:6px 9px;cursor:pointer}
 .home-progression .tap-reward{font:inherit;color:inherit;letter-spacing:inherit}
 .banknotes:after{display:none}
-.bundle-shadow{position:absolute;bottom:3px;left:28%;width:44%;height:8px;border-radius:50%;background:#0007;filter:blur(3px)}
+.bundle-shadow{position:absolute;bottom:0;left:25%;width:50%;height:14px;border-radius:50%;background:radial-gradient(ellipse at center,#0007 0%,#0005 35%,transparent 72%)}
 @media(prefers-reduced-motion:no-preference){.bundle-shadow.pulsing{animation:shadow-pulse 180ms ease-out}}
 
 
@@ -2220,3 +2219,14 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 .prestige-v4-challenge button{flex-shrink:0;font-size:10px;font-weight:700}
 .prestige-v4-choices button:disabled,.prestige-v4-confirm button:disabled,.prestige-v4-challenge button:disabled{opacity:.48;cursor:default}
 @media(max-width:420px){.prestige-v4-choices{grid-template-columns:1fr}.prestige-v4-choices button{display:flex;align-items:center;justify-content:space-between;gap:8px}.prestige-v4-choices button small{max-width:68%;text-align:right}}
+
+/* Performance V5: isolate sprite paints, avoid permanently promoted layers,
+   and suspend visual work when the user cannot see the animation. */
+.home-screen .banknotes {contain:paint}
+.app-shell.visuals-suspended .banknotes,
+.app-shell.banknote-suspended .banknotes {animation-play-state:paused}
+.app-shell.visuals-suspended .floating-gain,
+.app-shell.visuals-suspended .bundle-shadow {animation-play-state:paused}
+@media (prefers-reduced-motion:reduce) {
+  .home-screen .banknotes {animation-play-state:paused}
+}
