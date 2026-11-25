@@ -1,4 +1,6 @@
 import test from 'node:test'
+import {createV8MarketRuntime} from './exact-clock-v8.ts'
+import {createV9CapitalState} from './exact-state-v8.ts'
 import assert from 'node:assert/strict'
 import { createCapitalState } from './capital.ts'
 import { convertValidatedV7ToV8, getExactAmount as v, type V8CapitalState } from './exact-state-v8.ts'
@@ -64,4 +66,38 @@ test('V8 remplace une News expirée à la seconde exacte, sans attendre le tick 
   assert.ok(replacement.trading.news.some(item=>item.startedAt===now+2000 &&
     getNewsDirection(item)!=='neutral'))
   assert.equal(replacement.trading.nextNewsAt,first.trading.nextNewsAt)
+})
+
+
+test('live V8 runtime publishes once per tick and checkpoints every five seconds or on pause',()=>{
+  let at=now
+  let state=createV9CapitalState(at)
+  let scheduled:(()=>void)|undefined
+  let writes=0, publications=0
+  const runtime=createV8MarketRuntime({
+    getState:()=>state,setState:next=>{state=next;publications++},
+    persist:()=>{writes++;return true},now:()=>at,
+    schedule:cb=>{scheduled=cb;return 1 as unknown as ReturnType<typeof setTimeout>},
+    cancel:()=>{scheduled=undefined},
+  })
+  runtime.start()
+  // Establish a forced, dirty checkpoint at the first live second.
+  at+=1000;scheduled!();runtime.pause();runtime.resume()
+  const baseline=writes
+  for(let i=0;i<4;i++){
+    const previousPublications=publications
+    at+=1000;scheduled!()
+    assert.equal(publications-previousPublications,1)
+    assert.equal(state.trading.dividendLastPaidAt,at)
+    assert.equal(writes,baseline)
+  }
+  at+=1000;scheduled!()
+  assert.equal(writes,baseline+1)
+  at+=1000;scheduled!()
+  const beforePause=writes
+  runtime.pause()
+  assert.equal(writes,beforePause+1)
+  assert.equal(scheduled,undefined)
+  assert.equal(state.trading.dividendLastPaidAt,at)
+  runtime.stop()
 })
