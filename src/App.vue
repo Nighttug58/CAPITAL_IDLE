@@ -128,6 +128,17 @@ const clickBoosts = computed(() => {
 })
 const tapAnimationId = ref(0)
 const documentVisible=ref(!document.hidden)
+const BATTERY_KEY='capital-idle-battery-saver'
+const batterySaver=ref(false)
+try{batterySaver.value=localStorage.getItem(BATTERY_KEY)==='1'}catch{/* optional device preference */}
+const batteryNotice=ref('')
+function setBatterySaver(enabled:boolean){
+  batterySaver.value=enabled
+  floatingGains.value=[]
+  batteryNotice.value=''
+  try{localStorage.setItem(BATTERY_KEY,enabled?'1':'0')}
+  catch{batteryNotice.value='Mode appliqué pour cette session uniquement : stockage indisponible.'}
+}
 const homeClockAt=ref(Date.now())
 let homeClockTimer:ReturnType<typeof setInterval>|null=null
 const clickV4=computed(()=>fameV4Clicks(exact.value))
@@ -189,7 +200,7 @@ function pageWidth():number {
   return Math.max(1,appRoot.value?.getBoundingClientRect().width || window.innerWidth || 360)
 }
 function motionAllowed():boolean {
-  return typeof window.matchMedia==='function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return !batterySaver.value && typeof window.matchMedia==='function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 function clearSlideHandles() {
   if(slideFrame)cancelAnimationFrame(slideFrame)
@@ -576,6 +587,7 @@ function click(event: MouseEvent) {
   if(gainedCents<=0n)return
   syncExactState(updated)
   persist()
+  if(batterySaver.value)return // only skip visual feedback, never the economic transaction
   const gained=approximateMoneyCents(gainedCents)
   const target=event.currentTarget
   if (!(target instanceof HTMLElement))return
@@ -790,6 +802,7 @@ function startMarketRuntime(){
   marketRuntime=createV8MarketRuntime({
     getState:()=>exact.value,
     isForeground:()=>!document.hidden,
+    offlineReportIntervalMs:()=>batterySaver.value?1000:250,
     setState:syncExactState,
     persist,
     initialOfflineTarget:reportAt,
@@ -994,9 +1007,9 @@ function syncHomeClock(){
   if(homeClockTimer!==null){clearInterval(homeClockTimer);homeClockTimer=null}
   if(!documentVisible.value||page.value!=='home'||!clickV4Unlocked.value)return
   homeClockAt.value=Date.now()
-  homeClockTimer=setInterval(()=>{homeClockAt.value=Date.now()},500)
+  homeClockTimer=setInterval(()=>{homeClockAt.value=Date.now()},batterySaver.value?1000:500)
 }
-watch([documentVisible,page,clickV4Unlocked],syncHomeClock)
+watch([documentVisible,page,clickV4Unlocked,batterySaver],syncHomeClock)
 
 // A hidden home must never keep click popups to replay when it is shown again.
 watch(page, (next) => {
@@ -1018,7 +1031,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="appRoot" class="app-shell" :class="{'visuals-suspended':!documentVisible,'banknote-suspended':!!offlineReport||!showMainPage('home')}" @pointerdown.capture="beginPageGesture" @pointermove.capture="movePageGesture"
+  <div ref="appRoot" class="app-shell" :class="{'battery-saver':batterySaver,'visuals-suspended':!documentVisible,'banknote-suspended':!!offlineReport||!showMainPage('home')}" @pointerdown.capture="beginPageGesture" @pointermove.capture="movePageGesture"
     @pointerup.capture="endPageGesture" @pointercancel.capture="cancelPageGesture"
     @click.capture="preventSwipeClick" @transitionend.capture="onSlideTransitionEnd">
     <div v-if="loadBlocked" class="save-load-blocked" role="alert">
@@ -1194,7 +1207,7 @@ onUnmounted(() => {
       @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />
     <TranscendentShopScreen v-if="page === 'transcendent'" :exact="exact"
       :purchase-branch="executeTranscendentPurchase" :purchase-branch-max="executeTranscendentMaxPurchase" :state="capital" @back="returnToPrestige" />
-    <TradingScreen :purchase-news="purchaseNews" v-show="showMainPage('trading')" v-memo="[showMainPage('trading'), showMainPage('trading') ? exact : null, showMainPage('trading') ? capital : null, showMainPage('trading') ? slide : null, showMainPage('trading') ? drag : null]" :style="mainPageStyle('trading')" :state="capital"
+    <TradingScreen :battery-saver="batterySaver" :purchase-news="purchaseNews" v-show="showMainPage('trading')" v-memo="[showMainPage('trading'), showMainPage('trading') ? exact : null, showMainPage('trading') ? capital : null, showMainPage('trading') ? slide : null, showMainPage('trading') ? drag : null, batterySaver]" :style="mainPageStyle('trading')" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking"
       :set-auto-sell-rule="changeNewsAutoSellRule"
@@ -1205,7 +1218,7 @@ onUnmounted(() => {
     <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact"
       :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase"
       :execute-fame-v4-collection="executeFameV4Collection" />
-    <StatsScreen v-show="showMainPage('stats')" v-memo="[showMainPage('stats'), showMainPage('stats') ? exact : null, showMainPage('stats') ? capital : null, showMainPage('stats') ? slide : null, showMainPage('stats') ? drag : null]" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes" :start-tax-plan="startTaxPlan"
+    <StatsScreen :battery-saver="batterySaver" :battery-notice="batteryNotice" :set-battery-saver="setBatterySaver" v-show="showMainPage('stats')" v-memo="[showMainPage('stats'), showMainPage('stats') ? exact : null, showMainPage('stats') ? capital : null, showMainPage('stats') ? slide : null, showMainPage('stats') ? drag : null, batterySaver,batteryNotice]" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes" :start-tax-plan="startTaxPlan"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">

@@ -3,8 +3,9 @@ import { computed, ref } from 'vue'
 import type { PriceSample, MarketNews } from '../trading/types.ts'
 import { formatChange, formatPrice, historyLowerBound, nearestPriceSample, priceExtremes } from '../trading/presentation.ts'
 import { getNewsPresentation } from '../trading/news.ts'
+import {getSparklineSamples} from '../trading/market.ts'
 
-const props = defineProps<{samples: readonly PriceSample[], news: MarketNews[], average?: number}>()
+const props = defineProps<{samples: readonly PriceSample[], news: MarketNews[], average?: number,batterySaver?:boolean}>()
 defineEmits<{'open-news':[id:string]}>()
 const period = ref(15)
 const cursorX = ref(2)
@@ -21,7 +22,7 @@ const low = computed(() => Math.min(min.value, props.average ?? min.value))
 const high = computed(() => Math.max(max.value, props.average ?? max.value))
 const x = (at:number) => 2 + 304 * (at-start.value)/Math.max(1,end.value-start.value)
 const y = (v:number) => high.value === low.value ? 55 : 9 + 92*(high.value-v)/(high.value-low.value)
-const line = computed(() => points.value.map(p => [x(p.at), y(p.price)].join(',')).join(' '))
+const line = computed(() => (props.batterySaver?getSparklineSamples(points.value,120):points.value).map(p => [x(p.at), y(p.price)].join(',')).join(' '))
 const format = (v:number) => formatPrice(v)
 const time = (at:number) => new Date(at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})
 const delta = computed(() => last.value-firstPrice.value)
@@ -43,8 +44,8 @@ function inspect(e:PointerEvent){
 </div>
   <svg v-if="points.length" viewBox="0 0 432 136" aria-label="Historique du marché" role="img" @pointermove="inspect" @pointerdown="inspect" @pointerleave="inspected=undefined">
     <g v-for="v in [...new Set([min,max])]" :key="v"><line x1="2" x2="306" :y1="y(v)" :y2="y(v)" class="guide"/><text v-if="Math.abs(y(v)-y(last))>12" x="313" :y="y(v)+4">{{format(v)}}</text></g>
-    <g v-memo="[line, last, low, high, delta]" :color="delta<0?'#ff928e':'#72dcac'">
-    <polygon :points="'2,108 '+line+' 306,108'" fill="currentColor" opacity=".09"/><polyline :points="line" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    <g v-memo="[line, last, low, high, delta,batterySaver]" :color="delta<0?'#ff928e':'#72dcac'">
+    <polygon v-if="!batterySaver" :points="'2,108 '+line+' 306,108'" fill="currentColor" opacity=".09"/><polyline :points="line" fill="none" stroke="currentColor" stroke-width="1.8"/>
     <line x1="2" x2="310" :y1="y(last)" :y2="y(last)" stroke="currentColor" stroke-dasharray="2 4"/>
     <text x="313" :y="y(last)+4" fill="currentColor">{{format(last)}}</text></g>
     <line v-if="average!==undefined" x1="2" x2="306" :y1="y(average)" :y2="y(average)" stroke="#ebc674" stroke-dasharray="6 3"/>

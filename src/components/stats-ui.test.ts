@@ -245,3 +245,27 @@ describe('Gestion des sauvegardes dans Stats', () => {
     expect(css).toContain('@media(max-width:360px)')
   })
 })
+
+
+it('battery saver persists across reload, suppresses only visual feedback and can be disabled',async()=>{
+  const first=mount(App,{attachTo:document.body});mounted.push(first)
+  await first.findAll('.bottom-nav button')[5]!.trigger('click')
+  const toggle=first.find('.battery-toggle')
+  expect(toggle.attributes('aria-checked')).toBe('false')
+  await toggle.trigger('click')
+  expect(first.classes()).toContain('battery-saver')
+  expect(localStorage.getItem('capital-idle-battery-saver')).toBe('1')
+  await first.findAll('.bottom-nav button')[0]!.trigger('click')
+  const before=readV8LegacyUI().stats.clickCount
+  await first.find('.tap-zone').trigger('click')
+  expect(readV8LegacyUI().stats.clickCount).toBe(before+1)
+  expect(first.findAll('.floating-gain')).toHaveLength(0)
+  first.unmount();mounted.splice(mounted.indexOf(first),1)
+  const second=mount(App,{attachTo:document.body});mounted.push(second)
+  expect(second.classes()).toContain('battery-saver')
+  await second.findAll('.bottom-nav button')[5]!.trigger('click')
+  expect(second.find('.battery-toggle').attributes('aria-checked')).toBe('true')
+  await second.find('.battery-toggle').trigger('click')
+  expect(second.classes()).not.toContain('battery-saver')
+  expect(localStorage.getItem('capital-idle-battery-saver')).toBe('0')
+})

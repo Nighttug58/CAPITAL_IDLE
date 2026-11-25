@@ -27,6 +27,7 @@ import StakingPanel from './StakingPanel.vue'
 
 const props = defineProps<{
   state: CapitalState
+  batterySaver?:boolean
   purchaseNews?: (id:string|null,count:number,cost:bigint)=>boolean
   exactState?: V8CapitalState
   executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
@@ -230,8 +231,8 @@ onUnmounted(() => {
     </section>
     <section id="trading-content" class="trading-stage">
       <PortfolioPanel v-if="activeTab === 'portfolio'" :state="state" :exact-state="exactState" @open-asset="openAsset" />
-      <AssetList v-else-if="activeTab === 'stocks'" kind="stock" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
-      <AssetList v-else-if="activeTab === 'crypto'" kind="crypto" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
+      <AssetList v-else-if="activeTab === 'stocks'" kind="stock" :battery-saver="batterySaver" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
+      <AssetList v-else-if="activeTab === 'crypto'" kind="crypto" :battery-saver="batterySaver" :quotes="state.trading.quotes" :history="state.trading.history" @open-asset="openAsset" />
       <StakingPanel v-else-if="activeTab === 'staking' && executeStaking"
         :state="state" :execute-staking="executeStaking"
         :exact-state="exactState" :execute-exact-staking="executeExactStaking" />
@@ -273,7 +274,7 @@ onUnmounted(() => {
     </div>
     <div v-if="hasDialog" class="trading-modal-backdrop" @click.self="closeDialog">
       <AssetDialog
-        v-if="selectedAssetId" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
+        v-if="selectedAssetId" :battery-saver="batterySaver" :inert="!!activeNews" :key="selectedAssetId" :state="state" :asset-id="selectedAssetId"
         :execute-trade="executeTrade" :exact-state="exactState" :execute-exact-trade="executeExactTrade"
         :set-auto-sell-rule="setAutoSellRule" :set-fame-v4-stop="setFameV4Stop"
         :set-fame-v4-target="setFameV4Target" @close="closeDialog" @open-news="openNews"

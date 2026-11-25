@@ -26,6 +26,8 @@ export interface V8RuntimeOptions {
  /** Optional fixed launch snapshot; presentation never changes settlement. */
  initialOfflineTarget?:number
  onOfflineReplay?:(state:V8CapitalState,pendingSeconds:number,incomplete:boolean)=>void
+ /** Presentation-only preference; never changes simulation budget or settlement. */
+ offlineReportIntervalMs?:()=>number
 }
 
 export interface V8ReplayBudget {now:()=>number;maxMs:number}
@@ -101,7 +103,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
        const reportClock=monotonicNow()
        // Rendering the detailed receipt can be expensive for large portfolios.
        // Publish the first and final results immediately, at most 4 Hz between.
-       if(forcePersist||replay.pendingSeconds===0||incomplete||reportClock-lastReportAt>=REPLAY_REPORT_INTERVAL_MS){
+       if(forcePersist||replay.pendingSeconds===0||incomplete||reportClock-lastReportAt>=(options.offlineReportIntervalMs?.()??REPLAY_REPORT_INTERVAL_MS)){
          lastReportAt=reportClock
          options.onOfflineReplay?.(options.getState(),replay.pendingSeconds,incomplete)
        }

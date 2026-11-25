@@ -27,6 +27,9 @@ import {formatCompactUnits,formatDecimalUnits,formatFameMicros} from '../large-n
 
 const props = defineProps<{
   state: CapitalState
+  batterySaver?:boolean
+  batteryNotice?:string
+  setBatterySaver?:(enabled:boolean)=>void
   exactState?: V8CapitalState
   payTaxes: () => EarlyTaxPaymentResult
   startTaxPlan: () => boolean
@@ -488,6 +491,15 @@ function pay() {
           </div>
         </div>
         <p v-if="notice" class="stats-tax-notice" role="status">{{ notice }}</p>
+      </section>
+
+      <section v-if="setBatterySaver" class="stats-section stats-performance" aria-label="Performance et batterie">
+        <div class="stats-section-heading"><h2>Performance et batterie</h2></div>
+        <button type="button" class="battery-toggle" role="switch" :aria-checked="!!batterySaver" @click="setBatterySaver?.(!batterySaver)">
+          <span><strong>Économie de batterie</strong><small>Animations réduites, graphiques allégés · aucun impact sur les gains</small></span>
+          <span class="battery-switch" aria-hidden="true"><i></i></span>
+        </button>
+        <p v-if="batteryNotice" class="stats-footnote" role="status">{{ batteryNotice }}</p>
       </section>
 
       <section class="stats-section stats-backup" aria-label="Gestion de la sauvegarde">

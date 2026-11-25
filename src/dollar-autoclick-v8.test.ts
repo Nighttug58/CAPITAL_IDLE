@@ -260,6 +260,7 @@ test('Offline report fixes the launch cutoff, then resumes the normal wall clock
   const reports:{clicks:number;pending:number;last:number}[]=[]
   const runtime=createV8MarketRuntime({
     getState:()=>state,setState:next=>{state=next},persist:()=>true,now:()=>clock,
+    monotonicNow:()=>0, // isolate fixed 256-second slice contract from CPU speed
     initialOfflineTarget:target,onOfflineReplay:(s,pending)=>reports.push({clicks:s.stats.clickCount,pending,last:s.trading.dividendLastPaidAt}),
     schedule:cb=>{callback=cb;return 1 as unknown as ReturnType<typeof setTimeout>},cancel:()=>{}
   })

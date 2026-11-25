@@ -20,6 +20,7 @@ import { fameV4Level, minTrailingDrawdown, allowedTargetPortions, fameV4Trend } 
 
 const props = defineProps<{
   state: CapitalState
+  batterySaver?:boolean
   exactState?: V8CapitalState
   executeExactTrade?: (side: TradeSide, assetId: string, quantity: string) => V8TradeResult
   setAutoSellRule?: (assetId:string,trigger:NewsAutoSellTrigger,enabled:boolean)=>boolean
@@ -283,7 +284,7 @@ function submit() {
         <span :class="change === null ? 'market-direction-flat' : change >= 0 ? 'market-direction-up' : 'market-direction-down'">{{ formatChange(change) }} · 1 h</span>
       </div>
       <div v-if="asset.kind === 'stock'" class="yield-summary">Dividende annuel · {{ formatRate(rate ?? 0) }}</div>
-      <MarketChart :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
+      <MarketChart :battery-saver="batterySaver" :samples="samples" :news="news" :average="average" @open-news="emit('open-news',$event)" />
       <section v-if="exactState && setAutoSellRule" class="asset-auto-sell" aria-label="Ventes automatiques sur news">
         <div class="asset-auto-sell-heading"><strong>Ventes automatiques</strong><small>Pour {{ asset.symbol }} uniquement</small></div>
         <button type="button" class="asset-auto-sell-toggle" :class="{ 'is-on': autoSellPreferences?.greenEnd }"

@@ -2230,3 +2230,13 @@ body:has(.trading-modal-backdrop) .app-shell>main{overflow:hidden}
 @media (prefers-reduced-motion:reduce) {
   .home-screen .banknotes {animation-play-state:paused}
 }
+
+/* Device-local battery saver. No change to economic timers or save format. */
+.battery-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px;border:1px solid #40564c;background:#1c2926;color:#e8efe9;border-radius:10px;text-align:left;cursor:pointer}
+.battery-toggle strong,.battery-toggle small{display:block}.battery-toggle small{font-size:11px;color:#b1c3ba;margin-top:4px;line-height:1.4}
+.battery-switch{flex:none;width:42px;height:24px;border-radius:20px;background:#52605b;padding:3px;display:flex;align-items:center}.battery-switch i{width:18px;height:18px;border-radius:50%;background:#fff}.battery-toggle[aria-checked=true] .battery-switch{background:#27835d;justify-content:flex-end}
+.app-shell.battery-saver .banknotes{animation-play-state:paused}
+.app-shell.battery-saver .bundle-shadow{animation:none}
+.app-shell.battery-saver .home-xp-fill{transition:none;box-shadow:none}
+.app-shell.battery-saver .market-asset-row-lite{grid-template-columns:36px minmax(0,1fr) minmax(80px,auto)}
+.app-shell.battery-saver :is(.prestige-overlay,.ascension-confirm-overlay,.fame-shop-overlay),.app-shell.battery-saver .offline-report-dialog::backdrop{backdrop-filter:none}

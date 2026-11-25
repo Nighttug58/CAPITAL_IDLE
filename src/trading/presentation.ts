@@ -85,6 +85,7 @@ export function getAssetRows(
   kind: 'stock' | 'crypto',
   quotes: TradingState['quotes'],
   history: TradingState['history'],
+  includeSparkline=true,
 ): AssetRow[] {
   return ASSETS.filter((asset) => kind === 'stock' ? asset.kind === 'stock' : asset.kind !== 'stock')
     .map((asset) => {
@@ -94,7 +95,7 @@ export function getAssetRows(
       const changePercent = baseline !== undefined && baseline > 0 ? (price / baseline - 1) * 100 : null
       const direction: Direction = changePercent === null || Math.abs(changePercent) < 1e-10
         ? 'flat' : changePercent > 0 ? 'up' : 'down'
-      return { asset, price, changePercent, direction, sparkline: sparklinePoints(withLiveQuote(series, quotes[asset.id])) }
+      return { asset, price, changePercent, direction, sparkline: includeSparkline?sparklinePoints(withLiveQuote(series, quotes[asset.id])):'' }
     })
 }
 
