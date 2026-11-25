@@ -3,7 +3,7 @@ import test from 'node:test'
 import { ASSETS, createInitialQuotes } from './catalog.ts'
 import {
   formatCash, formatPrice, formatPerSecond, formatQuantity, formatRate, formatChange, formatRemaining,
-  getAssetRows, sparklinePoints, withLiveQuote,
+  getAssetRows, sparklinePoints, withLiveQuote, historyLowerBound, nearestPriceSample, priceExtremes,
 } from './presentation.ts'
 import type { PriceSample } from './types.ts'
 
@@ -141,4 +141,19 @@ test('calcule 45 séries avec 720 points sans données non finies', () => {
 test('extreme free-market prices remain visible instead of rounding to zero', () => {
   assert.match(formatPrice(1e-30), /e-30/)
   assert.match(formatPrice(1e35), /e\+35/)
+})
+
+
+test('detailed chart retains exact samples, boundaries, extremes and earlier ties',()=>{
+ const samples=Array.from({length:720},(_,i)=>({at:NOW+i*5000,price:i===12?0.001:i===420?100000:100+i}))
+ assert.equal(historyLowerBound(samples,NOW-1),0)
+ assert.equal(historyLowerBound(samples,NOW+5001),2)
+ assert.equal(historyLowerBound(samples,NOW+720*5000),720)
+ assert.deepEqual(priceExtremes(samples),{min:.001,max:100000})
+ for(let i=-1;i<=720;i++){
+   const at=NOW+i*5000+2500
+   const expected=samples.reduce((best,p)=>Math.abs(p.at-at)<Math.abs(best.at-at)?p:best)
+   assert.equal(nearestPriceSample(samples,at),expected)
+ }
+ assert.equal(nearestPriceSample([],NOW),undefined)
 })

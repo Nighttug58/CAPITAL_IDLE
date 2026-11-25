@@ -14,7 +14,7 @@ import type { StakingResult } from '../trading/staking.ts'
 import { formatCash, formatPrice } from '../trading/presentation.ts'
 import {formatCompactUnits} from '../large-numbers.ts'
 import {getExactAmount as v} from '../exact-state-v8.ts'
-import { marketNewsEffects, peekUpcomingNews, volatilityRadar } from '../ascension/market-effects.ts'
+import { marketNewsEffects, peekUpcomingNews, volatilityRadarHistory } from '../ascension/market-effects.ts'
 import {newsPowerCost} from '../news-powers.ts'
 import {v4SpendableCents} from '../prestige/fame-v4-tax.ts'
 import {v8MarketNewsEffects} from '../exact-market-v8.ts'
@@ -73,7 +73,12 @@ const upcoming = computed(() => peekUpcomingNews(props.state, props.state.tradin
 const newsFactors = computed(() => props.exactState
   ? v8MarketNewsEffects(props.exactState, props.state.trading.dividendLastPaidAt)
   : marketNewsEffects(props.state, props.state.trading.dividendLastPaidAt))
-const radar = computed(() => volatilityRadar(props.state).slice(0, 3))
+const radarEnabled=computed(()=>props.state.ascension.progress.upgradeLevels['volatility-radar']>0)
+const radarHistory=computed(()=>props.state.trading.history)
+const radar = computed(() => {
+  if(!radarEnabled.value)return []
+  return volatilityRadarHistory(radarHistory.value).slice(0,3)
+})
 const fameNewsRank=computed(()=>props.exactState?fameV4Level(props.exactState,4):0)
 const fameJournalRank=computed(()=>props.exactState?fameV4Level(props.exactState,6):0)
 const activeMarketNews=computed(()=>props.state.trading.news.filter(x=>

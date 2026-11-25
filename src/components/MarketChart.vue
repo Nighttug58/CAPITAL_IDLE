@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PriceSample, MarketNews } from '../trading/types.ts'
-import { formatChange, formatPrice } from '../trading/presentation.ts'
+import { formatChange, formatPrice, historyLowerBound, nearestPriceSample, priceExtremes } from '../trading/presentation.ts'
 import { getNewsPresentation } from '../trading/news.ts'
 
 const props = defineProps<{samples: readonly PriceSample[], news: MarketNews[], average?: number}>()
@@ -10,12 +10,13 @@ const period = ref(15)
 const cursorX = ref(2)
 const inspected = ref<number>()
 const end = computed(() => props.samples.at(-1)?.at ?? 0)
-const points = computed(() => props.samples.filter(p => !period.value || p.at >= end.value - period.value * 60000))
+const points = computed(() => !period.value ? props.samples : props.samples.slice(historyLowerBound(props.samples,end.value-period.value*60000)))
 const start = computed(() => points.value[0]?.at ?? end.value)
 const last = computed(() => points.value.at(-1)?.price ?? 0)
-const prices = computed(() => points.value.map(p => p.price))
-const min = computed(() => Math.min(...prices.value))
-const max = computed(() => Math.max(...prices.value))
+const extremes = computed(()=>priceExtremes(points.value))
+const min = computed(() => extremes.value.min)
+const max = computed(() => extremes.value.max)
+const firstPrice = computed(()=>points.value[0]?.price ?? 0)
 const low = computed(() => Math.min(min.value, props.average ?? min.value))
 const high = computed(() => Math.max(max.value, props.average ?? max.value))
 const x = (at:number) => 2 + 304 * (at-start.value)/Math.max(1,end.value-start.value)
@@ -23,10 +24,10 @@ const y = (v:number) => high.value === low.value ? 55 : 9 + 92*(high.value-v)/(h
 const line = computed(() => points.value.map(p => [x(p.at), y(p.price)].join(',')).join(' '))
 const format = (v:number) => formatPrice(v)
 const time = (at:number) => new Date(at).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})
-const delta = computed(() => last.value-(prices.value[0] ?? 0))
-const variation = computed(() => formatChange(prices.value[0] ? delta.value/prices.value[0]*100 : null))
+const delta = computed(() => last.value-firstPrice.value)
+const variation = computed(() => formatChange(firstPrice.value ? delta.value/firstPrice.value*100 : null))
 const visibleNews = computed(() => props.news.filter(n => n.startedAt >= start.value && n.startedAt <= end.value))
-const selected = computed(() => inspected.value === undefined ? undefined : points.value.reduce<PriceSample|undefined>((best,p) => !best || Math.abs(p.at-inspected.value!) < Math.abs(best.at-inspected.value!) ? p : best,undefined))
+const selected = computed(() => inspected.value === undefined ? undefined : nearestPriceSample(points.value,inspected.value))
 function inspect(e:PointerEvent){
   const svg = e.currentTarget as SVGSVGElement
   const matrix = svg.getScreenCTM()
@@ -42,7 +43,7 @@ function inspect(e:PointerEvent){
 </div>
   <svg v-if="points.length" viewBox="0 0 432 136" aria-label="Historique du marché" role="img" @pointermove="inspect" @pointerdown="inspect" @pointerleave="inspected=undefined">
     <g v-for="v in [...new Set([min,max])]" :key="v"><line x1="2" x2="306" :y1="y(v)" :y2="y(v)" class="guide"/><text v-if="Math.abs(y(v)-y(last))>12" x="313" :y="y(v)+4">{{format(v)}}</text></g>
-    <g :color="delta<0?'#ff928e':'#72dcac'">
+    <g v-memo="[line, last, low, high, delta]" :color="delta<0?'#ff928e':'#72dcac'">
     <polygon :points="'2,108 '+line+' 306,108'" fill="currentColor" opacity=".09"/><polyline :points="line" fill="none" stroke="currentColor" stroke-width="1.8"/>
     <line x1="2" x2="310" :y1="y(last)" :y2="y(last)" stroke="currentColor" stroke-dasharray="2 4"/>
     <text x="313" :y="y(last)+4" fill="currentColor">{{format(last)}}</text></g>

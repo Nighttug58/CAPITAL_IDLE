@@ -102,8 +102,12 @@ export interface VolatilityItem {
 /** Last-hour realized chart dispersion; never invent a prediction or hidden price. */
 export function volatilityRadar(state: CapitalState): readonly VolatilityItem[] {
   if (!state.ascension.progress.upgradeLevels['volatility-radar']) return []
-  return ASSETS.filter(asset => (state.trading.history[asset.id]?.length ?? 0) >= 2).map(asset => {
-    const history = state.trading.history[asset.id] ?? []
+  return volatilityRadarHistory(state.trading.history)
+}
+
+export function volatilityRadarHistory(series:CapitalState['trading']['history']):readonly VolatilityItem[]{
+  return ASSETS.filter(asset => (series[asset.id]?.length ?? 0) >= 2).map(asset => {
+    const history = series[asset.id] ?? []
     const first = history[0]?.price ?? asset.referencePrice
     const last = history[history.length - 1]?.price ?? asset.referencePrice
     let high = first

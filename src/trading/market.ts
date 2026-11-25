@@ -193,6 +193,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true, opt
 
   const quotes: Record<string, MarketQuote> = {}
   const history: Record<string, PriceSample[]> = {}
+  let historyChanged=false
   for (const asset of ASSETS) {
     const current = currentQuotes[asset.id] ?? {
       price: asset.referencePrice,
@@ -209,9 +210,12 @@ export function advanceMarketTick(state: TradingState, recordHistory = true, opt
       const previousSample = series?.[series.length - 1]
       // At ×5 the price may tick each real second, but the 1h chart remains
       // 720 real-time samples rather than shrinking to just 12 minutes.
-      history[asset.id] = previousSample && at - previousSample.at < MARKET_TICK_MS
-        ? series!.slice()
-        : appendSample(series, state.lastTickAt, current.price, at, quote.price, current.dividendYield, quote.dividendYield)
+      if(previousSample && at - previousSample.at < MARKET_TICK_MS) {
+        history[asset.id] = series!
+      } else {
+        historyChanged=true
+        history[asset.id] = appendSample(series, state.lastTickAt, current.price, at, quote.price, current.dividendYield, quote.dividendYield)
+      }
     }
   }
 
@@ -220,7 +224,7 @@ export function advanceMarketTick(state: TradingState, recordHistory = true, opt
     lastTickAt: at,
     seed: random.seed(),
     quotes,
-    history,
+    history: recordHistory && !historyChanged && Object.keys(state.history).length===ASSETS.length ? state.history : history,
     news: events.news,
     nextNewsAt: events.nextNewsAt,
     ...(options.news?.eager ? { upcomingNews: events.upcomingNews } : {}),

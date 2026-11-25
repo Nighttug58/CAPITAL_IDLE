@@ -97,3 +97,34 @@ export function getAssetRows(
       return { asset, price, changePercent, direction, sparkline: sparklinePoints(withLiveQuote(series, quotes[asset.id])) }
     })
 }
+
+
+/** Lower bound over the chronological, unmodified market history. */
+export function historyLowerBound(samples:readonly PriceSample[],at:number):number {
+  let low=0,high=samples.length
+  while(low<high){
+    const mid=low+Math.floor((high-low)/2)
+    if(samples[mid]!.at<at)low=mid+1
+    else high=mid
+  }
+  return low
+}
+
+/** Exact nearest real sample, with the same earlier-point tie rule as a scan. */
+export function nearestPriceSample(samples:readonly PriceSample[],at:number):PriceSample|undefined {
+  if(!samples.length||!Number.isFinite(at))return undefined
+  const i=historyLowerBound(samples,at)
+  if(i===0)return samples[0]
+  const before=samples[i-1]!,after=samples[i]
+  return !after||at-before.at<=after.at-at?before:after
+}
+
+/** One pass, no intermediate array or spread of all prices. */
+export function priceExtremes(samples:readonly PriceSample[]):{min:number;max:number}{
+  let min=Infinity,max=-Infinity
+  for(const sample of samples){
+    min=Math.min(min,sample.price)
+    max=Math.max(max,sample.price)
+  }
+  return {min,max}
+}

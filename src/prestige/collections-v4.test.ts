@@ -151,7 +151,8 @@ test('17: deterministic 24h private offers persist, discount once, no new Fame a
  let state=v4RefreshPrivateOffers(owned,NOW)
  assert.equal(fameV4Collections(state).offers?.items.length,5)
  assert.deepEqual(v4RefreshPrivateOffers(state,NOW+2_000),state)
- const offer=fameV4Collections(state).offers!.items[0]!
+ const offer=fameV4Collections(state).offers!.items.find(item=>!item.used&&v4PrivateDiscountBps(state,item.itemId,NOW)>0)
+ assert.ok(offer,'At least one unconsumed private offer remains after buying two items')
  const price=v4CollectionPriceCents(state,offer.itemId)!
  const base=BigInt(CURRENT_COLLECTION_SLOTS.find(x=>x.id===offer.itemId)!.priceCents)
  assert.equal(price,base*95n/100n)
