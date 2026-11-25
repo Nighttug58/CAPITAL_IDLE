@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { getLevelStartThreshold, getLevel } from './game.ts'
 import { getExactLevel, getExactLevelStartThreshold, getExactLevelProgress, LAST_SAFE_XP_LEVEL,
-  getExactV3Level, getExactV3LevelStartThreshold, rebaseV3ExperienceCents } from './exact-levels.ts'
+  getExactV3Level, getExactV3LevelStartThreshold, rebaseV3ExperienceCents, getExactLevelNear } from './exact-levels.ts'
 
 test('BigInt XP exactly matches the original curve until the first unsafe threshold', () => {
   for (const level of [1,2,5,50,100,200,500,1000,LAST_SAFE_XP_LEVEL-1,LAST_SAFE_XP_LEVEL]) {
@@ -58,4 +58,18 @@ test('XP V3 -> V4 rebase preserves level and fractional advancement without Fame
     }
   }
   assert.ok(getExactLevel(rebaseV3ExperienceCents(10n**200n)) > 1)
+})
+
+
+test('level hints never change XP boundaries and fall back on stale hints',()=>{
+  for(const level of [1,2,49,50,51,100,200,LAST_SAFE_XP_LEVEL,LAST_SAFE_XP_LEVEL+1,10_000]){
+    const start=getExactLevelStartThreshold(level)*100n
+    const end=getExactLevelStartThreshold(level+1)*100n
+    for(const xp of [start,start+(end-start)/2n,end-1n,end]){
+      const expected=getExactLevel(xp)
+      assert.equal(getExactLevelNear(xp,level),expected)
+      assert.equal(getExactLevelNear(xp,1),expected)
+      assert.equal(getExactLevelNear(xp,0),expected)
+    }
+  }
 })

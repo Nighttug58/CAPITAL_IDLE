@@ -6,7 +6,7 @@
  */
 import type { V8CapitalState } from './exact-state-v8.ts'
 import { getExactAmount as v, withExactAmount as s } from './exact-state-v8.ts'
-import { getExactLevel } from './exact-levels.ts'
+import { getExactLevel, getExactLevelNear } from './exact-levels.ts'
 import { getClickValue, UPGRADES } from './game.ts'
 import { CURRENT_COLLECTION_SLOTS, currentCollectionId, getCollectionSlot, getVersionedPurchasedFameCost,getV9PurchasedFameCost } from './prestige/catalog.ts'
 import type { FameBoostId } from './prestige/catalog.ts'
@@ -62,12 +62,18 @@ function xpAward(state: V8CapitalState, newCents: bigint): V8CapitalState {
   if (newCents <= 0n) return state
   const scaled = v8ScaleRewardCents(newCents, v8ExactRewardRate(state, 'xp'), state.prestige.experienceCarryBps)
   const experienceCents = v(state.prestige.experienceCents) + scaled.amount
-  const newLevel = getExactLevel(experienceCents)
+  const oldLevel = state.prestige.lastAwardedLevel
+  const newLevel = getExactLevelNear(experienceCents,oldLevel)
   const highest = state.ascension.progress.highestFameAwardedLevel
   const updatedHighest = Math.max(highest, newLevel)
   // Fame is awarded for crossing a level ONCE IN THIS CYCLE. The historical
   // highest level remains an achievement record, never a Fame gate.
-  const oldLevel = state.prestige.lastAwardedLevel
+  // No level crossing: zero Fame reward, so skip the expensive Fame rate
+  // and decimal conversions without altering the ledger or XP carry.
+  if(newLevel===oldLevel && updatedHighest===highest) return {
+    ...state,prestige:{...state.prestige,
+      experienceCents:s(experienceCents),experienceCarryBps:scaled.carryBps},
+  }
   const fameBaseMicros = (
     BigInt(newLevel) * (BigInt(newLevel) + 1n) -
     BigInt(oldLevel) * (BigInt(oldLevel) + 1n)
@@ -679,17 +685,18 @@ function v8AccrueEnterpriseSegment(state:V8CapitalState,now:number):V8CapitalSta
   const elapsed=now-state.enterprises.lastAccruedAt
   if(elapsed<=0)return state
   let rate=0n
+  let sharedBps:number|undefined
   for(const [id,holding] of Object.entries(state.enterprises.owned)) {
     const micros=getEnterpriseIncomeMicrosPerSecondExact(id,holding.level)
     if(micros!==null){
-      const v4bps=Math.min(10_000,enterpriseV4BonusBps(state,id,state.enterprises.lastAccruedAt)+
-        v4CollectionsBonusBps(state,'enterprise',state.enterprises.lastAccruedAt)+
-        v4PrestigeBonusBps(state,'enterprise',state.enterprises.lastAccruedAt))
+      sharedBps??=v4CollectionsBonusBps(state,'enterprise',state.enterprises.lastAccruedAt)+
+        v4PrestigeBonusBps(state,'enterprise',state.enterprises.lastAccruedAt)
+      const v4bps=Math.min(10_000,enterpriseV4BonusBps(state,id,state.enterprises.lastAccruedAt)+sharedBps)
       rate+=micros*BigInt(10_000+v4bps)/10_000n
     }
   }
-  const enterpriseRate=v8ExactRewardRate(state,'enterprise')
-  const nano=rate*BigInt(elapsed)*enterpriseRate.numerator/enterpriseRate.denominator +
+  const enterpriseRate=rate===0n?null:v8ExactRewardRate(state,'enterprise')
+  const nano=(enterpriseRate===null?0n:rate*BigInt(elapsed)*enterpriseRate.numerator/enterpriseRate.denominator) +
     (state.enterprises.revenueCarryNanoCents!==undefined ? v(state.enterprises.revenueCarryNanoCents):
       BigInt(Math.round(state.enterprises.revenueCarryCents*10_000_000)))
   const earned=nano/10_000_000n

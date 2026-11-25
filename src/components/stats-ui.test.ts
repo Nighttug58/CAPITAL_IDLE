@@ -125,7 +125,7 @@ describe('Stats : progression et patrimoine complet', () => {
     expect(stored.stats.earnedBySource.clicks).toBe(1)
     expect(stored.stats.earnedBySource.unclassified).toBe(100)
     expect(stored.game.lifetimeEarned).toBe(101)
-    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+    await wrapper.findAll('.bottom-nav button')[5]!.trigger('click')
     expect(wrapper.find('.stats-source[data-source="clicks"]').text()).toContain('1')
     expect(wrapper.find('.stats-progress').text()).toContain('501 XP')
   })
@@ -162,7 +162,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     localStorage.setItem('capital-idle-save-v4', JSON.stringify({ version: 4, game: original.game, trading: original.trading }))
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
-    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+    await wrapper.findAll('.bottom-nav button')[5]!.trigger('click')
 
     await wrapper.find('.backup-reset').trigger('click')
     expect(wrapper.find('.backup-reset-confirm').exists()).toBe(true)
@@ -200,7 +200,7 @@ describe('Gestion des sauvegardes dans Stats', () => {
     seedLegacyUIFixtureAsV9(original)
     const wrapper = mount(App, { attachTo: document.body })
     mounted.push(wrapper)
-    await wrapper.findAll('.bottom-nav button')[4]!.trigger('click')
+    await wrapper.findAll('.bottom-nav button')[5]!.trigger('click')
     const encoded = JSON.stringify({
       format: 'CAPITAL_IDLE_SAVE', formatVersion: 1, exportedAt: now - 30_000, state: prepareLegacyUIFixtureAsV9(loaded),
     })

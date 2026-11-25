@@ -40,13 +40,15 @@ export function v8DividendPicoCents(trading:V8TradingState):bigint {
   let total=0n
   for(const asset of STOCKS){
     const position=trading.positions[asset.id]
-    if(!position || v(position.quantity)<=0n)continue
+    if(!position)continue
+    const quantity=v(position.quantity)
+    if(quantity<=0n)continue
     const yieldNow=trading.quotes[asset.id]?.dividendYield??asset.initialDividendYield
     if(yieldNow===null)continue
     const refPrice=quoteToExactFraction(asset.referencePrice)
     const yieldRate=quoteToExactFraction(yieldNow)
     if(!refPrice||!yieldRate)continue
-    const numerator=v(position.quantity)*refPrice.numerator*yieldRate.numerator*100n*PICO_CENTS
+    const numerator=quantity*refPrice.numerator*yieldRate.numerator*100n*PICO_CENTS
     const denominator=10n**BigInt(asset.quantityDecimals)*refPrice.denominator*yieldRate.denominator*YEAR_SECONDS
     total+=numerator/denominator
   }
@@ -98,17 +100,21 @@ export function v8AdvanceMarketSecond(state:V8CapitalState,recordHistory=true):V
     })
     trading = {...trading,seed:random.seed(),news:trimNews([...liveNews,emergency],at)}
   }
-  const bonus=v8ExactRewardRate(state,'dividend')
   const carry=trading.dividendCarryPicoCents!==undefined?v(trading.dividendCarryPicoCents):
     BigInt(Math.round(trading.dividendCarry*Number(PICO_CENTS)))
   const pending=v(trading.dividendPendingCents)
   // Add Fame V4 direct + diversification to the historical dividend reward once.
   // The absolute Fame multiplier is restricted to the six classic powers.
-  const newV4Bps=Math.min(4500,v4DividendBonusBps(state)+
-    v4CollectionsBonusBps(state,'dividend',previous)+
-    v4PrestigeBonusBps(state,'dividend',previous))
-  const earnedPico=v8DividendPicoCents(trading)*bonus.numerator*
-    BigInt(10_000+newV4Bps)/(bonus.denominator*10_000n)
+  const grossPico=v8DividendPicoCents(trading)
+  let earnedPico=0n
+  if(grossPico>0n){
+    const bonus=v8ExactRewardRate(state,'dividend')
+    const newV4Bps=Math.min(4500,v4DividendBonusBps(state)+
+      v4CollectionsBonusBps(state,'dividend',previous)+
+      v4PrestigeBonusBps(state,'dividend',previous))
+    earnedPico=grossPico*bonus.numerator*
+      BigInt(10_000+newV4Bps)/(bonus.denominator*10_000n)
+  }
   const total=carry+pending*PICO_CENTS+earnedPico
   const due=total/PICO_CENTS
   const rem=total%PICO_CENTS

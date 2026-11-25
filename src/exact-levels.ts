@@ -25,16 +25,31 @@ for (let level = 2; ; level++) {
 export const LAST_SAFE_XP_LEVEL = boundaryLevel
 
 /** The original XP V3 thresholds (dollars) must NEVER be repriced. */
+// Bounded cache for recurring binary-search probes; do not retain giant
+// thresholds from extreme saves. All values depend solely on the immutable curve.
+const thresholdCache = new Map<number,bigint>()
+const MAX_THRESHOLD_CACHE = 256
+const MAX_CACHED_LEVEL = 50_000
 export function getExactV3LevelStartThreshold(level: number): bigint {
   if (!Number.isSafeInteger(level) || level < 1) throw new RangeError('Invalid XP level')
   if (level <= boundaryLevel) return BigInt(getLevelStartThreshold(level))
+  const cached = thresholdCache.get(level)
+  if (cached !== undefined) return cached
   const k = BigInt(level - boundaryLevel)
   const p101 = 101n ** k
   const p100 = 100n ** k
   const first = (boundaryIncrement * 101n + 50n) / 100n
-  const denominator = 100n ** (k - 1n)
+  const denominator = p100 / 100n
   const increment = (first * (p101 - p100) + denominator / 2n) / denominator
-  return boundaryThreshold + increment
+  const result = boundaryThreshold + increment
+  if (level <= MAX_CACHED_LEVEL) {
+    if (thresholdCache.size >= MAX_THRESHOLD_CACHE) {
+      const oldest = thresholdCache.keys().next().value
+      if (oldest !== undefined) thresholdCache.delete(oldest)
+    }
+    thresholdCache.set(level,result)
+  }
+  return result
 }
 
 /** Current XP V4 thresholds (dollars): monotone and joined at 50/100/200. */
@@ -73,6 +88,14 @@ export function getExactV3Level(experienceCents: bigint): number {
 }
 export function getExactLevel(experienceCents: bigint): number {
   return getLevelFor(experienceCents, getExactLevelStartThreshold)
+}
+
+/** Validated hint: most income credits do not cross an XP threshold. */
+export function getExactLevelNear(experienceCents: bigint, hint: number): number {
+  if (Number.isSafeInteger(hint) && hint >= 1 && hint < Number.MAX_SAFE_INTEGER &&
+      experienceCents >= getExactLevelStartThreshold(hint) * 100n &&
+      experienceCents < getExactLevelStartThreshold(hint+1) * 100n) return hint
+  return getExactLevel(experienceCents)
 }
 
 /** Round proportionally within the existing level, never to a higher level. */
