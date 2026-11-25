@@ -108,7 +108,8 @@ test('live V8 runtime publishes once per tick and checkpoints every five seconds
 test('time-budgeted replay preserves exact dividends, market seed, automatic sales and fiscal ledger',()=>{
   const base=createV9CapitalState(now)
   const funded={...base,game:{...base.game,balance:'1000000000',lifetimeEarned:'1000000000'}}
-  const purchase=v8BuyTrade(funded,'nvideo','5')
+  // Use enough stock to earn whole cents before the automatic sale.
+  const purchase=v8BuyTrade(funded,'nvideo','500')
   assert.ok(purchase.ok)
   const enabled=setNewsAutoSellRule(purchase.state,'nvideo','greenEnd',true)
   assert.ok(enabled)
