@@ -3,6 +3,9 @@ import {mount,type VueWrapper} from '@vue/test-utils'
 import {nextTick} from 'vue'
 import {readFileSync} from 'node:fs'
 import App from '../App.vue'
+import TradingScreen from './TradingScreen.vue'
+import EnterpriseScreen from './EnterpriseScreen.vue'
+import StatsScreen from './StatsScreen.vue'
 import {PRIMARY_PAGES,adjacentPage,nextPageToward,shouldCompleteSwipe,isSwipeDirectionHorizontal} from '../navigation/swipe.ts'
 
 let wrapper:VueWrapper|null=null
@@ -174,4 +177,24 @@ describe('Navigation horizontale V1',()=>{
     expect(w.find('main.home-screen').isVisible()).toBe(true)
     chart.remove()
   })
+})
+
+
+it('freezes hidden screen props and refreshes the active screen on navigation',async()=>{
+  const w=openApp()
+  const trading=w.findComponent(TradingScreen)
+  const enterprises=w.findComponent(EnterpriseScreen)
+  const stats=w.findComponent(StatsScreen)
+  const previous=trading.props('exactState')
+  const previousEnterprise=enterprises.props('exactState')
+  const previousStats=stats.props('exactState')
+  await w.find('.tap-zone').trigger('click')
+  expect(trading.props('exactState')).toBe(previous)
+  expect(enterprises.props('exactState')).toBe(previousEnterprise)
+  expect(stats.props('exactState')).toBe(previousStats)
+  await w.findAll('.bottom-nav button')[1]!.trigger('click')
+  expect(trading.isVisible()).toBe(true)
+  expect(trading.props('exactState')).not.toBe(previous)
+  expect(enterprises.props('exactState')).toBe(previousEnterprise)
+  expect(stats.props('exactState')).toBe(previousStats)
 })
