@@ -1179,18 +1179,18 @@ onUnmounted(() => {
       @back="returnHomeFromPrestige" @open-transcendent="openTranscendentShop" />
     <TranscendentShopScreen v-if="page === 'transcendent'" :exact="exact"
       :purchase-branch="executeTranscendentPurchase" :purchase-branch-max="executeTranscendentMaxPurchase" :state="capital" @back="returnToPrestige" />
-    <TradingScreen :purchase-news="purchaseNews" v-show="showMainPage('trading')" :style="mainPageStyle('trading')" :state="capital"
+    <TradingScreen :purchase-news="purchaseNews" v-show="showMainPage('trading')" v-memo="[showMainPage('trading'), showMainPage('trading') ? exact : null, showMainPage('trading') ? capital : null, showMainPage('trading') ? slide : null, showMainPage('trading') ? drag : null]" :style="mainPageStyle('trading')" :state="capital"
       :execute-trade="executeTrade" :execute-staking="executeStaking"
       :exact-state="exact" :execute-exact-trade="executeExactTrade" :execute-exact-staking="executeExactStaking"
       :set-auto-sell-rule="changeNewsAutoSellRule"
       :set-fame-v4-stop="changeFameV4Stop" :set-fame-v4-target="changeFameV4Target" />
-    <EnterpriseScreen v-show="showMainPage('enterprises')" :style="mainPageStyle('enterprises')"
+    <EnterpriseScreen v-show="showMainPage('enterprises')" v-memo="[showMainPage('enterprises'), showMainPage('enterprises') ? exact : null, showMainPage('enterprises') ? capital : null, showMainPage('enterprises') ? slide : null, showMainPage('enterprises') ? drag : null]" :style="mainPageStyle('enterprises')"
       :state="capital" :exact-state="exact" :execute-enterprise="executeEnterprise"
       :execute-enterprise-max="executeEnterpriseMax" :execute-fame-v4-enterprise="executeFameV4Enterprise" />
     <CollectionScreen v-if="showMainPage('collection')" :style="mainPageStyle('collection')" :state="exact"
       :purchase-collection="executeCollectionPurchase" :purchase-collection-max="executeCollectionMaxPurchase"
       :execute-fame-v4-collection="executeFameV4Collection" />
-    <StatsScreen v-show="showMainPage('stats')" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes" :start-tax-plan="startTaxPlan"
+    <StatsScreen v-show="showMainPage('stats')" v-memo="[showMainPage('stats'), showMainPage('stats') ? exact : null, showMainPage('stats') ? capital : null, showMainPage('stats') ? slide : null, showMainPage('stats') ? drag : null]" :style="mainPageStyle('stats')" :state="capital" :exact-state="exact" :pay-taxes="payTaxes" :start-tax-plan="startTaxPlan"
       :export-save="exportSave" :import-save="importSave" :reset-save="resetSave" />
 
     <nav class="bottom-nav" aria-label="Navigation principale">

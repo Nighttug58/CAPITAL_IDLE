@@ -51,6 +51,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
  let started=false,paused=false,processing=false,dirty=false,lastPersistedAt=0
  let timer:ReturnType<typeof setTimeout>|null=null
  let reportTarget=options.initialOfflineTarget
+ let replaying=false
  const clear=()=>{if(timer!==null){cancel(timer);timer=null}}
  function saveIfDirty(force=false){
    if(!dirty)return
@@ -67,13 +68,21 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
      const current=options.getState()
      // Passive cash must be visible and persisted even with a long market backlog.
      const passive=v8SettlePassiveIncome(current,timestamp)
-     if(passive!==current){options.setState(passive);dirty=true}
-     if(forcePersist)saveIfDirty(true)
-     const staked=v8SettleStaking(options.getState(),timestamp)
+     // Only publish the intermediate passive state when a forced checkpoint
+     // (boot/resume) needs it before potentially expensive market replay.
+     if(forcePersist){
+       if(passive!==current){options.setState(passive);dirty=true}
+       saveIfDirty(true)
+     }
+     const staked=v8SettleStaking(forcePersist?options.getState():passive,timestamp)
      const replay=catchUpV8(staked,timestamp)
      const final=replay.state
      if(final!==options.getState()){options.setState(final);dirty=true}
-     saveIfDirty(replay.pendingSeconds===0)
+     // Normal live ticks respect the five-second save interval. Force a
+     // checkpoint when starting/resuming or finishing an actual replay.
+     const replayFinished=replay.pendingSeconds===0 && (replaying || reportTarget!==undefined)
+     replaying=replay.pendingSeconds>0
+     saveIfDirty((forcePersist && replay.pendingSeconds===0)||replayFinished)
      if(reportTarget!==undefined){
        const incomplete=replay.pendingSeconds>0&&replay.processedSeconds===0
        options.onOfflineReplay?.(options.getState(),replay.pendingSeconds,incomplete)
