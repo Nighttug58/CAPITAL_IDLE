@@ -181,3 +181,21 @@ test('gravity corrects extreme quotes on all three markets without ownership or 
     assert.deepEqual(restoreTradingState(JSON.parse(JSON.stringify(state)), state.lastTickAt), state)
   }
 })
+
+
+test('accelerated quote ticks share unchanged chart history and preserve prior snapshots',()=>{
+  const first=advanceMarketTick(createInitialTradingState(START,42))
+  const original=JSON.stringify(first.history)
+  let state=first
+  for(let i=1;i<5;i++){
+    const next=advanceMarketTick(state,true,{realAt:first.lastTickAt+i*1000,speed:5})
+    assert.equal(next.history,first.history)
+    assert.notEqual(next.quotes,state.quotes)
+    assert.equal(next.quotes.nvideo!.updatedAt,first.lastTickAt+i*1000)
+    state=next
+  }
+  const sampled=advanceMarketTick(state,true,{realAt:first.lastTickAt+5000,speed:5})
+  assert.notEqual(sampled.history,first.history)
+  assert.equal(sampled.history.nvideo!.at(-1)!.at,first.lastTickAt+5000)
+  assert.equal(JSON.stringify(first.history),original)
+})
