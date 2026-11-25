@@ -74,7 +74,7 @@ export function createV8MarketRuntime(options:V8RuntimeOptions){
        if(passive!==current){options.setState(passive);dirty=true}
        saveIfDirty(true)
      }
-     const staked=v8SettleStaking(passive,timestamp)
+     const staked=v8SettleStaking(forcePersist?options.getState():passive,timestamp)
      const replay=catchUpV8(staked,timestamp)
      const final=replay.state
      if(final!==options.getState()){options.setState(final);dirty=true}
